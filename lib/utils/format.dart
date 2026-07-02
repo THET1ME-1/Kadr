@@ -84,6 +84,9 @@ String dateTimeShort(DateTime d) =>
 /// «18.10.2023» — числовой формат ДД.ММ.ГГГГ.
 String numericDate(DateTime d) => '${_two(d.day)}.${_two(d.month)}.${d.year}';
 
+/// «20:45» — только время.
+String hhmm(DateTime d) => '${_two(d.hour)}:${_two(d.minute)}';
+
 /// «18.10.2023 11:31» — с точным временем, если оно задано (не полночь),
 /// иначе только дата.
 String dateExactWithTime(DateTime d) {

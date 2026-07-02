@@ -114,6 +114,7 @@ class _SeriesSheetState extends State<_SeriesSheet> {
                   label: Text(tr('act_favorite')),
                 ),
               ),
+              ..._episodesSection(scheme, s),
               if (s.review != null && s.review!.trim().isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
@@ -134,6 +135,194 @@ class _SeriesSheetState extends State<_SeriesSheet> {
           ),
         );
       },
+    );
+  }
+
+  // ---- список серий по сезонам, у каждой своя оценка ----
+  List<Widget> _episodesSection(ColorScheme scheme, LibrarySeries s) {
+    if (s.episodes.isEmpty) return [];
+    final bySeason = <int?, List<Episode>>{};
+    for (final ep in s.episodes) {
+      bySeason.putIfAbsent(ep.season, () => []).add(ep);
+    }
+    final keys = bySeason.keys.toList()
+      ..sort((a, b) => (a ?? 9999).compareTo(b ?? 9999));
+    final out = <Widget>[
+      const SizedBox(height: 20),
+      Text('${tr('episodes_section')} · ${s.episodes.length}',
+          style: TextStyle(
+              fontFamily: AppTheme.displayFont,
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              color: scheme.primary)),
+    ];
+    for (final k in keys) {
+      final eps = bySeason[k]!
+        ..sort((a, b) {
+          final an = a.number ?? 0, bn = b.number ?? 0;
+          if (an != bn) return an.compareTo(bn);
+          final ad = a.watchedAt, bd = b.watchedAt;
+          if (ad == null || bd == null) return 0;
+          return ad.compareTo(bd);
+        });
+      if (k != null) {
+        out.add(Padding(
+          padding: const EdgeInsets.fromLTRB(2, 14, 2, 6),
+          child: Text(trf('season_n', {'n': k}),
+              style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                  color: scheme.onSurfaceVariant)),
+        ));
+      } else {
+        out.add(const SizedBox(height: 8));
+      }
+      out.addAll(eps.map((ep) => _episodeRow(scheme, s, ep)));
+    }
+    return out;
+  }
+
+  Widget _episodeRow(ColorScheme scheme, LibrarySeries s, Episode ep) {
+    final sc = ep.score;
+    final label = ep.number != null
+        ? 'E${ep.number}'
+        : (ep.watchedAt != null ? numericDate(ep.watchedAt!) : tr('when_unknown'));
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => _rateEpisode(s, ep),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+        child: Row(
+          children: [
+            Icon(Icons.play_circle_outline_rounded,
+                size: 18, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 10),
+            SizedBox(
+                width: 46,
+                child: Text(label,
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: scheme.onSurface))),
+            if (ep.watchedAt != null)
+              Text('${numericDate(ep.watchedAt!)} ${hhmm(ep.watchedAt!)}',
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 11.5,
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.8))),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                  color: sc != null
+                      ? scheme.primaryContainer
+                      : scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(16)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(sc != null ? Icons.star_rounded : Icons.star_border_rounded,
+                      size: 14,
+                      color: sc != null
+                          ? scheme.onPrimaryContainer
+                          : scheme.onSurfaceVariant),
+                  const SizedBox(width: 3),
+                  Text(sc != null ? sc.toStringAsFixed(1) : '—',
+                      style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
+                          color: sc != null
+                              ? scheme.onPrimaryContainer
+                              : scheme.onSurfaceVariant)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _rateEpisode(LibrarySeries s, Episode ep) {
+    final scheme = Theme.of(context).colorScheme;
+    double val = ep.score ?? 7.0;
+    bool rated = ep.score != null;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: scheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 14),
+                Text(ep.label,
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                        color: scheme.onSurface)),
+                const SizedBox(height: 6),
+                Text(rated ? val.toStringAsFixed(1) : '—',
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 44,
+                        color: rated ? scheme.primary : scheme.onSurfaceVariant)),
+                Slider(
+                  value: val,
+                  min: 1,
+                  max: 10,
+                  divisions: 90,
+                  label: val.toStringAsFixed(1),
+                  onChanged: (x) => setSheet(() {
+                    val = x;
+                    rated = true;
+                  }),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          _repo.setEpisodeScore(s.tvShowId, ep, null);
+                          Navigator.pop(sheetCtx);
+                        },
+                        child: Text(tr('remove_score')),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () {
+                          _repo.setEpisodeScore(
+                              s.tvShowId, ep, rated ? val : null);
+                          Navigator.pop(sheetCtx);
+                        },
+                        child: Text(tr('done')),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

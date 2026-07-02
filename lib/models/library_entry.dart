@@ -233,13 +233,111 @@ class LibraryMovie {
       };
 }
 
+/// Один просмотр эпизода сериала (со своей датой и оценкой — как фильм).
+class Episode {
+  int? season;
+  int? number;
+  DateTime? watchedAt;
+  int? runtimeMin;
+  double? score;
+  String? epId;
+
+  Episode({
+    this.season,
+    this.number,
+    this.watchedAt,
+    this.runtimeMin,
+    this.score,
+    this.epId,
+  });
+
+  /// Метка «S1E5» / «Серия 5» / «Эпизод».
+  String get label {
+    if (season != null && number != null) return 'S$season·E$number';
+    if (number != null) return 'Серия $number';
+    return 'Эпизод';
+  }
+
+  static DateTime? _parse(dynamic v) {
+    if (v == null) return null;
+    final d = DateTime.tryParse('$v');
+    if (d == null || d.millisecondsSinceEpoch <= 0) return null;
+    return d;
+  }
+
+  factory Episode.fromJson(Map<String, dynamic> j) => Episode(
+        season: (j['season'] as num?)?.toInt(),
+        number: (j['number'] as num?)?.toInt(),
+        watchedAt: _parse(j['watchedAt']),
+        runtimeMin: (j['runtimeMin'] as num?)?.toInt(),
+        score: (j['score'] as num?)?.toDouble(),
+        epId: j['epId'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'season': season,
+        'number': number,
+        'watchedAt': watchedAt?.toIso8601String(),
+        'runtimeMin': runtimeMin,
+        'score': score,
+        'epId': epId,
+      };
+}
+
+/// Сессия просмотра — эпизоды сериала, просмотренные подряд (запоем).
+class EpisodeSession {
+  final LibrarySeries series;
+  final List<Episode> episodes; // отсортированы по времени
+
+  EpisodeSession(this.series, this.episodes);
+
+  DateTime? get start {
+    DateTime? best;
+    for (final e in episodes) {
+      final d = e.watchedAt;
+      if (d == null) continue;
+      if (best == null || d.isBefore(best)) best = d;
+    }
+    return best;
+  }
+
+  DateTime? get end {
+    DateTime? best;
+    for (final e in episodes) {
+      final d = e.watchedAt;
+      if (d == null) continue;
+      if (best == null || d.isAfter(best)) best = d;
+    }
+    return best;
+  }
+
+  int get count => episodes.length;
+
+  /// Средняя оценка по оценённым эпизодам сессии (или null).
+  double? get avgScore {
+    final s = episodes.map((e) => e.score).whereType<double>().toList();
+    if (s.isEmpty) return null;
+    return s.reduce((a, b) => a + b) / s.length;
+  }
+
+  /// Диапазон серий: «S1·E1–E5» или «5 серий».
+  String get rangeLabel {
+    final nums = episodes.map((e) => e.number).whereType<int>().toList()..sort();
+    if (nums.length >= 2 && episodes.first.season == episodes.last.season) {
+      final s = episodes.first.season;
+      final prefix = s != null ? 'S$s·' : '';
+      return '$prefix E${nums.first}–E${nums.last}';
+    }
+    return episodes.length == 1 ? episodes.first.label : '${episodes.length} сер.';
+  }
+}
+
 /// Сериал в библиотеке.
 class LibrarySeries {
   final String tvShowId;
   String title;
   String? ruTitle;
-  int episodesSeen;
-  List<DateTime> viewings;
+  List<Episode> episodes;
   bool favorite;
   double? score;
   String? review;
@@ -253,8 +351,7 @@ class LibrarySeries {
     required this.tvShowId,
     required this.title,
     this.ruTitle,
-    this.episodesSeen = 0,
-    List<DateTime>? viewings,
+    List<Episode>? episodes,
     this.favorite = false,
     this.score,
     this.review,
@@ -263,39 +360,78 @@ class LibrarySeries {
     this.kpRating,
     this.enrichTried = false,
     this.posterUrl,
-  }) : viewings = viewings ?? [];
+  }) : episodes = episodes ?? [];
 
-  DateTime? get lastWatch => viewings.isEmpty ? null : viewings.last;
+  int get episodesSeen => episodes.length;
+
+  DateTime? get lastWatch {
+    DateTime? best;
+    for (final e in episodes) {
+      final d = e.watchedAt;
+      if (d == null) continue;
+      if (best == null || d.isAfter(best)) best = d;
+    }
+    return best;
+  }
+
   String get displayTitle =>
       (ruTitle != null && ruTitle!.isNotEmpty) ? ruTitle! : title;
 
-  static List<DateTime> _dates(dynamic v) => (v as List? ?? [])
-      .map((e) => DateTime.tryParse('$e'))
-      .whereType<DateTime>()
-      .toList();
+  /// Разбивка на сессии: эпизоды, просмотренные с перерывом ≤ [gap], — вместе.
+  List<EpisodeSession> sessions(
+      {Duration gap = const Duration(hours: 3)}) {
+    final dated = episodes.where((e) => e.watchedAt != null).toList()
+      ..sort((a, b) => a.watchedAt!.compareTo(b.watchedAt!));
+    final undated = episodes.where((e) => e.watchedAt == null).toList();
+    final result = <EpisodeSession>[];
+    var cur = <Episode>[];
+    DateTime? last;
+    for (final e in dated) {
+      if (last != null && e.watchedAt!.difference(last) > gap) {
+        result.add(EpisodeSession(this, cur));
+        cur = [];
+      }
+      cur.add(e);
+      last = e.watchedAt;
+    }
+    if (cur.isNotEmpty) result.add(EpisodeSession(this, cur));
+    if (undated.isNotEmpty) result.add(EpisodeSession(this, undated));
+    return result;
+  }
 
-  factory LibrarySeries.fromJson(Map<String, dynamic> j) => LibrarySeries(
-        tvShowId: '${j['tvShowId']}',
-        title: j['title'] as String? ?? '',
-        ruTitle: j['ruTitle'] as String?,
-        episodesSeen: (j['episodesSeen'] as num?)?.toInt() ?? 0,
-        viewings: _dates(j['viewings']),
-        favorite: j['favorite'] == true,
-        score: (j['score'] as num?)?.toDouble(),
-        review: j['review'] as String?,
-        kinopoiskId: (j['kinopoiskId'] as num?)?.toInt(),
-        tmdbId: (j['tmdbId'] as num?)?.toInt(),
-        kpRating: (j['kpRating'] as num?)?.toDouble(),
-        enrichTried: j['enrichTried'] == true,
-        posterUrl: j['posterUrl'] as String?,
-      );
+  factory LibrarySeries.fromJson(Map<String, dynamic> j) {
+    List<Episode> eps;
+    if (j['episodes'] != null) {
+      eps = (j['episodes'] as List)
+          .map((e) => Episode.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } else {
+      // Старый формат: список дат-просмотров → эпизоды без номеров.
+      eps = (j['viewings'] as List? ?? [])
+          .map((v) => Episode(watchedAt: Episode._parse(v)))
+          .toList();
+    }
+    return LibrarySeries(
+      tvShowId: '${j['tvShowId']}',
+      title: j['title'] as String? ?? '',
+      ruTitle: j['ruTitle'] as String?,
+      episodes: eps,
+      favorite: j['favorite'] == true,
+      score: (j['score'] as num?)?.toDouble(),
+      review: j['review'] as String?,
+      kinopoiskId: (j['kinopoiskId'] as num?)?.toInt(),
+      tmdbId: (j['tmdbId'] as num?)?.toInt(),
+      kpRating: (j['kpRating'] as num?)?.toDouble(),
+      enrichTried: j['enrichTried'] == true,
+      posterUrl: j['posterUrl'] as String?,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'tvShowId': tvShowId,
         'title': title,
         'ruTitle': ruTitle,
-        'episodesSeen': episodesSeen,
-        'viewings': [for (final d in viewings) d.toIso8601String()],
+        'episodes': [for (final e in episodes) e.toJson()],
         'favorite': favorite,
         'score': score,
         'review': review,
@@ -307,18 +443,19 @@ class LibrarySeries {
       };
 }
 
-/// Элемент ленты «Просмотрено»: либо просмотр фильма, либо сериал.
+/// Элемент ленты «Просмотрено»: либо просмотр фильма, либо СЕССИЯ сериала
+/// (серии, просмотренные подряд одним блоком).
 class WatchedEntry {
   final LibraryMovie? movie;
   final Viewing? viewing;
-  final LibrarySeries? series;
-  const WatchedEntry.movie(this.movie, this.viewing) : series = null;
-  const WatchedEntry.series(this.series)
+  final EpisodeSession? session;
+  const WatchedEntry.movie(this.movie, this.viewing) : session = null;
+  const WatchedEntry.session(this.session)
       : movie = null,
         viewing = null;
 
-  bool get isSeries => series != null;
-  DateTime? get date => isSeries ? series!.lastWatch : viewing?.date;
+  bool get isSeries => session != null;
+  DateTime? get date => isSeries ? session!.start : viewing?.date;
 }
 
 /// Пользовательский список фильмов.

@@ -107,6 +107,21 @@ class MovieRepository extends ChangeNotifier {
         if (sj['enrichTried'] == true) cur.enrichTried = true;
       }
     }
+
+    // Сериалы: если эпизоды без структуры (старый формат дат) — берём полные
+    // эпизоды с сезонами/номерами из сида; обогащение и оценки сохраняем.
+    final bySeries = {for (final s in _series) s.tvShowId: s};
+    for (final j in (seed['series'] as List? ?? [])) {
+      final sj = j as Map<String, dynamic>;
+      final cur = bySeries['${sj['tvShowId']}'];
+      if (cur == null) continue;
+      final structured = cur.episodes.any((e) => e.season != null);
+      if (!structured && sj['episodes'] != null) {
+        cur.episodes = (sj['episodes'] as List)
+            .map((e) => Episode.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+    }
   }
 
   void _ingest(Map<String, dynamic> data) {
@@ -241,7 +256,9 @@ class MovieRepository extends ChangeNotifier {
     }
     if (series) {
       for (final s in _series) {
-        add(s.lastWatch, WatchedEntry.series(s));
+        for (final sess in s.sessions()) {
+          add(sess.start, WatchedEntry.session(sess));
+        }
       }
     }
     final keys = months.keys.toList()
@@ -284,6 +301,16 @@ class MovieRepository extends ChangeNotifier {
     final s = seriesById(id);
     if (s == null) return;
     s.favorite = !s.favorite;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Оценка конкретного эпизода сериала.
+  Future<void> setEpisodeScore(
+      String seriesId, Episode ep, double? score) async {
+    final s = seriesById(seriesId);
+    if (s == null || !s.episodes.contains(ep)) return;
+    ep.score = score;
     notifyListeners();
     await _persist();
   }

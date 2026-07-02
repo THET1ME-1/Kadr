@@ -132,22 +132,36 @@ for r in rows("tracking-prod-records-v2.csv"):
         continue
     key = sid or name
     s = series.setdefault(key, {
-        'tvShowId': sid, 'title': name, 'episodesSeen': 0, 'viewings': [],
+        'tvShowId': sid, 'title': name, 'episodes': [],
     })
     created = (r.get('created_at') or '').strip()
-    if (r.get('ep_id') or '').strip() and created:
-        s['episodesSeen'] += 1
-        s['viewings'].append(created)
+    epid = (r.get('ep_id') or '').strip()
+    if epid and created:
+        sn = (r.get('season_number') or '').strip()
+        en = (r.get('ep_no') or r.get('episode_number') or '').strip()
+        rt = (r.get('runtime') or '').strip()
+        s['episodes'].append({
+            'season': int(sn) if sn.isdigit() else None,
+            'number': int(en) if en.isdigit() else None,
+            'watchedAt': created,
+            'runtimeMin': round(int(rt) / 60) if rt.isdigit() and int(rt) > 0 else None,
+            'epId': epid,
+        })
 
 series_list = []
 for key, s in series.items():
     d = utd.get(s['tvShowId'], {})
     s['favorite'] = (d.get('is_favorited') == 'true')
-    s['nbEpisodesSeen'] = int(d['nb_episodes_seen']) if (d.get('nb_episodes_seen') or '').isdigit() else s['episodesSeen']
-    s['viewings'] = sorted(set(s['viewings']))
-    s['firstWatch'] = s['viewings'][0] if s['viewings'] else None
-    s['lastWatch'] = s['viewings'][-1] if s['viewings'] else None
-    s['addedAt'] = s['firstWatch']
+    # дедуп по (epId, watchedAt) + сортировка по времени
+    seen = set()
+    uniq = []
+    for e in sorted(s['episodes'], key=lambda e: e['watchedAt']):
+        k = (e['epId'], e['watchedAt'])
+        if k in seen:
+            continue
+        seen.add(k)
+        uniq.append(e)
+    s['episodes'] = uniq
     s['review'] = review_by_name.get(s['title'])
     series_list.append(s)
 
@@ -166,13 +180,13 @@ data = {
             'movieViewings': sum(len(m['viewings']) for m in movie_list),
             'series': len(series_list),
             'seriesFavorite': sum(1 for s in series_list if s['favorite']),
-            'episodeViewings': sum(len(s['viewings']) for s in series_list),
+            'episodeViewings': sum(len(s['episodes']) for s in series_list),
             'lists': len(lists_out),
             'reviews': len(review_by_name),
         },
     },
     'movies': sorted(movie_list, key=lambda m: (m['viewings'][-1] if m['viewings'] else ''), reverse=True),
-    'series': sorted(series_list, key=lambda s: (s['lastWatch'] or ''), reverse=True),
+    'series': sorted(series_list, key=lambda s: (s['episodes'][-1]['watchedAt'] if s['episodes'] else ''), reverse=True),
     'lists': lists_out,
 }
 json.dump(data, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
@@ -186,4 +200,4 @@ for m in data['movies'][:6]:
     print(f"  {m['title'][:38]:38} {m['year']} · {m['runtimeMin']}м · балл={m['score']} {em} · просмотров={len(m['viewings'])}")
 print("\n-- сериалы --")
 for s in data['series'][:5]:
-    print(f"  {s['title'][:38]:38} эп.={s['episodesSeen']} fav={s['favorite']} last={s['lastWatch']}")
+    print(f"  {s['title'][:38]:38} эп.={len(s['episodes'])} fav={s['favorite']} last={s['episodes'][-1]['watchedAt'] if s['episodes'] else '—'}")

@@ -53,7 +53,7 @@ for mv in lib['movies']:
         n_ru += 1
 
 # версия сида — чтобы приложение подхватило обогащение при обновлении
-lib.setdefault('meta', {})['seedVersion'] = 3
+lib.setdefault('meta', {})['seedVersion'] = 4
 json.dump(lib, open(LIB, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 
 print(f"обогащено из дампа: kp_id={n_kp}, русских названий={n_ru}, постеров={n_poster}")

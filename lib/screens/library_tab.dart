@@ -38,8 +38,9 @@ class _LibraryTabState extends State<LibraryTab> {
       _q.isEmpty ||
       s.displayTitle.toLowerCase().contains(_q) ||
       s.title.toLowerCase().contains(_q);
-  bool _matchEntry(WatchedEntry e) =>
-      e.isSeries ? _matchSeries(e.series!) : _matchMovie(e.movie!);
+  bool _matchEntry(WatchedEntry e) => e.isSeries
+      ? _matchSeries(e.session!.series)
+      : _matchMovie(e.movie!);
 
   @override
   Widget build(BuildContext context) {
@@ -110,7 +111,7 @@ class _LibraryTabState extends State<LibraryTab> {
   }
 
   Widget _entryRow(WatchedEntry e) {
-    if (e.isSeries) return _SeriesRow(series: e.series!);
+    if (e.isSeries) return _SeriesSessionCard(session: e.session!);
     final movie = e.movie!;
     final viewing = e.viewing!;
     final ordinal = movie.sortedViewings.indexOf(viewing) + 1;
@@ -201,15 +202,18 @@ class _LibraryTabState extends State<LibraryTab> {
       );
 }
 
-/// Строка сериала во вкладке «Просмотрено».
-class _SeriesRow extends StatelessWidget {
-  final LibrarySeries series;
-  const _SeriesRow({required this.series});
+/// Блок сессии сериала во вкладке «Просмотрено»: серии, просмотренные подряд,
+/// одной карточкой (как фильм) + список серий внутри, у каждой своя оценка.
+class _SeriesSessionCard extends StatelessWidget {
+  final EpisodeSession session;
+  const _SeriesSessionCard({required this.session});
+
+  LibrarySeries get s => session.series;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final date = series.lastWatch;
+    final start = session.start;
     return Reveal(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
@@ -217,79 +221,283 @@ class _SeriesRow extends StatelessWidget {
           color: scheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(22),
           clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () => showSeriesSheet(context, series),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Row(
-                children: [
-                  Stack(
+          child: Column(
+            children: [
+              InkWell(
+                onTap: () => showSeriesSheet(context, s),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Row(
                     children: [
-                      Poster(
-                          title: series.displayTitle,
-                          url: series.posterUrl,
-                          width: 58),
-                      Positioned(
-                        left: 4,
-                        top: 4,
-                        child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                              color: scheme.tertiary,
-                              borderRadius: BorderRadius.circular(8)),
-                          child: Icon(Icons.live_tv_rounded,
-                              size: 12, color: scheme.onTertiary),
-                        ),
+                      Stack(
+                        children: [
+                          Poster(
+                              title: s.displayTitle,
+                              url: s.posterUrl,
+                              width: 58),
+                          Positioned(
+                            left: 4,
+                            top: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                  color: scheme.tertiary,
+                                  borderRadius: BorderRadius.circular(8)),
+                              child: Icon(Icons.live_tv_rounded,
+                                  size: 12, color: scheme.onTertiary),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(series.displayTitle,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontFamily: AppTheme.displayFont,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                                height: 1.1,
-                                color: scheme.onSurface)),
-                        const SizedBox(height: 4),
-                        Row(
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (series.favorite)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: Icon(Icons.favorite_rounded,
-                                    size: 15, color: scheme.primary),
-                              ),
-                            Text(trf('episodes_n', {'n': series.episodesSeen}),
+                            Text(s.displayTitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                    fontFamily: AppTheme.bodyFont,
-                                    fontSize: 13,
-                                    color: scheme.onSurfaceVariant)),
+                                    fontFamily: AppTheme.displayFont,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                    height: 1.1,
+                                    color: scheme.onSurface)),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                if (s.favorite)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 6),
+                                    child: Icon(Icons.favorite_rounded,
+                                        size: 15, color: scheme.primary),
+                                  ),
+                                Flexible(
+                                  child: Text(
+                                      '${session.rangeLabel} · ${session.count} сер.',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                          fontFamily: AppTheme.bodyFont,
+                                          fontSize: 13,
+                                          color: scheme.onSurfaceVariant)),
+                                ),
+                              ],
+                            ),
+                            if (start != null) ...[
+                              const SizedBox(height: 3),
+                              Text(dateExactWithTime(start),
+                                  style: TextStyle(
+                                      fontFamily: AppTheme.bodyFont,
+                                      fontSize: 12,
+                                      color: scheme.onSurfaceVariant
+                                          .withValues(alpha: 0.85))),
+                            ],
                           ],
                         ),
-                        if (date != null) ...[
-                          const SizedBox(height: 3),
-                          Text(dateExactWithTime(date),
-                              style: TextStyle(
-                                  fontFamily: AppTheme.bodyFont,
-                                  fontSize: 12,
-                                  color: scheme.onSurfaceVariant
-                                      .withValues(alpha: 0.85))),
-                        ],
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 10),
+                      _scoreBadge(scheme, session.avgScore),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  _scoreBadge(scheme, series.score),
+                ),
+              ),
+              Divider(
+                  height: 1,
+                  thickness: 1,
+                  indent: 16,
+                  endIndent: 16,
+                  color: scheme.surfaceContainerHighest),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 10, 8),
+                child: Column(
+                  children: [
+                    for (final ep in session.episodes.take(12))
+                      _EpisodeRow(seriesId: s.tvShowId, ep: ep),
+                    if (session.episodes.length > 12)
+                      InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => showSeriesSheet(context, s),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 4),
+                          child: Row(
+                            children: [
+                              Icon(Icons.expand_more_rounded,
+                                  size: 18, color: scheme.primary),
+                              const SizedBox(width: 8),
+                              Text(
+                                  trf('more_episodes',
+                                      {'n': session.episodes.length - 12}),
+                                  style: TextStyle(
+                                      fontFamily: AppTheme.bodyFont,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      color: scheme.primary)),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Строка одного эпизода в блоке сессии — с оценкой (тап → поставить).
+class _EpisodeRow extends StatelessWidget {
+  final String seriesId;
+  final Episode ep;
+  const _EpisodeRow({required this.seriesId, required this.ep});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final sc = ep.score;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => _rate(context),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        child: Row(
+          children: [
+            Icon(Icons.play_circle_outline_rounded,
+                size: 18, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 64,
+              child: Text(ep.label,
+                  style: TextStyle(
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: scheme.onSurface)),
+            ),
+            if (ep.watchedAt != null)
+              Text(hhmm(ep.watchedAt!),
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 12,
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.8))),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: sc != null
+                    ? scheme.primaryContainer
+                    : scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                      sc != null
+                          ? Icons.star_rounded
+                          : Icons.star_border_rounded,
+                      size: 14,
+                      color: sc != null
+                          ? scheme.onPrimaryContainer
+                          : scheme.onSurfaceVariant),
+                  const SizedBox(width: 3),
+                  Text(sc != null ? sc.toStringAsFixed(1) : '—',
+                      style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
+                          color: sc != null
+                              ? scheme.onPrimaryContainer
+                              : scheme.onSurfaceVariant)),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _rate(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    double val = ep.score ?? 7.0;
+    bool rated = ep.score != null;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: scheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 14),
+                Text(ep.label,
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                        color: scheme.onSurface)),
+                const SizedBox(height: 6),
+                Text(rated ? val.toStringAsFixed(1) : '—',
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 44,
+                        color:
+                            rated ? scheme.primary : scheme.onSurfaceVariant)),
+                Slider(
+                  value: val,
+                  min: 1,
+                  max: 10,
+                  divisions: 90,
+                  label: val.toStringAsFixed(1),
+                  onChanged: (x) => setSheet(() {
+                    val = x;
+                    rated = true;
+                  }),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          MovieRepository.instance
+                              .setEpisodeScore(seriesId, ep, null);
+                          Navigator.pop(sheetCtx);
+                        },
+                        child: Text(tr('remove_score')),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () {
+                          MovieRepository.instance
+                              .setEpisodeScore(seriesId, ep, rated ? val : null);
+                          Navigator.pop(sheetCtx);
+                        },
+                        child: Text(tr('done')),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
