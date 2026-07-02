@@ -5,7 +5,9 @@ import '../services/movie_repository.dart';
 import '../theme/app_theme.dart';
 import 'discover_tab.dart';
 import 'library_tab.dart';
+import 'lists_screen.dart';
 import 'settings_screen.dart';
+import 'statistics_screen.dart';
 
 /// Главная оболочка: четыре вкладки снизу (как в референсе — Буду смотреть /
 /// Просмотрено / Обзор / В кино) + выезжающее меню. Содержимое вкладок пока
@@ -214,10 +216,16 @@ class _KadrDrawer extends StatelessWidget {
         }),
         _drawerTile(context, Icons.search_rounded, tr('drawer_search'),
             () => Navigator.pop(context)),
-        _drawerTile(context, Icons.insights_rounded, tr('drawer_stats'),
-            () => Navigator.pop(context)),
-        _drawerTile(context, Icons.list_alt_rounded, tr('drawer_lists'),
-            () => Navigator.pop(context)),
+        _drawerTile(context, Icons.insights_rounded, tr('drawer_stats'), () {
+          Navigator.pop(context);
+          Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const StatisticsScreen()));
+        }),
+        _drawerTile(context, Icons.list_alt_rounded, tr('drawer_lists'), () {
+          Navigator.pop(context);
+          Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const ListsScreen()));
+        }),
         const Divider(indent: 28, endIndent: 28, height: 24),
         _drawerTile(context, Icons.settings_rounded, tr('drawer_settings'), () {
           Navigator.pop(context);
