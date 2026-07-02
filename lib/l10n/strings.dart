@@ -151,6 +151,13 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Your watchlist is empty'
   },
   'lib_count': {'ru': 'Всего: {n}', 'en': 'Total: {n}'},
+  'sort_newest': {'ru': 'Сначала новые', 'en': 'Newest first'},
+  'sort_oldest': {'ru': 'Сначала старые', 'en': 'Oldest first'},
+  'nav_series': {'ru': 'Сериалы', 'en': 'Series'},
+  'episodes_n': {'ru': '{n} серий', 'en': '{n} episodes'},
+  'filter_all': {'ru': 'Все', 'en': 'All'},
+  'filter_movies': {'ru': 'Фильмы', 'en': 'Movies'},
+  'filter_series': {'ru': 'Сериалы', 'en': 'Series'},
   'rewatch': {'ru': 'Повтор', 'en': 'Rewatch'},
   'rewatch_full': {'ru': 'Повторный просмотр', 'en': 'Rewatched'},
   'rewatches_n': {'ru': 'Повторов: {n}', 'en': 'Rewatches: {n}'},

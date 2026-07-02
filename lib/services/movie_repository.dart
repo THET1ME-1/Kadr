@@ -73,6 +73,8 @@ class MovieRepository extends ChangeNotifier {
         await Store.instance.setInt('enrichVersion', 2);
         await _persist();
       }
+      _watchlistNewestFirst =
+          await Store.instance.getBool('watchlistNewestFirst', def: true);
     } catch (e) {
       debugPrint('MovieRepository.load error: $e');
     }
@@ -87,8 +89,15 @@ class MovieRepository extends ChangeNotifier {
     for (final j in (seed['movies'] as List? ?? [])) {
       final sj = j as Map<String, dynamic>;
       final cur = byId['${sj['uuid']}'];
-      if (cur == null || cur.kinopoiskId != null) continue;
-      if (sj['kinopoiskId'] != null) {
+      if (cur == null) continue;
+      // Дата добавления — дозаполняем всегда (для сортировки «Буду смотреть»).
+      if (cur.addedAt == null && sj['addedAt'] != null) {
+        cur.addedAt = DateTime.tryParse('${sj['addedAt']}');
+      }
+      // Обогащение — только если фильм ещё не обогащён никаким источником.
+      if (cur.kinopoiskId == null &&
+          cur.tmdbId == null &&
+          sj['kinopoiskId'] != null) {
         cur.kinopoiskId = (sj['kinopoiskId'] as num).toInt();
         cur.posterUrl ??= sj['posterUrl'] as String?;
         cur.ruTitle ??= sj['ruTitle'] as String?;
@@ -164,9 +173,28 @@ class MovieRepository extends ChangeNotifier {
     return list;
   }
 
-  /// «Буду смотреть».
-  List<LibraryMovie> get watchlist =>
-      _movies.where((m) => m.status == LibraryStatus.watchlist).toList();
+  bool _watchlistNewestFirst = true;
+  bool get watchlistNewestFirst => _watchlistNewestFirst;
+
+  Future<void> toggleWatchlistOrder() async {
+    _watchlistNewestFirst = !_watchlistNewestFirst;
+    notifyListeners();
+    await Store.instance.setBool('watchlistNewestFirst', _watchlistNewestFirst);
+  }
+
+  /// «Буду смотреть» — по дате добавления (новые сверху; порядок разворачивается).
+  List<LibraryMovie> get watchlist {
+    final list =
+        _movies.where((m) => m.status == LibraryStatus.watchlist).toList();
+    list.sort((a, b) {
+      final da = a.addedAt, db = b.addedAt;
+      if (da == null && db == null) return 0;
+      if (da == null) return 1; // без даты — в конец
+      if (db == null) return -1;
+      return db.compareTo(da); // новые сверху
+    });
+    return _watchlistNewestFirst ? list : list.reversed.toList();
+  }
 
   List<LibraryMovie> get favorites =>
       _movies.where((m) => m.favorite).toList();
@@ -190,7 +218,75 @@ class MovieRepository extends ChangeNotifier {
     return [for (final k in keys) MapEntry(months[k]!, map[k]!)];
   }
 
+  /// Лента «Просмотрено» с фильмами И сериалами (фильтруется), по месяцам.
+  List<MapEntry<DateTime, List<WatchedEntry>>> watchedEntriesByMonth(
+      {bool movies = true, bool series = true}) {
+    final map = <String, List<WatchedEntry>>{};
+    final months = <String, DateTime>{};
+    void add(DateTime? d, WatchedEntry e) {
+      final key = d == null
+          ? 'unknown'
+          : '${d.year}-${d.month.toString().padLeft(2, '0')}';
+      months[key] = d == null ? DateTime(1) : DateTime(d.year, d.month);
+      map.putIfAbsent(key, () => []).add(e);
+    }
+
+    if (movies) {
+      for (final m in _movies) {
+        if (m.status != LibraryStatus.watched) continue;
+        for (final v in m.viewings) {
+          add(v.date, WatchedEntry.movie(m, v));
+        }
+      }
+    }
+    if (series) {
+      for (final s in _series) {
+        add(s.lastWatch, WatchedEntry.series(s));
+      }
+    }
+    final keys = months.keys.toList()
+      ..sort((a, b) => months[b]!.compareTo(months[a]!));
+    final result = <MapEntry<DateTime, List<WatchedEntry>>>[];
+    for (final k in keys) {
+      final list = map[k]!
+        ..sort((a, b) {
+          final da = a.date, db = b.date;
+          if (da == null && db == null) return 0;
+          if (da == null) return 1;
+          if (db == null) return -1;
+          return db.compareTo(da);
+        });
+      result.add(MapEntry(months[k]!, list));
+    }
+    return result;
+  }
+
+  int get seriesCount => _series.length;
+
   // ------------------------------ мутации ------------------------------
+
+  LibrarySeries? seriesById(String id) {
+    for (final s in _series) {
+      if (s.tvShowId == id) return s;
+    }
+    return null;
+  }
+
+  Future<void> setSeriesScore(String id, double? score) async {
+    final s = seriesById(id);
+    if (s == null) return;
+    s.score = score;
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> toggleSeriesFavorite(String id) async {
+    final s = seriesById(id);
+    if (s == null) return;
+    s.favorite = !s.favorite;
+    notifyListeners();
+    await _persist();
+  }
 
   LibraryMovie? byUuid(String uuid) {
     for (final m in _movies) {
@@ -306,6 +402,7 @@ class MovieRepository extends ChangeNotifier {
     final now = DateTime.now();
     if (existing != null) {
       existing.status = status;
+      existing.addedAt ??= now;
       if (status == LibraryStatus.watched) {
         existing.viewings.add(Viewing(date: now));
       }
@@ -320,6 +417,7 @@ class MovieRepository extends ChangeNotifier {
         kpRating: t.rating,
         enrichTried: true,
         status: status,
+        addedAt: now,
         viewings: status == LibraryStatus.watched ? [Viewing(date: now)] : [],
       ));
     }
@@ -328,9 +426,12 @@ class MovieRepository extends ChangeNotifier {
   }
 
   /// Статус фильма в библиотеке по tmdbId (null — если ещё не добавлен).
-  LibraryStatus? statusOfTmdb(int id) {
+  LibraryStatus? statusOfTmdb(int id) => movieByTmdb(id)?.status;
+
+  /// Фильм библиотеки по tmdbId (null — если ещё не добавлен).
+  LibraryMovie? movieByTmdb(int id) {
     for (final m in _movies) {
-      if (m.tmdbId == id) return m.status;
+      if (m.tmdbId == id) return m;
     }
     return null;
   }
@@ -342,6 +443,7 @@ class MovieRepository extends ChangeNotifier {
     m.status = m.status == LibraryStatus.watchlist
         ? LibraryStatus.library
         : LibraryStatus.watchlist;
+    if (m.status == LibraryStatus.watchlist) m.addedAt = DateTime.now();
     notifyListeners();
     await _persist();
   }
@@ -397,11 +499,41 @@ class MovieRepository extends ChangeNotifier {
     }
   }
 
+  /// Обогащает сериал (русское название + постер из TMDB).
+  Future<bool> enrichSeries(LibrarySeries s) async {
+    if (s.posterUrl != null || s.enrichTried) return true;
+    try {
+      final match = await TmdbService.searchTv(s.title);
+      s.enrichTried = true;
+      if (match != null) {
+        s.tmdbId = match.tmdbId;
+        s.posterUrl = match.posterUrl;
+        s.kpRating = match.rating;
+        if (match.ruName != null && match.ruName!.isNotEmpty) {
+          s.ruTitle = match.ruName;
+        }
+      }
+      notifyListeners();
+      _persistSoon();
+      return true;
+    } on SourceLimitException {
+      _limitHit = true;
+      s.enrichTried = false;
+      return false;
+    } catch (e) {
+      debugPrint('enrichSeries error ${s.title}: $e');
+      return true;
+    }
+  }
+
   /// Повторить обогащение для необогащённых (напр. после смены источника).
   Future<void> retryUnmatched() async {
     _limitHit = false;
     for (final m in _movies) {
       if (m.posterUrl == null) m.enrichTried = false;
+    }
+    for (final s in _series) {
+      if (s.posterUrl == null) s.enrichTried = false;
     }
     await _persist();
     await startEnrichSweep();
@@ -410,7 +542,7 @@ class MovieRepository extends ChangeNotifier {
   /// Фоновая дозагрузка: обогащает фильмы порциями, начиная с того, что
   /// пользователь видит первым (свежие просмотры → список → остальное).
   /// Останавливается на суточном лимите. [budget] — максимум запросов за проход.
-  Future<void> startEnrichSweep({int budget = 190}) async {
+  Future<void> startEnrichSweep({int budget = 450, int seriesBudget = 250}) async {
     if (_sweeping || _limitHit) return;
     _sweeping = true;
     try {
@@ -427,7 +559,22 @@ class MovieRepository extends ChangeNotifier {
         used++;
         if (!ok) break; // лимит
         _persistSoon();
-        await Future<void>.delayed(const Duration(milliseconds: 320));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+      // Сериалы — отдельный бюджет (не голодают за фильмами).
+      if (!_limitHit) {
+        var sUsed = 0;
+        final sQueue = _series
+            .where((s) => s.posterUrl == null && !s.enrichTried)
+            .toList();
+        for (final s in sQueue) {
+          if (sUsed >= seriesBudget) break;
+          final ok = await enrichSeries(s);
+          sUsed++;
+          if (!ok) break;
+          _persistSoon();
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+        }
       }
     } finally {
       await _persist();

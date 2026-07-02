@@ -101,7 +101,7 @@ class _DiscoverTabState extends State<DiscoverTab>
 
   Widget _card(TmdbMovie m, double w) {
     final scheme = Theme.of(context).colorScheme;
-    final inLib = MovieRepository.instance.statusOfTmdb(m.id) != null;
+    final lib = MovieRepository.instance.movieByTmdb(m.id);
     return SizedBox(
       width: w,
       child: GestureDetector(
@@ -112,18 +112,8 @@ class _DiscoverTabState extends State<DiscoverTab>
             Stack(
               children: [
                 Poster(title: m.title, url: m.posterUrl, width: w, radius: 16),
-                if (inLib)
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                          color: scheme.primary, shape: BoxShape.circle),
-                      child: Icon(Icons.check_rounded,
-                          size: 14, color: scheme.onPrimary),
-                    ),
-                  ),
+                if (lib != null)
+                  Positioned(top: 6, right: 6, child: _statusBadge(scheme, lib)),
               ],
             ),
             const SizedBox(height: 6),
@@ -160,6 +150,41 @@ class _DiscoverTabState extends State<DiscoverTab>
           ],
         ),
       ),
+    );
+  }
+
+  /// Значок статуса в ленте: просмотрено → галочка + моя оценка; в списке →
+  /// закладка.
+  Widget _statusBadge(ColorScheme scheme, LibraryMovie lib) {
+    if (lib.status == LibraryStatus.watched) {
+      final sc = lib.currentScore;
+      return Container(
+        padding: EdgeInsets.symmetric(horizontal: sc != null ? 8 : 5, vertical: 4),
+        decoration: BoxDecoration(
+            color: scheme.primary, borderRadius: BorderRadius.circular(20)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_rounded, size: 14, color: scheme.onPrimary),
+            if (sc != null) ...[
+              const SizedBox(width: 3),
+              Text(sc.toStringAsFixed(1),
+                  style: TextStyle(
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                      color: scheme.onPrimary)),
+            ],
+          ],
+        ),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.all(5),
+      decoration:
+          BoxDecoration(color: scheme.secondaryContainer, shape: BoxShape.circle),
+      child: Icon(Icons.bookmark_rounded,
+          size: 14, color: scheme.onSecondaryContainer),
     );
   }
 

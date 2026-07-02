@@ -119,6 +119,53 @@ class TmdbService {
     );
   }
 
+  /// Поиск сериала (для обогащения сериалов русским названием + постером).
+  static Future<SourceMatch?> searchTv(String title, {int? year}) async {
+    final uri = Uri.parse('${ApiConfig.tmdbBase}/search/tv')
+        .replace(queryParameters: {
+      'query': title,
+      'language': 'ru-RU',
+      'include_adult': 'true',
+      if (year != null) 'first_air_date_year': '$year',
+    });
+    final resp = await http
+        .get(uri, headers: _headers)
+        .timeout(const Duration(seconds: 12));
+    if (resp.statusCode == 401 || resp.statusCode == 429) {
+      throw SourceLimitException(resp.statusCode);
+    }
+    if (resp.statusCode != 200) return null;
+    final data = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+    final results =
+        (data['results'] as List? ?? []).cast<Map<String, dynamic>>();
+    if (results.isEmpty) return null;
+    final q = title.toLowerCase().trim();
+    Map<String, dynamic>? best;
+    int bestScore = -1000;
+    for (final r in results) {
+      final names = {
+        (r['name'] as String? ?? '').toLowerCase(),
+        (r['original_name'] as String? ?? '').toLowerCase(),
+      };
+      var s = 0;
+      if (names.contains(q)) s += 3;
+      if (r['poster_path'] != null) s += 1;
+      s += ((r['vote_count'] as num?)?.toInt() ?? 0) > 20 ? 1 : 0;
+      if (s > bestScore) {
+        bestScore = s;
+        best = r;
+      }
+    }
+    if (best == null) return null;
+    final poster = best['poster_path'] as String?;
+    return SourceMatch(
+      tmdbId: (best['id'] as num).toInt(),
+      ruName: best['name'] as String?,
+      posterUrl: poster != null ? '${ApiConfig.tmdbImageBase}$poster' : null,
+      rating: (best['vote_average'] as num?)?.toDouble(),
+    );
+  }
+
   /// Выбор лучшего результата: приоритет — совпадение года и наличие постера.
   static Map<String, dynamic>? _pick(
       List<Map<String, dynamic>> results, String query, int? year) {

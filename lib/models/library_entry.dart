@@ -78,6 +78,9 @@ class LibraryMovie {
   int? runtimeMin;
   LibraryStatus status;
 
+  /// Когда добавлен в список (для сортировки «Буду смотреть» новые→старые).
+  DateTime? addedAt;
+
   /// Просмотры (у каждого — своя дата и своя оценка).
   List<Viewing> viewings;
   int rewatchCount;
@@ -105,6 +108,7 @@ class LibraryMovie {
     this.year,
     this.runtimeMin,
     this.status = LibraryStatus.library,
+    this.addedAt,
     List<Viewing>? viewings,
     this.rewatchCount = 0,
     this.score,
@@ -189,6 +193,7 @@ class LibraryMovie {
         year: (j['year'] as num?)?.toInt(),
         runtimeMin: (j['runtimeMin'] as num?)?.toInt(),
         status: _status(j['status'] as String?),
+        addedAt: j['addedAt'] == null ? null : DateTime.tryParse('${j['addedAt']}'),
         viewings: (j['viewings'] as List? ?? [])
             .map((e) => Viewing.fromAny(e))
             .toList(),
@@ -214,6 +219,7 @@ class LibraryMovie {
         'year': year,
         'runtimeMin': runtimeMin,
         'status': status.name,
+        'addedAt': addedAt?.toIso8601String(),
         'viewings': [for (final v in viewings) v.toJson()],
         'rewatchCount': rewatchCount,
         'score': score,
@@ -231,27 +237,37 @@ class LibraryMovie {
 class LibrarySeries {
   final String tvShowId;
   String title;
+  String? ruTitle;
   int episodesSeen;
   List<DateTime> viewings;
   bool favorite;
   double? score;
   String? review;
   int? kinopoiskId;
+  int? tmdbId;
+  double? kpRating;
+  bool enrichTried;
   String? posterUrl;
 
   LibrarySeries({
     required this.tvShowId,
     required this.title,
+    this.ruTitle,
     this.episodesSeen = 0,
     List<DateTime>? viewings,
     this.favorite = false,
     this.score,
     this.review,
     this.kinopoiskId,
+    this.tmdbId,
+    this.kpRating,
+    this.enrichTried = false,
     this.posterUrl,
   }) : viewings = viewings ?? [];
 
   DateTime? get lastWatch => viewings.isEmpty ? null : viewings.last;
+  String get displayTitle =>
+      (ruTitle != null && ruTitle!.isNotEmpty) ? ruTitle! : title;
 
   static List<DateTime> _dates(dynamic v) => (v as List? ?? [])
       .map((e) => DateTime.tryParse('$e'))
@@ -261,26 +277,48 @@ class LibrarySeries {
   factory LibrarySeries.fromJson(Map<String, dynamic> j) => LibrarySeries(
         tvShowId: '${j['tvShowId']}',
         title: j['title'] as String? ?? '',
+        ruTitle: j['ruTitle'] as String?,
         episodesSeen: (j['episodesSeen'] as num?)?.toInt() ?? 0,
         viewings: _dates(j['viewings']),
         favorite: j['favorite'] == true,
         score: (j['score'] as num?)?.toDouble(),
         review: j['review'] as String?,
         kinopoiskId: (j['kinopoiskId'] as num?)?.toInt(),
+        tmdbId: (j['tmdbId'] as num?)?.toInt(),
+        kpRating: (j['kpRating'] as num?)?.toDouble(),
+        enrichTried: j['enrichTried'] == true,
         posterUrl: j['posterUrl'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
         'tvShowId': tvShowId,
         'title': title,
+        'ruTitle': ruTitle,
         'episodesSeen': episodesSeen,
         'viewings': [for (final d in viewings) d.toIso8601String()],
         'favorite': favorite,
         'score': score,
         'review': review,
         'kinopoiskId': kinopoiskId,
+        'tmdbId': tmdbId,
+        'kpRating': kpRating,
+        'enrichTried': enrichTried,
         'posterUrl': posterUrl,
       };
+}
+
+/// Элемент ленты «Просмотрено»: либо просмотр фильма, либо сериал.
+class WatchedEntry {
+  final LibraryMovie? movie;
+  final Viewing? viewing;
+  final LibrarySeries? series;
+  const WatchedEntry.movie(this.movie, this.viewing) : series = null;
+  const WatchedEntry.series(this.series)
+      : movie = null,
+        viewing = null;
+
+  bool get isSeries => series != null;
+  DateTime? get date => isSeries ? series!.lastWatch : viewing?.date;
 }
 
 /// Пользовательский список фильмов.

@@ -77,6 +77,7 @@ for r in tv1:
     m = movies.setdefault(u, {
         'uuid': u, 'title': r['movie_name'], 'year': None, 'runtimeMin': None,
         'watched': False, 'inWatchlist': False, 'viewings': [], 'rewatchCount': 0,
+        'towatch_at': None, 'follow_at': None,
     })
     if not m['title']:
         m['title'] = r['movie_name']
@@ -94,6 +95,11 @@ for r in tv1:
             m['viewings'].append(created)
     elif t == 'towatch':
         m['inWatchlist'] = True
+        if created:
+            m['towatch_at'] = created
+    elif t == 'follow':
+        if created:
+            m['follow_at'] = created
     rc = (r.get('rewatch_count') or '').strip()
     if rc.isdigit():
         m['rewatchCount'] = max(m['rewatchCount'], int(rc))
@@ -109,7 +115,11 @@ for u, m in movies.items():
     m['favorite'] = u in favorite_uuids
     m['lists'] = list_by_uuid.get(u, [])
     m['review'] = review_by_name.get(m['title'])
-    del m['watched'], m['inWatchlist']
+    # Дата добавления в список: towatch → когда добавил в «Буду смотреть»,
+    # иначе follow → когда добавил в библиотеку.
+    m['addedAt'] = m.get('towatch_at') or m.get('follow_at')
+    for k in ('watched', 'inWatchlist', 'towatch_at', 'follow_at'):
+        m.pop(k, None)
     movie_list.append(m)
 
 # ---------------------------- сериалы (tracking v2) ----------------------------
@@ -137,6 +147,7 @@ for key, s in series.items():
     s['viewings'] = sorted(set(s['viewings']))
     s['firstWatch'] = s['viewings'][0] if s['viewings'] else None
     s['lastWatch'] = s['viewings'][-1] if s['viewings'] else None
+    s['addedAt'] = s['firstWatch']
     s['review'] = review_by_name.get(s['title'])
     series_list.append(s)
 
