@@ -464,6 +464,29 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
+  /// Возвращает фильм библиотеки для TMDB-карточки, добавляя его (статус
+  /// «в библиотеке», не в списках) если его ещё нет — чтобы открыть ПОЛНУЮ
+  /// карточку из ленты «Обзор»/«В кино». Действия в карточке меняют статус.
+  LibraryMovie ensureFromTmdb(TmdbMovie t) {
+    final existing = movieByTmdb(t.id);
+    if (existing != null) return existing;
+    final m = LibraryMovie(
+      uuid: 'tmdb-${t.id}',
+      title: t.originalTitle ?? t.title,
+      ruTitle: t.title,
+      year: t.year,
+      posterUrl: t.posterUrl,
+      tmdbId: t.id,
+      kpRating: t.rating,
+      enrichTried: true,
+      status: LibraryStatus.library,
+    );
+    _movies.add(m);
+    notifyListeners();
+    _persistSoon();
+    return m;
+  }
+
   /// Статус фильма в библиотеке по tmdbId (null — если ещё не добавлен).
   LibraryStatus? statusOfTmdb(int id) => movieByTmdb(id)?.status;
 
