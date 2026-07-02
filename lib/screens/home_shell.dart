@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/strings.dart';
 import '../services/movie_repository.dart';
 import '../theme/app_theme.dart';
-import '../widgets/empty_state.dart';
+import 'discover_tab.dart';
 import 'library_tab.dart';
 import 'settings_screen.dart';
 
@@ -119,14 +119,8 @@ class _HomeShellState extends State<HomeShell> {
               children: [
                 LibraryTab(mode: LibraryMode.watchlist, query: _query),
                 LibraryTab(mode: LibraryMode.watched, query: _query),
-                EmptyState(
-                    icon: tabs[2].emptyIcon,
-                    title: tabs[2].title,
-                    subtitle: tr('soon_sub')),
-                EmptyState(
-                    icon: tabs[3].emptyIcon,
-                    title: tabs[3].title,
-                    subtitle: tr('soon_sub')),
+                const DiscoverTab(mode: DiscoverMode.trending),
+                const DiscoverTab(mode: DiscoverMode.nowPlaying),
               ],
             ),
           ),

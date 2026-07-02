@@ -6,6 +6,44 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import 'movie_source.dart';
 
+/// Краткая карточка фильма из TMDB (для лент «Обзор»/«В кино»).
+class TmdbMovie {
+  final int id;
+  final String title; // русское (ru-RU)
+  final String? originalTitle;
+  final String? posterUrl;
+  final int? year;
+  final double? rating;
+  final String? overview;
+
+  const TmdbMovie({
+    required this.id,
+    required this.title,
+    this.originalTitle,
+    this.posterUrl,
+    this.year,
+    this.rating,
+    this.overview,
+  });
+
+  factory TmdbMovie.fromJson(Map<String, dynamic> j) {
+    final rel = j['release_date'] as String? ?? '';
+    final poster = j['poster_path'] as String?;
+    return TmdbMovie(
+      id: (j['id'] as num).toInt(),
+      title: (j['title'] as String?)?.isNotEmpty == true
+          ? j['title'] as String
+          : (j['original_title'] as String? ?? ''),
+      originalTitle: j['original_title'] as String?,
+      posterUrl:
+          poster != null ? '${ApiConfig.tmdbImageBase}$poster' : null,
+      year: rel.length >= 4 ? int.tryParse(rel.substring(0, 4)) : null,
+      rating: (j['vote_average'] as num?)?.toDouble(),
+      overview: j['overview'] as String?,
+    );
+  }
+}
+
 /// Клиент TMDB (v4 Bearer). Бесплатно, без суточного лимита. Отдаёт русские
 /// названия и постеры (`language=ru-RU`). Поиск фильма по названию+году.
 class TmdbService {
@@ -15,6 +53,37 @@ class TmdbService {
     'Authorization': 'Bearer ${ApiConfig.tmdbToken}',
     'accept': 'application/json',
   };
+
+  /// Популярное сейчас (лента «Обзор»).
+  static Future<List<TmdbMovie>> trending() =>
+      _list('/trending/movie/week', {'language': 'ru-RU'});
+
+  /// Сейчас в кино (лента «В кино»).
+  static Future<List<TmdbMovie>> nowPlaying() => _list(
+      '/movie/now_playing', {'language': 'ru-RU', 'region': 'RU', 'page': '1'});
+
+  static Future<List<TmdbMovie>> _list(
+      String path, Map<String, String> query) async {
+    try {
+      final uri =
+          Uri.parse('${ApiConfig.tmdbBase}$path').replace(queryParameters: query);
+      final resp = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 12));
+      if (resp.statusCode != 200) return [];
+      final data =
+          jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      final results =
+          (data['results'] as List? ?? []).cast<Map<String, dynamic>>();
+      return results
+          .where((r) => r['poster_path'] != null)
+          .map((r) => TmdbMovie.fromJson(r))
+          .toList();
+    } catch (e) {
+      debugPrint('tmdb list $path error: $e');
+      return [];
+    }
+  }
 
   static Future<SourceMatch?> search(String title, {int? year}) async {
     final uri = Uri.parse('${ApiConfig.tmdbBase}/search/movie')

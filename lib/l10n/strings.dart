@@ -46,6 +46,11 @@ const Map<String, Map<String, String>> _strings = {
   'nav_watched': {'ru': 'Просмотрено', 'en': 'Watched'},
   'nav_discover': {'ru': 'Обзор', 'en': 'Discover'},
   'nav_cinema': {'ru': 'В кино', 'en': 'In theaters'},
+  'discover_error': {'ru': 'Не удалось загрузить', 'en': 'Failed to load'},
+  'retry': {'ru': 'Повторить', 'en': 'Retry'},
+  'added_to_watchlist': {'ru': 'Добавлено в «Буду смотреть»', 'en': 'Added to watchlist'},
+  'added_to_watched': {'ru': 'Отмечено просмотренным', 'en': 'Marked as watched'},
+  'in_library': {'ru': 'В библиотеке', 'en': 'In library'},
   'drawer_home': {'ru': 'Главная', 'en': 'Home'},
   'drawer_search': {'ru': 'Поиск фильмов', 'en': 'Search movies'},
   'drawer_stats': {'ru': 'Статистика', 'en': 'Statistics'},
@@ -89,7 +94,21 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Backups and transfer between devices'
   },
   'create_backup': {'ru': 'Создать резервную копию', 'en': 'Create backup'},
+  'create_backup_sub': {
+    'ru': 'Поделиться файлом (Telegram, Диск, …)',
+    'en': 'Share a file (Telegram, Drive, …)'
+  },
   'restore_backup': {'ru': 'Восстановить из копии', 'en': 'Restore backup'},
+  'restore_backup_sub': {
+    'ru': 'Выбрать JSON-файл резервной копии',
+    'en': 'Pick a backup JSON file'
+  },
+  'backup_hint': {
+    'ru': 'Перенос на новый телефон: создайте копию здесь и восстановите её на новом устройстве.',
+    'en': 'Moving to a new phone: create a backup here and restore it on the new device.'
+  },
+  'backup_import_ok': {'ru': 'Библиотека восстановлена', 'en': 'Library restored'},
+  'backup_import_fail': {'ru': 'Не удалось прочитать файл', 'en': 'Could not read file'},
   'about': {'ru': 'О приложении', 'en': 'About'},
   'about_sub': {
     'ru': 'Трекер просмотренных фильмов и сериалов',

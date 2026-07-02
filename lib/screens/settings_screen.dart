@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/locale_controller.dart';
 import '../l10n/strings.dart';
+import '../services/backup_service.dart';
 import '../services/movie_repository.dart';
 import '../services/movie_source.dart';
 import '../theme/app_theme.dart';
@@ -118,7 +119,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.cloud_sync_rounded,
                   title: tr('sync_backup'),
                   subtitle: tr('sync_backup_sub'),
-                  onTap: () => _soon(),
+                  onTap: _backupSheet,
                 ),
               ]),
               _section(tr('about')),
@@ -312,9 +313,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _soon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(tr('soon'))),
+  void _backupSheet() {
+    _bottomSheet(
+      title: tr('sync_backup'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(tr('backup_hint'),
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.ios_share_rounded),
+            title: Text(tr('create_backup')),
+            subtitle: Text(tr('create_backup_sub')),
+            onTap: () {
+              Navigator.pop(context);
+              BackupService.exportAndShare();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.file_open_rounded),
+            title: Text(tr('restore_backup')),
+            subtitle: Text(tr('restore_backup_sub')),
+            onTap: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.pop(context);
+              final ok = await BackupService.importFromFile();
+              messenger.showSnackBar(SnackBar(
+                content:
+                    Text(tr(ok ? 'backup_import_ok' : 'backup_import_fail')),
+              ));
+            },
+          ),
+        ],
+      ),
     );
   }
 

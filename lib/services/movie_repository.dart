@@ -130,6 +130,28 @@ class MovieRepository extends ChangeNotifier {
     }
   }
 
+  /// Полная резервная копия (JSON-строка) — для переноса на другое устройство.
+  String exportJson() => const JsonEncoder.withIndent(' ').convert({
+        'app': 'kadr',
+        'version': 1,
+        ...toJson(),
+      });
+
+  /// Восстанавливает библиотеку из резервной копии (заменяет текущую).
+  Future<bool> importJson(String raw) async {
+    try {
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      if (data['movies'] == null && data['series'] == null) return false;
+      _ingest(data);
+      await _persist();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('MovieRepository.import error: $e');
+      return false;
+    }
+  }
+
   // ------------------------------ выборки ------------------------------
 
   /// Просмотренные — по убыванию последнего просмотра.
@@ -270,6 +292,47 @@ class MovieRepository extends ChangeNotifier {
       result.add(MapEntry(months[k]!, list));
     }
     return result;
+  }
+
+  /// Добавляет фильм из TMDB-ленты в библиотеку (или обновляет статус).
+  Future<void> addFromTmdb(TmdbMovie t, LibraryStatus status) async {
+    LibraryMovie? existing;
+    for (final m in _movies) {
+      if (m.tmdbId == t.id) {
+        existing = m;
+        break;
+      }
+    }
+    final now = DateTime.now();
+    if (existing != null) {
+      existing.status = status;
+      if (status == LibraryStatus.watched) {
+        existing.viewings.add(Viewing(date: now));
+      }
+    } else {
+      _movies.add(LibraryMovie(
+        uuid: 'tmdb-${t.id}',
+        title: t.originalTitle ?? t.title,
+        ruTitle: t.title,
+        year: t.year,
+        posterUrl: t.posterUrl,
+        tmdbId: t.id,
+        kpRating: t.rating,
+        enrichTried: true,
+        status: status,
+        viewings: status == LibraryStatus.watched ? [Viewing(date: now)] : [],
+      ));
+    }
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Статус фильма в библиотеке по tmdbId (null — если ещё не добавлен).
+  LibraryStatus? statusOfTmdb(int id) {
+    for (final m in _movies) {
+      if (m.tmdbId == id) return m.status;
+    }
+    return null;
   }
 
   /// Переключает «Буду смотреть» (только для непросмотренных).
