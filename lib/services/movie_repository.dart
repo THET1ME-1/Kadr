@@ -181,20 +181,74 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
-  /// Отмечает просмотр. Если фильм уже смотрели — это повторный просмотр
-  /// (наращивается счётчик). [date] = null → «неизвестная дата».
+  /// Отмечает просмотр (со своей оценкой). Если фильм уже смотрели — это
+  /// повторный просмотр. [date] = null → «неизвестная дата».
   /// Возвращает true, если это был повтор.
-  Future<bool> addViewing(String uuid, DateTime? date) async {
+  Future<bool> addViewing(String uuid, DateTime? date, {double? score}) async {
     final m = byUuid(uuid);
     if (m == null) return false;
     final wasWatched =
         m.status == LibraryStatus.watched || m.viewings.isNotEmpty;
     if (wasWatched) m.rewatchCount += 1;
     m.status = LibraryStatus.watched;
-    m.viewings.add(date ?? LibraryMovie.unknownDate);
+    m.viewings.add(Viewing(date: date, score: score));
     notifyListeners();
     await _persist();
     return wasWatched;
+  }
+
+  /// Устанавливает оценку конкретного просмотра.
+  Future<void> setViewingScore(String uuid, Viewing v, double? score) async {
+    final m = byUuid(uuid);
+    if (m == null || !m.viewings.contains(v)) return;
+    v.score = score;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Удаляет просмотр.
+  Future<void> removeViewing(String uuid, Viewing v) async {
+    final m = byUuid(uuid);
+    if (m == null) return;
+    m.viewings.remove(v);
+    if (m.rewatchCount > 0) m.rewatchCount -= 1;
+    if (m.viewings.isEmpty) m.status = LibraryStatus.library;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Просмотренное по месяцам — КАРТОЧКА НА КАЖДЫЙ ПРОСМОТР (как в референсе):
+  /// один фильм может встречаться несколько раз (повторные просмотры).
+  List<MapEntry<DateTime, List<(LibraryMovie, Viewing)>>>
+      get watchedViewingsByMonth {
+    final map = <String, List<(LibraryMovie, Viewing)>>{};
+    final months = <String, DateTime>{};
+    for (final m in _movies) {
+      if (m.status != LibraryStatus.watched) continue;
+      for (final v in m.viewings) {
+        final d = v.date;
+        final key = d == null
+            ? 'unknown'
+            : '${d.year}-${d.month.toString().padLeft(2, '0')}';
+        months[key] = d == null ? DateTime(1) : DateTime(d.year, d.month);
+        map.putIfAbsent(key, () => []).add((m, v));
+      }
+    }
+    final keys = months.keys.toList()
+      ..sort((a, b) => months[b]!.compareTo(months[a]!));
+    final result = <MapEntry<DateTime, List<(LibraryMovie, Viewing)>>>[];
+    for (final k in keys) {
+      final list = map[k]!
+        ..sort((a, b) {
+          final da = a.$2.date, db = b.$2.date;
+          if (da == null && db == null) return 0;
+          if (da == null) return 1;
+          if (db == null) return -1;
+          return db.compareTo(da);
+        });
+      result.add(MapEntry(months[k]!, list));
+    }
+    return result;
   }
 
   /// Переключает «Буду смотреть» (только для непросмотренных).

@@ -9,8 +9,8 @@ import '../widgets/poster.dart';
 import 'when_watched_sheet.dart';
 
 /// Карточка фильма — выезжающая снизу панель (M3). Постер, мета, рейтинг КП,
-/// личная оценка 1.0–10.0 (слайдер, шаг 0.1), отметка просмотра (+ повтор),
-/// избранное, история просмотров. Обновляется на лету.
+/// общая оценка + ОЦЕНКА У КАЖДОГО ПРОСМОТРА (мнение меняется при пересмотре) со
+/// сравнением. Обновляется на лету.
 Future<void> showMovieSheet(BuildContext context, LibraryMovie movie) {
   final scheme = Theme.of(context).colorScheme;
   return showModalBottomSheet<void>(
@@ -34,7 +34,7 @@ class _MovieSheet extends StatefulWidget {
 
 class _MovieSheetState extends State<_MovieSheet> {
   final _repo = MovieRepository.instance;
-  late double _score = widget.movie.score ?? 7.0;
+  late double _overall = widget.movie.score ?? 7.0;
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +44,7 @@ class _MovieSheetState extends State<_MovieSheet> {
         final m = _repo.byUuid(widget.movie.uuid) ?? widget.movie;
         return DraggableScrollableSheet(
           expand: false,
-          initialChildSize: 0.75,
+          initialChildSize: 0.78,
           minChildSize: 0.5,
           maxChildSize: 0.95,
           builder: (context, controller) => ListView(
@@ -122,7 +122,6 @@ class _MovieSheetState extends State<_MovieSheet> {
       const SizedBox(height: 20),
       _scoreCard(scheme, m),
       const SizedBox(height: 16),
-      // Отметить просмотр — крупная закрашенная кнопка.
       SizedBox(
         width: double.infinity,
         child: FilledButton.icon(
@@ -173,9 +172,13 @@ class _MovieSheetState extends State<_MovieSheet> {
           ],
         ),
       ],
+      if (m.hasScoreComparison) ...[
+        const SizedBox(height: 22),
+        _comparison(scheme, m),
+      ],
       if (m.viewings.isNotEmpty) ...[
         const SizedBox(height: 22),
-        Text(trf('viewings_n', {'n': m.viewings.length}),
+        Text(tr('per_viewing_scores'),
             style: TextStyle(
                 fontFamily: AppTheme.displayFont,
                 fontWeight: FontWeight.w700,
@@ -203,14 +206,14 @@ class _MovieSheetState extends State<_MovieSheet> {
     ];
   }
 
+  // -------- список просмотров с редактируемой оценкой у каждого --------
   List<Widget> _viewingRows(ColorScheme scheme, LibraryMovie m) {
-    // Показываем сверху свежие; повторными считаем все, кроме самого раннего.
     final sorted = m.sortedViewings; // по возрастанию, неизвестные в конце
     final rows = <Widget>[];
     for (var i = sorted.length - 1; i >= 0; i--) {
-      final d = sorted[i];
-      final unknown = LibraryMovie.isUnknownDate(d);
+      final v = sorted[i];
       final isRewatch = i > 0; // самый ранний просмотр — не повтор
+      final sc = v.score;
       rows.add(Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
@@ -218,22 +221,249 @@ class _MovieSheetState extends State<_MovieSheet> {
             Icon(isRewatch ? Icons.repeat_rounded : Icons.event_rounded,
                 size: 20, color: scheme.onSurfaceVariant),
             const SizedBox(width: 12),
-            Text(
-              unknown ? tr('when_unknown') : dateExactWithTime(d),
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontSize: 14,
-                  color: scheme.onSurface),
+            Expanded(
+              child: Text(
+                v.hasDate ? dateExactWithTime(v.date!) : tr('when_unknown'),
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontSize: 14,
+                    color: scheme.onSurface),
+              ),
             ),
-            if (isRewatch) ...[
-              const SizedBox(width: 8),
-              _chip(scheme, Icons.repeat_rounded, tr('rewatch'), tone: true),
-            ],
+            // Оценка ИМЕННО этого просмотра — тап для правки.
+            InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () => _editViewingScore(context, m, v),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: sc != null
+                      ? scheme.primaryContainer
+                      : scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(sc != null ? Icons.star_rounded : Icons.star_border_rounded,
+                        size: 16,
+                        color: sc != null
+                            ? scheme.onPrimaryContainer
+                            : scheme.onSurfaceVariant),
+                    const SizedBox(width: 4),
+                    Text(
+                      sc != null ? sc.toStringAsFixed(1) : tr('not_rated'),
+                      style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: sc != null
+                            ? scheme.onPrimaryContainer
+                            : scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ));
     }
     return rows;
+  }
+
+  // ------------------ блок сравнения оценок ------------------
+  Widget _comparison(ColorScheme scheme, LibraryMovie m) {
+    final rated = m.sortedViewings.where((v) => v.score != null).toList();
+    final delta = rated.last.score! - rated.first.score!;
+    final verdict = delta.abs() < 0.05
+        ? tr('cmp_same')
+        : (delta > 0
+            ? trf('cmp_improved', {'d': delta.toStringAsFixed(1)})
+            : trf('cmp_dropped', {'d': (-delta).toStringAsFixed(1)}));
+    final verdictColor = delta.abs() < 0.05
+        ? scheme.onSurfaceVariant
+        : (delta > 0 ? const Color(0xFF2E9B57) : const Color(0xFFD0433B));
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(tr('score_comparison'),
+              style: TextStyle(
+                  fontFamily: AppTheme.displayFont,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  color: scheme.onSurface)),
+          const SizedBox(height: 14),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (var i = 0; i < rated.length; i++) ...[
+                  if (i > 0) _arrow(scheme, rated[i].score! - rated[i - 1].score!),
+                  _scorePill(scheme, rated[i], i),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(
+                  delta.abs() < 0.05
+                      ? Icons.drag_handle_rounded
+                      : (delta > 0
+                          ? Icons.trending_up_rounded
+                          : Icons.trending_down_rounded),
+                  size: 18,
+                  color: verdictColor),
+              const SizedBox(width: 6),
+              Text(verdict,
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13.5,
+                      color: verdictColor)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _scorePill(ColorScheme scheme, Viewing v, int i) => Column(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: scheme.primaryContainer, shape: BoxShape.circle),
+            child: Text(v.score!.toStringAsFixed(1),
+                style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: scheme.onPrimaryContainer)),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            v.hasDate ? numericDate(v.date!) : tr('when_unknown'),
+            style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontSize: 10.5,
+                color: scheme.onSurfaceVariant),
+          ),
+        ],
+      );
+
+  Widget _arrow(ColorScheme scheme, double d) {
+    final up = d > 0.05, down = d < -0.05;
+    final c = up
+        ? const Color(0xFF2E9B57)
+        : (down ? const Color(0xFFD0433B) : scheme.onSurfaceVariant);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.arrow_forward_rounded, size: 18, color: c),
+          Text(d == 0 ? '' : '${d > 0 ? '+' : ''}${d.toStringAsFixed(1)}',
+              style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 10,
+                  color: c)),
+        ],
+      ),
+    );
+  }
+
+  // ------------------ редактор оценки просмотра ------------------
+  void _editViewingScore(BuildContext context, LibraryMovie m, Viewing v) {
+    double val = v.score ?? m.score ?? 7.0;
+    final scheme = Theme.of(context).colorScheme;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: scheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  v.hasDate ? dateExactWithTime(v.date!) : tr('rate_this_viewing'),
+                  style: TextStyle(
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      color: scheme.onSurface),
+                ),
+                const SizedBox(height: 8),
+                Text(val.toStringAsFixed(1),
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 44,
+                        color: scheme.primary)),
+                Slider(
+                  value: val,
+                  min: 1,
+                  max: 10,
+                  divisions: 90,
+                  label: val.toStringAsFixed(1),
+                  onChanged: (x) => setSheet(() => val = x),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          _repo.setViewingScore(m.uuid, v, null);
+                          Navigator.pop(context);
+                        },
+                        child: Text(tr('remove_score')),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () {
+                          _repo.setViewingScore(m.uuid, v, val);
+                          Navigator.pop(context);
+                        },
+                        child: Text(tr('done')),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _statusChip(ColorScheme scheme, LibraryMovie m) {
@@ -283,6 +513,12 @@ class _MovieSheetState extends State<_MovieSheet> {
       ),
       child: Column(
         children: [
+          Text(tr('overall_score'),
+              style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12.5,
+                  color: scheme.onPrimaryContainer.withValues(alpha: 0.8))),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -292,7 +528,7 @@ class _MovieSheetState extends State<_MovieSheet> {
                   color: scheme.onPrimaryContainer, size: 32),
               const SizedBox(width: 6),
               Text(
-                _score.toStringAsFixed(1),
+                _overall.toStringAsFixed(1),
                 style: TextStyle(
                   fontFamily: AppTheme.displayFont,
                   fontWeight: FontWeight.w800,
@@ -310,12 +546,12 @@ class _MovieSheetState extends State<_MovieSheet> {
             ],
           ),
           Slider(
-            value: _score,
+            value: _overall,
             min: 1,
             max: 10,
             divisions: 90,
-            label: _score.toStringAsFixed(1),
-            onChanged: (v) => setState(() => _score = v),
+            label: _overall.toStringAsFixed(1),
+            onChanged: (v) => setState(() => _overall = v),
             onChangeEnd: (v) => _repo.setScore(m.uuid, v),
           ),
           Text(

@@ -12,9 +12,8 @@ import 'movie_sheet.dart';
 
 enum LibraryMode { watched, watchlist }
 
-/// Вкладка библиотеки: «Просмотрено» (секциями по месяцам, как в референсе) или
-/// «Буду смотреть» (плоский список). Данные — из [MovieRepository], обновляются
-/// на лету.
+/// Вкладка библиотеки: «Просмотрено» (карточка на КАЖДЫЙ просмотр, по месяцам —
+/// как в референсе; повторные просмотры помечаются) или «Буду смотреть».
 class LibraryTab extends StatelessWidget {
   final LibraryMode mode;
   const LibraryTab({super.key, required this.mode});
@@ -38,19 +37,19 @@ class LibraryTab extends StatelessWidget {
             itemCount: items.length + 1,
             itemBuilder: (context, i) {
               if (i == 0) return _countHeader(context, items.length);
-              return _MovieRow(movie: items[i - 1], showDate: false);
+              return _MovieRow(movie: items[i - 1]);
             },
           );
         }
 
-        final groups = repo.watchedByMonth;
+        final groups = repo.watchedViewingsByMonth;
         if (groups.isEmpty) {
           return EmptyState(
               icon: Icons.check_circle_rounded,
               title: tr('nav_watched'),
               subtitle: tr('lib_empty_watched'));
         }
-        final total = repo.watched.length;
+        final total = groups.fold<int>(0, (s, g) => s + g.value.length);
         return CustomScrollView(
           slivers: [
             SliverToBoxAdapter(child: _countHeader(context, total)),
@@ -58,7 +57,18 @@ class LibraryTab extends StatelessWidget {
               SliverToBoxAdapter(child: _monthHeader(context, g.key)),
               SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (context, i) => _MovieRow(movie: g.value[i]),
+                  (context, i) {
+                    final (movie, viewing) = g.value[i];
+                    final first = movie.sortedViewings.isNotEmpty
+                        ? movie.sortedViewings.first
+                        : null;
+                    final isRe = movie.viewings.length > 1 &&
+                        !identical(viewing, first);
+                    return _MovieRow(
+                        movie: movie,
+                        viewing: viewing,
+                        isRewatchViewing: isRe);
+                  },
                   childCount: g.value.length,
                 ),
               ),
@@ -101,8 +111,13 @@ class LibraryTab extends StatelessWidget {
 
 class _MovieRow extends StatelessWidget {
   final LibraryMovie movie;
-  final bool showDate;
-  const _MovieRow({required this.movie, this.showDate = true});
+
+  /// Конкретный просмотр (для вкладки «Просмотрено»). null во «Буду смотреть».
+  final Viewing? viewing;
+  final bool isRewatchViewing;
+
+  const _MovieRow(
+      {required this.movie, this.viewing, this.isRewatchViewing = false});
 
   @override
   Widget build(BuildContext context) {
@@ -112,6 +127,8 @@ class _MovieRow extends StatelessWidget {
       if (movie.runtimeMin != null)
         humanDuration(Duration(minutes: movie.runtimeMin!)),
     ].join(' · ');
+    final date = viewing?.date;
+    final score = viewing != null ? movie.scoreOf(viewing!) : movie.score;
 
     return Reveal(
       child: Padding(
@@ -169,25 +186,22 @@ class _MovieRow extends StatelessWidget {
                             ),
                           ],
                         ),
-                        if (showDate &&
-                            (movie.lastViewing != null ||
-                                movie.isRewatched)) ...[
+                        if (date != null || isRewatchViewing) ...[
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              if (movie.lastViewing != null)
+                              if (date != null)
                                 Text(
-                                  dateExactWithTime(movie.lastViewing!),
+                                  dateExactWithTime(date),
                                   style: TextStyle(
                                       fontFamily: AppTheme.bodyFont,
                                       fontSize: 12,
                                       color: scheme.onSurfaceVariant
                                           .withValues(alpha: 0.85)),
                                 ),
-                              if (movie.isRewatched) ...[
-                                if (movie.lastViewing != null)
-                                  const SizedBox(width: 8),
-                                _rewatchBadge(scheme, movie.viewCount),
+                              if (isRewatchViewing) ...[
+                                if (date != null) const SizedBox(width: 8),
+                                _rewatchChip(scheme),
                               ],
                             ],
                           ),
@@ -196,7 +210,7 @@ class _MovieRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  _scoreBadge(scheme),
+                  _scoreBadge(scheme, score),
                 ],
               ),
             ),
@@ -206,7 +220,7 @@ class _MovieRow extends StatelessWidget {
     );
   }
 
-  Widget _rewatchBadge(ColorScheme scheme, int count) => Container(
+  Widget _rewatchChip(ColorScheme scheme) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         decoration: BoxDecoration(
             color: scheme.tertiaryContainer,
@@ -217,7 +231,7 @@ class _MovieRow extends StatelessWidget {
             Icon(Icons.repeat_rounded,
                 size: 12, color: scheme.onTertiaryContainer),
             const SizedBox(width: 3),
-            Text('×$count',
+            Text(tr('rewatch'),
                 style: TextStyle(
                     fontFamily: AppTheme.bodyFont,
                     fontWeight: FontWeight.w700,
@@ -227,8 +241,8 @@ class _MovieRow extends StatelessWidget {
         ),
       );
 
-  Widget _scoreBadge(ColorScheme scheme) {
-    if (movie.score == null) {
+  Widget _scoreBadge(ColorScheme scheme, double? score) {
+    if (score == null) {
       return Container(
         width: 46,
         height: 46,
@@ -245,7 +259,7 @@ class _MovieRow extends StatelessWidget {
       decoration:
           BoxDecoration(color: scheme.primaryContainer, shape: BoxShape.circle),
       child: Text(
-        movie.score!.toStringAsFixed(1),
+        score.toStringAsFixed(1),
         style: TextStyle(
           fontFamily: AppTheme.displayFont,
           fontWeight: FontWeight.w800,

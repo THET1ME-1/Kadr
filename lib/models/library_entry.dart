@@ -1,6 +1,6 @@
 // Модели библиотеки Kadr. Заполняются из импорта (TV Time) и пополняются
-// пользователем. Постеры и `kinopoiskId` дотягиваются лениво из kinopoisk.dev
-// по названию+году и кэшируются здесь же.
+// пользователем. Постеры и `kinopoiskId` дотягиваются лениво из kinopoisk.dev /
+// KinoBD-дампа по названию+году и кэшируются здесь же.
 
 /// Эмоция-реакция на фильм (наследие TV Time) + её стартовый вклад в балл.
 class MovieEmotion {
@@ -26,6 +26,40 @@ class MovieEmotion {
       {'id': id, 'label': label, 'emoji': emoji, 'score': score};
 }
 
+/// Один просмотр фильма: дата (может быть неизвестна) и СВОЯ оценка 1.0–10.0.
+/// Мнение может меняться при пересмотре — поэтому оценка у каждого просмотра
+/// отдельная.
+class Viewing {
+  DateTime? date;
+  double? score;
+
+  Viewing({this.date, this.score});
+
+  bool get hasDate => date != null;
+
+  static DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
+    final d = DateTime.tryParse('$v');
+    // Старая заглушка «неизвестная дата» = эпоха (1970) → трактуем как null.
+    if (d == null || d.millisecondsSinceEpoch <= 0) return null;
+    return d;
+  }
+
+  /// Принимает и старый формат (строка-дата), и новый ({date, score}).
+  factory Viewing.fromAny(dynamic j) {
+    if (j is Map) {
+      return Viewing(
+        date: _parseDate(j['date']),
+        score: (j['score'] as num?)?.toDouble(),
+      );
+    }
+    return Viewing(date: _parseDate(j));
+  }
+
+  Map<String, dynamic> toJson() =>
+      {'date': date?.toIso8601String(), 'score': score};
+}
+
 enum LibraryStatus { watched, watchlist, library }
 
 /// Фильм в библиотеке пользователя.
@@ -44,18 +78,19 @@ class LibraryMovie {
   int? runtimeMin;
   LibraryStatus status;
 
-  /// Даты просмотров (могут быть несколько: пере-просмотры).
-  List<DateTime> viewings;
+  /// Просмотры (у каждого — своя дата и своя оценка).
+  List<Viewing> viewings;
   int rewatchCount;
 
-  /// Личная оценка 1.0–10.0 (может быть дробной). null = не оценён.
+  /// Общая («headline») оценка 1.0–10.0. Для импортированных — из эмоций.
+  /// У отдельных просмотров может быть своя оценка (см. [Viewing.score]).
   double? score;
   List<MovieEmotion> emotions;
   bool favorite;
   List<String> lists;
   String? review;
 
-  /// Кэш от kinopoisk.dev.
+  /// Кэш от kinopoisk.dev / KinoBD.
   int? kinopoiskId;
   String? posterUrl;
 
@@ -68,7 +103,7 @@ class LibraryMovie {
     this.year,
     this.runtimeMin,
     this.status = LibraryStatus.library,
-    List<DateTime>? viewings,
+    List<Viewing>? viewings,
     this.rewatchCount = 0,
     this.score,
     List<MovieEmotion>? emotions,
@@ -81,28 +116,35 @@ class LibraryMovie {
         emotions = emotions ?? [],
         lists = lists ?? [];
 
-  /// Дата-заглушка «неизвестная дата» для просмотров без точной даты.
-  static final DateTime unknownDate = DateTime.fromMillisecondsSinceEpoch(0);
-  static bool isUnknownDate(DateTime d) => d.millisecondsSinceEpoch <= 0;
-
-  /// Последний просмотр с известной датой (заглушки-«неизвестно» игнорируются).
+  /// Последний просмотр с известной датой.
   DateTime? get lastViewing {
     DateTime? best;
     for (final v in viewings) {
-      if (isUnknownDate(v)) continue;
-      if (best == null || v.isAfter(best)) best = v;
+      final d = v.date;
+      if (d == null) continue;
+      if (best == null || d.isAfter(best)) best = d;
     }
     return best;
   }
 
   /// Просмотры по возрастанию даты (неизвестные — в конец).
-  List<DateTime> get sortedViewings {
-    final known = viewings.where((v) => !isUnknownDate(v)).toList()..sort();
-    final unknown = viewings.where(isUnknownDate).toList();
+  List<Viewing> get sortedViewings {
+    final known = viewings.where((v) => v.hasDate).toList()
+      ..sort((a, b) => a.date!.compareTo(b.date!));
+    final unknown = viewings.where((v) => !v.hasDate).toList();
     return [...known, ...unknown];
   }
 
-  /// Общее число просмотров (включая повторные).
+  /// Оценка конкретного просмотра или общая (fallback).
+  double? scoreOf(Viewing v) => v.score ?? score;
+
+  /// Есть ли различающиеся оценки по просмотрам (для блока сравнения).
+  bool get hasScoreComparison {
+    final s = viewings.map((v) => v.score).whereType<double>().toSet();
+    return s.length >= 2;
+  }
+
+  /// Общее число просмотров.
   int get viewCount =>
       viewings.length > rewatchCount ? viewings.length : rewatchCount + 1;
 
@@ -119,11 +161,6 @@ class LibraryMovie {
         _ => LibraryStatus.library,
       };
 
-  static List<DateTime> _dates(dynamic v) => (v as List? ?? [])
-      .map((e) => DateTime.tryParse('$e'))
-      .whereType<DateTime>()
-      .toList();
-
   factory LibraryMovie.fromJson(Map<String, dynamic> j) => LibraryMovie(
         uuid: '${j['uuid']}',
         title: j['title'] as String? ?? '',
@@ -133,7 +170,9 @@ class LibraryMovie {
         year: (j['year'] as num?)?.toInt(),
         runtimeMin: (j['runtimeMin'] as num?)?.toInt(),
         status: _status(j['status'] as String?),
-        viewings: _dates(j['viewings']),
+        viewings: (j['viewings'] as List? ?? [])
+            .map((e) => Viewing.fromAny(e))
+            .toList(),
         rewatchCount: (j['rewatchCount'] as num?)?.toInt() ?? 0,
         score: (j['score'] as num?)?.toDouble(),
         emotions: (j['emotions'] as List? ?? [])
@@ -155,7 +194,7 @@ class LibraryMovie {
         'year': year,
         'runtimeMin': runtimeMin,
         'status': status.name,
-        'viewings': [for (final d in viewings) d.toIso8601String()],
+        'viewings': [for (final v in viewings) v.toJson()],
         'rewatchCount': rewatchCount,
         'score': score,
         'emotions': [for (final e in emotions) e.toJson()],
@@ -189,15 +228,20 @@ class LibrarySeries {
     this.review,
     this.kinopoiskId,
     this.posterUrl,
-  })  : viewings = viewings ?? [];
+  }) : viewings = viewings ?? [];
 
   DateTime? get lastWatch => viewings.isEmpty ? null : viewings.last;
+
+  static List<DateTime> _dates(dynamic v) => (v as List? ?? [])
+      .map((e) => DateTime.tryParse('$e'))
+      .whereType<DateTime>()
+      .toList();
 
   factory LibrarySeries.fromJson(Map<String, dynamic> j) => LibrarySeries(
         tvShowId: '${j['tvShowId']}',
         title: j['title'] as String? ?? '',
         episodesSeen: (j['episodesSeen'] as num?)?.toInt() ?? 0,
-        viewings: LibraryMovie._dates(j['viewings']),
+        viewings: _dates(j['viewings']),
         favorite: j['favorite'] == true,
         score: (j['score'] as num?)?.toDouble(),
         review: j['review'] as String?,

@@ -140,4 +140,15 @@ const Map<String, Map<String, String>> _strings = {
   'when_now': {'ru': 'Только что', 'en': 'Just now'},
   'viewing_added': {'ru': 'Отмечено как просмотрено', 'en': 'Marked as watched'},
   'rewatch_added': {'ru': 'Добавлен повторный просмотр', 'en': 'Rewatch logged'},
+
+  // ------------------- Оценки по просмотрам -------------------
+  'overall_score': {'ru': 'Общая оценка', 'en': 'Overall rating'},
+  'per_viewing_scores': {'ru': 'Оценки по просмотрам', 'en': 'Ratings per viewing'},
+  'score_comparison': {'ru': 'Как менялась оценка', 'en': 'How your rating changed'},
+  'rate_this_viewing': {'ru': 'Оценка просмотра', 'en': 'Rate this viewing'},
+  'remove_score': {'ru': 'Убрать оценку', 'en': 'Clear rating'},
+  'cmp_improved': {'ru': 'Мнение улучшилось на {d}', 'en': 'Opinion improved by {d}'},
+  'cmp_dropped': {'ru': 'Мнение ухудшилось на {d}', 'en': 'Opinion dropped by {d}'},
+  'cmp_same': {'ru': 'Оценка не изменилась', 'en': 'Rating unchanged'},
+  'viewing_n': {'ru': '{n}-й просмотр', 'en': 'Viewing {n}'},
 };
