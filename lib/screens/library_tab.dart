@@ -9,7 +9,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/poster.dart';
 import '../widgets/reveal.dart';
 import 'movie_sheet.dart';
-import 'series_sheet.dart';
+import 'series_screen.dart';
 
 enum LibraryMode { watched, watchlist }
 
@@ -224,7 +224,7 @@ class _SeriesSessionCard extends StatelessWidget {
           child: Column(
             children: [
               InkWell(
-                onTap: () => showSeriesSheet(context, s),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
                 child: Padding(
                   padding: const EdgeInsets.all(10),
                   child: Row(
@@ -318,7 +318,7 @@ class _SeriesSessionCard extends StatelessWidget {
                     if (session.episodes.length > 12)
                       InkWell(
                         borderRadius: BorderRadius.circular(12),
-                        onTap: () => showSeriesSheet(context, s),
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                               vertical: 8, horizontal: 4),

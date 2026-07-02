@@ -7,6 +7,7 @@ import 'about_screen.dart';
 import 'discover_tab.dart';
 import 'library_tab.dart';
 import 'lists_screen.dart';
+import 'now_watching_screen.dart';
 import 'settings_screen.dart';
 import 'statistics_screen.dart';
 
@@ -220,6 +221,11 @@ class _KadrDrawer extends StatelessWidget {
         _drawerTile(context, Icons.search_rounded, tr('drawer_search'), () {
           Navigator.pop(context);
           onSelectTab(2);
+        }),
+        _drawerTile(context, Icons.live_tv_rounded, tr('now_watching'), () {
+          Navigator.pop(context);
+          Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const NowWatchingScreen()));
         }),
         _drawerTile(context, Icons.insights_rounded, tr('drawer_stats'), () {
           Navigator.pop(context);

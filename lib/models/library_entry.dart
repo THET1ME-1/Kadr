@@ -377,6 +377,16 @@ class LibrarySeries {
   String get displayTitle =>
       (ruTitle != null && ruTitle!.isNotEmpty) ? ruTitle! : title;
 
+  Episode? watchedEpisode(int? season, int? number) {
+    for (final e in episodes) {
+      if (e.season == season && e.number == number) return e;
+    }
+    return null;
+  }
+
+  bool isEpisodeWatched(int? season, int? number) =>
+      watchedEpisode(season, number) != null;
+
   /// Разбивка на сессии: эпизоды, просмотренные с перерывом ≤ [gap], — вместе.
   List<EpisodeSession> sessions(
       {Duration gap = const Duration(hours: 3)}) {

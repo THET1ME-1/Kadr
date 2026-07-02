@@ -315,6 +315,55 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
+  /// Отмечает серию просмотренной (добавляет эпизод), если ещё не отмечена.
+  Future<void> markEpisodeWatched(String seriesId, int season, int number,
+      {int? runtimeMin, DateTime? at}) async {
+    final s = seriesById(seriesId);
+    if (s == null || s.isEpisodeWatched(season, number)) return;
+    s.episodes.add(Episode(
+        season: season,
+        number: number,
+        watchedAt: at ?? DateTime.now(),
+        runtimeMin: runtimeMin));
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Снимает отметку просмотра серии.
+  Future<void> unmarkEpisode(String seriesId, int season, int number) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    s.episodes.removeWhere((e) => e.season == season && e.number == number);
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Отмечает все серии сезона до [uptoNumber] включительно.
+  Future<void> markUpTo(String seriesId, int season, int uptoNumber,
+      {Map<int, int?> runtimes = const {}}) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    for (var n = 1; n <= uptoNumber; n++) {
+      if (!s.isEpisodeWatched(season, n)) {
+        s.episodes.add(Episode(
+            season: season,
+            number: n,
+            watchedAt: DateTime.now(),
+            runtimeMin: runtimes[n]));
+      }
+    }
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Сериалы «сейчас смотрю» — с просмотренными сериями, по свежести.
+  List<LibrarySeries> get currentlyWatching {
+    final list = _series.where((s) => s.episodes.isNotEmpty).toList()
+      ..sort((a, b) => (b.lastWatch ?? DateTime(0))
+          .compareTo(a.lastWatch ?? DateTime(0)));
+    return list;
+  }
+
   LibraryMovie? byUuid(String uuid) {
     for (final m in _movies) {
       if (m.uuid == uuid) return m;

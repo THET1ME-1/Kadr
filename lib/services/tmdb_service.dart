@@ -79,6 +79,35 @@ class TmdbDetails {
   });
 }
 
+/// Сезон сериала (для навигации по сериям).
+class TmdbSeason {
+  final int number;
+  final String name;
+  final int episodeCount;
+  const TmdbSeason(
+      {required this.number, required this.name, required this.episodeCount});
+}
+
+/// Эпизод сериала из TMDB.
+class TmdbEpisode {
+  final int season;
+  final int number;
+  final String name;
+  final String? airDate;
+  final String? stillUrl;
+  final int? runtime;
+  final String? overview;
+  const TmdbEpisode({
+    required this.season,
+    required this.number,
+    required this.name,
+    this.airDate,
+    this.stillUrl,
+    this.runtime,
+    this.overview,
+  });
+}
+
 /// Клиент TMDB (v4 Bearer). Бесплатно, без суточного лимита. Отдаёт русские
 /// названия и постеры (`language=ru-RU`). Поиск фильма по названию+году.
 class TmdbService {
@@ -215,6 +244,72 @@ class TmdbService {
       posterUrl: poster != null ? '${ApiConfig.tmdbImageBase}$poster' : null,
       rating: (best['vote_average'] as num?)?.toDouble(),
     );
+  }
+
+  static final Map<int, List<TmdbSeason>> _seasonsCache = {};
+  static final Map<String, List<TmdbEpisode>> _episodesCache = {};
+
+  /// Сезоны сериала по tmdbId.
+  static Future<List<TmdbSeason>> seasons(int tvId) async {
+    if (_seasonsCache.containsKey(tvId)) return _seasonsCache[tvId]!;
+    try {
+      final uri = Uri.parse('${ApiConfig.tmdbBase}/tv/$tvId')
+          .replace(queryParameters: {'language': 'ru-RU'});
+      final resp = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 12));
+      if (resp.statusCode != 200) return [];
+      final j = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      final list = (j['seasons'] as List? ?? [])
+          .map((s) => s as Map<String, dynamic>)
+          .where((s) => s['season_number'] != null)
+          .map((s) => TmdbSeason(
+                number: (s['season_number'] as num).toInt(),
+                name: s['name'] as String? ?? '',
+                episodeCount: (s['episode_count'] as num?)?.toInt() ?? 0,
+              ))
+          .where((s) => s.episodeCount > 0 && s.number >= 1)
+          .toList()
+        ..sort((a, b) => a.number.compareTo(b.number));
+      _seasonsCache[tvId] = list;
+      return list;
+    } catch (e) {
+      debugPrint('tmdb seasons $tvId error: $e');
+      return [];
+    }
+  }
+
+  /// Эпизоды конкретного сезона сериала.
+  static Future<List<TmdbEpisode>> episodesOf(int tvId, int season) async {
+    final key = '$tvId/$season';
+    if (_episodesCache.containsKey(key)) return _episodesCache[key]!;
+    try {
+      final uri = Uri.parse('${ApiConfig.tmdbBase}/tv/$tvId/season/$season')
+          .replace(queryParameters: {'language': 'ru-RU'});
+      final resp = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 12));
+      if (resp.statusCode != 200) return [];
+      final j = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      final list = (j['episodes'] as List? ?? []).map((e) {
+        final m = e as Map<String, dynamic>;
+        final still = m['still_path'] as String?;
+        return TmdbEpisode(
+          season: (m['season_number'] as num?)?.toInt() ?? season,
+          number: (m['episode_number'] as num?)?.toInt() ?? 0,
+          name: m['name'] as String? ?? '',
+          airDate: m['air_date'] as String?,
+          stillUrl: still != null ? '${ApiConfig.tmdbBackdropBase}$still' : null,
+          runtime: (m['runtime'] as num?)?.toInt(),
+          overview: m['overview'] as String?,
+        );
+      }).toList();
+      _episodesCache[key] = list;
+      return list;
+    } catch (e) {
+      debugPrint('tmdb episodes $key error: $e');
+      return [];
+    }
   }
 
   /// Поиск сериала (для обогащения сериалов русским названием + постером).

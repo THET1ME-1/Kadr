@@ -215,6 +215,17 @@ const Map<String, Map<String, String>> _strings = {
   'episodes_section': {'ru': 'Серии', 'en': 'Episodes'},
   'season_n': {'ru': 'Сезон {n}', 'en': 'Season {n}'},
   'more_episodes': {'ru': '+ ещё {n} серий', 'en': '+ {n} more episodes'},
+  'all_episodes': {'ru': 'Все серии', 'en': 'All episodes'},
+  'mark_upto': {'ru': 'Отметить по эту', 'en': 'Mark up to here'},
+  'network_error': {'ru': 'Ошибка сети', 'en': 'Network error'},
+  'no_episodes': {'ru': 'Не удалось загрузить серии', 'en': 'Could not load episodes'},
+  'now_watching': {'ru': 'Сейчас смотрю', 'en': 'Now watching'},
+  'now_watching_empty': {
+    'ru': 'Начните смотреть сериал — он появится здесь',
+    'en': 'Start a series — it will show up here'
+  },
+  'next_episode': {'ru': 'Дальше', 'en': 'Next up'},
+  'seen_of': {'ru': 'Просмотрено {n} из {m}', 'en': '{n} of {m} watched'},
   'filter_all': {'ru': 'Все', 'en': 'All'},
   'filter_movies': {'ru': 'Фильмы', 'en': 'Movies'},
   'filter_series': {'ru': 'Сериалы', 'en': 'Series'},
