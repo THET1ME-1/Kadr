@@ -1,0 +1,51 @@
+name: kadr
+description: "Kadr — трекер просмотренных фильмов и сериалов. Material 3 Expressive."
+publish_to: 'none'
+
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Тема, кастомизация, i18n (перенесено из ScoreMaster)
+  shared_preferences: ^2.3.2
+  flutter_colorpicker: ^1.1.0
+  dynamic_color: ^1.7.0
+  animations: ^2.0.11
+
+  # База фильмов (TMDB) и изображения
+  http: ^1.2.2
+  cached_network_image: ^3.4.1
+
+  # Данные, бэкап, синхронизация
+  path_provider: ^2.1.4
+  file_picker: ^10.2.0
+  share_plus: ^10.1.4
+  package_info_plus: ^8.0.2
+  url_launcher: ^6.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/
+
+  fonts:
+    - family: Unbounded
+      fonts:
+        - asset: assets/fonts/Unbounded.ttf
+    - family: Onest
+      fonts:
+        - asset: assets/fonts/Onest.ttf
