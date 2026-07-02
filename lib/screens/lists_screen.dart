@@ -35,10 +35,16 @@ class ListsScreen extends StatelessWidget {
                   .map(repo.byUuid)
                   .whereType<LibraryMovie>()
                   .toList(),
+              deletable: true,
             ),
         ];
         return Scaffold(
           appBar: AppBar(title: Text(tr('drawer_lists'))),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _createSheet(context, repo),
+            icon: const Icon(Icons.add_rounded),
+            label: Text(tr('create_list')),
+          ),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
             children: [
@@ -59,8 +65,25 @@ class ListsScreen extends StatelessWidget {
                 ),
                 for (var i = 0; i < custom.length; i++)
                   Reveal(
-                      delay: Duration(milliseconds: i * 50),
-                      child: _listCard(context, custom[i])),
+                    delay: Duration(milliseconds: i * 50),
+                    child: Dismissible(
+                      key: ValueKey('list-${custom[i].name}'),
+                      direction: DismissDirection.endToStart,
+                      onDismissed: (_) => repo.deleteList(custom[i].name),
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 28, bottom: 12),
+                        decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.errorContainer,
+                            borderRadius: BorderRadius.circular(24)),
+                        child: Icon(Icons.delete_rounded,
+                            color:
+                                Theme.of(context).colorScheme.onErrorContainer),
+                      ),
+                      child: _listCard(context, custom[i]),
+                    ),
+                  ),
+                const SizedBox(height: 80),
               ],
             ],
           ),
@@ -125,6 +148,69 @@ class ListsScreen extends StatelessWidget {
     );
   }
 
+  void _createSheet(BuildContext context, MovieRepository repo) {
+    final ctl = TextEditingController();
+    final scheme = Theme.of(context).colorScheme;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 14,
+            bottom: 20 + MediaQuery.of(sheetCtx).viewInsets.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: scheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(2))),
+            ),
+            const SizedBox(height: 16),
+            Text(tr('create_list'),
+                style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: scheme.onSurface)),
+            const SizedBox(height: 14),
+            TextField(
+              controller: ctl,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(hintText: tr('list_name')),
+              onSubmitted: (v) {
+                repo.createList(v);
+                Navigator.pop(sheetCtx);
+              },
+            ),
+            const SizedBox(height: 14),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: () {
+                  repo.createList(ctl.text);
+                  Navigator.pop(sheetCtx);
+                },
+                child: Text(tr('create')),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _collage(List<LibraryMovie> movies) {
     final shown = movies.take(3).toList();
     if (shown.isEmpty) {
@@ -154,7 +240,8 @@ class _ListData {
   final String name;
   final IconData icon;
   final List<LibraryMovie> movies;
-  _ListData(this.name, this.icon, this.movies);
+  final bool deletable;
+  _ListData(this.name, this.icon, this.movies, {this.deletable = false});
 }
 
 class _ListDetail extends StatelessWidget {

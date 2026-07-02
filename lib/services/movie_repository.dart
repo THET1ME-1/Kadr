@@ -320,6 +320,12 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
+  Future<void> deleteList(String name) async {
+    _lists.removeWhere((l) => l.name == name);
+    notifyListeners();
+    await _persist();
+  }
+
   Future<void> createList(String name, {String? withMovieUuid}) async {
     final n = name.trim();
     if (n.isEmpty || _lists.any((l) => l.name == n)) {
