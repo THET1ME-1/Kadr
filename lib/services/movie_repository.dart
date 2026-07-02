@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../models/library_entry.dart';
 import 'kinopoisk_service.dart';
+import 'store.dart';
 
 /// Единое хранилище библиотеки фильмов/сериалов Kadr.
 ///
@@ -38,16 +39,53 @@ class MovieRepository extends ChangeNotifier {
     if (_loaded) return;
     try {
       final f = await _file();
-      final raw = await f.exists()
-          ? await f.readAsString()
-          : await rootBundle.loadString('assets/seed/library.json');
-      _ingest(jsonDecode(raw) as Map<String, dynamic>);
-      if (!await f.exists()) await _persist(); // первый запуск — сохранить сид
+      final exists = await f.exists();
+      final seed = jsonDecode(
+          await rootBundle.loadString('assets/seed/library.json'))
+          as Map<String, dynamic>;
+      final seedVersion =
+          ((seed['meta'] as Map?)?['seedVersion'] as num?)?.toInt() ?? 1;
+
+      if (!exists) {
+        _ingest(seed);
+        await Store.instance.setInt('seedVersion', seedVersion);
+        await _persist(); // первый запуск — сохранить сид
+      } else {
+        _ingest(jsonDecode(await f.readAsString()) as Map<String, dynamic>);
+        final applied = await Store.instance.getInt('seedVersion') ?? 0;
+        if (seedVersion > applied) {
+          // Обновился сид (напр. добавились русские названия/постеры из дампа) —
+          // добавляем обогащение к уже установленным данным, не трогая оценки.
+          _mergeSeed(seed);
+          await Store.instance.setInt('seedVersion', seedVersion);
+          await _persist();
+        }
+      }
     } catch (e) {
       debugPrint('MovieRepository.load error: $e');
     }
     _loaded = true;
     notifyListeners();
+  }
+
+  /// Дозаполняет обогащение (kinopoiskId/постер/рус. название) из свежего сида,
+  /// не затрагивая пользовательские оценки/просмотры/избранное.
+  void _mergeSeed(Map<String, dynamic> seed) {
+    final byId = {for (final m in _movies) m.uuid: m};
+    for (final j in (seed['movies'] as List? ?? [])) {
+      final sj = j as Map<String, dynamic>;
+      final cur = byId['${sj['uuid']}'];
+      if (cur == null || cur.kinopoiskId != null) continue;
+      if (sj['kinopoiskId'] != null) {
+        cur.kinopoiskId = (sj['kinopoiskId'] as num).toInt();
+        cur.posterUrl ??= sj['posterUrl'] as String?;
+        cur.ruTitle ??= sj['ruTitle'] as String?;
+        if (sj['kpRating'] != null) {
+          cur.kpRating ??= (sj['kpRating'] as num).toDouble();
+        }
+        if (sj['enrichTried'] == true) cur.enrichTried = true;
+      }
+    }
   }
 
   void _ingest(Map<String, dynamic> data) {
@@ -100,15 +138,18 @@ class MovieRepository extends ChangeNotifier {
       _movies.where((m) => m.favorite).toList();
 
   /// Группировка просмотренного по месяцам: «2023-10» → фильмы (свежие сверху).
+  /// Просмотры без даты попадают в группу с ключом-заглушкой `DateTime(1)`.
   List<MapEntry<DateTime, List<LibraryMovie>>> get watchedByMonth {
     final map = <String, List<LibraryMovie>>{};
     final months = <String, DateTime>{};
     for (final m in watched) {
       final d = m.lastViewing;
-      if (d == null) continue;
-      final key = '${d.year}-${d.month.toString().padLeft(2, '0')}';
+      final key = d == null
+          ? 'unknown'
+          : '${d.year}-${d.month.toString().padLeft(2, '0')}';
+      final month = d == null ? DateTime(1) : DateTime(d.year, d.month);
       map.putIfAbsent(key, () => []).add(m);
-      months[key] = DateTime(d.year, d.month);
+      months[key] = month;
     }
     final keys = months.keys.toList()
       ..sort((a, b) => months[b]!.compareTo(months[a]!));
@@ -140,6 +181,33 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
+  /// Отмечает просмотр. Если фильм уже смотрели — это повторный просмотр
+  /// (наращивается счётчик). [date] = null → «неизвестная дата».
+  /// Возвращает true, если это был повтор.
+  Future<bool> addViewing(String uuid, DateTime? date) async {
+    final m = byUuid(uuid);
+    if (m == null) return false;
+    final wasWatched =
+        m.status == LibraryStatus.watched || m.viewings.isNotEmpty;
+    if (wasWatched) m.rewatchCount += 1;
+    m.status = LibraryStatus.watched;
+    m.viewings.add(date ?? LibraryMovie.unknownDate);
+    notifyListeners();
+    await _persist();
+    return wasWatched;
+  }
+
+  /// Переключает «Буду смотреть» (только для непросмотренных).
+  Future<void> toggleWatchlist(String uuid) async {
+    final m = byUuid(uuid);
+    if (m == null || m.status == LibraryStatus.watched) return;
+    m.status = m.status == LibraryStatus.watchlist
+        ? LibraryStatus.library
+        : LibraryStatus.watchlist;
+    notifyListeners();
+    await _persist();
+  }
+
   // ------------------------ обогащение kinopoisk.dev ------------------------
 
   bool _sweeping = false;
@@ -167,7 +235,9 @@ class MovieRepository extends ChangeNotifier {
       m.enrichTried = true;
       if (match != null) {
         m.kinopoiskId = match.id;
-        m.posterUrl = match.posterUrl;
+        // Постер: из API, иначе — статичный CDN Кинопоиска по kp_id (бесплатно).
+        m.posterUrl = match.posterUrl ??
+            'https://st.kp.yandex.net/images/film_iphone/iphone360_${match.id}.jpg';
         m.kpRating = match.kpRating;
         if (match.ruName != null && match.ruName!.isNotEmpty) {
           m.ruTitle = match.ruName;

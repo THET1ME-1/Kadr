@@ -126,4 +126,18 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Your watchlist is empty'
   },
   'lib_count': {'ru': 'Всего: {n}', 'en': 'Total: {n}'},
+  'rewatch': {'ru': 'Повтор', 'en': 'Rewatch'},
+  'rewatch_full': {'ru': 'Повторный просмотр', 'en': 'Rewatched'},
+  'rewatches_n': {'ru': 'Повторов: {n}', 'en': 'Rewatches: {n}'},
+  'mark_watched': {'ru': 'Отметить просмотр', 'en': 'Log a watch'},
+  'add_watchlist': {'ru': 'Буду смотреть', 'en': 'Watchlist'},
+  'in_watchlist': {'ru': 'В списке', 'en': 'In watchlist'},
+  'kp_rating': {'ru': 'Кинопоиск', 'en': 'Kinopoisk'},
+
+  // ---------------------- Когда посмотрели ----------------------
+  'when_today': {'ru': 'Сегодня', 'en': 'Today'},
+  'when_yesterday': {'ru': 'Вчера', 'en': 'Yesterday'},
+  'when_now': {'ru': 'Только что', 'en': 'Just now'},
+  'viewing_added': {'ru': 'Отмечено как просмотрено', 'en': 'Marked as watched'},
+  'rewatch_added': {'ru': 'Добавлен повторный просмотр', 'en': 'Rewatch logged'},
 };

@@ -84,8 +84,10 @@ class LibraryTab extends StatelessWidget {
   Widget _monthHeader(BuildContext context, DateTime month) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
         child: Text(
-          trf('watched_month',
-              {'month': monthName(month.month), 'year': month.year}),
+          month.year <= 1
+              ? tr('when_unknown')
+              : trf('watched_month',
+                  {'month': monthName(month.month), 'year': month.year}),
           style: TextStyle(
             fontFamily: AppTheme.displayFont,
             fontWeight: FontWeight.w800,
@@ -167,16 +169,27 @@ class _MovieRow extends StatelessWidget {
                             ),
                           ],
                         ),
-                        if (showDate && movie.lastViewing != null) ...[
-                          const SizedBox(height: 3),
-                          Text(
-                            trf('watched_date',
-                                {'date': longDate(movie.lastViewing!)}),
-                            style: TextStyle(
-                                fontFamily: AppTheme.bodyFont,
-                                fontSize: 12,
-                                color: scheme.onSurfaceVariant
-                                    .withValues(alpha: 0.8)),
+                        if (showDate &&
+                            (movie.lastViewing != null ||
+                                movie.isRewatched)) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              if (movie.lastViewing != null)
+                                Text(
+                                  dateExactWithTime(movie.lastViewing!),
+                                  style: TextStyle(
+                                      fontFamily: AppTheme.bodyFont,
+                                      fontSize: 12,
+                                      color: scheme.onSurfaceVariant
+                                          .withValues(alpha: 0.85)),
+                                ),
+                              if (movie.isRewatched) ...[
+                                if (movie.lastViewing != null)
+                                  const SizedBox(width: 8),
+                                _rewatchBadge(scheme, movie.viewCount),
+                              ],
+                            ],
                           ),
                         ],
                       ],
@@ -192,6 +205,27 @@ class _MovieRow extends StatelessWidget {
       ),
     );
   }
+
+  Widget _rewatchBadge(ColorScheme scheme, int count) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+            color: scheme.tertiaryContainer,
+            borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.repeat_rounded,
+                size: 12, color: scheme.onTertiaryContainer),
+            const SizedBox(width: 3),
+            Text('×$count',
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                    color: scheme.onTertiaryContainer)),
+          ],
+        ),
+      );
 
   Widget _scoreBadge(ColorScheme scheme) {
     if (movie.score == null) {

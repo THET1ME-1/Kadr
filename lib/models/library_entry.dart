@@ -81,7 +81,33 @@ class LibraryMovie {
         emotions = emotions ?? [],
         lists = lists ?? [];
 
-  DateTime? get lastViewing => viewings.isEmpty ? null : viewings.last;
+  /// Дата-заглушка «неизвестная дата» для просмотров без точной даты.
+  static final DateTime unknownDate = DateTime.fromMillisecondsSinceEpoch(0);
+  static bool isUnknownDate(DateTime d) => d.millisecondsSinceEpoch <= 0;
+
+  /// Последний просмотр с известной датой (заглушки-«неизвестно» игнорируются).
+  DateTime? get lastViewing {
+    DateTime? best;
+    for (final v in viewings) {
+      if (isUnknownDate(v)) continue;
+      if (best == null || v.isAfter(best)) best = v;
+    }
+    return best;
+  }
+
+  /// Просмотры по возрастанию даты (неизвестные — в конец).
+  List<DateTime> get sortedViewings {
+    final known = viewings.where((v) => !isUnknownDate(v)).toList()..sort();
+    final unknown = viewings.where(isUnknownDate).toList();
+    return [...known, ...unknown];
+  }
+
+  /// Общее число просмотров (включая повторные).
+  int get viewCount =>
+      viewings.length > rewatchCount ? viewings.length : rewatchCount + 1;
+
+  /// Смотрел ли повторно.
+  bool get isRewatched => rewatchCount > 0 || viewings.length > 1;
 
   /// Название для показа: русское, если уже подтянуто, иначе оригинал.
   String get displayTitle =>
