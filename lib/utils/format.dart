@@ -66,10 +66,16 @@ List<String> get weekdayShort =>
     _en ? const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
         : const ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
+/// Родительный падеж месяцев для дат («15 января»).
+const List<String> _monthsRuGen = [
+  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+];
+
 /// «30 июня 2026» / «June 30, 2026».
 String longDate(DateTime d) => _en
     ? '${monthName(d.month)} ${d.day}, ${d.year}'
-    : '${d.day} ${_monthsRu[d.month - 1].toLowerCase()} ${d.year}';
+    : '${d.day} ${_monthsRuGen[d.month - 1]} ${d.year}';
 
 /// «30.06.2026, 14:05».
 String dateTimeShort(DateTime d) =>

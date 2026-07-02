@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
+import '../services/movie_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/empty_state.dart';
+import 'library_tab.dart';
 import 'settings_screen.dart';
 
 /// Главная оболочка: четыре вкладки снизу (как в референсе — Буду смотреть /
@@ -17,6 +19,15 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Фоновая дозагрузка русских названий и постеров из kinopoisk.dev.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      MovieRepository.instance.startEnrichSweep();
+    });
+  }
 
   List<_Tab> get _tabs => [
         _Tab(tr('nav_watchlist'), Icons.bookmark_border_rounded,
@@ -55,12 +66,16 @@ class _HomeShellState extends State<HomeShell> {
       body: IndexedStack(
         index: _index,
         children: [
-          for (final t in tabs)
-            EmptyState(
-              icon: t.emptyIcon,
-              title: t.title,
-              subtitle: tr('soon_sub'),
-            ),
+          const LibraryTab(mode: LibraryMode.watchlist),
+          const LibraryTab(mode: LibraryMode.watched),
+          EmptyState(
+              icon: tabs[2].emptyIcon,
+              title: tabs[2].title,
+              subtitle: tr('soon_sub')),
+          EmptyState(
+              icon: tabs[3].emptyIcon,
+              title: tabs[3].title,
+              subtitle: tr('soon_sub')),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(

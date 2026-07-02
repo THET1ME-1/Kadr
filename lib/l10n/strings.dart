@@ -109,4 +109,21 @@ const Map<String, Map<String, String>> _strings = {
   'when_unknown': {'ru': 'Неизвестная дата', 'en': 'Unknown date'},
   'when_just_finished': {'ru': 'Только что завершил', 'en': 'Just finished'},
   'when_pick_date': {'ru': 'Выберите дату', 'en': 'Pick a date'},
+
+  // -------------------------- Библиотека --------------------------
+  'your_rating': {'ru': 'Ваша оценка', 'en': 'Your rating'},
+  'rate_it': {'ru': 'Оцените фильм', 'en': 'Rate this movie'},
+  'not_rated': {'ru': 'Без оценки', 'en': 'Not rated'},
+  'viewings_n': {'ru': 'Просмотров: {n}', 'en': 'Viewings: {n}'},
+  'watched_month': {'ru': 'Просмотры {month} {year} г.', 'en': 'Watched · {month} {year}'},
+  'watched_date': {'ru': 'Дата просмотра: {date}', 'en': 'Watched on {date}'},
+  'lib_empty_watched': {
+    'ru': 'Пока нет просмотренных фильмов',
+    'en': 'No watched movies yet'
+  },
+  'lib_empty_watchlist': {
+    'ru': 'Список «Буду смотреть» пуст',
+    'en': 'Your watchlist is empty'
+  },
+  'lib_count': {'ru': 'Всего: {n}', 'en': 'Total: {n}'},
 };
