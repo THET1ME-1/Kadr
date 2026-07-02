@@ -59,15 +59,16 @@ class LibraryTab extends StatelessWidget {
                 delegate: SliverChildBuilderDelegate(
                   (context, i) {
                     final (movie, viewing) = g.value[i];
-                    final first = movie.sortedViewings.isNotEmpty
-                        ? movie.sortedViewings.first
-                        : null;
-                    final isRe = movie.viewings.length > 1 &&
-                        !identical(viewing, first);
+                    // Номер просмотра по хронологии: 1-й — оригинал, 2+ — повтор.
+                    final ordinal = movie.sortedViewings.indexOf(viewing) + 1;
+                    final rewatchNum =
+                        (movie.viewings.length > 1 && ordinal > 1)
+                            ? ordinal
+                            : null;
                     return _MovieRow(
                         movie: movie,
                         viewing: viewing,
-                        isRewatchViewing: isRe);
+                        rewatchNumber: rewatchNum);
                   },
                   childCount: g.value.length,
                 ),
@@ -114,10 +115,12 @@ class _MovieRow extends StatelessWidget {
 
   /// Конкретный просмотр (для вкладки «Просмотрено»). null во «Буду смотреть».
   final Viewing? viewing;
-  final bool isRewatchViewing;
+
+  /// Номер повторного просмотра (2, 3, …); null — если это первый просмотр.
+  final int? rewatchNumber;
 
   const _MovieRow(
-      {required this.movie, this.viewing, this.isRewatchViewing = false});
+      {required this.movie, this.viewing, this.rewatchNumber});
 
   @override
   Widget build(BuildContext context) {
@@ -186,7 +189,7 @@ class _MovieRow extends StatelessWidget {
                             ),
                           ],
                         ),
-                        if (date != null || isRewatchViewing) ...[
+                        if (date != null || rewatchNumber != null) ...[
                           const SizedBox(height: 4),
                           Row(
                             children: [
@@ -199,9 +202,9 @@ class _MovieRow extends StatelessWidget {
                                       color: scheme.onSurfaceVariant
                                           .withValues(alpha: 0.85)),
                                 ),
-                              if (isRewatchViewing) ...[
+                              if (rewatchNumber != null) ...[
                                 if (date != null) const SizedBox(width: 8),
-                                _rewatchChip(scheme),
+                                _rewatchChip(scheme, rewatchNumber!),
                               ],
                             ],
                           ),
@@ -220,8 +223,10 @@ class _MovieRow extends StatelessWidget {
     );
   }
 
-  Widget _rewatchChip(ColorScheme scheme) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+  /// Бейдж повтора: «↻ N» — номер по счёту (2-й, 3-й… просмотр). Цифра сама
+  /// говорит, что это повтор, поэтому без слова «Повтор».
+  Widget _rewatchChip(ColorScheme scheme, int n) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
             color: scheme.tertiaryContainer,
             borderRadius: BorderRadius.circular(12)),
@@ -229,13 +234,13 @@ class _MovieRow extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.repeat_rounded,
-                size: 12, color: scheme.onTertiaryContainer),
+                size: 13, color: scheme.onTertiaryContainer),
             const SizedBox(width: 3),
-            Text(tr('rewatch'),
+            Text('$n',
                 style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11,
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
                     color: scheme.onTertiaryContainer)),
           ],
         ),
