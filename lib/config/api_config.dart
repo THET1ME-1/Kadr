@@ -21,4 +21,6 @@ class ApiConfig {
 
   static const String tmdbBase = 'https://api.themoviedb.org/3';
   static const String tmdbImageBase = 'https://image.tmdb.org/t/p/w342';
+  static const String tmdbBackdropBase = 'https://image.tmdb.org/t/p/w780';
+  static const String tmdbProfileBase = 'https://image.tmdb.org/t/p/w185';
 }

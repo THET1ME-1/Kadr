@@ -295,6 +295,45 @@ class MovieRepository extends ChangeNotifier {
     return null;
   }
 
+  // ------------------------------ списки ------------------------------
+
+  List<String> listsForMovie(String uuid) => _lists
+      .where((l) => l.movieUuids.contains(uuid))
+      .map((l) => l.name)
+      .toList();
+
+  Future<void> toggleInList(String listName, String uuid) async {
+    MovieList? l;
+    for (final x in _lists) {
+      if (x.name == listName) {
+        l = x;
+        break;
+      }
+    }
+    if (l == null) return;
+    if (l.movieUuids.contains(uuid)) {
+      l.movieUuids.remove(uuid);
+    } else {
+      l.movieUuids.add(uuid);
+    }
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> createList(String name, {String? withMovieUuid}) async {
+    final n = name.trim();
+    if (n.isEmpty || _lists.any((l) => l.name == n)) {
+      if (withMovieUuid != null && _lists.any((l) => l.name == n)) {
+        await toggleInList(n, withMovieUuid);
+      }
+      return;
+    }
+    _lists.add(MovieList(
+        name: n, movieUuids: withMovieUuid != null ? [withMovieUuid] : []));
+    notifyListeners();
+    await _persist();
+  }
+
   Future<void> setScore(String uuid, double? score) async {
     final m = byUuid(uuid);
     if (m == null) return;
@@ -580,6 +619,13 @@ class MovieRepository extends ChangeNotifier {
       await _persist();
       _sweeping = false;
     }
+  }
+
+  Future<void> setTmdbId(String uuid, int id) async {
+    final m = byUuid(uuid);
+    if (m == null || m.tmdbId == id) return;
+    m.tmdbId = id;
+    await _persist();
   }
 
   Future<void> setPoster(String uuid, {int? kinopoiskId, String? posterUrl}) async {

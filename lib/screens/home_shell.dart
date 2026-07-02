@@ -128,11 +128,13 @@ class _HomeShellState extends State<HomeShell> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
-        icon: const Icon(Icons.add_rounded),
-        label: Text(tr('add')),
-      ),
+      floatingActionButton: onLibrary
+          ? FloatingActionButton.extended(
+              onPressed: () => setState(() => _index = 2),
+              icon: const Icon(Icons.add_rounded),
+              label: Text(tr('add')),
+            )
+          : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),

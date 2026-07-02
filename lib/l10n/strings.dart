@@ -71,6 +71,10 @@ const Map<String, Map<String, String>> _strings = {
   'movies_count': {'ru': '{n} фильмов', 'en': '{n} movies'},
   'list_empty': {'ru': 'Список пуст', 'en': 'Empty list'},
   'my_lists': {'ru': 'Мои списки', 'en': 'My lists'},
+  'manage_lists': {'ru': 'Списки', 'en': 'Lists'},
+  'new_list': {'ru': 'Новый список', 'en': 'New list'},
+  'create': {'ru': 'Создать', 'en': 'Create'},
+  'no_lists_yet': {'ru': 'Пока нет своих списков', 'en': 'No custom lists yet'},
   'drawer_settings': {'ru': 'Настройки', 'en': 'Settings'},
   'drawer_about': {'ru': 'О приложении', 'en': 'About'},
   'search_hint': {'ru': 'Фильмы и сериалы…', 'en': 'Movies and series…'},
@@ -140,6 +144,12 @@ const Map<String, Map<String, String>> _strings = {
   'mood_fantastic': {'ru': 'Восхитительно', 'en': 'Fantastic'},
 
   // -------------------------- Детали фильма --------------------------
+  'overview': {'ru': 'Описание', 'en': 'Overview'},
+  'genres': {'ru': 'Жанры', 'en': 'Genres'},
+  'cast': {'ru': 'В ролях', 'en': 'Cast'},
+  'director': {'ru': 'Режиссёр', 'en': 'Director'},
+  'budget': {'ru': 'Бюджет', 'en': 'Budget'},
+  'revenue': {'ru': 'Сборы', 'en': 'Box office'},
   'tab_info': {'ru': 'Инфо', 'en': 'Info'},
   'tab_reviews': {'ru': 'Отзывы', 'en': 'Reviews'},
   'act_watched': {'ru': 'Просмотрено', 'en': 'Watched'},

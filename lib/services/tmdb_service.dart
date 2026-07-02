@@ -44,6 +44,39 @@ class TmdbMovie {
   }
 }
 
+/// Актёр в деталях фильма.
+class TmdbCast {
+  final String name;
+  final String? character;
+  final String? photoUrl;
+  const TmdbCast({required this.name, this.character, this.photoUrl});
+}
+
+/// Подробности фильма из TMDB (для карточки: бэкдроп, описание, жанры, актёры,
+/// бюджет/сборы, режиссёр).
+class TmdbDetails {
+  final String? overview;
+  final String? tagline;
+  final String? backdropUrl;
+  final String? director;
+  final List<String> genres;
+  final int? budget;
+  final int? revenue;
+  final int? runtime;
+  final List<TmdbCast> cast;
+  const TmdbDetails({
+    this.overview,
+    this.tagline,
+    this.backdropUrl,
+    this.director,
+    this.genres = const [],
+    this.budget,
+    this.revenue,
+    this.runtime,
+    this.cast = const [],
+  });
+}
+
 /// Клиент TMDB (v4 Bearer). Бесплатно, без суточного лимита. Отдаёт русские
 /// названия и постеры (`language=ru-RU`). Поиск фильма по названию+году.
 class TmdbService {
@@ -53,6 +86,68 @@ class TmdbService {
     'Authorization': 'Bearer ${ApiConfig.tmdbToken}',
     'accept': 'application/json',
   };
+
+  /// Кэш подробностей в памяти (на сессию).
+  static final Map<int, TmdbDetails> _detailsCache = {};
+
+  /// Подробности фильма по tmdbId (описание, жанры, актёры, бюджет, бэкдроп).
+  static Future<TmdbDetails?> details(int tmdbId) async {
+    if (_detailsCache.containsKey(tmdbId)) return _detailsCache[tmdbId];
+    try {
+      final uri = Uri.parse('${ApiConfig.tmdbBase}/movie/$tmdbId').replace(
+          queryParameters: {
+            'language': 'ru-RU',
+            'append_to_response': 'credits'
+          });
+      final resp = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 12));
+      if (resp.statusCode != 200) return null;
+      final j = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      final credits = j['credits'] as Map<String, dynamic>?;
+      final castList = (credits?['cast'] as List? ?? []).take(12).map((c) {
+        final m = c as Map<String, dynamic>;
+        final photo = m['profile_path'] as String?;
+        return TmdbCast(
+          name: m['name'] as String? ?? '',
+          character: m['character'] as String?,
+          photoUrl:
+              photo != null ? '${ApiConfig.tmdbProfileBase}$photo' : null,
+        );
+      }).toList();
+      String? director;
+      for (final c in (credits?['crew'] as List? ?? [])) {
+        final m = c as Map<String, dynamic>;
+        if (m['job'] == 'Director') {
+          director = m['name'] as String?;
+          break;
+        }
+      }
+      final backdrop = j['backdrop_path'] as String?;
+      final details = TmdbDetails(
+        overview: j['overview'] as String?,
+        tagline: (j['tagline'] as String?)?.isNotEmpty == true
+            ? j['tagline'] as String
+            : null,
+        backdropUrl:
+            backdrop != null ? '${ApiConfig.tmdbBackdropBase}$backdrop' : null,
+        director: director,
+        genres: [
+          for (final g in (j['genres'] as List? ?? []))
+            (g as Map<String, dynamic>)['name'] as String? ?? ''
+        ].where((s) => s.isNotEmpty).toList(),
+        budget: (j['budget'] as num?)?.toInt(),
+        revenue: (j['revenue'] as num?)?.toInt(),
+        runtime: (j['runtime'] as num?)?.toInt(),
+        cast: castList,
+      );
+      _detailsCache[tmdbId] = details;
+      return details;
+    } catch (e) {
+      debugPrint('tmdb details $tmdbId error: $e');
+      return null;
+    }
+  }
 
   /// Популярное сейчас (лента «Обзор»).
   static Future<List<TmdbMovie>> trending() =>

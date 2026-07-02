@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
+import 'package:cached_network_image/cached_network_image.dart';
+
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
 import '../services/movie_repository.dart';
+import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../widgets/poster.dart';
+import '../widgets/reveal.dart';
 import 'when_watched_sheet.dart';
 
 /// Карточка фильма — выезжающая снизу панель (M3). Постер, мета, рейтинг КП,
@@ -37,6 +41,28 @@ class _MovieSheetState extends State<_MovieSheet> {
 
   /// Значение слайдера во время перетаскивания (иначе берём из модели).
   double? _dragging;
+
+  TmdbDetails? _details;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDetails();
+  }
+
+  Future<void> _loadDetails() async {
+    final m = widget.movie;
+    var id = m.tmdbId;
+    if (id == null) {
+      // Нет tmdbId (напр. сопоставлен через KinoPoisk) — ищем по названию+году.
+      final match = await TmdbService.search(m.title, year: m.year);
+      id = match?.tmdbId;
+      if (id != null) _repo.setTmdbId(m.uuid, id);
+    }
+    if (id == null) return;
+    final d = await TmdbService.details(id);
+    if (mounted && d != null) setState(() => _details = d);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +102,8 @@ class _MovieSheetState extends State<_MovieSheet> {
               borderRadius: BorderRadius.circular(2)),
         ),
       ),
-      const SizedBox(height: 18),
+      const SizedBox(height: 16),
+      if (_details?.backdropUrl != null) _backdrop(scheme),
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -158,6 +185,16 @@ class _MovieSheetState extends State<_MovieSheet> {
           ],
         ],
       ),
+      const SizedBox(height: 12),
+      SizedBox(
+        width: double.infinity,
+        child: FilledButton.tonalIcon(
+          onPressed: () => _manageListsSheet(m),
+          icon: const Icon(Icons.playlist_add_rounded),
+          label: Text(tr('manage_lists')),
+        ),
+      ),
+      ..._detailsWidgets(scheme),
       if (m.emotions.isNotEmpty) ...[
         const SizedBox(height: 18),
         Wrap(
@@ -206,6 +243,219 @@ class _MovieSheetState extends State<_MovieSheet> {
         ),
       ],
     ];
+  }
+
+  // ------------------------ детали TMDB ------------------------
+  Widget _backdrop(ColorScheme scheme) {
+    return Reveal(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CachedNetworkImage(
+                  imageUrl: _details!.backdropUrl!,
+                  fit: BoxFit.cover,
+                  fadeInDuration: const Duration(milliseconds: 350),
+                  placeholder: (c, _) =>
+                      Container(color: scheme.surfaceContainerHighest),
+                  errorWidget: (c, u, e) =>
+                      Container(color: scheme.surfaceContainerHighest),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        scheme.surfaceContainer.withValues(alpha: 0.55),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _detailsWidgets(ColorScheme scheme) {
+    final d = _details;
+    if (d == null) return [];
+    final facts = <Widget>[
+      if (d.director != null && d.director!.isNotEmpty)
+        _fact(scheme, Icons.movie_creation_rounded, tr('director'), d.director!),
+      if (d.budget != null && d.budget! > 0)
+        _fact(scheme, Icons.payments_rounded, tr('budget'), _money(d.budget!)),
+      if (d.revenue != null && d.revenue! > 0)
+        _fact(scheme, Icons.trending_up_rounded, tr('revenue'),
+            _money(d.revenue!)),
+    ];
+    return [
+      if (d.tagline != null) ...[
+        const SizedBox(height: 18),
+        Text('«${d.tagline!}»',
+            style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+                color: scheme.onSurfaceVariant)),
+      ],
+      if (d.overview != null && d.overview!.isNotEmpty) ...[
+        const SizedBox(height: 18),
+        _sectionTitle(scheme, tr('overview')),
+        const SizedBox(height: 6),
+        Text(d.overview!,
+            style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontSize: 14,
+                height: 1.45,
+                color: scheme.onSurface)),
+      ],
+      if (d.genres.isNotEmpty) ...[
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final g in d.genres)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                    color: scheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(20)),
+                child: Text(g,
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: scheme.onSecondaryContainer)),
+              ),
+          ],
+        ),
+      ],
+      if (d.cast.isNotEmpty) ...[
+        const SizedBox(height: 18),
+        _sectionTitle(scheme, tr('cast')),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 148,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: d.cast.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 12),
+            itemBuilder: (c, i) => Reveal(
+              delay: Duration(milliseconds: i * 45),
+              beginOffset: const Offset(0.15, 0),
+              child: _castCard(scheme, d.cast[i]),
+            ),
+          ),
+        ),
+      ],
+      if (facts.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        ...facts,
+      ],
+    ];
+  }
+
+  Widget _sectionTitle(ColorScheme scheme, String title) => Text(title,
+      style: TextStyle(
+          fontFamily: AppTheme.displayFont,
+          fontWeight: FontWeight.w700,
+          fontSize: 15,
+          color: scheme.primary));
+
+  Widget _castCard(ColorScheme scheme, TmdbCast c) {
+    return SizedBox(
+      width: 84,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: scheme.surfaceContainerHighest,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: c.photoUrl != null
+                ? CachedNetworkImage(
+                    imageUrl: c.photoUrl!,
+                    fit: BoxFit.cover,
+                    errorWidget: (ctx, u, e) => Icon(Icons.person_rounded,
+                        color: scheme.onSurfaceVariant, size: 34),
+                  )
+                : Icon(Icons.person_rounded,
+                    color: scheme.onSurfaceVariant, size: 34),
+          ),
+          const SizedBox(height: 6),
+          Text(c.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11.5,
+                  height: 1.1,
+                  color: scheme.onSurface)),
+          if (c.character != null && c.character!.isNotEmpty)
+            Text(c.character!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontSize: 10.5,
+                    color: scheme.onSurfaceVariant)),
+        ],
+      ),
+    );
+  }
+
+  Widget _fact(ColorScheme scheme, IconData icon, String label, String value) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 20, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 12),
+            Text('$label: ',
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontSize: 14,
+                    color: scheme.onSurfaceVariant)),
+            Expanded(
+              child: Text(value,
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: scheme.onSurface)),
+            ),
+          ],
+        ),
+      );
+
+  String _money(int v) {
+    final s = v.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
+      buf.write(s[i]);
+    }
+    return '$buf \$';
   }
 
   // ---- список просмотров: тап по строке = правка (дата+оценка+удаление) ----
@@ -585,6 +835,106 @@ class _MovieSheetState extends State<_MovieSheet> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // ------------------ управление списками ------------------
+  void _manageListsSheet(LibraryMovie m) {
+    final scheme = Theme.of(context).colorScheme;
+    final ctl = TextEditingController();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheet) {
+          final lists = _repo.lists;
+          final inLists = _repo.listsForMovie(m.uuid).toSet();
+          return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: scheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 14, 24, 6),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(tr('manage_lists'),
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                              color: scheme.onSurface)),
+                    ),
+                  ),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        if (lists.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                            child: Text(tr('no_lists_yet'),
+                                style: TextStyle(
+                                    fontFamily: AppTheme.bodyFont,
+                                    color: scheme.onSurfaceVariant)),
+                          ),
+                        for (final l in lists)
+                          CheckboxListTile(
+                            value: inLists.contains(l.name),
+                            title: Text(l.name,
+                                style: const TextStyle(
+                                    fontFamily: AppTheme.bodyFont,
+                                    fontWeight: FontWeight.w600)),
+                            onChanged: (_) {
+                              _repo.toggleInList(l.name, m.uuid);
+                              setSheet(() {});
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: ctl,
+                            decoration: InputDecoration(hintText: tr('new_list')),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        FilledButton(
+                          onPressed: () {
+                            _repo.createList(ctl.text, withMovieUuid: m.uuid);
+                            ctl.clear();
+                            setSheet(() {});
+                          },
+                          child: Text(tr('create')),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
