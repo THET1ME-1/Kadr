@@ -5,9 +5,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/locale_controller.dart';
 import 'services/movie_repository.dart';
 import 'services/movie_source.dart';
+import 'services/store.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 import 'screens/home_shell.dart';
+import 'screens/onboarding_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,13 +17,15 @@ Future<void> main() async {
   await LocaleController.instance.load();
   await SourceController.instance.load();
   await MovieRepository.instance.load();
-  runApp(const KadrApp());
+  final onboarded = await Store.instance.getBool('onboardingDone');
+  runApp(KadrApp(onboarded: onboarded));
 }
 
 /// Корень приложения. Слушает контроллеры темы и языка — при смене цвета,
 /// режима или языка всё дерево перестраивается на лету.
 class KadrApp extends StatelessWidget {
-  const KadrApp({super.key});
+  final bool onboarded;
+  const KadrApp({super.key, this.onboarded = true});
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +60,7 @@ class KadrApp extends StatelessWidget {
                 GlobalWidgetsLocalizations.delegate,
                 GlobalCupertinoLocalizations.delegate,
               ],
-              home: const HomeShell(),
+              home: onboarded ? const HomeShell() : const OnboardingScreen(),
             );
           },
         );

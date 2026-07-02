@@ -36,6 +36,29 @@ const Map<String, Map<String, String>> _strings = {
   'on': {'ru': 'Вкл', 'en': 'On'},
   'off': {'ru': 'Выкл', 'en': 'Off'},
   'soon': {'ru': 'Скоро', 'en': 'Coming soon'},
+  'next': {'ru': 'Далее', 'en': 'Next'},
+  'start': {'ru': 'Начать', 'en': 'Get started'},
+  'skip': {'ru': 'Пропустить', 'en': 'Skip'},
+  'ob1_title': {'ru': 'Твоё кино', 'en': 'Your cinema'},
+  'ob1_sub': {
+    'ru': 'Веди коллекцию просмотренных фильмов и сериалов — красиво и удобно.',
+    'en': 'Track the movies and series you\'ve watched — beautifully.'
+  },
+  'ob2_title': {'ru': 'Оценивай просмотры', 'en': 'Rate every watch'},
+  'ob2_sub': {
+    'ru': 'У каждого просмотра своя оценка 1.0–10.0 — мнение меняется при пересмотре.',
+    'en': 'Each viewing has its own 1.0–10.0 rating — opinions change on rewatch.'
+  },
+  'ob3_title': {'ru': 'Русский и постеры', 'en': 'Russian & posters'},
+  'ob3_sub': {
+    'ru': 'Названия и обложки подтягиваются автоматически из TMDB и Кинопоиска.',
+    'en': 'Titles and posters are fetched automatically from TMDB.'
+  },
+  'ob4_title': {'ru': 'Статистика и списки', 'en': 'Stats & lists'},
+  'ob4_sub': {
+    'ru': 'Смотри статистику, собирай свои списки и переноси всё бэкапом.',
+    'en': 'See your stats, build lists and back everything up.'
+  },
   'soon_sub': {
     'ru': 'Этот раздел ещё в разработке',
     'en': 'This section is under construction'

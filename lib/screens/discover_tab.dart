@@ -6,6 +6,7 @@ import '../services/movie_repository.dart';
 import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/poster.dart';
+import '../widgets/pressable.dart';
 import '../widgets/reveal.dart';
 
 enum DiscoverMode { trending, nowPlaying }
@@ -104,7 +105,7 @@ class _DiscoverTabState extends State<DiscoverTab>
     final lib = MovieRepository.instance.movieByTmdb(m.id);
     return SizedBox(
       width: w,
-      child: GestureDetector(
+      child: Pressable(
         onTap: () => _addSheet(m),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
