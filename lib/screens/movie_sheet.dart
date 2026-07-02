@@ -519,7 +519,8 @@ class _MovieSheetState extends State<_MovieSheet> {
     for (var i = sorted.length - 1; i >= 0; i--) {
       final v = sorted[i];
       final isRewatch = i > 0; // самый ранний просмотр — не повтор
-      final sc = v.score;
+      // Эффективная оценка просмотра (с учётом общей) — согласуется с верхней.
+      final sc = m.scoreOf(v);
       rows.add(Material(
         color: Colors.transparent,
         child: InkWell(
@@ -720,8 +721,8 @@ class _MovieSheetState extends State<_MovieSheet> {
   void _editViewing(
       BuildContext context, LibraryMovie m, Viewing v, int ordinal) {
     DateTime? date = v.date;
-    bool rated = v.score != null;
-    double val = v.score ?? m.score ?? 7.0;
+    bool rated = m.scoreOf(v) != null;
+    double val = m.scoreOf(v) ?? 7.0;
     final scheme = Theme.of(context).colorScheme;
     final messenger = ScaffoldMessenger.of(context);
 
