@@ -16,7 +16,15 @@ enum LibraryMode { watched, watchlist }
 /// как в референсе; повторные просмотры помечаются) или «Буду смотреть».
 class LibraryTab extends StatelessWidget {
   final LibraryMode mode;
-  const LibraryTab({super.key, required this.mode});
+  final String query;
+  const LibraryTab({super.key, required this.mode, this.query = ''});
+
+  bool _match(LibraryMovie m) {
+    final q = query.toLowerCase().trim();
+    if (q.isEmpty) return true;
+    return m.displayTitle.toLowerCase().contains(q) ||
+        m.title.toLowerCase().contains(q);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +33,7 @@ class LibraryTab extends StatelessWidget {
       listenable: repo,
       builder: (context, _) {
         if (mode == LibraryMode.watchlist) {
-          final items = repo.watchlist;
+          final items = repo.watchlist.where(_match).toList();
           if (items.isEmpty) {
             return EmptyState(
                 icon: Icons.bookmark_rounded,
@@ -42,7 +50,11 @@ class LibraryTab extends StatelessWidget {
           );
         }
 
-        final groups = repo.watchedViewingsByMonth;
+        final groups = [
+          for (final g in repo.watchedViewingsByMonth)
+            if (g.value.any((e) => _match(e.$1)))
+              MapEntry(g.key, g.value.where((e) => _match(e.$1)).toList()),
+        ];
         if (groups.isEmpty) {
           return EmptyState(
               icon: Icons.check_circle_rounded,
@@ -131,7 +143,8 @@ class _MovieRow extends StatelessWidget {
         humanDuration(Duration(minutes: movie.runtimeMin!)),
     ].join(' · ');
     final date = viewing?.date;
-    final score = viewing != null ? movie.scoreOf(viewing!) : movie.score;
+    final score =
+        viewing != null ? movie.scoreOf(viewing!) : movie.currentScore;
 
     return Reveal(
       child: Padding(

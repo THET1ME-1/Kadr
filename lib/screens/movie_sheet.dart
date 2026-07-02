@@ -34,7 +34,9 @@ class _MovieSheet extends StatefulWidget {
 
 class _MovieSheetState extends State<_MovieSheet> {
   final _repo = MovieRepository.instance;
-  late double _overall = widget.movie.score ?? 7.0;
+
+  /// Значение слайдера во время перетаскивания (иначе берём из модели).
+  double? _dragging;
 
   @override
   Widget build(BuildContext context) {
@@ -111,7 +113,7 @@ class _MovieSheetState extends State<_MovieSheet> {
                           tone: true),
                     if (m.kpRating != null)
                       _chip(scheme, Icons.star_rounded,
-                          '${tr('kp_rating')} ${m.kpRating!.toStringAsFixed(1)}'),
+                          m.kpRating!.toStringAsFixed(1)),
                   ],
                 ),
               ],
@@ -206,7 +208,7 @@ class _MovieSheetState extends State<_MovieSheet> {
     ];
   }
 
-  // -------- список просмотров с редактируемой оценкой у каждого --------
+  // ---- список просмотров: тап по строке = правка (дата+оценка+удаление) ----
   List<Widget> _viewingRows(ColorScheme scheme, LibraryMovie m) {
     final sorted = m.sortedViewings; // по возрастанию, неизвестные в конце
     final rows = <Widget>[];
@@ -214,60 +216,83 @@ class _MovieSheetState extends State<_MovieSheet> {
       final v = sorted[i];
       final isRewatch = i > 0; // самый ранний просмотр — не повтор
       final sc = v.score;
-      rows.add(Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Icon(isRewatch ? Icons.repeat_rounded : Icons.event_rounded,
-                size: 20, color: scheme.onSurfaceVariant),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                v.hasDate ? dateExactWithTime(v.date!) : tr('when_unknown'),
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontSize: 14,
-                    color: scheme.onSurface),
-              ),
-            ),
-            // Оценка ИМЕННО этого просмотра — тап для правки.
-            InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () => _editViewingScore(context, m, v),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: sc != null
-                      ? scheme.primaryContainer
-                      : scheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(sc != null ? Icons.star_rounded : Icons.star_border_rounded,
-                        size: 16,
-                        color: sc != null
-                            ? scheme.onPrimaryContainer
-                            : scheme.onSurfaceVariant),
-                    const SizedBox(width: 4),
-                    Text(
-                      sc != null ? sc.toStringAsFixed(1) : tr('not_rated'),
-                      style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        color: sc != null
-                            ? scheme.onPrimaryContainer
-                            : scheme.onSurfaceVariant,
+      rows.add(Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _editViewing(context, m, v, i + 1),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: Row(
+              children: [
+                Icon(isRewatch ? Icons.repeat_rounded : Icons.event_rounded,
+                    size: 20, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        v.hasDate
+                            ? dateExactWithTime(v.date!)
+                            : tr('when_unknown'),
+                        style: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontSize: 14,
+                            color: scheme.onSurface),
                       ),
-                    ),
-                  ],
+                      if (isRewatch)
+                        Text(trf('viewing_n', {'n': i + 1}),
+                            style: TextStyle(
+                                fontFamily: AppTheme.bodyFont,
+                                fontSize: 11.5,
+                                color: scheme.onSurfaceVariant
+                                    .withValues(alpha: 0.8))),
+                    ],
+                  ),
                 ),
-              ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: sc != null
+                        ? scheme.primaryContainer
+                        : scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                          sc != null
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
+                          size: 16,
+                          color: sc != null
+                              ? scheme.onPrimaryContainer
+                              : scheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Text(
+                        sc != null ? sc.toStringAsFixed(1) : tr('not_rated'),
+                        style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: sc != null
+                              ? scheme.onPrimaryContainer
+                              : scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(Icons.edit_rounded,
+                    size: 17,
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.7)),
+              ],
             ),
-          ],
+          ),
         ),
       ));
     }
@@ -387,20 +412,30 @@ class _MovieSheetState extends State<_MovieSheet> {
     );
   }
 
-  // ------------------ редактор оценки просмотра ------------------
-  void _editViewingScore(BuildContext context, LibraryMovie m, Viewing v) {
+  // ---- полный редактор просмотра: дата + оценка + удаление ----
+  void _editViewing(
+      BuildContext context, LibraryMovie m, Viewing v, int ordinal) {
+    DateTime? date = v.date;
+    bool rated = v.score != null;
     double val = v.score ?? m.score ?? 7.0;
     final scheme = Theme.of(context).colorScheme;
+    final messenger = ScaffoldMessenger.of(context);
+
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: scheme.surfaceContainer,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheet) => SafeArea(
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheet) => SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+            padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 14,
+                bottom: 20 + MediaQuery.of(sheetCtx).viewInsets.bottom),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -412,46 +447,134 @@ class _MovieSheetState extends State<_MovieSheet> {
                       borderRadius: BorderRadius.circular(2)),
                 ),
                 const SizedBox(height: 14),
-                Text(
-                  v.hasDate ? dateExactWithTime(v.date!) : tr('rate_this_viewing'),
-                  style: TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                      color: scheme.onSurface),
-                ),
-                const SizedBox(height: 8),
-                Text(val.toStringAsFixed(1),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    ordinal > 1 ? trf('viewing_n', {'n': ordinal}) : tr('edit_viewing'),
                     style: TextStyle(
                         fontFamily: AppTheme.displayFont,
                         fontWeight: FontWeight.w800,
-                        fontSize: 44,
-                        color: scheme.primary)),
+                        fontSize: 18,
+                        color: scheme.onSurface),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // дата и время
+                Material(
+                  color: scheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(16),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () async {
+                      final now = DateTime.now();
+                      final picked = await showDatePicker(
+                        context: sheetCtx,
+                        initialDate: date ?? now,
+                        firstDate: DateTime(1900),
+                        lastDate: now,
+                      );
+                      if (picked == null || !sheetCtx.mounted) return;
+                      final time = await showTimePicker(
+                        context: sheetCtx,
+                        initialTime: TimeOfDay.fromDateTime(date ?? now),
+                      );
+                      setSheet(() => date = time == null
+                          ? DateTime(picked.year, picked.month, picked.day)
+                          : DateTime(picked.year, picked.month, picked.day,
+                              time.hour, time.minute));
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          Icon(Icons.event_rounded, color: scheme.primary),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(tr('date_time'),
+                                    style: TextStyle(
+                                        fontFamily: AppTheme.bodyFont,
+                                        fontSize: 12,
+                                        color: scheme.onSurfaceVariant)),
+                                Text(
+                                    date == null
+                                        ? tr('when_unknown')
+                                        : dateExactWithTime(date!),
+                                    style: TextStyle(
+                                        fontFamily: AppTheme.bodyFont,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15,
+                                        color: scheme.onSurface)),
+                              ],
+                            ),
+                          ),
+                          if (date != null)
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 20),
+                              tooltip: tr('clear_date'),
+                              onPressed: () => setSheet(() => date = null),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // оценка
+                Text(rated ? val.toStringAsFixed(1) : '—',
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 46,
+                        color: rated ? scheme.primary : scheme.onSurfaceVariant)),
+                Text(tr('rate_this_viewing'),
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 12.5,
+                        color: scheme.onSurfaceVariant)),
                 Slider(
                   value: val,
                   min: 1,
                   max: 10,
                   divisions: 90,
                   label: val.toStringAsFixed(1),
-                  onChanged: (x) => setSheet(() => val = x),
+                  onChanged: (x) => setSheet(() {
+                    val = x;
+                    rated = true;
+                  }),
                 ),
                 Row(
                   children: [
+                    IconButton.filledTonal(
+                      onPressed: () {
+                        _repo.removeViewing(m.uuid, v);
+                        Navigator.pop(sheetCtx);
+                        messenger.showSnackBar(SnackBar(
+                            content: Text(tr('viewing_deleted')),
+                            behavior: SnackBarBehavior.floating));
+                      },
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      style: IconButton.styleFrom(
+                          backgroundColor: scheme.errorContainer,
+                          foregroundColor: scheme.onErrorContainer),
+                    ),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: TextButton(
-                        onPressed: () {
-                          _repo.setViewingScore(m.uuid, v, null);
-                          Navigator.pop(context);
-                        },
+                        onPressed: () => setSheet(() => rated = false),
                         child: Text(tr('remove_score')),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: FilledButton(
                         onPressed: () {
-                          _repo.setViewingScore(m.uuid, v, val);
-                          Navigator.pop(context);
+                          _repo.setViewingDate(m.uuid, v, date);
+                          _repo.setViewingScore(m.uuid, v, rated ? val : null);
+                          Navigator.pop(sheetCtx);
                         },
                         child: Text(tr('done')),
                       ),
@@ -503,8 +626,19 @@ class _MovieSheetState extends State<_MovieSheet> {
     );
   }
 
+  /// Пишет оценку в текущий просмотр (или в общую, если просмотров ещё нет).
+  void _commitCurrentScore(LibraryMovie m, double v) {
+    final cv = m.currentViewing;
+    if (cv != null) {
+      _repo.setViewingScore(m.uuid, cv, v);
+    } else {
+      _repo.setScore(m.uuid, v);
+    }
+  }
+
   Widget _scoreCard(ColorScheme scheme, LibraryMovie m) {
-    final rated = m.score != null;
+    final val = _dragging ?? m.currentScore ?? 7.0;
+    final rated = _dragging != null || m.currentScore != null;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
       decoration: BoxDecoration(
@@ -513,7 +647,7 @@ class _MovieSheetState extends State<_MovieSheet> {
       ),
       child: Column(
         children: [
-          Text(tr('overall_score'),
+          Text(tr('current_viewing_score'),
               style: TextStyle(
                   fontFamily: AppTheme.bodyFont,
                   fontWeight: FontWeight.w600,
@@ -528,7 +662,7 @@ class _MovieSheetState extends State<_MovieSheet> {
                   color: scheme.onPrimaryContainer, size: 32),
               const SizedBox(width: 6),
               Text(
-                _overall.toStringAsFixed(1),
+                val.toStringAsFixed(1),
                 style: TextStyle(
                   fontFamily: AppTheme.displayFont,
                   fontWeight: FontWeight.w800,
@@ -546,13 +680,16 @@ class _MovieSheetState extends State<_MovieSheet> {
             ],
           ),
           Slider(
-            value: _overall,
+            value: val,
             min: 1,
             max: 10,
             divisions: 90,
-            label: _overall.toStringAsFixed(1),
-            onChanged: (v) => setState(() => _overall = v),
-            onChangeEnd: (v) => _repo.setScore(m.uuid, v),
+            label: val.toStringAsFixed(1),
+            onChanged: (v) => setState(() => _dragging = v),
+            onChangeEnd: (v) {
+              _commitCurrentScore(m, v);
+              setState(() => _dragging = null);
+            },
           ),
           Text(
             rated ? tr('your_rating') : tr('rate_it'),

@@ -90,8 +90,9 @@ class LibraryMovie {
   List<String> lists;
   String? review;
 
-  /// Кэш от kinopoisk.dev / KinoBD.
+  /// Кэш идентификаторов/постера от источников (kinopoisk.dev / KinoBD / TMDB).
   int? kinopoiskId;
+  int? tmdbId;
   String? posterUrl;
 
   LibraryMovie({
@@ -100,6 +101,7 @@ class LibraryMovie {
     this.ruTitle,
     this.kpRating,
     this.enrichTried = false,
+    this.tmdbId,
     this.year,
     this.runtimeMin,
     this.status = LibraryStatus.library,
@@ -137,6 +139,23 @@ class LibraryMovie {
 
   /// Оценка конкретного просмотра или общая (fallback).
   double? scoreOf(Viewing v) => v.score ?? score;
+
+  /// Текущий (последний по дате) просмотр.
+  Viewing? get currentViewing {
+    if (viewings.isEmpty) return null;
+    Viewing? best;
+    for (final v in viewings) {
+      if (v.date == null) continue;
+      if (best == null || v.date!.isAfter(best.date!)) best = v;
+    }
+    return best ?? viewings.last;
+  }
+
+  /// Оценка фильма для показа = оценка текущего просмотра (или общая fallback).
+  double? get currentScore {
+    final cv = currentViewing;
+    return cv != null ? scoreOf(cv) : score;
+  }
 
   /// Есть ли различающиеся оценки по просмотрам (для блока сравнения).
   bool get hasScoreComparison {
@@ -182,6 +201,7 @@ class LibraryMovie {
         lists: (j['lists'] as List? ?? []).map((e) => '$e').toList(),
         review: j['review'] as String?,
         kinopoiskId: (j['kinopoiskId'] as num?)?.toInt(),
+        tmdbId: (j['tmdbId'] as num?)?.toInt(),
         posterUrl: j['posterUrl'] as String?,
       );
 
@@ -202,6 +222,7 @@ class LibraryMovie {
         'lists': lists,
         'review': review,
         'kinopoiskId': kinopoiskId,
+        'tmdbId': tmdbId,
         'posterUrl': posterUrl,
       };
 }

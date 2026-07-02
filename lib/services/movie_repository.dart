@@ -8,7 +8,9 @@ import 'package:path_provider/path_provider.dart';
 
 import '../models/library_entry.dart';
 import 'kinopoisk_service.dart';
+import 'movie_source.dart';
 import 'store.dart';
+import 'tmdb_service.dart';
 
 /// Единое хранилище библиотеки фильмов/сериалов Kadr.
 ///
@@ -60,6 +62,16 @@ class MovieRepository extends ChangeNotifier {
           await Store.instance.setInt('seedVersion', seedVersion);
           await _persist();
         }
+      }
+      // Разовый сброс флага «пробовали» для необогащённых фильмов — чтобы
+      // источник по умолчанию (TMDB) дотянул те, что не нашлись раньше.
+      final ev = await Store.instance.getInt('enrichVersion') ?? 0;
+      if (ev < 2) {
+        for (final m in _movies) {
+          if (m.posterUrl == null) m.enrichTried = false;
+        }
+        await Store.instance.setInt('enrichVersion', 2);
+        await _persist();
       }
     } catch (e) {
       debugPrint('MovieRepository.load error: $e');
@@ -206,6 +218,15 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
+  /// Меняет дату/время конкретного просмотра ([date] = null → неизвестная дата).
+  Future<void> setViewingDate(String uuid, Viewing v, DateTime? date) async {
+    final m = byUuid(uuid);
+    if (m == null || !m.viewings.contains(v)) return;
+    v.date = date;
+    notifyListeners();
+    await _persist();
+  }
+
   /// Удаляет просмотр.
   Future<void> removeViewing(String uuid, Viewing v) async {
     final m = byUuid(uuid);
@@ -285,14 +306,16 @@ class MovieRepository extends ChangeNotifier {
   Future<bool> enrich(LibraryMovie m, {bool persist = true}) async {
     if (m.posterUrl != null || m.enrichTried) return true;
     try {
-      final match = await KinopoiskService.search(m.title, year: m.year);
+      final source = SourceController.instance.source;
+      final match = source == MovieSource.tmdb
+          ? await TmdbService.search(m.title, year: m.year)
+          : await KinopoiskService.search(m.title, year: m.year);
       m.enrichTried = true;
       if (match != null) {
-        m.kinopoiskId = match.id;
-        // Постер: из API, иначе — статичный CDN Кинопоиска по kp_id (бесплатно).
-        m.posterUrl = match.posterUrl ??
-            'https://st.kp.yandex.net/images/film_iphone/iphone360_${match.id}.jpg';
-        m.kpRating = match.kpRating;
+        m.kinopoiskId ??= match.kinopoiskId;
+        m.tmdbId ??= match.tmdbId;
+        m.posterUrl = match.posterUrl;
+        m.kpRating ??= match.rating;
         if (match.ruName != null && match.ruName!.isNotEmpty) {
           m.ruTitle = match.ruName;
         }
@@ -300,15 +323,25 @@ class MovieRepository extends ChangeNotifier {
       notifyListeners();
       if (persist) _persistSoon();
       return true;
-    } on KinopoiskLimitException {
+    } on SourceLimitException {
       _limitHit = true;
-      m.enrichTried = false; // не помечаем — повторим в другой день
+      m.enrichTried = false; // не помечаем — повторим позже
       notifyListeners();
       return false;
     } catch (e) {
       debugPrint('enrich error for ${m.title}: $e');
       return true; // сетевая ошибка — пропускаем, попробуем позже
     }
+  }
+
+  /// Повторить обогащение для необогащённых (напр. после смены источника).
+  Future<void> retryUnmatched() async {
+    _limitHit = false;
+    for (final m in _movies) {
+      if (m.posterUrl == null) m.enrichTried = false;
+    }
+    await _persist();
+    await startEnrichSweep();
   }
 
   /// Фоновая дозагрузка: обогащает фильмы порциями, начиная с того, что

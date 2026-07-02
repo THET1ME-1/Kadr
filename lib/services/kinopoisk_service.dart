@@ -4,27 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
-
-/// Совпадение из kinopoisk.dev: русское название, постер, рейтинг КП.
-class KpMatch {
-  final int id;
-  final String? ruName;
-  final String? posterUrl;
-  final double? kpRating;
-  const KpMatch({required this.id, this.ruName, this.posterUrl, this.kpRating});
-}
-
-/// Исключение при исчерпании суточного лимита (или блокировке) API.
-class KinopoiskLimitException implements Exception {
-  final int statusCode;
-  KinopoiskLimitException(this.statusCode);
-  @override
-  String toString() => 'Kinopoisk API limit/blocked ($statusCode)';
-}
+import 'movie_source.dart';
 
 /// Клиент kinopoisk.dev (ПоискКино API). Поиск фильма по названию+году →
-/// русское имя + постер. Демо-тариф ограничен (200/сутки), поэтому вызовы
-/// делаются экономно и результаты кэшируются в библиотеке.
+/// русское имя + постер + рейтинг КП. Демо-тариф ограничен (200/сутки).
 class KinopoiskService {
   KinopoiskService._();
 
@@ -33,20 +16,14 @@ class KinopoiskService {
     'accept': 'application/json',
   };
 
-  /// Ищет фильм и возвращает лучшее совпадение (или null, если не найдено).
-  /// Бросает [KinopoiskLimitException] при 403/429 — чтобы остановить дозагрузку.
-  static Future<KpMatch?> search(String title, {int? year}) async {
+  static Future<SourceMatch?> search(String title, {int? year}) async {
     final uri = Uri.parse('${ApiConfig.kinopoiskBase}/v1.4/movie/search')
-        .replace(queryParameters: {
-      'page': '1',
-      'limit': '5',
-      'query': title,
-    });
+        .replace(queryParameters: {'page': '1', 'limit': '5', 'query': title});
     final resp = await http
         .get(uri, headers: _headers)
         .timeout(const Duration(seconds: 12));
     if (resp.statusCode == 403 || resp.statusCode == 429) {
-      throw KinopoiskLimitException(resp.statusCode);
+      throw SourceLimitException(resp.statusCode);
     }
     if (resp.statusCode != 200) {
       debugPrint('kinopoisk search ${resp.statusCode}: ${resp.body}');
@@ -59,16 +36,16 @@ class KinopoiskService {
     if (best == null) return null;
     final rating = best['rating'] as Map<String, dynamic>?;
     final poster = best['poster'] as Map<String, dynamic>?;
-    return KpMatch(
-      id: (best['id'] as num).toInt(),
+    final id = (best['id'] as num).toInt();
+    return SourceMatch(
+      kinopoiskId: id,
       ruName: best['name'] as String?,
-      posterUrl: (poster?['url'] ?? poster?['previewUrl']) as String?,
-      kpRating: (rating?['kp'] as num?)?.toDouble(),
+      posterUrl: (poster?['url'] ?? poster?['previewUrl']) as String? ??
+          'https://st.kp.yandex.net/images/film_iphone/iphone360_$id.jpg',
+      rating: (rating?['kp'] as num?)?.toDouble(),
     );
   }
 
-  /// Выбор лучшего совпадения: приоритет — совпадение оригинального названия и
-  /// года; постер и наличие русского имени — плюсом.
   static Map<String, dynamic>? _pick(
       List<Map<String, dynamic>> docs, String query, int? year) {
     final q = query.toLowerCase().trim();

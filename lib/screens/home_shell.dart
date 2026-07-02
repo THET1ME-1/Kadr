@@ -19,14 +19,65 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+  String _query = '';
+  final _searchCtl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    // Фоновая дозагрузка русских названий и постеров из kinopoisk.dev.
+    // Фоновая дозагрузка русских названий и постеров.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       MovieRepository.instance.startEnrichSweep();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchCtl.dispose();
+    super.dispose();
+  }
+
+  /// Поле поиска под шапкой — на всю ширину, со скруглёнными краями.
+  Widget _searchField(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+      child: TextField(
+        controller: _searchCtl,
+        onChanged: (v) => setState(() => _query = v),
+        textInputAction: TextInputAction.search,
+        style: const TextStyle(fontFamily: AppTheme.bodyFont),
+        decoration: InputDecoration(
+          hintText: tr('search_hint'),
+          prefixIcon: const Icon(Icons.search_rounded),
+          suffixIcon: _query.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () {
+                    _searchCtl.clear();
+                    setState(() => _query = '');
+                    FocusScope.of(context).unfocus();
+                  },
+                ),
+          filled: true,
+          fillColor: scheme.surfaceContainerHigh,
+          contentPadding: const EdgeInsets.symmetric(vertical: 4),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide(color: scheme.primary, width: 2),
+          ),
+        ),
+      ),
+    );
   }
 
   List<_Tab> get _tabs => [
@@ -43,15 +94,11 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final tabs = _tabs;
+    final onLibrary = _index == 0 || _index == 1;
     return Scaffold(
       appBar: AppBar(
         title: Text(tabs[_index].title),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search_rounded),
-            tooltip: tr('drawer_search'),
-            onPressed: () {},
-          ),
           IconButton(
             icon: const Icon(Icons.view_agenda_outlined),
             tooltip: 'Стиль',
@@ -63,19 +110,26 @@ class _HomeShellState extends State<HomeShell> {
       drawer: _KadrDrawer(
         onSelectTab: (i) => setState(() => _index = i),
       ),
-      body: IndexedStack(
-        index: _index,
+      body: Column(
         children: [
-          const LibraryTab(mode: LibraryMode.watchlist),
-          const LibraryTab(mode: LibraryMode.watched),
-          EmptyState(
-              icon: tabs[2].emptyIcon,
-              title: tabs[2].title,
-              subtitle: tr('soon_sub')),
-          EmptyState(
-              icon: tabs[3].emptyIcon,
-              title: tabs[3].title,
-              subtitle: tr('soon_sub')),
+          if (onLibrary) _searchField(context),
+          Expanded(
+            child: IndexedStack(
+              index: _index,
+              children: [
+                LibraryTab(mode: LibraryMode.watchlist, query: _query),
+                LibraryTab(mode: LibraryMode.watched, query: _query),
+                EmptyState(
+                    icon: tabs[2].emptyIcon,
+                    title: tabs[2].title,
+                    subtitle: tr('soon_sub')),
+                EmptyState(
+                    icon: tabs[3].emptyIcon,
+                    title: tabs[3].title,
+                    subtitle: tr('soon_sub')),
+              ],
+            ),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(

@@ -76,6 +76,12 @@ const Map<String, Map<String, String>> _strings = {
   'theme_presets': {'ru': 'Палитры', 'en': 'Palettes'},
   'theme_color': {'ru': 'Цвет оформления', 'en': 'Theme color'},
   'theme_color_custom': {'ru': 'Свой цвет', 'en': 'Custom color'},
+  'movies_section': {'ru': 'Фильмы', 'en': 'Movies'},
+  'movie_source': {'ru': 'Источник поиска', 'en': 'Search source'},
+  'movie_source_sub': {
+    'ru': 'Откуда брать названия, постеры и данные',
+    'en': 'Where to get titles, posters and data'
+  },
   'data': {'ru': 'Данные', 'en': 'Data'},
   'sync_backup': {'ru': 'Синхронизация и бэкап', 'en': 'Sync & backup'},
   'sync_backup_sub': {
@@ -143,6 +149,10 @@ const Map<String, Map<String, String>> _strings = {
 
   // ------------------- Оценки по просмотрам -------------------
   'overall_score': {'ru': 'Общая оценка', 'en': 'Overall rating'},
+  'current_viewing_score': {
+    'ru': 'Оценка текущего просмотра',
+    'en': 'Current viewing rating'
+  },
   'per_viewing_scores': {'ru': 'Оценки по просмотрам', 'en': 'Ratings per viewing'},
   'score_comparison': {'ru': 'Как менялась оценка', 'en': 'How your rating changed'},
   'rate_this_viewing': {'ru': 'Оценка просмотра', 'en': 'Rate this viewing'},
@@ -151,4 +161,9 @@ const Map<String, Map<String, String>> _strings = {
   'cmp_dropped': {'ru': 'Мнение ухудшилось на {d}', 'en': 'Opinion dropped by {d}'},
   'cmp_same': {'ru': 'Оценка не изменилась', 'en': 'Rating unchanged'},
   'viewing_n': {'ru': '{n}-й просмотр', 'en': 'Viewing {n}'},
+  'edit_viewing': {'ru': 'Просмотр', 'en': 'Viewing'},
+  'delete_viewing': {'ru': 'Удалить просмотр', 'en': 'Delete viewing'},
+  'date_time': {'ru': 'Дата и время', 'en': 'Date & time'},
+  'clear_date': {'ru': 'Убрать дату', 'en': 'Clear date'},
+  'viewing_deleted': {'ru': 'Просмотр удалён', 'en': 'Viewing deleted'},
 };

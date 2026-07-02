@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../l10n/locale_controller.dart';
 import '../l10n/strings.dart';
+import '../services/movie_repository.dart';
+import '../services/movie_source.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/color_picker_sheet.dart';
@@ -19,6 +21,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _theme = ThemeController.instance;
   final _locale = LocaleController.instance;
+  final _source = SourceController.instance;
 
   /// Фирменные палитры (кинематографичные), включая бирюзовую по умолчанию.
   static const List<Color> _palettes = [
@@ -35,7 +38,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_theme, _locale]),
+      listenable: Listenable.merge([_theme, _locale, _source]),
       builder: (context, _) {
         return Scaffold(
           appBar: AppBar(title: Text(tr('settings_title'))),
@@ -98,6 +101,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: tr('language'),
                   subtitle: _currentLanguageName(),
                   onTap: _pickLanguage,
+                ),
+              ]),
+              _section(tr('movies_section')),
+              _card([
+                _tile(
+                  icon: Icons.movie_filter_rounded,
+                  title: tr('movie_source'),
+                  subtitle: '${_source.source.label} · ${_source.source.note}',
+                  onTap: _pickSource,
                 ),
               ]),
               _section(tr('data')),
@@ -260,6 +272,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   : null,
               onTap: () {
                 _locale.setCode(l.code);
+                Navigator.pop(context);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _pickSource() {
+    _bottomSheet(
+      title: tr('movie_source'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final s in MovieSource.values)
+            ListTile(
+              leading: Icon(s == MovieSource.tmdb
+                  ? Icons.public_rounded
+                  : Icons.movie_rounded),
+              title: Text(s.label,
+                  style: const TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontWeight: FontWeight.w600)),
+              subtitle: Text(s.note),
+              trailing: _source.source == s
+                  ? Icon(Icons.check_circle_rounded,
+                      color: Theme.of(context).colorScheme.primary)
+                  : null,
+              onTap: () {
+                _source.setSource(s);
+                // Дотянуть необогащённые фильмы через новый источник.
+                MovieRepository.instance.retryUnmatched();
                 Navigator.pop(context);
               },
             ),

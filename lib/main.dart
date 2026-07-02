@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'l10n/locale_controller.dart';
 import 'services/movie_repository.dart';
+import 'services/movie_source.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 import 'screens/home_shell.dart';
@@ -12,6 +13,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeController.instance.load();
   await LocaleController.instance.load();
+  await SourceController.instance.load();
   await MovieRepository.instance.load();
   runApp(const KadrApp());
 }
