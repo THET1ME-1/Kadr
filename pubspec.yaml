@@ -42,6 +42,7 @@ flutter:
   assets:
     - assets/
     - assets/seed/
+    - assets/icon/
 
   fonts:
     - family: Unbounded

@@ -100,6 +100,11 @@ const Map<String, Map<String, String>> _strings = {
   'no_lists_yet': {'ru': 'Пока нет своих списков', 'en': 'No custom lists yet'},
   'drawer_settings': {'ru': 'Настройки', 'en': 'Settings'},
   'drawer_about': {'ru': 'О приложении', 'en': 'About'},
+  'version': {'ru': 'Версия', 'en': 'Version'},
+  'about_attribution': {
+    'ru': 'Данные о фильмах — TMDB и Кинопоиск. Продукт использует API TMDB, но не одобрен и не сертифицирован TMDB.',
+    'en': 'Movie data by TMDB and Kinopoisk. This product uses the TMDB API but is not endorsed or certified by TMDB.'
+  },
   'search_hint': {'ru': 'Фильмы и сериалы…', 'en': 'Movies and series…'},
 
   // ---------------------------- Настройки ----------------------------

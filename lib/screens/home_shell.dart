@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/strings.dart';
 import '../services/movie_repository.dart';
 import '../theme/app_theme.dart';
+import 'about_screen.dart';
 import 'discover_tab.dart';
 import 'library_tab.dart';
 import 'lists_screen.dart';
@@ -216,8 +217,10 @@ class _KadrDrawer extends StatelessWidget {
           Navigator.pop(context);
           onSelectTab(0);
         }),
-        _drawerTile(context, Icons.search_rounded, tr('drawer_search'),
-            () => Navigator.pop(context)),
+        _drawerTile(context, Icons.search_rounded, tr('drawer_search'), () {
+          Navigator.pop(context);
+          onSelectTab(2);
+        }),
         _drawerTile(context, Icons.insights_rounded, tr('drawer_stats'), () {
           Navigator.pop(context);
           Navigator.of(context).push(MaterialPageRoute(
@@ -235,8 +238,11 @@ class _KadrDrawer extends StatelessWidget {
             MaterialPageRoute(builder: (_) => const SettingsScreen()),
           );
         }),
-        _drawerTile(context, Icons.info_rounded, tr('drawer_about'),
-            () => Navigator.pop(context)),
+        _drawerTile(context, Icons.info_rounded, tr('drawer_about'), () {
+          Navigator.pop(context);
+          Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const AboutScreen()));
+        }),
       ],
     );
   }

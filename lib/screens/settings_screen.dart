@@ -8,6 +8,7 @@ import '../services/movie_source.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/color_picker_sheet.dart';
+import 'about_screen.dart';
 
 /// Экран настроек в духе Material 3 Expressive (перенос из ScoreMaster):
 /// внешний вид (тема, цвет, палитры, Material You, AMOLED), язык (7 языков),
@@ -128,7 +129,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.movie_rounded,
                   title: tr('app_name'),
                   subtitle: tr('about_sub'),
-                  onTap: null,
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AboutScreen())),
                 ),
               ]),
             ],

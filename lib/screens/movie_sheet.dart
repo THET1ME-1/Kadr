@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
@@ -194,7 +195,7 @@ class _MovieSheetState extends State<_MovieSheet> {
           label: Text(tr('manage_lists')),
         ),
       ),
-      ..._detailsWidgets(scheme),
+      ..._detailsWidgets(scheme, m),
       if (m.emotions.isNotEmpty) ...[
         const SizedBox(height: 18),
         Wrap(
@@ -286,9 +287,10 @@ class _MovieSheetState extends State<_MovieSheet> {
     );
   }
 
-  List<Widget> _detailsWidgets(ColorScheme scheme) {
+  List<Widget> _detailsWidgets(ColorScheme scheme, LibraryMovie m) {
     final d = _details;
-    if (d == null) return [];
+    final links = _links(m);
+    if (d == null) return links.isEmpty ? [] : [const SizedBox(height: 16), ...links];
     final facts = <Widget>[
       if (d.director != null && d.director!.isNotEmpty)
         _fact(scheme, Icons.movie_creation_rounded, tr('director'), d.director!),
@@ -364,7 +366,59 @@ class _MovieSheetState extends State<_MovieSheet> {
         const SizedBox(height: 16),
         ...facts,
       ],
+      if (links.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        ...links,
+      ],
     ];
+  }
+
+  /// Ряд внешних ссылок (Кинопоиск / IMDb / TMDb).
+  List<Widget> _links(LibraryMovie m) {
+    final items = <Widget>[];
+    void add(String label, Color color, String url) {
+      items.add(Material(
+        color: color,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () =>
+              launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label,
+                    style: const TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: Colors.white)),
+                const SizedBox(width: 5),
+                const Icon(Icons.open_in_new_rounded,
+                    size: 14, color: Colors.white),
+              ],
+            ),
+          ),
+        ),
+      ));
+    }
+
+    if (m.kinopoiskId != null) {
+      add('Кинопоиск', const Color(0xFFFF6600),
+          'https://www.kinopoisk.ru/film/${m.kinopoiskId}/');
+    }
+    if (_details?.imdbId != null) {
+      add('IMDb', const Color(0xFFD8A800),
+          'https://www.imdb.com/title/${_details!.imdbId}/');
+    }
+    if (m.tmdbId != null) {
+      add('TMDb', const Color(0xFF01B4E4),
+          'https://www.themoviedb.org/movie/${m.tmdbId}');
+    }
+    if (items.isEmpty) return [];
+    return [Wrap(spacing: 8, runSpacing: 8, children: items)];
   }
 
   Widget _sectionTitle(ColorScheme scheme, String title) => Text(title,

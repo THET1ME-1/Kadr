@@ -59,6 +59,7 @@ class TmdbDetails {
   final String? tagline;
   final String? backdropUrl;
   final String? director;
+  final String? imdbId;
   final List<String> genres;
   final int? budget;
   final int? revenue;
@@ -69,6 +70,7 @@ class TmdbDetails {
     this.tagline,
     this.backdropUrl,
     this.director,
+    this.imdbId,
     this.genres = const [],
     this.budget,
     this.revenue,
@@ -126,6 +128,7 @@ class TmdbService {
       final backdrop = j['backdrop_path'] as String?;
       final details = TmdbDetails(
         overview: j['overview'] as String?,
+        imdbId: j['imdb_id'] as String?,
         tagline: (j['tagline'] as String?)?.isNotEmpty == true
             ? j['tagline'] as String
             : null,
