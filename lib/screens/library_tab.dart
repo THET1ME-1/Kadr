@@ -48,6 +48,12 @@ class _LibraryTabState extends State<LibraryTab> {
   _WatchedFilter _filter = _WatchedFilter.all;
   _LibSort _sort = _LibSort.dateNew;
 
+  /// Фильтр по жанрам (OR) и диапазону года выхода. Метаданные — только у
+  /// фильмов, поэтому при активном фильтре сериалы скрываются.
+  final Set<String> _genreFilter = {};
+  RangeValues? _yearFilter;
+  bool get _hasMetaFilter => _genreFilter.isNotEmpty || _yearFilter != null;
+
   /// Режим множественного выделения (по долгому нажатию на карточку).
   bool _selecting = false;
   final Set<String> _selected = {};
@@ -178,14 +184,32 @@ class _LibraryTabState extends State<LibraryTab> {
   }
 
   String get _q => widget.query.toLowerCase().trim();
-  bool _matchMovie(LibraryMovie m) =>
-      _q.isEmpty ||
-      m.displayTitle.toLowerCase().contains(_q) ||
-      m.title.toLowerCase().contains(_q);
-  bool _matchSeries(LibrarySeries s) =>
-      _q.isEmpty ||
-      s.displayTitle.toLowerCase().contains(_q) ||
-      s.title.toLowerCase().contains(_q);
+  bool _matchMovie(LibraryMovie m) {
+    if (!(_q.isEmpty ||
+        m.displayTitle.toLowerCase().contains(_q) ||
+        m.title.toLowerCase().contains(_q))) {
+      return false;
+    }
+    if (_genreFilter.isNotEmpty && !m.genres.any(_genreFilter.contains)) {
+      return false;
+    }
+    if (_yearFilter != null) {
+      final y = m.year;
+      if (y == null ||
+          y < _yearFilter!.start.round() ||
+          y > _yearFilter!.end.round()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _matchSeries(LibrarySeries s) {
+    if (_hasMetaFilter) return false; // жанр/год — метаданные фильмов
+    return _q.isEmpty ||
+        s.displayTitle.toLowerCase().contains(_q) ||
+        s.title.toLowerCase().contains(_q);
+  }
   bool _matchEntry(WatchedEntry e) =>
       e.isSeries ? _matchSeries(e.session!.series) : _matchMovie(e.movie!);
 
@@ -579,6 +603,7 @@ class _LibraryTabState extends State<LibraryTab> {
             ),
           ),
           const SizedBox(width: 4),
+          _filterButton(),
           _sortButton(),
         ],
       ),
@@ -655,10 +680,216 @@ class _LibraryTabState extends State<LibraryTab> {
                   color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const Spacer(),
+            _filterButton(),
             _sortButton(),
           ],
         ),
       );
+
+  /// Кнопка фильтров с точкой-индикатором, когда фильтр активен.
+  Widget _filterButton() {
+    final scheme = Theme.of(context).colorScheme;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.tune_rounded),
+          tooltip: tr('filters'),
+          onPressed: _openFilterSheet,
+        ),
+        if (_hasMetaFilter)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: scheme.primary,
+                shape: BoxShape.circle,
+                border: Border.all(color: scheme.surface, width: 1.5),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Нижний лист фильтров: жанры (мультивыбор) + диапазон года выхода.
+  void _openFilterSheet() {
+    final repo = MovieRepository.instance;
+    final scheme = Theme.of(context).colorScheme;
+    final counts = <String, int>{};
+    int? minY, maxY;
+    for (final m in repo.movies) {
+      for (final g in m.genres) {
+        counts[g] = (counts[g] ?? 0) + 1;
+      }
+      final y = m.year;
+      if (y != null && y > 1000) {
+        minY = (minY == null || y < minY) ? y : minY;
+        maxY = (maxY == null || y > maxY) ? y : maxY;
+      }
+    }
+    final genres = counts.keys.toList()
+      ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
+    final hasYears = minY != null && maxY != null && maxY > minY;
+    final loY = (minY ?? 1950).toDouble();
+    final hiY = (maxY ?? DateTime.now().year).toDouble();
+
+    final sel = {..._genreFilter};
+    var range = _yearFilter ?? RangeValues(loY, hiY);
+    // На случай, если сохранённый диапазон вышел за границы новой библиотеки.
+    range = RangeValues(
+        range.start.clamp(loY, hiY), range.end.clamp(loY, hiY));
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                          color: scheme.outlineVariant,
+                          borderRadius: BorderRadius.circular(2))),
+                ),
+                const SizedBox(height: 16),
+                Text(tr('filters'),
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 20,
+                        color: scheme.onSurface)),
+                const SizedBox(height: 16),
+                Text(tr('filter_genres'),
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: scheme.primary)),
+                const SizedBox(height: 8),
+                if (genres.isEmpty)
+                  Text(tr('filter_genres_loading'),
+                      style: TextStyle(
+                          fontFamily: AppTheme.bodyFont,
+                          fontSize: 13,
+                          color: scheme.onSurfaceVariant))
+                else
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(sheetCtx).size.height * 0.35),
+                    child: SingleChildScrollView(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final g in genres)
+                            FilterChip(
+                              label: Text('${capitalize(g)} · ${counts[g]}'),
+                              selected: sel.contains(g),
+                              onSelected: (v) => setSheet(
+                                  () => v ? sel.add(g) : sel.remove(g)),
+                              showCheckmark: false,
+                              labelStyle: TextStyle(
+                                  fontFamily: AppTheme.bodyFont,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12.5,
+                                  color: sel.contains(g)
+                                      ? scheme.onSecondaryContainer
+                                      : scheme.onSurfaceVariant),
+                              selectedColor: scheme.secondaryContainer,
+                              backgroundColor: scheme.surfaceContainerHigh,
+                              side: BorderSide.none,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (hasYears) ...[
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Text(tr('filter_year'),
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: scheme.primary)),
+                      const Spacer(),
+                      Text('${range.start.round()} – ${range.end.round()}',
+                          style: TextStyle(
+                              fontFamily: AppTheme.bodyFont,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: scheme.onSurface)),
+                    ],
+                  ),
+                  RangeSlider(
+                    min: loY,
+                    max: hiY,
+                    divisions: (hiY - loY).round().clamp(1, 200),
+                    values: range,
+                    labels: RangeLabels(
+                        '${range.start.round()}', '${range.end.round()}'),
+                    onChanged: (v) => setSheet(() => range = v),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.pop(sheetCtx);
+                          setState(() {
+                            _genreFilter.clear();
+                            _yearFilter = null;
+                          });
+                        },
+                        child: Text(tr('reset')),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () {
+                          Navigator.pop(sheetCtx);
+                          setState(() {
+                            _genreFilter
+                              ..clear()
+                              ..addAll(sel);
+                            // Полный диапазон = без фильтра по году.
+                            _yearFilter = (!hasYears ||
+                                    (range.start <= loY && range.end >= hiY))
+                                ? null
+                                : range;
+                          });
+                        },
+                        child: Text(tr('apply')),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _countHeader(BuildContext context, int n) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),

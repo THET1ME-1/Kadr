@@ -69,6 +69,13 @@ class _MovieScreenState extends State<MovieScreen> {
     if (id == null) return;
     final d = await TmdbService.details(id);
     if (mounted && d != null) setState(() => _details = d);
+    // Кэшируем жанры/страны/длительность в фильм (для фильтров и статистики).
+    if (d != null) {
+      _repo.applyDetails(m.uuid,
+          genres: [for (final g in d.genres) g.name],
+          countries: d.countries,
+          runtimeMin: d.runtime);
+    }
     // Части франшизы (несколько фильмов) — грузим отдельно.
     if (d?.collectionId != null) {
       final parts = await TmdbService.collection(d!.collectionId!);

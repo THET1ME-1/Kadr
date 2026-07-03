@@ -56,6 +56,9 @@ class _HomeShellState extends State<HomeShell> {
       await Future<void>.delayed(const Duration(seconds: 2));
       await NotificationService.instance.checkNewEpisodes();
       _checkForUpdate();
+      // Фоновая дозагрузка жанров/стран/длительности (для фильтров и статистики).
+      await Future<void>.delayed(const Duration(seconds: 3));
+      await MovieRepository.instance.backfillDetailsSweep();
     });
   }
 

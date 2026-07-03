@@ -58,6 +58,10 @@ class StatisticsScreen extends StatelessWidget {
                               colorOf: (context, i) =>
                                   _weekdayColor(context, i))),
                     ],
+                    if (s.byDay.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      _heatmapCard(context, s),
+                    ],
                     const SizedBox(height: 20),
                     _card(
                       context,
@@ -72,6 +76,10 @@ class StatisticsScreen extends StatelessWidget {
                       const SizedBox(height: 20),
                       _card(context, tr('stat_by_decade'),
                           _barChart(context, s.decadeLabels, s.decadeValues)),
+                    ],
+                    if (s.genres.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      _genresCard(context, s),
                     ],
                     if (s.moviesForSplit + s.episodesWatched > 0) ...[
                       const SizedBox(height: 20),
@@ -783,6 +791,179 @@ class StatisticsScreen extends StatelessWidget {
     return (i >= 5) ? scheme.tertiary : scheme.primary;
   }
 
+  /// Топ жанров — горизонтальные бары (название · полоса · число).
+  Widget _genresCard(BuildContext context, _Stats s) {
+    final scheme = Theme.of(context).colorScheme;
+    final top = s.genres.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final shown = top.take(10).toList();
+    final maxV = shown.first.value;
+    return _card(
+      context,
+      tr('stat_genres'),
+      Column(
+        children: [
+          for (var i = 0; i < shown.length; i++) ...[
+            if (i > 0) const SizedBox(height: 10),
+            Row(
+              children: [
+                SizedBox(
+                  width: 104,
+                  child: Text(capitalize(shown[i].key),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontFamily: AppTheme.bodyFont,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: scheme.onSurface)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      height: 20,
+                      color: scheme.surfaceContainerHighest,
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: shown[i].value / maxV),
+                        duration: Duration(milliseconds: 600 + i * 40),
+                        curve: AppTheme.emphasized,
+                        builder: (_, v, _) => FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: v.clamp(0.02, 1.0),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(colors: [
+                                scheme.primary.withValues(alpha: 0.75),
+                                scheme.primary,
+                              ]),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 40,
+                  child: Text('${shown[i].value}',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          color: scheme.primary)),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Тепловая карта активности (в духе GitHub-contributions): недели-столбцы,
+  /// дни-строки (Пн→Вс), цвет по числу отметок за день. Прокручивается,
+  /// открывается на свежих неделях (справа).
+  Widget _heatmapCard(BuildContext context, _Stats s) {
+    final scheme = Theme.of(context).colorScheme;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    const weeksBack = 26; // ~полгода
+    final startRaw = today.subtract(const Duration(days: weeksBack * 7));
+    final start = startRaw.subtract(Duration(days: startRaw.weekday - 1));
+    final numWeeks = (today.difference(start).inDays / 7).floor() + 1;
+    var maxC = 1;
+    for (final v in s.byDay.values) {
+      if (v > maxC) maxC = v;
+    }
+    Color cell(int c) {
+      if (c <= 0) return scheme.surfaceContainerHighest;
+      final t = (c / maxC).clamp(0.0, 1.0);
+      return Color.lerp(
+          scheme.primary.withValues(alpha: 0.3), scheme.primary, t)!;
+    }
+
+    const size = 15.0;
+    Widget box(Color c) => Container(
+          width: size,
+          height: size,
+          margin: const EdgeInsets.only(bottom: 3),
+          decoration: BoxDecoration(
+              color: c, borderRadius: BorderRadius.circular(3)),
+        );
+
+    final columns = <Widget>[];
+    for (var w = 0; w < numWeeks; w++) {
+      final weekStart = start.add(Duration(days: w * 7));
+      final cells = <Widget>[];
+      for (var d = 0; d < 7; d++) {
+        final day = weekStart.add(Duration(days: d));
+        if (day.isAfter(today)) {
+          cells.add(const SizedBox(width: size, height: size + 3));
+        } else {
+          final key = '${day.year}-${day.month}-${day.day}';
+          cells.add(box(cell(s.byDay[key] ?? 0)));
+        }
+      }
+      columns.add(Padding(
+        padding: const EdgeInsets.only(right: 3),
+        child: Column(children: cells),
+      ));
+    }
+
+    return _card(
+      context,
+      tr('stat_activity'),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            reverse: true, // открываемся на свежих неделях
+            child: Row(children: columns),
+          ),
+          const SizedBox(height: 12),
+          // Легенда «меньше → больше».
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(tr('stat_less'),
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 11.5,
+                      color: scheme.onSurfaceVariant)),
+              const SizedBox(width: 6),
+              for (final f in const [0.0, 0.3, 0.55, 0.8, 1.0])
+                Padding(
+                  padding: const EdgeInsets.only(right: 3),
+                  child: Container(
+                    width: 13,
+                    height: 13,
+                    decoration: BoxDecoration(
+                      color: f == 0
+                          ? scheme.surfaceContainerHighest
+                          : Color.lerp(scheme.primary.withValues(alpha: 0.3),
+                              scheme.primary, f),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 3),
+              Text(tr('stat_more'),
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 11.5,
+                      color: scheme.onSurfaceVariant)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _card(BuildContext context, String title, Widget child,
       {String? subtitle}) {
     final scheme = Theme.of(context).colorScheme;
@@ -880,6 +1061,8 @@ class _Stats {
   final List<LibraryMovie> mostRewatched;
   final List<({LibrarySeries s, int seen})> topSeries;
   final Map<String, int> emotions; // ключ «emoji|label»
+  final Map<String, int> genres; // жанр → число фильмов
+  final Map<String, int> byDay; // «y-m-d» → активность (тепловая карта)
   final List<_Record> records;
 
   _Stats({
@@ -905,6 +1088,8 @@ class _Stats {
     required this.mostRewatched,
     required this.topSeries,
     required this.emotions,
+    required this.genres,
+    required this.byDay,
     required this.records,
   });
 
@@ -938,7 +1123,8 @@ class _Stats {
     final scoreDist = List<int>.filled(10, 0);
     final byDecade = <int, int>{};
     final emotions = <String, int>{};
-    final byDay = <String, int>{}; // самый активный день
+    final genres = <String, int>{};
+    final byDay = <String, int>{}; // самый активный день + тепловая карта
     var scoreSum = 0.0, scoreN = 0;
     var kpSum = 0.0, kpN = 0;
     var runtimeSum = 0, runtimeN = 0;
@@ -992,6 +1178,9 @@ class _Stats {
         final key = '${e.emoji}|${e.label}';
         emotions[key] = (emotions[key] ?? 0) + 1;
       }
+      for (final g in m.genres) {
+        genres[g] = (genres[g] ?? 0) + 1;
+      }
     }
 
     // Сериалы: время + активность по датам просмотра серий.
@@ -1043,6 +1232,11 @@ class _Stats {
           tr('stat_longest'),
           '${longest.displayTitle} · ${humanDuration(Duration(minutes: longest.runtimeMin!))}'));
     }
+    if (genres.isNotEmpty) {
+      final top = genres.entries.reduce((a, b) => a.value >= b.value ? a : b);
+      records.add(_Record(Icons.theaters_rounded, tr('stat_fav_genre'),
+          '${capitalize(top.key)} · ${top.value}'));
+    }
     if (topRated.isNotEmpty) {
       final hi = topRated.first;
       records.add(_Record(
@@ -1083,6 +1277,8 @@ class _Stats {
       mostRewatched: mostRewatched.take(5).toList(),
       topSeries: topSeries.take(5).toList(),
       emotions: emotions,
+      genres: genres,
+      byDay: byDay,
       records: records,
     );
   }

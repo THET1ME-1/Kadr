@@ -98,6 +98,15 @@ class LibraryMovie {
   int? tmdbId;
   String? posterUrl;
 
+  /// Жанры и страны (названия, ru) — кэшируются из TMDB details при открытии
+  /// карточки / фоновой дозагрузке. Для фильтров и статистики по жанрам.
+  List<String> genres;
+  List<String> countries;
+
+  /// Пытались ли уже дотянуть подробности (жанры/длительность), чтобы не
+  /// дёргать TMDB повторно в фоновой дозагрузке.
+  bool detailsTried;
+
   LibraryMovie({
     required this.uuid,
     required this.title,
@@ -118,9 +127,14 @@ class LibraryMovie {
     this.review,
     this.kinopoiskId,
     this.posterUrl,
+    List<String>? genres,
+    List<String>? countries,
+    this.detailsTried = false,
   })  : viewings = viewings ?? [],
         emotions = emotions ?? [],
-        lists = lists ?? [];
+        lists = lists ?? [],
+        genres = genres ?? [],
+        countries = countries ?? [];
 
   /// Последний просмотр с известной датой.
   DateTime? get lastViewing {
@@ -209,6 +223,9 @@ class LibraryMovie {
         kinopoiskId: (j['kinopoiskId'] as num?)?.toInt(),
         tmdbId: (j['tmdbId'] as num?)?.toInt(),
         posterUrl: j['posterUrl'] as String?,
+        genres: (j['genres'] as List? ?? []).map((e) => '$e').toList(),
+        countries: (j['countries'] as List? ?? []).map((e) => '$e').toList(),
+        detailsTried: j['detailsTried'] == true,
       );
 
   Map<String, dynamic> toJson() => {
@@ -231,6 +248,9 @@ class LibraryMovie {
         'kinopoiskId': kinopoiskId,
         'tmdbId': tmdbId,
         'posterUrl': posterUrl,
+        if (genres.isNotEmpty) 'genres': genres,
+        if (countries.isNotEmpty) 'countries': countries,
+        if (detailsTried) 'detailsTried': true,
       };
 }
 

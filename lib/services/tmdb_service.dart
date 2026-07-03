@@ -117,6 +117,9 @@ class TmdbDetails {
   final int? collectionId;
   final String? collectionName;
 
+  /// Страны производства (названия, ru).
+  final List<String> countries;
+
   const TmdbDetails({
     this.overview,
     this.tagline,
@@ -131,8 +134,23 @@ class TmdbDetails {
     this.cast = const [],
     this.collectionId,
     this.collectionName,
+    this.countries = const [],
   });
 }
+
+/// Русские названия стран по ISO-3166-1 (частые). Фолбэк — англ. название TMDB.
+const Map<String, String> kCountryRu = {
+  'US': 'США', 'GB': 'Великобритания', 'RU': 'Россия', 'FR': 'Франция',
+  'DE': 'Германия', 'IT': 'Италия', 'ES': 'Испания', 'JP': 'Япония',
+  'KR': 'Южная Корея', 'CN': 'Китай', 'IN': 'Индия', 'CA': 'Канада',
+  'AU': 'Австралия', 'BR': 'Бразилия', 'MX': 'Мексика', 'SE': 'Швеция',
+  'NO': 'Норвегия', 'DK': 'Дания', 'FI': 'Финляндия', 'NL': 'Нидерланды',
+  'BE': 'Бельгия', 'PL': 'Польша', 'CZ': 'Чехия', 'AT': 'Австрия',
+  'CH': 'Швейцария', 'IE': 'Ирландия', 'PT': 'Португалия', 'GR': 'Греция',
+  'TR': 'Турция', 'UA': 'Украина', 'HK': 'Гонконг', 'TW': 'Тайвань',
+  'TH': 'Таиланд', 'AR': 'Аргентина', 'NZ': 'Новая Зеландия', 'ZA': 'ЮАР',
+  'IL': 'Израиль', 'IS': 'Исландия', 'HU': 'Венгрия', 'RO': 'Румыния',
+};
 
 /// Доп. данные сериала для шапки экрана: бэкдроп, описание, жанры.
 class TmdbTvExtra {
@@ -222,9 +240,15 @@ class TmdbService {
       }
       final backdrop = j['backdrop_path'] as String?;
       final coll = j['belongs_to_collection'] as Map<String, dynamic>?;
+      final countries = [
+        for (final c in (j['production_countries'] as List? ?? []))
+          kCountryRu[(c as Map<String, dynamic>)['iso_3166_1']] ??
+              (c['name'] as String? ?? '')
+      ].where((s) => s.isNotEmpty).toList();
       final details = TmdbDetails(
         collectionId: (coll?['id'] as num?)?.toInt(),
         collectionName: coll?['name'] as String?,
+        countries: countries,
         overview: j['overview'] as String?,
         imdbId: j['imdb_id'] as String?,
         tagline: (j['tagline'] as String?)?.isNotEmpty == true

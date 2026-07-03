@@ -1061,6 +1061,82 @@ class MovieRepository extends ChangeNotifier {
     }
   }
 
+  /// Сохраняет подробности TMDB (жанры/страны/длительность) в фильм. Реальной
+  /// длительностью из TMDB ЗАМЕНЯЕТ пустую или битую (мусор из импорта >600 мин).
+  Future<void> applyDetails(String uuid,
+      {List<String> genres = const [],
+      List<String> countries = const [],
+      int? runtimeMin}) async {
+    final m = byUuid(uuid);
+    if (m == null) return;
+    var changed = false;
+    if (genres.isNotEmpty && m.genres.isEmpty) {
+      m.genres = genres;
+      changed = true;
+    }
+    if (countries.isNotEmpty && m.countries.isEmpty) {
+      m.countries = countries;
+      changed = true;
+    }
+    final cur = m.runtimeMin;
+    if (runtimeMin != null &&
+        runtimeMin > 0 &&
+        runtimeMin <= 600 &&
+        (cur == null || cur <= 0 || cur > 600)) {
+      m.runtimeMin = runtimeMin;
+      changed = true;
+    }
+    if (!m.detailsTried) {
+      m.detailsTried = true;
+      changed = true;
+    }
+    if (changed) {
+      notifyListeners();
+      _persistSoon();
+    }
+  }
+
+  bool _genreSweeping = false;
+
+  /// Фоновая дозагрузка жанров/стран/длительности из TMDB для просмотренных
+  /// фильмов, у которых их ещё нет (TMDB без суточного лимита). Порциями.
+  Future<void> backfillDetailsSweep({int budget = 120}) async {
+    if (_genreSweeping) return;
+    _genreSweeping = true;
+    try {
+      final todo = <LibraryMovie>[
+        ...watched,
+        ...watchlist,
+      ].where((m) => m.tmdbId != null && !m.detailsTried && m.genres.isEmpty).toList();
+      var used = 0;
+      for (final m in todo) {
+        if (used >= budget) break;
+        final d = await TmdbService.details(m.tmdbId!);
+        used++;
+        m.detailsTried = true;
+        if (d != null) {
+          if (m.genres.isEmpty) m.genres = d.genres.map((g) => g.name).toList();
+          if (m.countries.isEmpty) m.countries = d.countries;
+          final cur = m.runtimeMin;
+          if (d.runtime != null &&
+              d.runtime! > 0 &&
+              d.runtime! <= 600 &&
+              (cur == null || cur <= 0 || cur > 600)) {
+            m.runtimeMin = d.runtime;
+          }
+        }
+        _persistSoon();
+        // UI обновляем ПАЧКАМИ, а не на каждый фильм — иначе счётчики статистики
+        // тикают каждые 150 мс и «прыгают».
+        if (used % 30 == 0) notifyListeners();
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+      }
+    } finally {
+      _genreSweeping = false;
+      notifyListeners();
+    }
+  }
+
   /// Повторить обогащение для необогащённых (напр. после смены источника).
   Future<void> retryUnmatched() async {
     _limitHit = false;
