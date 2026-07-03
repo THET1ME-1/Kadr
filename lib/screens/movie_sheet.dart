@@ -489,9 +489,17 @@ class _MovieScreenState extends State<MovieScreen> {
       ));
     }
 
+    // Кинопоиск: если есть точный id — прямая ссылка на страницу фильма; иначе
+    // (id не подтянулся: источник TMDB / латинское имя из импорта не совпало /
+    // лимит API) — открываем поиск Кинопоиска по названию+году, чтобы ссылка
+    // была ВСЕГДА, ведь сам фильм на КП обычно есть.
     if (m.kinopoiskId != null) {
       add('Кинопоиск', const Color(0xFFFF6600),
           'https://www.kinopoisk.ru/film/${m.kinopoiskId}/');
+    } else {
+      final q = [m.displayTitle, if (m.year != null) '${m.year}'].join(' ');
+      add('Кинопоиск', const Color(0xFFFF6600),
+          'https://www.kinopoisk.ru/index.php?kp_query=${Uri.encodeQueryComponent(q)}');
     }
     if (_details?.imdbId != null) {
       add('IMDb', const Color(0xFFD8A800),

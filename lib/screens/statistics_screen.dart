@@ -146,29 +146,37 @@ class StatisticsScreen extends StatelessWidget {
                         letterSpacing: 2,
                         color: Colors.white.withValues(alpha: 0.85))),
                 const SizedBox(height: 6),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text('${s.hours}',
-                        style: const TextStyle(
-                            fontFamily: AppTheme.displayFont,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 56,
-                            height: 1,
-                            color: Colors.white)),
-                    const SizedBox(width: 6),
-                    Text(tr('stat_hours_unit'),
-                        style: TextStyle(
-                            fontFamily: AppTheme.displayFont,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 22,
-                            color: Colors.white.withValues(alpha: 0.85))),
-                  ],
+                // Число может быть длинным — ужимаем в одну строку по ширине.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(_fmtNum(s.hours),
+                          maxLines: 1,
+                          style: const TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 56,
+                              height: 1,
+                              color: Colors.white)),
+                      const SizedBox(width: 8),
+                      Text(tr('stat_hours_unit'),
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 22,
+                              color: Colors.white.withValues(alpha: 0.85))),
+                    ],
+                  ),
                 ),
                 if (s.hours >= 24) ...[
                   const SizedBox(height: 4),
-                  Text(trf('stat_days_watching', {'n': s.hours ~/ 24}),
+                  Text(trf('stat_days_watching', {'n': _fmtNum(s.hours ~/ 24)}),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontFamily: AppTheme.bodyFont,
                           fontWeight: FontWeight.w600,
@@ -178,10 +186,12 @@ class StatisticsScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                     trf('stat_summary_sub', {
-                      'f': s.watchedMovies,
-                      's': s.seriesCount,
-                      'e': s.episodesWatched
+                      'f': _fmtNum(s.watchedMovies),
+                      's': _fmtNum(s.seriesCount),
+                      'e': _fmtNum(s.episodesWatched)
                     }),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                         fontFamily: AppTheme.bodyFont,
                         fontSize: 13,
@@ -198,20 +208,21 @@ class StatisticsScreen extends StatelessWidget {
 
   Widget _tiles(BuildContext context, _Stats s) {
     final tiles = <(IconData, String, String)>[
-      (Icons.movie_rounded, '${s.watchedMovies}', tr('stat_movies')),
-      (Icons.schedule_rounded, '${s.hours}', tr('stat_hours')),
+      (Icons.movie_rounded, _fmtNum(s.watchedMovies), tr('stat_movies')),
+      (Icons.schedule_rounded, _fmtNum(s.hours), tr('stat_hours')),
       (
         Icons.star_rounded,
         s.avgScore == 0 ? '—' : s.avgScore.toStringAsFixed(1),
         tr('stat_avg')
       ),
-      (Icons.visibility_rounded, '${s.totalViewings}', tr('stat_viewings')),
-      (Icons.live_tv_rounded, '${s.seriesCount}', tr('stat_series')),
-      (Icons.playlist_play_rounded, '${s.episodesWatched}', tr('stat_episodes')),
-      (Icons.favorite_rounded, '${s.favorites}', tr('stat_favorites')),
-      (Icons.repeat_rounded, '${s.rewatches}', tr('stat_rewatches')),
-      (Icons.heart_broken_rounded, '${s.droppedCount}', tr('stat_dropped')),
-      (Icons.bookmark_rounded, '${s.watchlistCount}', tr('stat_watchlist')),
+      (Icons.visibility_rounded, _fmtNum(s.totalViewings), tr('stat_viewings')),
+      (Icons.live_tv_rounded, _fmtNum(s.seriesCount), tr('stat_series')),
+      (Icons.playlist_play_rounded, _fmtNum(s.episodesWatched),
+          tr('stat_episodes')),
+      (Icons.favorite_rounded, _fmtNum(s.favorites), tr('stat_favorites')),
+      (Icons.repeat_rounded, _fmtNum(s.rewatches), tr('stat_rewatches')),
+      (Icons.heart_broken_rounded, _fmtNum(s.droppedCount), tr('stat_dropped')),
+      (Icons.bookmark_rounded, _fmtNum(s.watchlistCount), tr('stat_watchlist')),
     ];
     final rows = <Widget>[];
     for (var i = 0; i < tiles.length; i += 2) {
@@ -252,14 +263,25 @@ class StatisticsScreen extends StatelessWidget {
             children: [
               Icon(t.$1, color: fg, size: 22),
               const SizedBox(height: 10),
-              Text(t.$2,
-                  style: TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 30,
-                      height: 1,
-                      color: fg)),
-              const SizedBox(height: 2),
+              // Фикс. высота + FittedBox: длинное число ужимается в одну строку,
+              // а все плитки остаются одной высоты (не переносится и не растёт).
+              SizedBox(
+                height: 34,
+                width: double.infinity,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(t.$2,
+                      maxLines: 1,
+                      style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 30,
+                          height: 1,
+                          color: fg)),
+                ),
+              ),
+              const SizedBox(height: 3),
               Text(t.$3,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -294,7 +316,10 @@ class StatisticsScreen extends StatelessWidget {
   Widget _recordRow(BuildContext context, _Record r) {
     final scheme = Theme.of(context).colorScheme;
     final accent = r.color ?? scheme.primary;
+    // Подпись сверху, значение снизу на всю ширину: длинные названия/даты
+    // влезают (до 2 строк), а отступ у всех строк одинаковый.
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
           width: 40,
@@ -306,23 +331,29 @@ class StatisticsScreen extends StatelessWidget {
         ),
         const SizedBox(width: 14),
         Expanded(
-          child: Text(r.label,
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontSize: 13.5,
-                  color: scheme.onSurfaceVariant)),
-        ),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Text(r.value,
-              textAlign: TextAlign.right,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontFamily: AppTheme.displayFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14.5,
-                  color: scheme.onSurface)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(r.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 12.5,
+                      color: scheme.onSurfaceVariant)),
+              const SizedBox(height: 1),
+              Text(r.value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      height: 1.15,
+                      color: scheme.onSurface)),
+            ],
+          ),
         ),
       ],
     );
@@ -802,6 +833,17 @@ class StatisticsScreen extends StatelessWidget {
       );
 }
 
+/// Число с разделителями тысяч (узкий пробел): 71588 → «71 588».
+String _fmtNum(int n) {
+  final s = n.abs().toString();
+  final b = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) b.write(' ');
+    b.write(s[i]);
+  }
+  return '${n < 0 ? '-' : ''}$b';
+}
+
 /// Строка рекорда/факта.
 class _Record {
   final IconData icon;
@@ -915,16 +957,20 @@ class _Stats {
     for (final m in watched) {
       final vc = m.viewings.isEmpty ? 1 : m.viewings.length;
       if (vc > 1) rewatches += vc - 1;
+      // Импорт TV Time иногда кладёт мусорную длительность (млн «минут») —
+      // учитываем только вменяемую (1..600 мин ≈ до 10 ч), иначе итоги врут.
+      final rt = m.runtimeMin;
+      final saneRt = (rt != null && rt > 0 && rt <= 600) ? rt : null;
       for (final v in m.viewings) {
         totalViewings++;
-        if (m.runtimeMin != null) minutes += m.runtimeMin!;
+        if (saneRt != null) minutes += saneRt;
         if (v.date != null) bumpDate(v.date!);
       }
       if (m.viewings.isEmpty) totalViewings++; // отмечен без даты просмотра
-      if (m.runtimeMin != null) {
-        runtimeSum += m.runtimeMin!;
+      if (saneRt != null) {
+        runtimeSum += saneRt;
         runtimeN++;
-        if (longest == null || m.runtimeMin! > (longest.runtimeMin ?? 0)) {
+        if (longest == null || saneRt > (longest.runtimeMin ?? 0)) {
           longest = m;
         }
       }
@@ -953,7 +999,10 @@ class _Stats {
     for (final s in allSeries) {
       for (final e in s.episodes) {
         episodesWatched++;
-        if (e.runtimeMin != null) minutes += e.runtimeMin! * e.watchCount;
+        final ert = e.runtimeMin;
+        if (ert != null && ert > 0 && ert <= 600) {
+          minutes += ert * e.watchCount.clamp(1, 100);
+        }
         if (e.watchedAt != null) bumpDate(e.watchedAt!);
       }
     }
