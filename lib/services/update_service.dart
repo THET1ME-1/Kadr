@@ -24,19 +24,21 @@ class UpdateInfo {
 class UpdateService {
   UpdateService._();
 
-  // Репозиторий с релизами приложения.
+  // ПУБЛИЧНЫЙ репозиторий только с релизами (исходники — в приватном Kadr).
+  // Приватный репо давал бы 404 на API/скачивании без токена.
   static const String _owner = 'THET1ME-1';
-  static const String _repo = 'Kadr';
+  static const String _repo = 'Kadr-releases';
 
   static Uri get _latestReleaseUri =>
       Uri.parse('https://api.github.com/repos/$_owner/$_repo/releases/latest');
 
   /// Возвращает [UpdateInfo], если на GitHub есть релиз новее [currentVersion];
   /// иначе null (в т.ч. при отсутствии сети или ошибке — молча).
+  /// null — успешно проверили, НЕ новее (последняя версия). Бросает при ошибке
+  /// сети/API (чтобы «не удалось проверить» не выдавалось за «последняя версия»).
   static Future<UpdateInfo?> checkForUpdate(String currentVersion) async {
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 12);
     try {
-      final client = HttpClient()
-        ..connectionTimeout = const Duration(seconds: 12);
       final request = await client.getUrl(_latestReleaseUri);
       // GitHub API требует User-Agent, иначе 403.
       request.headers.set(HttpHeaders.userAgentHeader, 'Kadr-Updater');
@@ -44,11 +46,9 @@ class UpdateService {
           .set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
       final response = await request.close();
       if (response.statusCode != 200) {
-        client.close();
-        return null;
+        throw HttpException('GitHub API ${response.statusCode}');
       }
       final body = await response.transform(utf8.decoder).join();
-      client.close();
 
       final json = jsonDecode(body) as Map<String, dynamic>;
       final tag = (json['tag_name'] ?? '').toString();
@@ -68,8 +68,8 @@ class UpdateService {
                 'https://github.com/$_owner/$_repo/releases/latest')
             .toString(),
       );
-    } catch (_) {
-      return null;
+    } finally {
+      client.close();
     }
   }
 

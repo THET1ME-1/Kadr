@@ -244,14 +244,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: Text(tr('checking_updates')),
         behavior: SnackBarBehavior.floating));
     final current = (await PackageInfo.fromPlatform()).version;
-    final info = await UpdateService.checkForUpdate(current);
-    if (!mounted) return;
-    if (info == null) {
+    try {
+      final info = await UpdateService.checkForUpdate(current);
+      if (!mounted) return;
+      if (info == null) {
+        messenger.showSnackBar(SnackBar(
+            content: Text(tr('up_to_date')),
+            behavior: SnackBarBehavior.floating));
+      } else {
+        await UpdateSheet.show(context, info, current);
+      }
+    } catch (_) {
+      if (!mounted) return;
       messenger.showSnackBar(SnackBar(
-          content: Text(tr('up_to_date')),
+          content: Text(tr('update_check_failed')),
           behavior: SnackBarBehavior.floating));
-    } else {
-      await UpdateSheet.show(context, info, current);
     }
   }
 

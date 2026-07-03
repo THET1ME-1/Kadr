@@ -476,6 +476,10 @@ const Map<String, Map<String, String>> _strings = {
     'en': "You're on the latest version"
   },
   'checking_updates': {'ru': 'Проверяю обновления…', 'en': 'Checking for updates…'},
+  'update_check_failed': {
+    'ru': 'Не удалось проверить обновления',
+    'en': 'Could not check for updates'
+  },
   'sync_title': {'ru': 'Синхронизация', 'en': 'Sync'},
   'sync_webdav': {'ru': 'Синхронизация (WebDAV)', 'en': 'Sync (WebDAV)'},
   'sync_webdav_sub': {
