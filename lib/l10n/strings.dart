@@ -102,6 +102,51 @@ const Map<String, Map<String, String>> _strings = {
   'stat_viewings': {'ru': 'Просмотров всего', 'en': 'Total viewings'},
   'stat_emotions': {'ru': 'Ваши эмоции', 'en': 'Your emotions'},
   'stat_empty': {'ru': 'Пока нет данных для статистики', 'en': 'No data yet'},
+  'stat_movies': {'ru': 'Фильмов', 'en': 'Movies'},
+  'stat_rewatches': {'ru': 'Пересмотров', 'en': 'Rewatches'},
+  'stat_dropped': {'ru': 'Брошено', 'en': 'Dropped'},
+  'stat_watchlist': {'ru': 'В планах', 'en': 'Watchlist'},
+  'stat_screen_time': {'ru': 'У ЭКРАНА', 'en': 'ON SCREEN'},
+  'stat_hours_unit': {'ru': 'ч', 'en': 'h'},
+  'stat_days_watching': {'ru': '≈ {n} дн. у экрана', 'en': '≈ {n} days on screen'},
+  'stat_summary_sub': {
+    'ru': '{f} фильмов · {s} сериалов · {e} серий',
+    'en': '{f} movies · {s} series · {e} episodes'
+  },
+  'stat_by_month': {'ru': 'По месяцам', 'en': 'By month'},
+  'stat_by_weekday': {'ru': 'По дням недели', 'en': 'By weekday'},
+  'stat_by_decade': {'ru': 'Годы выхода', 'en': 'Release years'},
+  'stat_split': {'ru': 'Фильмы и сериалы', 'en': 'Movies & series'},
+  'stat_vs_kp': {'ru': 'Ты и Кинопоиск', 'en': 'You vs Kinopoisk'},
+  'stat_vs_kp_higher': {
+    'ru': 'Ты оцениваешь выше КП на {d}',
+    'en': "You rate higher than KP by {d}"
+  },
+  'stat_vs_kp_lower': {
+    'ru': 'Ты оцениваешь ниже КП на {d}',
+    'en': 'You rate lower than KP by {d}'
+  },
+  'stat_vs_kp_same': {
+    'ru': 'Твои оценки почти как у КП',
+    'en': 'Your ratings match KP'
+  },
+  'stat_vs_kp_sub': {
+    'ru': 'по {n} фильмам с рейтингом КП',
+    'en': 'across {n} films rated on KP'
+  },
+  'stat_records': {'ru': 'Рекорды', 'en': 'Records'},
+  'stat_most_active_day': {'ru': 'Самый активный день', 'en': 'Most active day'},
+  'stat_first_mark': {'ru': 'Первая отметка', 'en': 'First entry'},
+  'stat_days_tracked': {'ru': 'Дней в трекере', 'en': 'Days tracked'},
+  'stat_avg_runtime': {'ru': 'Средняя длина фильма', 'en': 'Average movie length'},
+  'stat_longest': {'ru': 'Самый длинный', 'en': 'Longest'},
+  'stat_highest': {'ru': 'Высшая оценка', 'en': 'Highest rating'},
+  'stat_lowest': {'ru': 'Низшая оценка', 'en': 'Lowest rating'},
+  'stat_most_rewatched': {'ru': 'Чаще всего пересматриваешь', 'en': 'Most rewatched'},
+  'stat_top_series': {'ru': 'Больше всего серий', 'en': 'Most-watched series'},
+  'stat_completed': {'ru': 'Пройдено', 'en': 'Completed'},
+  'stat_times_n': {'ru': '×{n}', 'en': '×{n}'},
+  'stat_eps_n': {'ru': '{n} сер.', 'en': '{n} ep.'},
   'drawer_lists': {'ru': 'Списки', 'en': 'Lists'},
   'movies_count': {'ru': '{n} фильмов', 'en': '{n} movies'},
   'list_empty': {'ru': 'Список пуст', 'en': 'Empty list'},

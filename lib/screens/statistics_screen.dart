@@ -4,12 +4,17 @@ import '../l10n/strings.dart';
 import '../models/library_entry.dart';
 import '../services/movie_repository.dart';
 import '../theme/app_theme.dart';
+import '../utils/format.dart';
+import '../utils/score.dart';
 import '../widgets/poster.dart';
 import '../widgets/reveal.dart';
 import 'movie_sheet.dart';
+import 'series_screen.dart';
 
-/// Экран статистики (Material 3 Expressive): крупные плитки, графики по годам,
-/// распределение оценок, топ по оценке, эмоции, сериалы.
+/// Экран статистики (Material 3 Expressive): градиентная шапка-итог, крупные
+/// тональные плитки, графики активности (годы/месяцы/дни недели/десятилетия),
+/// распределение оценок в фирменной палитре балла, сравнение с Кинопоиском,
+/// рекорды, эмоции, топы и сериалы. Максимум данных — минимум скуки.
 class StatisticsScreen extends StatelessWidget {
   const StatisticsScreen({super.key});
 
@@ -22,27 +27,83 @@ class StatisticsScreen extends StatelessWidget {
         final s = _Stats.compute(repo);
         return Scaffold(
           appBar: AppBar(title: Text(tr('drawer_stats'))),
-          body: s.totalViewings == 0
+          body: !s.hasData
               ? Center(
                   child: Text(tr('stat_empty'),
                       style: const TextStyle(fontFamily: AppTheme.bodyFont)))
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
                   children: [
+                    _hero(context, s),
+                    const SizedBox(height: 16),
                     _tiles(context, s),
+                    if (s.records.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      _records(context, s),
+                    ],
+                    if (s.byYear.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      _card(context, tr('stat_by_year'),
+                          _barChart(context, s.yearLabels, s.yearValues)),
+                    ],
+                    if (s.byMonth.any((v) => v > 0)) ...[
+                      const SizedBox(height: 20),
+                      _card(context, tr('stat_by_month'),
+                          _barChart(context, s.monthLabels, s.byMonth)),
+                    ],
+                    if (s.byWeekday.any((v) => v > 0)) ...[
+                      const SizedBox(height: 20),
+                      _card(context, tr('stat_by_weekday'),
+                          _barChart(context, weekdayShort, s.byWeekday,
+                              colorOf: (context, i) =>
+                                  _weekdayColor(context, i))),
+                    ],
                     const SizedBox(height: 20),
-                    _byYear(context, s),
-                    const SizedBox(height: 20),
-                    _scoreDist(context, s),
+                    _card(
+                      context,
+                      tr('stat_scores'),
+                      _barChart(context, s.scoreLabels, s.scoreDist,
+                          colorOf: (_, i) => scoreColor((i + 1).toDouble())),
+                      subtitle: s.avgScore == 0
+                          ? null
+                          : '${tr('stat_avg')}: ${s.avgScore.toStringAsFixed(1)}',
+                    ),
+                    if (s.byDecade.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      _card(context, tr('stat_by_decade'),
+                          _barChart(context, s.decadeLabels, s.decadeValues)),
+                    ],
+                    if (s.moviesForSplit + s.episodesWatched > 0) ...[
+                      const SizedBox(height: 20),
+                      _splitCard(context, s),
+                    ],
+                    if (s.kpCount > 0) ...[
+                      const SizedBox(height: 20),
+                      _kpCard(context, s),
+                    ],
                     if (s.emotions.isNotEmpty) ...[
                       const SizedBox(height: 20),
                       _emotions(context, s),
                     ],
                     if (s.topRated.isNotEmpty) ...[
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
                       _section(context, tr('stat_top')),
-                      const SizedBox(height: 8),
-                      ...s.topRated.map((m) => _topRow(context, m)),
+                      const SizedBox(height: 10),
+                      ...s.topRated.asMap().entries.map(
+                          (e) => _movieRow(context, e.value, rank: e.key + 1)),
+                    ],
+                    if (s.mostRewatched.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      _section(context, tr('stat_most_rewatched')),
+                      const SizedBox(height: 10),
+                      ...s.mostRewatched.map((m) => _movieRow(context, m,
+                          trailing: trf('stat_times_n', {'n': m.viewCount}))),
+                    ],
+                    if (s.topSeries.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      _section(context, tr('stat_top_series')),
+                      const SizedBox(height: 10),
+                      ...s.topSeries.map((x) => _seriesRow(context, x)),
                     ],
                   ],
                 ),
@@ -51,77 +112,160 @@ class StatisticsScreen extends StatelessWidget {
     );
   }
 
-  // ------------------------------- плитки -------------------------------
-  Widget _tiles(BuildContext context, _Stats s) {
-    return Column(
-      children: [
-        Row(children: [
-          _tile(context, Icons.check_circle_rounded, '${s.watchedMovies}',
-              tr('stat_watched'), 0),
-          const SizedBox(width: 12),
-          _tile(context, Icons.schedule_rounded, '${s.hours}',
-              tr('stat_hours'), 1),
-        ]),
-        const SizedBox(height: 12),
-        Row(children: [
-          _tile(context, Icons.star_rounded,
-              s.avgScore == 0 ? '—' : s.avgScore.toStringAsFixed(1),
-              tr('stat_avg'), 2),
-          const SizedBox(width: 12),
-          _tile(context, Icons.repeat_rounded, '${s.totalViewings}',
-              tr('stat_viewings'), 3),
-        ]),
-        const SizedBox(height: 12),
-        Row(children: [
-          _tile(context, Icons.live_tv_rounded, '${s.seriesCount}',
-              tr('stat_series'), 4),
-          const SizedBox(width: 12),
-          _tile(context, Icons.favorite_rounded, '${s.favorites}',
-              tr('stat_favorites'), 5),
-        ]),
-      ],
+  // ------------------------------ шапка-итог ------------------------------
+
+  Widget _hero(BuildContext context, _Stats s) {
+    final scheme = Theme.of(context).colorScheme;
+    return Reveal(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [scheme.primary, scheme.tertiary],
+          ),
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -10,
+              top: -6,
+              child: Icon(Icons.movie_filter_rounded,
+                  size: 96, color: Colors.white.withValues(alpha: 0.14)),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tr('stat_screen_time'),
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                        letterSpacing: 2,
+                        color: Colors.white.withValues(alpha: 0.85))),
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text('${s.hours}',
+                        style: const TextStyle(
+                            fontFamily: AppTheme.displayFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 56,
+                            height: 1,
+                            color: Colors.white)),
+                    const SizedBox(width: 6),
+                    Text(tr('stat_hours_unit'),
+                        style: TextStyle(
+                            fontFamily: AppTheme.displayFont,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 22,
+                            color: Colors.white.withValues(alpha: 0.85))),
+                  ],
+                ),
+                if (s.hours >= 24) ...[
+                  const SizedBox(height: 4),
+                  Text(trf('stat_days_watching', {'n': s.hours ~/ 24}),
+                      style: TextStyle(
+                          fontFamily: AppTheme.bodyFont,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13.5,
+                          color: Colors.white.withValues(alpha: 0.9))),
+                ],
+                const SizedBox(height: 12),
+                Text(
+                    trf('stat_summary_sub', {
+                      'f': s.watchedMovies,
+                      's': s.seriesCount,
+                      'e': s.episodesWatched
+                    }),
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.85))),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _tile(BuildContext context, IconData icon, String value, String label,
-      int i) {
+  // ------------------------------- плитки -------------------------------
+
+  Widget _tiles(BuildContext context, _Stats s) {
+    final tiles = <(IconData, String, String)>[
+      (Icons.movie_rounded, '${s.watchedMovies}', tr('stat_movies')),
+      (Icons.schedule_rounded, '${s.hours}', tr('stat_hours')),
+      (
+        Icons.star_rounded,
+        s.avgScore == 0 ? '—' : s.avgScore.toStringAsFixed(1),
+        tr('stat_avg')
+      ),
+      (Icons.visibility_rounded, '${s.totalViewings}', tr('stat_viewings')),
+      (Icons.live_tv_rounded, '${s.seriesCount}', tr('stat_series')),
+      (Icons.playlist_play_rounded, '${s.episodesWatched}', tr('stat_episodes')),
+      (Icons.favorite_rounded, '${s.favorites}', tr('stat_favorites')),
+      (Icons.repeat_rounded, '${s.rewatches}', tr('stat_rewatches')),
+      (Icons.heart_broken_rounded, '${s.droppedCount}', tr('stat_dropped')),
+      (Icons.bookmark_rounded, '${s.watchlistCount}', tr('stat_watchlist')),
+    ];
+    final rows = <Widget>[];
+    for (var i = 0; i < tiles.length; i += 2) {
+      rows.add(Row(children: [
+        _tile(context, tiles[i], i),
+        const SizedBox(width: 12),
+        if (i + 1 < tiles.length)
+          _tile(context, tiles[i + 1], i + 1)
+        else
+          const Expanded(child: SizedBox.shrink()),
+      ]));
+      if (i + 2 < tiles.length) rows.add(const SizedBox(height: 12));
+    }
+    return Column(children: rows);
+  }
+
+  Widget _tile(BuildContext context, (IconData, String, String) t, int i) {
     final scheme = Theme.of(context).colorScheme;
-    final colors = [
+    final bg = [
       scheme.primaryContainer,
       scheme.secondaryContainer,
       scheme.tertiaryContainer,
-    ];
-    final onColors = [
+    ][i % 3];
+    final fg = [
       scheme.onPrimaryContainer,
       scheme.onSecondaryContainer,
       scheme.onTertiaryContainer,
-    ];
-    final bg = colors[i % 3];
-    final fg = onColors[i % 3];
+    ][i % 3];
     return Expanded(
       child: Reveal(
-        delay: Duration(milliseconds: i * 50),
+        delay: Duration(milliseconds: i * 45),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+          padding: const EdgeInsets.fromLTRB(16, 15, 16, 13),
           decoration:
               BoxDecoration(color: bg, borderRadius: BorderRadius.circular(24)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: fg, size: 24),
+              Icon(t.$1, color: fg, size: 22),
               const SizedBox(height: 10),
-              Text(value,
+              Text(t.$2,
                   style: TextStyle(
                       fontFamily: AppTheme.displayFont,
                       fontWeight: FontWeight.w800,
-                      fontSize: 32,
+                      fontSize: 30,
                       height: 1,
                       color: fg)),
               const SizedBox(height: 2),
-              Text(label,
+              Text(t.$3,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                       fontFamily: AppTheme.bodyFont,
-                      fontSize: 12.5,
+                      fontSize: 12,
                       color: fg.withValues(alpha: 0.85))),
             ],
           ),
@@ -130,140 +274,244 @@ class StatisticsScreen extends StatelessWidget {
     );
   }
 
-  // ------------------------------ по годам ------------------------------
-  Widget _byYear(BuildContext context, _Stats s) {
-    final scheme = Theme.of(context).colorScheme;
-    final years = s.byYear.keys.toList()..sort();
-    final maxV = s.byYear.values.fold(0, (a, b) => a > b ? a : b);
-    return _card(context, tr('stat_by_year'), SizedBox(
-      height: 150,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+  // ------------------------------ рекорды ------------------------------
+
+  Widget _records(BuildContext context, _Stats s) {
+    return _card(
+      context,
+      tr('stat_records'),
+      Column(
         children: [
-          for (final y in years)
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text('${s.byYear[y]}',
-                      style: TextStyle(
-                          fontFamily: AppTheme.bodyFont,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: scheme.onSurfaceVariant)),
-                  const SizedBox(height: 4),
-                  TweenAnimationBuilder<double>(
-                    tween: Tween(
-                        begin: 0, end: maxV == 0 ? 0 : s.byYear[y]! / maxV),
-                    duration: const Duration(milliseconds: 700),
-                    curve: AppTheme.emphasized,
-                    builder: (_, v, _) => Container(
-                      height: 96 * v + 4,
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      decoration: BoxDecoration(
-                        color: scheme.primary,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text('$y',
-                      style: TextStyle(
-                          fontFamily: AppTheme.bodyFont,
-                          fontSize: 11,
-                          color: scheme.onSurfaceVariant)),
-                ],
-              ),
-            ),
+          for (var i = 0; i < s.records.length; i++) ...[
+            if (i > 0) const SizedBox(height: 12),
+            _recordRow(context, s.records[i]),
+          ],
         ],
       ),
-    ));
+    );
   }
 
-  // ------------------------- распределение оценок -------------------------
-  Widget _scoreDist(BuildContext context, _Stats s) {
+  Widget _recordRow(BuildContext context, _Record r) {
     final scheme = Theme.of(context).colorScheme;
-    final maxV = s.scoreDist.fold(0, (a, b) => a > b ? a : b);
-    Color barColor(int i) {
-      // 1 → красный, 10 → зелёный
-      final t = i / 9;
-      return Color.lerp(const Color(0xFFD0433B), const Color(0xFF2E9B57), t)!;
-    }
+    final accent = r.color ?? scheme.primary;
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.15), shape: BoxShape.circle),
+          child: Icon(r.icon, size: 20, color: accent),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(r.label,
+              style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontSize: 13.5,
+                  color: scheme.onSurfaceVariant)),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Text(r.value,
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontFamily: AppTheme.displayFont,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14.5,
+                  color: scheme.onSurface)),
+        ),
+      ],
+    );
+  }
 
-    return _card(context, tr('stat_scores'), SizedBox(
-      height: 150,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+  // --------------------------- фильмы vs сериалы ---------------------------
+
+  Widget _splitCard(BuildContext context, _Stats s) {
+    final scheme = Theme.of(context).colorScheme;
+    final total = s.moviesForSplit + s.episodesWatched;
+    final movieFrac = total == 0 ? 0.0 : s.moviesForSplit / total;
+    return _card(
+      context,
+      tr('stat_split'),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (var i = 0; i < 10; i++)
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: movieFrac),
+              duration: const Duration(milliseconds: 700),
+              curve: AppTheme.emphasized,
+              builder: (_, v, _) => Row(
                 children: [
-                  if (s.scoreDist[i] > 0)
-                    Text('${s.scoreDist[i]}',
-                        style: TextStyle(
-                            fontFamily: AppTheme.bodyFont,
-                            fontSize: 10,
-                            color: scheme.onSurfaceVariant)),
-                  const SizedBox(height: 3),
-                  TweenAnimationBuilder<double>(
-                    tween: Tween(
-                        begin: 0,
-                        end: maxV == 0 ? 0 : s.scoreDist[i] / maxV),
-                    duration: Duration(milliseconds: 500 + i * 40),
-                    curve: AppTheme.emphasized,
-                    builder: (_, v, _) => Container(
-                      height: 96 * v + 3,
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      decoration: BoxDecoration(
-                        color: barColor(i),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
+                  if (v > 0)
+                    Expanded(
+                      flex: (v * 1000).round().clamp(1, 1000),
+                      child: Container(height: 22, color: scheme.primary),
                     ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text('${i + 1}',
-                      style: TextStyle(
-                          fontFamily: AppTheme.bodyFont,
-                          fontSize: 11,
-                          color: scheme.onSurfaceVariant)),
+                  if (v < 1)
+                    Expanded(
+                      flex: ((1 - v) * 1000).round().clamp(1, 1000),
+                      child: Container(height: 22, color: scheme.tertiary),
+                    ),
                 ],
               ),
             ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _legendDot(scheme.primary),
+              const SizedBox(width: 6),
+              Text('${tr('filter_movies')} · ${s.moviesForSplit}',
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 12.5,
+                      color: scheme.onSurfaceVariant)),
+              const Spacer(),
+              _legendDot(scheme.tertiary),
+              const SizedBox(width: 6),
+              Text('${tr('filter_series')} · ${s.episodesWatched}',
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 12.5,
+                      color: scheme.onSurfaceVariant)),
+            ],
+          ),
         ],
       ),
-    ));
+    );
+  }
+
+  Widget _legendDot(Color c) => Container(
+      width: 12,
+      height: 12,
+      decoration: BoxDecoration(color: c, shape: BoxShape.circle));
+
+  // -------------------------- сравнение с КП --------------------------
+
+  Widget _kpCard(BuildContext context, _Stats s) {
+    final scheme = Theme.of(context).colorScheme;
+    final d = s.kpDelta;
+    final up = d > 0.05, down = d < -0.05;
+    final accent = up
+        ? const Color(0xFF2E9B57)
+        : (down ? kDroppedColor : scheme.onSurfaceVariant);
+    final text = up
+        ? trf('stat_vs_kp_higher', {'d': d.abs().toStringAsFixed(1)})
+        : (down
+            ? trf('stat_vs_kp_lower', {'d': d.abs().toStringAsFixed(1)})
+            : tr('stat_vs_kp_same'));
+    return _card(
+      context,
+      tr('stat_vs_kp'),
+      Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.15), shape: BoxShape.circle),
+            child: Icon(
+                up
+                    ? Icons.trending_up_rounded
+                    : (down
+                        ? Icons.trending_down_rounded
+                        : Icons.drag_handle_rounded),
+                color: accent,
+                size: 28),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(text,
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        height: 1.15,
+                        color: accent)),
+                const SizedBox(height: 4),
+                Text(trf('stat_vs_kp_sub', {'n': s.kpCount}),
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 12.5,
+                        color: scheme.onSurfaceVariant)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // ------------------------------ эмоции ------------------------------
+
   Widget _emotions(BuildContext context, _Stats s) {
     final scheme = Theme.of(context).colorScheme;
     final top = s.emotions.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    return _card(context, tr('stat_emotions'), Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final e in top.take(8))
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(20)),
-            child: Text('${e.key} ${e.value}',
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: scheme.onSurface)),
-          ),
-      ],
-    ));
+    return _card(
+      context,
+      tr('stat_emotions'),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final e in top.take(10))
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                  color: scheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(20)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(e.key.split('|').first,
+                      style: const TextStyle(fontSize: 16)),
+                  const SizedBox(width: 6),
+                  Text(
+                      e.key.contains('|') ? e.key.split('|')[1] : '',
+                      style: TextStyle(
+                          fontFamily: AppTheme.bodyFont,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: scheme.onSecondaryContainer)),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+                    decoration: BoxDecoration(
+                        color: scheme.secondary,
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Text('${e.value}',
+                        style: TextStyle(
+                            fontFamily: AppTheme.displayFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            color: scheme.onSecondary)),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
-  Widget _topRow(BuildContext context, LibraryMovie m) {
+  // --------------------------- строки топов ---------------------------
+
+  Widget _movieRow(BuildContext context, LibraryMovie m,
+      {int? rank, String? trailing}) {
     final scheme = Theme.of(context).colorScheme;
+    final sc = m.currentScore;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Material(
@@ -276,10 +524,105 @@ class StatisticsScreen extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             child: Row(
               children: [
+                if (rank != null) ...[
+                  SizedBox(
+                    width: 24,
+                    child: Text('$rank',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontFamily: AppTheme.displayFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            color: scheme.onSurfaceVariant
+                                .withValues(alpha: 0.7))),
+                  ),
+                  const SizedBox(width: 4),
+                ],
                 Poster(title: m.displayTitle, url: m.posterUrl, width: 44),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(m.displayTitle,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(m.displayTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              color: scheme.onSurface)),
+                      if (m.year != null)
+                        Text('${m.year}',
+                            style: TextStyle(
+                                fontFamily: AppTheme.bodyFont,
+                                fontSize: 12,
+                                color: scheme.onSurfaceVariant)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (trailing != null)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                        color: scheme.tertiaryContainer,
+                        borderRadius: BorderRadius.circular(16)),
+                    child: Text(trailing,
+                        style: TextStyle(
+                            fontFamily: AppTheme.displayFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            color: scheme.onTertiaryContainer)),
+                  )
+                else if (sc != null)
+                  _scorePill(sc),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _seriesRow(BuildContext context, ({LibrarySeries s, int seen}) x) {
+    final scheme = Theme.of(context).colorScheme;
+    final s = x.s;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Material(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              children: [
+                Stack(
+                  children: [
+                    Poster(title: s.displayTitle, url: s.posterUrl, width: 44),
+                    Positioned(
+                      left: 3,
+                      top: 3,
+                      child: Container(
+                        padding: const EdgeInsets.all(2.5),
+                        decoration: BoxDecoration(
+                            color: scheme.tertiary,
+                            borderRadius: BorderRadius.circular(7)),
+                        child: Icon(Icons.live_tv_rounded,
+                            size: 11, color: scheme.onTertiary),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(s.displayTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -293,14 +636,14 @@ class StatisticsScreen extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                      color: scheme.primaryContainer,
+                      color: scheme.tertiaryContainer,
                       borderRadius: BorderRadius.circular(16)),
-                  child: Text(m.currentScore!.toStringAsFixed(1),
+                  child: Text(trf('stat_eps_n', {'n': x.seen}),
                       style: TextStyle(
                           fontFamily: AppTheme.displayFont,
                           fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                          color: scheme.onPrimaryContainer)),
+                          fontSize: 14,
+                          color: scheme.onTertiaryContainer)),
                 ),
               ],
             ),
@@ -310,49 +653,192 @@ class StatisticsScreen extends StatelessWidget {
     );
   }
 
-  Widget _card(BuildContext context, String title, Widget child) {
-    final scheme = Theme.of(context).colorScheme;
+  Widget _scorePill(double score) {
+    final c = scoreColor(score);
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(24)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration:
+          BoxDecoration(color: c, borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(title,
+          Icon(Icons.star_rounded, size: 15, color: onScoreColor(score)),
+          const SizedBox(width: 3),
+          Text(score.toStringAsFixed(1),
               style: TextStyle(
                   fontFamily: AppTheme.displayFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: scheme.onSurface)),
-          const SizedBox(height: 14),
-          child,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  color: onScoreColor(score))),
         ],
       ),
     );
   }
 
-  Widget _section(BuildContext context, String title) => Text(title,
-      style: TextStyle(
-          fontFamily: AppTheme.displayFont,
-          fontWeight: FontWeight.w800,
-          fontSize: 18,
-          color: Theme.of(context).colorScheme.onSurface));
+  // ------------------------- переиспользуемое -------------------------
+
+  /// Столбчатая диаграмма: подписи снизу, значения сверху, плавный рост.
+  /// Если столбцов много (>12) — горизонтальная прокрутка фиксированной ширины.
+  Widget _barChart(BuildContext context, List<String> labels, List<int> values,
+      {Color Function(BuildContext, int)? colorOf}) {
+    final scheme = Theme.of(context).colorScheme;
+    final maxV = values.fold(0, (a, b) => a > b ? a : b);
+    final n = values.length;
+
+    Widget bar(int i) {
+      final frac = maxV == 0 ? 0.0 : values[i] / maxV;
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text(values[i] == 0 ? '' : '${values[i]}',
+              style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 4),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: frac),
+            duration: Duration(milliseconds: 550 + i * 30),
+            curve: AppTheme.emphasized,
+            builder: (_, v, _) => Container(
+              height: 100 * v + 4,
+              margin: const EdgeInsets.symmetric(horizontal: 3.5),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    (colorOf?.call(context, i) ?? scheme.primary),
+                    (colorOf?.call(context, i) ?? scheme.primary)
+                        .withValues(alpha: 0.7),
+                  ],
+                ),
+                borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(7), bottom: Radius.circular(3)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(labels[i],
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontSize: 11,
+                  color: scheme.onSurfaceVariant)),
+        ],
+      );
+    }
+
+    return SizedBox(
+      height: 154,
+      child: n > 12
+          ? ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: n,
+              itemBuilder: (_, i) => SizedBox(width: 42, child: bar(i)),
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [for (var i = 0; i < n; i++) Expanded(child: bar(i))],
+            ),
+    );
+  }
+
+  Color _weekdayColor(BuildContext context, int i) {
+    final scheme = Theme.of(context).colorScheme;
+    // Выходные (Сб/Вс) — тёплым третичным, будни — основным.
+    return (i >= 5) ? scheme.tertiary : scheme.primary;
+  }
+
+  Widget _card(BuildContext context, String title, Widget child,
+      {String? subtitle}) {
+    final scheme = Theme.of(context).colorScheme;
+    return Reveal(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 15, 16, 16),
+        decoration: BoxDecoration(
+            color: scheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(24)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(title,
+                      style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15.5,
+                          color: scheme.onSurface)),
+                ),
+                if (subtitle != null)
+                  Text(subtitle,
+                      style: TextStyle(
+                          fontFamily: AppTheme.bodyFont,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.5,
+                          color: scheme.primary)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _section(BuildContext context, String title) => Padding(
+        padding: const EdgeInsets.only(left: 4),
+        child: Text(title,
+            style: TextStyle(
+                fontFamily: AppTheme.displayFont,
+                fontWeight: FontWeight.w800,
+                fontSize: 19,
+                color: Theme.of(context).colorScheme.onSurface)),
+      );
 }
 
-/// Посчитанная статистика библиотеки.
+/// Строка рекорда/факта.
+class _Record {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? color;
+  const _Record(this.icon, this.label, this.value, {this.color});
+}
+
+/// Посчитанная статистика библиотеки — максимум срезов без сети.
 class _Stats {
   final int watchedMovies;
   final int totalViewings;
   final int hours;
   final double avgScore;
   final int seriesCount;
+  final int episodesWatched;
   final int favorites;
+  final int rewatches;
+  final int droppedCount;
+  final int watchlistCount;
+  final int moviesForSplit;
+
   final Map<int, int> byYear;
-  final List<int> scoreDist; // 10 бакетов (1..10)
+  final List<int> byMonth; // 12 (янв..дек)
+  final List<int> byWeekday; // 7 (пн..вс)
+  final List<int> scoreDist; // 10 (1..10)
+  final Map<int, int> byDecade;
+
+  final double kpDelta; // ср. (твоя − КП)
+  final int kpCount;
+
   final List<LibraryMovie> topRated;
-  final Map<String, int> emotions;
+  final List<LibraryMovie> mostRewatched;
+  final List<({LibrarySeries s, int seen})> topSeries;
+  final Map<String, int> emotions; // ключ «emoji|label»
+  final List<_Record> records;
 
   _Stats({
     required this.watchedMovies,
@@ -360,44 +846,170 @@ class _Stats {
     required this.hours,
     required this.avgScore,
     required this.seriesCount,
+    required this.episodesWatched,
     required this.favorites,
+    required this.rewatches,
+    required this.droppedCount,
+    required this.watchlistCount,
+    required this.moviesForSplit,
     required this.byYear,
+    required this.byMonth,
+    required this.byWeekday,
     required this.scoreDist,
+    required this.byDecade,
+    required this.kpDelta,
+    required this.kpCount,
     required this.topRated,
+    required this.mostRewatched,
+    required this.topSeries,
     required this.emotions,
+    required this.records,
   });
+
+  bool get hasData =>
+      totalViewings > 0 || episodesWatched > 0 || seriesCount > 0;
+
+  // Метки/значения для графиков.
+  List<int> get _sortedYears => byYear.keys.toList()..sort();
+  List<String> get yearLabels =>
+      [for (final y in _sortedYears) '$y'];
+  List<int> get yearValues => [for (final y in _sortedYears) byYear[y]!];
+
+  List<String> get monthLabels => [for (var m = 1; m <= 12; m++) monthShort(m)];
+
+  List<String> get scoreLabels => [for (var i = 1; i <= 10; i++) '$i'];
+
+  List<int> get _sortedDecades => byDecade.keys.toList()..sort();
+  List<String> get decadeLabels => [for (final d in _sortedDecades) "'${d % 100}"];
+  List<int> get decadeValues => [for (final d in _sortedDecades) byDecade[d]!];
 
   static _Stats compute(MovieRepository repo) {
     final watched = repo.watched;
+    final allSeries = repo.series.where((s) => s.episodes.isNotEmpty).toList();
+
     var totalViewings = 0;
     var minutes = 0;
+    var rewatches = 0;
     final byYear = <int, int>{};
+    final byMonth = List<int>.filled(12, 0);
+    final byWeekday = List<int>.filled(7, 0);
     final scoreDist = List<int>.filled(10, 0);
+    final byDecade = <int, int>{};
     final emotions = <String, int>{};
-    var scoreSum = 0.0;
-    var scoreN = 0;
+    final byDay = <String, int>{}; // самый активный день
+    var scoreSum = 0.0, scoreN = 0;
+    var kpSum = 0.0, kpN = 0;
+    var runtimeSum = 0, runtimeN = 0;
+    DateTime? firstMark;
+    LibraryMovie? longest;
+
+    void bumpDate(DateTime d) {
+      byYear[d.year] = (byYear[d.year] ?? 0) + 1;
+      byMonth[d.month - 1]++;
+      byWeekday[d.weekday - 1]++;
+      final key = '${d.year}-${d.month}-${d.day}';
+      byDay[key] = (byDay[key] ?? 0) + 1;
+      if (firstMark == null || d.isBefore(firstMark!)) firstMark = d;
+    }
 
     for (final m in watched) {
+      final vc = m.viewings.isEmpty ? 1 : m.viewings.length;
+      if (vc > 1) rewatches += vc - 1;
       for (final v in m.viewings) {
         totalViewings++;
         if (m.runtimeMin != null) minutes += m.runtimeMin!;
-        final d = v.date;
-        if (d != null) byYear[d.year] = (byYear[d.year] ?? 0) + 1;
+        if (v.date != null) bumpDate(v.date!);
+      }
+      if (m.viewings.isEmpty) totalViewings++; // отмечен без даты просмотра
+      if (m.runtimeMin != null) {
+        runtimeSum += m.runtimeMin!;
+        runtimeN++;
+        if (longest == null || m.runtimeMin! > (longest.runtimeMin ?? 0)) {
+          longest = m;
+        }
       }
       final sc = m.currentScore;
       if (sc != null) {
         scoreSum += sc;
         scoreN++;
-        final b = (sc.round()).clamp(1, 10) - 1;
-        scoreDist[b]++;
+        scoreDist[(sc.round()).clamp(1, 10) - 1]++;
+        if (m.kpRating != null && m.kpRating! > 0) {
+          kpSum += sc - m.kpRating!;
+          kpN++;
+        }
+      }
+      if (m.year != null && m.year! > 1000) {
+        final dec = (m.year! ~/ 10) * 10;
+        byDecade[dec] = (byDecade[dec] ?? 0) + 1;
       }
       for (final e in m.emotions) {
-        emotions[e.emoji] = (emotions[e.emoji] ?? 0) + 1;
+        final key = '${e.emoji}|${e.label}';
+        emotions[key] = (emotions[key] ?? 0) + 1;
       }
     }
 
-    final top = watched.where((m) => m.currentScore != null).toList()
+    // Сериалы: время + активность по датам просмотра серий.
+    var episodesWatched = 0;
+    for (final s in allSeries) {
+      for (final e in s.episodes) {
+        episodesWatched++;
+        if (e.runtimeMin != null) minutes += e.runtimeMin! * e.watchCount;
+        if (e.watchedAt != null) bumpDate(e.watchedAt!);
+      }
+    }
+
+    final topRated = watched.where((m) => m.currentScore != null).toList()
       ..sort((a, b) => b.currentScore!.compareTo(a.currentScore!));
+    final mostRewatched = watched.where((m) => m.viewCount > 1).toList()
+      ..sort((a, b) => b.viewCount.compareTo(a.viewCount));
+    final topSeries = [
+      for (final s in allSeries) (s: s, seen: s.episodesSeen)
+    ]..sort((a, b) => b.seen.compareTo(a.seen));
+
+    // ----- рекорды -----
+    final records = <_Record>[];
+    if (byDay.isNotEmpty) {
+      final best = byDay.entries.reduce((a, b) => a.value >= b.value ? a : b);
+      final parts = best.key.split('-').map(int.parse).toList();
+      records.add(_Record(
+          Icons.local_fire_department_rounded,
+          tr('stat_most_active_day'),
+          '${numericDate(DateTime(parts[0], parts[1], parts[2]))} · ${best.value}',
+          color: const Color(0xFFE8833A)));
+    }
+    if (firstMark != null) {
+      records.add(_Record(Icons.flag_rounded, tr('stat_first_mark'),
+          numericDate(firstMark!)));
+      final days = DateTime.now().difference(firstMark!).inDays + 1;
+      records.add(_Record(
+          Icons.calendar_month_rounded, tr('stat_days_tracked'), '$days'));
+    }
+    if (runtimeN > 0) {
+      records.add(_Record(Icons.timelapse_rounded, tr('stat_avg_runtime'),
+          humanDuration(Duration(minutes: runtimeSum ~/ runtimeN))));
+    }
+    if (longest != null) {
+      records.add(_Record(
+          Icons.straighten_rounded,
+          tr('stat_longest'),
+          '${longest.displayTitle} · ${humanDuration(Duration(minutes: longest.runtimeMin!))}'));
+    }
+    if (topRated.isNotEmpty) {
+      final hi = topRated.first;
+      records.add(_Record(
+          Icons.emoji_events_rounded,
+          tr('stat_highest'),
+          '${hi.currentScore!.toStringAsFixed(1)} · ${hi.displayTitle}',
+          color: scoreColor(hi.currentScore!)));
+      final lo = topRated.last;
+      if (topRated.length > 1) {
+        records.add(_Record(
+            Icons.thumb_down_rounded,
+            tr('stat_lowest'),
+            '${lo.currentScore!.toStringAsFixed(1)} · ${lo.displayTitle}',
+            color: scoreColor(lo.currentScore!)));
+      }
+    }
 
     return _Stats(
       watchedMovies: watched.length,
@@ -405,11 +1017,24 @@ class _Stats {
       hours: minutes ~/ 60,
       avgScore: scoreN == 0 ? 0 : scoreSum / scoreN,
       seriesCount: repo.seriesCount,
+      episodesWatched: episodesWatched,
       favorites: repo.favorites.length,
+      rewatches: rewatches,
+      droppedCount: repo.droppedMovies.length + repo.droppedSeries.length,
+      watchlistCount: repo.watchlist.length,
+      moviesForSplit: watched.length,
       byYear: byYear,
+      byMonth: byMonth,
+      byWeekday: byWeekday,
       scoreDist: scoreDist,
-      topRated: top.take(10).toList(),
+      byDecade: byDecade,
+      kpDelta: kpN == 0 ? 0 : kpSum / kpN,
+      kpCount: kpN,
+      topRated: topRated.take(10).toList(),
+      mostRewatched: mostRewatched.take(5).toList(),
+      topSeries: topSeries.take(5).toList(),
       emotions: emotions,
+      records: records,
     );
   }
 }
