@@ -1426,7 +1426,8 @@ class _SeriesSessionCard extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(12, 4, 10, 8),
                     child: Column(
                       children: [
-                        for (final ep in session.episodes.take(12))
+                        // Серии от последней к первой (новые сверху).
+                        for (final ep in session.episodes.reversed.take(12))
                           _EpisodeRow(seriesId: s.tvShowId, ep: ep),
                     if (session.episodes.length > 12)
                       InkWell(
