@@ -60,7 +60,7 @@ class Viewing {
       {'date': date?.toIso8601String(), 'score': score};
 }
 
-enum LibraryStatus { watched, watchlist, library }
+enum LibraryStatus { watched, watchlist, library, dropped }
 
 /// Фильм в библиотеке пользователя.
 class LibraryMovie {
@@ -181,6 +181,7 @@ class LibraryMovie {
   static LibraryStatus _status(String? s) => switch (s) {
         'watched' => LibraryStatus.watched,
         'watchlist' => LibraryStatus.watchlist,
+        'dropped' => LibraryStatus.dropped,
         _ => LibraryStatus.library,
       };
 
@@ -242,6 +243,10 @@ class Episode {
   double? score;
   String? epId;
 
+  /// Сколько раз серию пересматривали (0 — смотрели один раз). Всего просмотров
+  /// серии = rewatchCount + 1.
+  int rewatchCount;
+
   Episode({
     this.season,
     this.number,
@@ -249,7 +254,11 @@ class Episode {
     this.runtimeMin,
     this.score,
     this.epId,
+    this.rewatchCount = 0,
   });
+
+  /// Всего просмотров серии (первый + повторы).
+  int get watchCount => rewatchCount + 1;
 
   /// Метка «S1E5» / «Серия 5» / «Эпизод».
   String get label {
@@ -272,6 +281,7 @@ class Episode {
         runtimeMin: (j['runtimeMin'] as num?)?.toInt(),
         score: (j['score'] as num?)?.toDouble(),
         epId: j['epId'] as String?,
+        rewatchCount: (j['rewatchCount'] as num?)?.toInt() ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -281,6 +291,7 @@ class Episode {
         'runtimeMin': runtimeMin,
         'score': score,
         'epId': epId,
+        'rewatchCount': rewatchCount,
       };
 }
 
@@ -339,6 +350,14 @@ class LibrarySeries {
   String? ruTitle;
   List<Episode> episodes;
   bool favorite;
+
+  /// Сериал брошен (просмотр прекращён) — попадает в список «Брошено» и не
+  /// участвует в уведомлениях о новых сериях.
+  bool dropped;
+
+  /// Всего серий по данным TMDB (заполняется при открытии экрана сериала).
+  /// Нужно, чтобы «Сейчас смотрю» показывал только незавершённые сериалы.
+  int? totalEpisodes;
   double? score;
   String? review;
   int? kinopoiskId;
@@ -353,6 +372,8 @@ class LibrarySeries {
     this.ruTitle,
     List<Episode>? episodes,
     this.favorite = false,
+    this.dropped = false,
+    this.totalEpisodes,
     this.score,
     this.review,
     this.kinopoiskId,
@@ -361,6 +382,12 @@ class LibrarySeries {
     this.enrichTried = false,
     this.posterUrl,
   }) : episodes = episodes ?? [];
+
+  /// Полностью ли просмотрен сериал (известно общее число серий и все отмечены).
+  bool get isCompleted =>
+      totalEpisodes != null &&
+      totalEpisodes! > 0 &&
+      episodes.length >= totalEpisodes!;
 
   int get episodesSeen => episodes.length;
 
@@ -427,6 +454,8 @@ class LibrarySeries {
       ruTitle: j['ruTitle'] as String?,
       episodes: eps,
       favorite: j['favorite'] == true,
+      dropped: j['dropped'] == true,
+      totalEpisodes: (j['totalEpisodes'] as num?)?.toInt(),
       score: (j['score'] as num?)?.toDouble(),
       review: j['review'] as String?,
       kinopoiskId: (j['kinopoiskId'] as num?)?.toInt(),
@@ -443,6 +472,8 @@ class LibrarySeries {
         'ruTitle': ruTitle,
         'episodes': [for (final e in episodes) e.toJson()],
         'favorite': favorite,
+        'dropped': dropped,
+        'totalEpisodes': totalEpisodes,
         'score': score,
         'review': review,
         'kinopoiskId': kinopoiskId,

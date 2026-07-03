@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -9,8 +10,12 @@ import '../services/movie_repository.dart';
 import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
+import '../utils/score.dart';
 import '../widgets/poster.dart';
+import '../widgets/poster_viewer.dart';
+import '../widgets/rating_slider.dart';
 import '../widgets/reveal.dart';
+import 'browse_screens.dart';
 import 'when_watched_sheet.dart';
 
 /// Карточка фильма — выезжающая снизу панель (M3). Постер, мета, рейтинг КП,
@@ -39,6 +44,10 @@ class _MovieSheet extends StatefulWidget {
 
 class _MovieSheetState extends State<_MovieSheet> {
   final _repo = MovieRepository.instance;
+
+  /// Локальный messenger: снекбары root-Scaffold'а рендерятся ПОД модальным
+  /// листом и невидимы — показываем их внутри самого листа.
+  final _sheetMessenger = GlobalKey<ScaffoldMessengerState>();
 
   /// Значение слайдера во время перетаскивания (иначе берём из модели).
   double? _dragging;
@@ -76,10 +85,16 @@ class _MovieSheetState extends State<_MovieSheet> {
           initialChildSize: 0.78,
           minChildSize: 0.5,
           maxChildSize: 0.95,
-          builder: (context, controller) => ListView(
-            controller: controller,
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-            children: _content(context, m),
+          builder: (context, controller) => ScaffoldMessenger(
+            key: _sheetMessenger,
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              body: ListView(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                children: _content(context, m),
+              ),
+            ),
           ),
         );
       },
@@ -108,20 +123,34 @@ class _MovieSheetState extends State<_MovieSheet> {
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Poster(title: m.displayTitle, url: m.posterUrl, width: 100, radius: 18),
+          GestureDetector(
+            onTap: () => openPosterViewer(context,
+                title: m.displayTitle, url: m.posterUrl, heroTag: 'poster-${m.uuid}'),
+            child: Hero(
+              tag: 'poster-${m.uuid}',
+              child: Poster(
+                  title: m.displayTitle,
+                  url: m.posterUrl,
+                  width: 100,
+                  radius: 18),
+            ),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(m.displayTitle,
-                    style: TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 22,
-                      height: 1.1,
-                      color: scheme.onSurface,
-                    )),
+                GestureDetector(
+                  onLongPress: () => _copy(m.displayTitle),
+                  child: Text(m.displayTitle,
+                      style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 22,
+                        height: 1.1,
+                        color: scheme.onSurface,
+                      )),
+                ),
                 const SizedBox(height: 6),
                 if (meta.isNotEmpty)
                   Text(meta,
@@ -139,7 +168,7 @@ class _MovieSheetState extends State<_MovieSheet> {
                       _chip(scheme, Icons.repeat_rounded,
                           trf('rewatches_n', {'n': m.rewatchCount}),
                           tone: true),
-                    if (m.kpRating != null)
+                    if (m.kpRating != null && m.kpRating! > 0)
                       _chip(scheme, Icons.star_rounded,
                           m.kpRating!.toStringAsFixed(1)),
                   ],
@@ -151,39 +180,49 @@ class _MovieSheetState extends State<_MovieSheet> {
       ),
       const SizedBox(height: 20),
       _scoreCard(scheme, m),
+      // Широкая мягко-красная кнопка сброса оценки — только если оценка есть.
+      if (m.currentScore != null) ...[
+        const SizedBox(height: 12),
+        _clearScoreButton(scheme, m),
+      ],
       const SizedBox(height: 16),
       SizedBox(
         width: double.infinity,
         child: FilledButton.icon(
           onPressed: () => showWhenWatchedSheet(context, m),
           icon: const Icon(Icons.add_task_rounded),
-          label: Text(tr('mark_watched')),
+          label: Text(tr(m.status == LibraryStatus.watched
+              ? 'watch_again'
+              : 'mark_watched')),
         ),
       ),
       const SizedBox(height: 12),
       Row(
         children: [
-          Expanded(
-            child: FilledButton.tonalIcon(
-              onPressed: () => _repo.toggleFavorite(m.uuid),
-              icon: Icon(m.favorite
-                  ? Icons.favorite_rounded
-                  : Icons.favorite_border_rounded),
-              label: Text(tr('act_favorite')),
-            ),
+          // Идеально круглая кнопка-сердечко (без надписи).
+          _HeartButton(
+            active: m.favorite,
+            onTap: () => _repo.toggleFavorite(m.uuid),
           ),
-          if (m.status != LibraryStatus.watched) ...[
-            const SizedBox(width: 12),
+          const SizedBox(width: 12),
+          if (m.status != LibraryStatus.watched)
             Expanded(
-              child: FilledButton.tonalIcon(
-                onPressed: () => _repo.toggleWatchlist(m.uuid),
-                icon: Icon(m.status == LibraryStatus.watchlist
-                    ? Icons.bookmark_rounded
-                    : Icons.bookmark_border_rounded),
-                label: Text(tr('add_watchlist')),
-              ),
-            ),
-          ],
+              child: m.status == LibraryStatus.watchlist
+                  // Активная — окрашена как «Отметить просмотр».
+                  ? FilledButton.icon(
+                      onPressed: () => _repo.toggleWatchlist(m.uuid),
+                      icon: const Icon(Icons.bookmark_rounded),
+                      label: Text(tr('in_watchlist')),
+                    )
+                  : FilledButton.tonalIcon(
+                      onPressed: () => _repo.toggleWatchlist(m.uuid),
+                      icon: const Icon(Icons.bookmark_border_rounded),
+                      label: Text(tr('add_watchlist')),
+                    ),
+            )
+          else
+            // Просмотрено — широкая «Отменить просмотр» рядом с сердечком.
+            Expanded(child: _undoWatchButton(scheme, m)),
         ],
       ),
       const SizedBox(height: 12),
@@ -195,6 +234,11 @@ class _MovieSheetState extends State<_MovieSheet> {
           label: Text(tr('manage_lists')),
         ),
       ),
+      // «Брошено» — для незавершённых (не для уже просмотренных фильмов).
+      if (m.status != LibraryStatus.watched) ...[
+        const SizedBox(height: 12),
+        _droppedButton(scheme, m),
+      ],
       ..._detailsWidgets(scheme, m),
       if (m.emotions.isNotEmpty) ...[
         const SizedBox(height: 18),
@@ -293,7 +337,8 @@ class _MovieSheetState extends State<_MovieSheet> {
     if (d == null) return links.isEmpty ? [] : [const SizedBox(height: 16), ...links];
     final facts = <Widget>[
       if (d.director != null && d.director!.isNotEmpty)
-        _fact(scheme, Icons.movie_creation_rounded, tr('director'), d.director!),
+        _personFact(scheme, Icons.movie_creation_rounded, tr('director'),
+            d.director!, d.directorId),
       if (d.budget != null && d.budget! > 0)
         _fact(scheme, Icons.payments_rounded, tr('budget'), _money(d.budget!)),
       if (d.revenue != null && d.revenue! > 0)
@@ -303,7 +348,7 @@ class _MovieSheetState extends State<_MovieSheet> {
     return [
       if (d.tagline != null) ...[
         const SizedBox(height: 18),
-        Text('«${d.tagline!}»',
+        Text('«${d.tagline!.replaceAll(RegExp(r'^[«»"\s]+|[«»"\s]+$'), '')}»',
             style: TextStyle(
                 fontFamily: AppTheme.bodyFont,
                 fontSize: 14,
@@ -314,12 +359,15 @@ class _MovieSheetState extends State<_MovieSheet> {
         const SizedBox(height: 18),
         _sectionTitle(scheme, tr('overview')),
         const SizedBox(height: 6),
-        Text(d.overview!,
-            style: TextStyle(
-                fontFamily: AppTheme.bodyFont,
-                fontSize: 14,
-                height: 1.45,
-                color: scheme.onSurface)),
+        GestureDetector(
+          onLongPress: () => _copy(d.overview!),
+          child: Text(d.overview!,
+              style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontSize: 14,
+                  height: 1.45,
+                  color: scheme.onSurface)),
+        ),
       ],
       if (d.genres.isNotEmpty) ...[
         const SizedBox(height: 14),
@@ -328,18 +376,25 @@ class _MovieSheetState extends State<_MovieSheet> {
           runSpacing: 6,
           children: [
             for (final g in d.genres)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                    color: scheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(20)),
-                child: Text(g,
-                    style: TextStyle(
-                        fontFamily: AppTheme.bodyFont,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: scheme.onSecondaryContainer)),
+              Material(
+                color: scheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(20),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => GenreScreen(
+                          genreId: g.id, genreName: capitalize(g.name)))),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    child: Text(capitalize(g.name),
+                        style: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: scheme.onSecondaryContainer)),
+                  ),
+                ),
               ),
           ],
         ),
@@ -357,7 +412,14 @@ class _MovieSheetState extends State<_MovieSheet> {
             itemBuilder: (c, i) => Reveal(
               delay: Duration(milliseconds: i * 45),
               beginOffset: const Offset(0.15, 0),
-              child: _castCard(scheme, d.cast[i]),
+              child: GestureDetector(
+                onTap: d.cast[i].id > 0
+                    ? () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => PersonScreen(
+                            personId: d.cast[i].id, personName: d.cast[i].name)))
+                    : null,
+                child: _castCard(scheme, d.cast[i]),
+              ),
             ),
           ),
         ),
@@ -502,6 +564,55 @@ class _MovieSheetState extends State<_MovieSheet> {
         ),
       );
 
+  /// Факт-ссылка на персону (режиссёр): имя-ссылка ведёт в фильмографию.
+  Widget _personFact(ColorScheme scheme, IconData icon, String label,
+          String name, int? personId) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 20, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 12),
+            Text('$label: ',
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontSize: 14,
+                    color: scheme.onSurfaceVariant)),
+            Expanded(
+              child: GestureDetector(
+                onTap: personId != null && personId > 0
+                    ? () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) =>
+                            PersonScreen(personId: personId, personName: name)))
+                    : null,
+                child: Text(name,
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        decoration: personId != null && personId > 0
+                            ? TextDecoration.underline
+                            : null,
+                        decorationColor: scheme.primary,
+                        color: personId != null && personId > 0
+                            ? scheme.primary
+                            : scheme.onSurface)),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  /// Копирует текст в буфер обмена (по удержанию названия/описания).
+  void _copy(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    _sheetMessenger.currentState?.showSnackBar(SnackBar(
+      content: Text(tr('copied')),
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
   String _money(int v) {
     final s = v.toString();
     final buf = StringBuffer();
@@ -561,7 +672,7 @@ class _MovieSheetState extends State<_MovieSheet> {
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: sc != null
-                        ? scheme.primaryContainer
+                        ? scoreColor(sc)
                         : scheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -574,7 +685,7 @@ class _MovieSheetState extends State<_MovieSheet> {
                               : Icons.star_border_rounded,
                           size: 16,
                           color: sc != null
-                              ? scheme.onPrimaryContainer
+                              ? onScoreColor(sc)
                               : scheme.onSurfaceVariant),
                       const SizedBox(width: 4),
                       Text(
@@ -584,7 +695,7 @@ class _MovieSheetState extends State<_MovieSheet> {
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                           color: sc != null
-                              ? scheme.onPrimaryContainer
+                              ? onScoreColor(sc)
                               : scheme.onSurfaceVariant,
                         ),
                       ),
@@ -676,13 +787,13 @@ class _MovieSheetState extends State<_MovieSheet> {
             height: 52,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-                color: scheme.primaryContainer, shape: BoxShape.circle),
+                color: scoreColor(v.score!), shape: BoxShape.circle),
             child: Text(v.score!.toStringAsFixed(1),
                 style: TextStyle(
                     fontFamily: AppTheme.displayFont,
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
-                    color: scheme.onPrimaryContainer)),
+                    color: onScoreColor(v.score!))),
           ),
           const SizedBox(height: 4),
           Text(
@@ -724,7 +835,6 @@ class _MovieSheetState extends State<_MovieSheet> {
     bool rated = m.scoreOf(v) != null;
     double val = m.scoreOf(v) ?? 7.0;
     final scheme = Theme.of(context).colorScheme;
-    final messenger = ScaffoldMessenger.of(context);
 
     showModalBottomSheet<void>(
       context: context,
@@ -834,18 +944,16 @@ class _MovieSheetState extends State<_MovieSheet> {
                         fontFamily: AppTheme.displayFont,
                         fontWeight: FontWeight.w800,
                         fontSize: 46,
-                        color: rated ? scheme.primary : scheme.onSurfaceVariant)),
+                        color:
+                            rated ? scoreColor(val) : scheme.onSurfaceVariant)),
                 Text(tr('rate_this_viewing'),
                     style: TextStyle(
                         fontFamily: AppTheme.bodyFont,
                         fontSize: 12.5,
                         color: scheme.onSurfaceVariant)),
-                Slider(
+                const SizedBox(height: 4),
+                RatingSlider(
                   value: val,
-                  min: 1,
-                  max: 10,
-                  divisions: 90,
-                  label: val.toStringAsFixed(1),
                   onChanged: (x) => setSheet(() {
                     val = x;
                     rated = true;
@@ -857,7 +965,7 @@ class _MovieSheetState extends State<_MovieSheet> {
                       onPressed: () {
                         _repo.removeViewing(m.uuid, v);
                         Navigator.pop(sheetCtx);
-                        messenger.showSnackBar(SnackBar(
+                        _sheetMessenger.currentState?.showSnackBar(SnackBar(
                             content: Text(tr('viewing_deleted')),
                             behavior: SnackBarBehavior.floating));
                       },
@@ -998,6 +1106,7 @@ class _MovieSheetState extends State<_MovieSheet> {
     final (icon, label) = switch (m.status) {
       LibraryStatus.watched => (Icons.check_circle_rounded, tr('act_watched')),
       LibraryStatus.watchlist => (Icons.bookmark_rounded, tr('in_watchlist')),
+      LibraryStatus.dropped => (Icons.heart_broken_rounded, tr('dropped')),
       LibraryStatus.library => (Icons.movie_rounded, tr('app_name')),
     };
     return _chip(scheme, icon, label, primary: true);
@@ -1041,11 +1150,50 @@ class _MovieSheetState extends State<_MovieSheet> {
     }
   }
 
+  /// Убирает оценку текущего просмотра И общую: scoreOf() падает обратно на
+  /// общий m.score (импорт TV Time), иначе кнопка выглядит сломанной.
+  void _clearCurrentScore(LibraryMovie m) {
+    final cv = m.currentViewing;
+    if (cv != null) _repo.setViewingScore(m.uuid, cv, null);
+    _repo.setScore(m.uuid, null);
+    setState(() => _dragging = null);
+  }
+
   Widget _scoreCard(ColorScheme scheme, LibraryMovie m) {
-    final val = _dragging ?? m.currentScore ?? 7.0;
+    // Оценка доступна только просмотренным фильмам.
+    final canRate =
+        m.currentViewing != null || m.status == LibraryStatus.watched;
+    if (!canRate) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.star_border_rounded,
+                size: 34, color: scheme.onSurfaceVariant),
+            const SizedBox(height: 8),
+            Text(tr('rate_after_watch'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: scheme.onSurfaceVariant)),
+          ],
+        ),
+      );
+    }
+
+    // Пока не оценено — слайдер стоит на нейтральной середине, но число
+    // показываем как «—», а не как балл 7.0 (иначе выглядит будто оценка есть).
     final rated = _dragging != null || m.currentScore != null;
+    final val = _dragging ?? m.currentScore ?? 6.5;
+    final accent = scoreColor(val);
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       decoration: BoxDecoration(
         color: scheme.primaryContainer,
         borderRadius: BorderRadius.circular(24),
@@ -1058,22 +1206,38 @@ class _MovieSheetState extends State<_MovieSheet> {
                   fontWeight: FontWeight.w600,
                   fontSize: 12.5,
                   color: scheme.onPrimaryContainer.withValues(alpha: 0.8))),
+          const SizedBox(height: 2),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Icon(Icons.star_rounded,
-                  color: scheme.onPrimaryContainer, size: 32),
-              const SizedBox(width: 6),
-              Text(
-                val.toStringAsFixed(1),
-                style: TextStyle(
-                  fontFamily: AppTheme.displayFont,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 48,
-                  height: 1,
-                  color: scheme.onPrimaryContainer,
+              // Плавно перетекающий цвет числа/звезды при изменении балла.
+              TweenAnimationBuilder<Color?>(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+                tween: ColorTween(
+                    end: rated
+                        ? accent
+                        : scheme.onPrimaryContainer.withValues(alpha: 0.55)),
+                builder: (context, color, _) => Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Icon(rated ? Icons.star_rounded : Icons.star_border_rounded,
+                        color: color, size: 32),
+                    const SizedBox(width: 6),
+                    Text(
+                      rated ? val.toStringAsFixed(1) : '—',
+                      style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 48,
+                        height: 1,
+                        color: color,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Text(' / 10',
@@ -1084,26 +1248,116 @@ class _MovieSheetState extends State<_MovieSheet> {
                       color: scheme.onPrimaryContainer.withValues(alpha: 0.7))),
             ],
           ),
-          Slider(
+          const SizedBox(height: 6),
+          RatingSlider(
             value: val,
-            min: 1,
-            max: 10,
-            divisions: 90,
-            label: val.toStringAsFixed(1),
             onChanged: (v) => setState(() => _dragging = v),
             onChangeEnd: (v) {
               _commitCurrentScore(m, v);
               setState(() => _dragging = null);
             },
           ),
+          const SizedBox(height: 4),
           Text(
-            rated ? tr('your_rating') : tr('rate_it'),
+            rated ? tr('your_rating') : tr('no_rating_yet'),
             style: TextStyle(
                 fontFamily: AppTheme.bodyFont,
                 fontSize: 13,
                 color: scheme.onPrimaryContainer.withValues(alpha: 0.8)),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Широкая мягко-красная M3-кнопка «Убрать оценку» (как просил пользователь —
+  /// одного размера с «Отметить просмотр», не мелкой ссылкой).
+  Widget _clearScoreButton(ColorScheme scheme, LibraryMovie m) {
+    // Мягкий красный: приглушённый, не кричащий (в тон палитре оценок).
+    const soft = kDroppedColor;
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.tonalIcon(
+        onPressed: () => _clearCurrentScore(m),
+        icon: const Icon(Icons.star_outline_rounded),
+        label: Text(tr('remove_score')),
+        style: FilledButton.styleFrom(
+          backgroundColor: soft.withValues(alpha: 0.16),
+          foregroundColor: soft,
+        ),
+      ),
+    );
+  }
+
+  /// Кнопка «Отменить просмотр» — для уже просмотренного фильма (в Expanded).
+  Widget _undoWatchButton(ColorScheme scheme, LibraryMovie m) {
+    return FilledButton.tonalIcon(
+      onPressed: () async {
+        final removed = await _repo.undoLastViewing(m.uuid);
+        _sheetMessenger.currentState?.showSnackBar(SnackBar(
+          content: Text(tr(removed ? 'unwatched' : 'watch_undone')),
+          behavior: SnackBarBehavior.floating,
+        ));
+      },
+      icon: const Icon(Icons.remove_done_rounded),
+      label: Text(tr('undo_watch')),
+      style: FilledButton.styleFrom(
+        backgroundColor: scheme.surfaceContainerHighest,
+        foregroundColor: scheme.onSurfaceVariant,
+      ),
+    );
+  }
+
+  /// Широкая кнопка «Брошено» (мягкий красный). Активна, когда фильм брошен.
+  Widget _droppedButton(ColorScheme scheme, LibraryMovie m) {
+    const soft = kDroppedColor;
+    final active = m.status == LibraryStatus.dropped;
+    return SizedBox(
+      width: double.infinity,
+      child: active
+          ? FilledButton.icon(
+              onPressed: () => _repo.toggleDropped(m.uuid),
+              icon: const Icon(Icons.heart_broken_rounded),
+              label: Text(tr('in_dropped')),
+              style: FilledButton.styleFrom(
+                  backgroundColor: soft, foregroundColor: Colors.white),
+            )
+          : FilledButton.tonalIcon(
+              onPressed: () => _repo.toggleDropped(m.uuid),
+              icon: const Icon(Icons.heart_broken_outlined),
+              label: Text(tr('mark_dropped')),
+              style: FilledButton.styleFrom(
+                  backgroundColor: soft.withValues(alpha: 0.16),
+                  foregroundColor: soft),
+            ),
+    );
+  }
+}
+
+/// Идеально круглая кнопка-сердечко (Избранное) — без надписи.
+class _HeartButton extends StatelessWidget {
+  final bool active;
+  final VoidCallback onTap;
+  const _HeartButton({required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: active ? scheme.primary : scheme.surfaceContainerHighest,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: 56,
+          height: 56,
+          child: Icon(
+            active ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+            color: active ? scheme.onPrimary : scheme.onSurfaceVariant,
+            size: 26,
+          ),
+        ),
       ),
     );
   }

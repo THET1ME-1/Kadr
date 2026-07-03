@@ -109,6 +109,10 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Movie data by TMDB and Kinopoisk. This product uses the TMDB API but is not endorsed or certified by TMDB.'
   },
   'search_hint': {'ru': 'Фильмы и сериалы…', 'en': 'Movies and series…'},
+  'search_all_hint': {
+    'ru': 'Поиск по всей базе фильмов…',
+    'en': 'Search the whole movie database…'
+  },
 
   // ---------------------------- Настройки ----------------------------
   'settings_title': {'ru': 'Настройки', 'en': 'Settings'},
@@ -229,6 +233,33 @@ const Map<String, Map<String, String>> _strings = {
   'filter_all': {'ru': 'Все', 'en': 'All'},
   'filter_movies': {'ru': 'Фильмы', 'en': 'Movies'},
   'filter_series': {'ru': 'Сериалы', 'en': 'Series'},
+
+  // ---------------------- Вид галереи и сортировка ----------------------
+  'view_mode': {'ru': 'Вид', 'en': 'View'},
+  'view_list': {'ru': 'Список', 'en': 'List'},
+  'view_posters': {'ru': 'Постеры', 'en': 'Posters'},
+  'view_banners': {'ru': 'Баннеры', 'en': 'Banners'},
+  'sort': {'ru': 'Сортировка', 'en': 'Sort'},
+  'sort_date_new': {'ru': 'Сначала новые', 'en': 'Newest first'},
+  'sort_date_old': {'ru': 'Сначала старые', 'en': 'Oldest first'},
+  'sort_rating': {'ru': 'По оценке', 'en': 'By rating'},
+  'sort_title': {'ru': 'По названию', 'en': 'By title'},
+  'sort_year': {'ru': 'По году', 'en': 'By year'},
+  'filter_genre': {'ru': 'Жанр', 'en': 'Genre'},
+  'filter_year': {'ru': 'Год', 'en': 'Year'},
+  'all_genres': {'ru': 'Все жанры', 'en': 'All genres'},
+  'all_years': {'ru': 'Все годы', 'en': 'All years'},
+  'sort_popular': {'ru': 'Популярные', 'en': 'Popular'},
+  'sort_top_rated': {'ru': 'Высокий рейтинг', 'en': 'Top rated'},
+  'sort_new_release': {'ru': 'Новинки', 'en': 'New releases'},
+  'nothing_found': {'ru': 'Ничего не найдено', 'en': 'Nothing found'},
+  'load_more': {'ru': 'Загрузить ещё', 'en': 'Load more'},
+  'rate_after_watch': {
+    'ru': 'Посмотрите фильм, чтобы его оценить',
+    'en': 'Watch the movie to rate it'
+  },
+  'copied': {'ru': 'Скопировано', 'en': 'Copied'},
+  'view_poster': {'ru': 'Открыть постер', 'en': 'Open poster'},
   'rewatch': {'ru': 'Повтор', 'en': 'Rewatch'},
   'rewatch_full': {'ru': 'Повторный просмотр', 'en': 'Rewatched'},
   'rewatches_n': {'ru': 'Повторов: {n}', 'en': 'Rewatches: {n}'},
@@ -263,4 +294,67 @@ const Map<String, Map<String, String>> _strings = {
   'date_time': {'ru': 'Дата и время', 'en': 'Date & time'},
   'clear_date': {'ru': 'Убрать дату', 'en': 'Clear date'},
   'viewing_deleted': {'ru': 'Просмотр удалён', 'en': 'Viewing deleted'},
+
+  // ---------------------- Доработки карточки / сериалов ----------------------
+  'no_rating_yet': {'ru': 'Оценка не выбрана', 'en': 'No rating yet'},
+  'undo_watch': {'ru': 'Отменить просмотр', 'en': 'Undo watch'},
+  'watch_undone': {'ru': 'Просмотр отменён', 'en': 'Watch undone'},
+  'unwatched': {'ru': 'Убрано из просмотренного', 'en': 'Removed from watched'},
+  'rate_series': {'ru': 'Оценить сериал', 'en': 'Rate series'},
+  'series_rating': {'ru': 'Оценка сериала', 'en': 'Series rating'},
+  'mark_season': {'ru': 'Отметить весь сезон', 'en': 'Mark whole season'},
+  'unmark_season': {'ru': 'Снять весь сезон', 'en': 'Unmark whole season'},
+  'season_done': {'ru': 'Сезон {n} отмечен', 'en': 'Season {n} marked'},
+  'watch_again': {'ru': 'Смотрел ещё раз', 'en': 'Watched again'},
+  'ep_watched_n': {'ru': 'Просмотров: {n}', 'en': 'Watches: {n}'},
+  'rewatch_removed': {'ru': 'Повтор убран', 'en': 'Rewatch removed'},
+  'season_progress': {'ru': 'Сезон {s}: {n}/{m}', 'en': 'Season {s}: {n}/{m}'},
+  'episode': {'ru': 'Серия', 'en': 'Episode'},
+  'rate_short': {'ru': 'Оценить', 'en': 'Rate'},
+  'episode_score': {'ru': 'Оценка серии', 'en': 'Episode rating'},
+  'rate_after_watch_ep': {
+    'ru': 'Отметьте просмотр серии, чтобы её оценить',
+    'en': 'Mark the episode watched to rate it'
+  },
+  'clear_all_checks': {'ru': 'Снять просмотр', 'en': 'Unmark watched'},
+  'reset_to_one': {'ru': 'Вернуть один просмотр', 'en': 'Keep a single watch'},
+  'remove_one_watch': {'ru': 'Убрать просмотр', 'en': 'Remove one watch'},
+  'seq_mode': {'ru': 'Отмечать серии по порядку', 'en': 'Mark episodes in order'},
+  'seq_mode_sub': {
+    'ru': 'Отметил серию — все до неё тоже; снял — все после снимаются',
+    'en': 'Marking an episode marks all before it; unmarking clears all after'
+  },
+
+  // ------------------------------ Брошено ------------------------------
+  'dropped': {'ru': 'Брошено', 'en': 'Dropped'},
+  'mark_dropped': {'ru': 'Бросить', 'en': 'Drop'},
+  'in_dropped': {'ru': 'Брошено', 'en': 'Dropped'},
+  'drawer_dropped': {'ru': 'Брошено', 'en': 'Dropped'},
+  'dropped_empty': {
+    'ru': 'Здесь будут фильмы и сериалы, которые вы бросили',
+    'en': 'Movies and series you dropped will appear here'
+  },
+  'dropped_movies': {'ru': 'Фильмы', 'en': 'Movies'},
+  'dropped_series': {'ru': 'Сериалы', 'en': 'Series'},
+  'dropped_count': {'ru': 'Брошено: {n}', 'en': 'Dropped: {n}'},
+
+  // --------------------- Уведомления о новых сериях ---------------------
+  'notif_new_episodes': {'ru': 'Новые серии', 'en': 'New episodes'},
+  'notif_new_episodes_sub': {
+    'ru': 'Уведомлять о выходе новых серий сериалов, которые смотрю',
+    'en': 'Notify when new episodes of series I watch are released'
+  },
+  'notif_channel_name': {'ru': 'Новые серии', 'en': 'New episodes'},
+  'notif_new_ep_title': {'ru': 'Вышла новая серия', 'en': 'New episode out'},
+  'notif_new_ep_body': {
+    'ru': '{title}: серия {ep} уже вышла',
+    'en': '{title}: episode {ep} is out'
+  },
+  'new_episodes_n': {'ru': '{n} новых серий', 'en': '{n} new episodes'},
+  'notif_test': {'ru': 'Показать пример', 'en': 'Show a sample'},
+  'notif_test_sub': {
+    'ru': 'Проверить, как выглядит уведомление',
+    'en': 'Preview how the notification looks'
+  },
+  'close': {'ru': 'Закрыть', 'en': 'Close'},
 };

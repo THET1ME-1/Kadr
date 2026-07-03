@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
 import '../services/movie_repository.dart';
+import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../widgets/empty_state.dart';
@@ -11,10 +12,41 @@ import '../widgets/pressable.dart';
 import '../widgets/reveal.dart';
 import 'series_screen.dart';
 
-/// Экран «Сейчас смотрю»: сериалы с просмотренными сериями, по свежести.
+/// Экран «Сейчас смотрю»: только НЕЗАВЕРШЁННЫЕ сериалы, по свежести.
 /// Тап → полный список серий, где можно отмечать новые серии просмотренными.
-class NowWatchingScreen extends StatelessWidget {
+class NowWatchingScreen extends StatefulWidget {
   const NowWatchingScreen({super.key});
+
+  @override
+  State<NowWatchingScreen> createState() => _NowWatchingScreenState();
+}
+
+class _NowWatchingScreenState extends State<NowWatchingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _backfillTotals();
+  }
+
+  /// Дозагружает общее число серий для сериалов, у которых оно ещё не известно,
+  /// чтобы уже завершённые исчезли из списка (реактивно). TMDB-выборка сезонов
+  /// кэшируется; идём порциями, чтобы не грузить сеть разом.
+  Future<void> _backfillTotals() async {
+    final repo = MovieRepository.instance;
+    final pending = repo.currentlyWatching
+        .where((s) => s.totalEpisodes == null && s.tmdbId != null)
+        .take(40)
+        .toList();
+    for (final s in pending) {
+      if (!mounted) return;
+      final seasons = await TmdbService.seasons(s.tmdbId!);
+      if (seasons.isNotEmpty) {
+        await repo.setSeriesTotal(
+            s.tvShowId, seasons.fold<int>(0, (a, b) => a + b.episodeCount));
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +54,7 @@ class NowWatchingScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: repo,
       builder: (context, _) {
-        final series = repo.currentlyWatching;
+        final series = repo.nowWatching;
         return Scaffold(
           appBar: AppBar(title: Text(tr('now_watching'))),
           body: series.isEmpty

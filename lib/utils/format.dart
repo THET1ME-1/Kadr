@@ -8,6 +8,12 @@ bool get _en => LocaleController.instance.code == 'en';
 
 String _two(int v) => v.toString().padLeft(2, '0');
 
+/// Делает первую букву заглавной («фантастика» → «Фантастика»).
+String capitalize(String s) {
+  if (s.isEmpty) return s;
+  return s[0].toUpperCase() + s.substring(1);
+}
+
 /// Часы:минуты:секунды для бегущего таймера. До часа — «MM:SS», от часа —
 /// «H:MM:SS».
 String clockDuration(Duration d) {

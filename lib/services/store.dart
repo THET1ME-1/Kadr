@@ -47,5 +47,9 @@ class Store {
   Future<void> setBool(String k, bool v) async => (await _p).setBool(k, v);
   Future<int?> getInt(String k) async => (await _p).getInt(k);
   Future<void> setInt(String k, int v) async => (await _p).setInt(k, v);
+  Future<List<String>> getStringList(String k) async =>
+      (await _p).getStringList(k) ?? const [];
+  Future<void> setStringList(String k, List<String> v) async =>
+      (await _p).setStringList(k, v);
   Future<void> remove(String k) async => (await _p).remove(k);
 }

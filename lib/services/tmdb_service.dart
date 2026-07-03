@@ -46,10 +46,56 @@ class TmdbMovie {
 
 /// Актёр в деталях фильма.
 class TmdbCast {
+  final int id;
   final String name;
   final String? character;
   final String? photoUrl;
-  const TmdbCast({required this.name, this.character, this.photoUrl});
+  const TmdbCast(
+      {required this.id, required this.name, this.character, this.photoUrl});
+}
+
+/// Жанр (id + название) — название кликабельно и ведёт в подборку по жанру.
+class TmdbGenre {
+  final int id;
+  final String name;
+  const TmdbGenre({required this.id, required this.name});
+}
+
+/// Краткая карточка сериала из TMDB (для ленты «Сериалы»).
+class TmdbSeries {
+  final int id;
+  final String title; // русское (ru-RU)
+  final String? originalTitle;
+  final String? posterUrl;
+  final int? year;
+  final double? rating;
+  final String? overview;
+
+  const TmdbSeries({
+    required this.id,
+    required this.title,
+    this.originalTitle,
+    this.posterUrl,
+    this.year,
+    this.rating,
+    this.overview,
+  });
+
+  factory TmdbSeries.fromJson(Map<String, dynamic> j) {
+    final rel = j['first_air_date'] as String? ?? '';
+    final poster = j['poster_path'] as String?;
+    return TmdbSeries(
+      id: (j['id'] as num).toInt(),
+      title: (j['name'] as String?)?.isNotEmpty == true
+          ? j['name'] as String
+          : (j['original_name'] as String? ?? ''),
+      originalTitle: j['original_name'] as String?,
+      posterUrl: poster != null ? '${ApiConfig.tmdbImageBase}$poster' : null,
+      year: rel.length >= 4 ? int.tryParse(rel.substring(0, 4)) : null,
+      rating: (j['vote_average'] as num?)?.toDouble(),
+      overview: j['overview'] as String?,
+    );
+  }
 }
 
 /// Подробности фильма из TMDB (для карточки: бэкдроп, описание, жанры, актёры,
@@ -59,8 +105,9 @@ class TmdbDetails {
   final String? tagline;
   final String? backdropUrl;
   final String? director;
+  final int? directorId;
   final String? imdbId;
-  final List<String> genres;
+  final List<TmdbGenre> genres;
   final int? budget;
   final int? revenue;
   final int? runtime;
@@ -70,6 +117,7 @@ class TmdbDetails {
     this.tagline,
     this.backdropUrl,
     this.director,
+    this.directorId,
     this.imdbId,
     this.genres = const [],
     this.budget,
@@ -77,6 +125,14 @@ class TmdbDetails {
     this.runtime,
     this.cast = const [],
   });
+}
+
+/// Доп. данные сериала для шапки экрана: бэкдроп, описание, жанры.
+class TmdbTvExtra {
+  final String? backdropUrl;
+  final String? overview;
+  final List<TmdbGenre> genres;
+  const TmdbTvExtra({this.backdropUrl, this.overview, this.genres = const []});
 }
 
 /// Сезон сериала (для навигации по сериям).
@@ -136,10 +192,11 @@ class TmdbService {
       if (resp.statusCode != 200) return null;
       final j = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
       final credits = j['credits'] as Map<String, dynamic>?;
-      final castList = (credits?['cast'] as List? ?? []).take(12).map((c) {
+      final castList = (credits?['cast'] as List? ?? []).take(16).map((c) {
         final m = c as Map<String, dynamic>;
         final photo = m['profile_path'] as String?;
         return TmdbCast(
+          id: (m['id'] as num?)?.toInt() ?? 0,
           name: m['name'] as String? ?? '',
           character: m['character'] as String?,
           photoUrl:
@@ -147,10 +204,12 @@ class TmdbService {
         );
       }).toList();
       String? director;
+      int? directorId;
       for (final c in (credits?['crew'] as List? ?? [])) {
         final m = c as Map<String, dynamic>;
         if (m['job'] == 'Director') {
           director = m['name'] as String?;
+          directorId = (m['id'] as num?)?.toInt();
           break;
         }
       }
@@ -164,10 +223,14 @@ class TmdbService {
         backdropUrl:
             backdrop != null ? '${ApiConfig.tmdbBackdropBase}$backdrop' : null,
         director: director,
+        directorId: directorId,
         genres: [
           for (final g in (j['genres'] as List? ?? []))
-            (g as Map<String, dynamic>)['name'] as String? ?? ''
-        ].where((s) => s.isNotEmpty).toList(),
+            TmdbGenre(
+              id: ((g as Map<String, dynamic>)['id'] as num?)?.toInt() ?? 0,
+              name: g['name'] as String? ?? '',
+            )
+        ].where((g) => g.name.isNotEmpty).toList(),
         budget: (j['budget'] as num?)?.toInt(),
         revenue: (j['revenue'] as num?)?.toInt(),
         runtime: (j['runtime'] as num?)?.toInt(),
@@ -181,16 +244,124 @@ class TmdbService {
     }
   }
 
-  /// Популярное сейчас (лента «Обзор»).
-  static Future<List<TmdbMovie>> trending() =>
-      _list('/trending/movie/week', {'language': 'ru-RU'});
+  /// Популярное сейчас (лента «Обзор»). Пагинируется для бесконечной ленты.
+  static Future<List<TmdbMovie>> trending({int page = 1}) =>
+      _list('/trending/movie/week', {'language': 'ru-RU', 'page': '$page'});
 
   /// Сейчас в кино (лента «В кино»).
-  static Future<List<TmdbMovie>> nowPlaying() => _list(
-      '/movie/now_playing', {'language': 'ru-RU', 'region': 'RU', 'page': '1'});
+  static Future<List<TmdbMovie>> nowPlaying({int page = 1}) => _list(
+      '/movie/now_playing',
+      {'language': 'ru-RU', 'region': 'RU', 'page': '$page'});
+
+  /// Поиск фильмов по всей базе TMDB (для общего поиска в «Обзор»/«В кино»).
+  /// Не отбрасываем результаты без постера — у поиска важна полнота
+  /// (Poster рисует заглушку).
+  static Future<List<TmdbMovie>> searchMovies(String query,
+      {int page = 1}) {
+    final q = query.trim();
+    if (q.isEmpty) return Future.value([]);
+    return _list('/search/movie', {
+      'language': 'ru-RU',
+      'include_adult': 'true',
+      'query': q,
+      'page': '$page',
+    }, requirePoster: false);
+  }
+
+  static String get _today =>
+      DateTime.now().toIso8601String().split('T').first;
+
+  /// Подборка фильмов с фильтрами: жанр, год, сортировка. Используется и для
+  /// страницы жанра, и для фильтров в «Обзоре»/«В кино».
+  /// [nowPlayingWindow] — ограничить прокатным окном (последние ~1.5 месяца).
+  static Future<List<TmdbMovie>> discoverMovies({
+    int page = 1,
+    int? genreId,
+    int? year,
+    String sortBy = 'popularity.desc',
+    bool nowPlayingWindow = false,
+  }) {
+    final byRating = sortBy.startsWith('vote_average');
+    final byDate = sortBy.startsWith('primary_release_date');
+    final window = nowPlayingWindow && year == null;
+    final from = DateTime.now().subtract(const Duration(days: 45));
+    return _list('/discover/movie', {
+      'language': 'ru-RU',
+      'sort_by': sortBy,
+      'page': '$page',
+      if (genreId != null) 'with_genres': '$genreId',
+      if (year != null) 'primary_release_year': '$year',
+      // Отсечь мусор без голосов при сортировке по рейтингу.
+      if (byRating) 'vote_count.gte': '200',
+      if (!byRating && genreId != null && !window) 'vote_count.gte': '40',
+      // «Новинки» — только уже вышедшее.
+      if (byDate) 'primary_release_date.lte': _today,
+      if (window) ...{
+        'primary_release_date.gte':
+            from.toIso8601String().split('T').first,
+        'primary_release_date.lte': _today,
+        'with_release_type': '2|3',
+      },
+    });
+  }
+
+  /// Подборка сериалов с фильтрами (жанр, год, сортировка).
+  static Future<List<TmdbSeries>> discoverTv({
+    int page = 1,
+    int? genreId,
+    int? year,
+    String sortBy = 'popularity.desc',
+  }) {
+    final byRating = sortBy.startsWith('vote_average');
+    final byDate = sortBy.startsWith('first_air_date');
+    return _listTv('/discover/tv', {
+      'language': 'ru-RU',
+      'sort_by': sortBy,
+      'page': '$page',
+      if (genreId != null) 'with_genres': '$genreId',
+      if (year != null) 'first_air_date_year': '$year',
+      if (byRating) 'vote_count.gte': '150',
+      if (byDate) 'first_air_date.lte': _today,
+    });
+  }
+
+  /// Фильмография персоны (актёр/режиссёр) — все фильмы, где участвовал.
+  static Future<List<TmdbMovie>> personMovieCredits(int personId) async {
+    try {
+      final uri = Uri.parse('${ApiConfig.tmdbBase}/person/$personId/movie_credits')
+          .replace(queryParameters: {'language': 'ru-RU'});
+      final resp = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 12));
+      if (resp.statusCode != 200) return [];
+      final data =
+          jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      final cast =
+          (data['cast'] as List? ?? []).cast<Map<String, dynamic>>();
+      final crew =
+          (data['crew'] as List? ?? []).cast<Map<String, dynamic>>();
+      // Уникальные фильмы (актёр мог быть и в команде), свежие/популярные сверху.
+      final byId = <int, Map<String, dynamic>>{};
+      for (final r in [...cast, ...crew]) {
+        final id = (r['id'] as num?)?.toInt();
+        if (id == null) continue;
+        byId.putIfAbsent(id, () => r);
+      }
+      final list = byId.values.map((r) => TmdbMovie.fromJson(r)).toList()
+        ..sort((a, b) {
+          final ay = a.year ?? 0, by = b.year ?? 0;
+          return by.compareTo(ay);
+        });
+      return list;
+    } catch (e) {
+      debugPrint('tmdb person credits $personId error: $e');
+      return [];
+    }
+  }
 
   static Future<List<TmdbMovie>> _list(
-      String path, Map<String, String> query) async {
+      String path, Map<String, String> query,
+      {bool requirePoster = true}) async {
     try {
       final uri =
           Uri.parse('${ApiConfig.tmdbBase}$path').replace(queryParameters: query);
@@ -203,11 +374,55 @@ class TmdbService {
       final results =
           (data['results'] as List? ?? []).cast<Map<String, dynamic>>();
       return results
-          .where((r) => r['poster_path'] != null)
+          .where((r) => !requirePoster || r['poster_path'] != null)
           .map((r) => TmdbMovie.fromJson(r))
           .toList();
     } catch (e) {
       debugPrint('tmdb list $path error: $e');
+      return [];
+    }
+  }
+
+  /// Популярные сериалы (лента «Сериалы» в «Обзоре»).
+  static Future<List<TmdbSeries>> trendingTv({int page = 1}) =>
+      _listTv('/trending/tv/week', {'language': 'ru-RU', 'page': '$page'});
+
+  /// Сериалы в эфире (лента «Сериалы» в «В кино»).
+  static Future<List<TmdbSeries>> onAirTv({int page = 1}) =>
+      _listTv('/tv/on_the_air', {'language': 'ru-RU', 'page': '$page'});
+
+  /// Поиск сериалов по всей базе TMDB (без фильтра постеров — важна полнота).
+  static Future<List<TmdbSeries>> searchTvShows(String query, {int page = 1}) {
+    final q = query.trim();
+    if (q.isEmpty) return Future.value([]);
+    return _listTv('/search/tv', {
+      'language': 'ru-RU',
+      'include_adult': 'true',
+      'query': q,
+      'page': '$page',
+    }, requirePoster: false);
+  }
+
+  static Future<List<TmdbSeries>> _listTv(
+      String path, Map<String, String> query,
+      {bool requirePoster = true}) async {
+    try {
+      final uri =
+          Uri.parse('${ApiConfig.tmdbBase}$path').replace(queryParameters: query);
+      final resp = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 12));
+      if (resp.statusCode != 200) return [];
+      final data =
+          jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      final results =
+          (data['results'] as List? ?? []).cast<Map<String, dynamic>>();
+      return results
+          .where((r) => !requirePoster || r['poster_path'] != null)
+          .map((r) => TmdbSeries.fromJson(r))
+          .toList();
+    } catch (e) {
+      debugPrint('tmdb tv list $path error: $e');
       return [];
     }
   }
@@ -248,6 +463,15 @@ class TmdbService {
 
   static final Map<int, List<TmdbSeason>> _seasonsCache = {};
   static final Map<String, List<TmdbEpisode>> _episodesCache = {};
+  static final Map<int, TmdbTvExtra> _tvExtraCache = {};
+
+  /// Бэкдроп/описание/жанры сериала (для крупной шапки экрана сериала).
+  /// Заполняется попутно при загрузке [seasons]; здесь — гарантированная выборка.
+  static Future<TmdbTvExtra?> tvExtra(int tvId) async {
+    if (_tvExtraCache.containsKey(tvId)) return _tvExtraCache[tvId];
+    await seasons(tvId); // сама выборка `/tv/{id}` кэширует extra
+    return _tvExtraCache[tvId];
+  }
 
   /// Сезоны сериала по tmdbId.
   static Future<List<TmdbSeason>> seasons(int tvId) async {
@@ -260,6 +484,21 @@ class TmdbService {
           .timeout(const Duration(seconds: 12));
       if (resp.statusCode != 200) return [];
       final j = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      final backdrop = j['backdrop_path'] as String?;
+      _tvExtraCache[tvId] = TmdbTvExtra(
+        backdropUrl:
+            backdrop != null ? '${ApiConfig.tmdbBackdropBase}$backdrop' : null,
+        overview: (j['overview'] as String?)?.isNotEmpty == true
+            ? j['overview'] as String
+            : null,
+        genres: [
+          for (final g in (j['genres'] as List? ?? []))
+            TmdbGenre(
+              id: ((g as Map<String, dynamic>)['id'] as num?)?.toInt() ?? 0,
+              name: g['name'] as String? ?? '',
+            )
+        ].where((g) => g.name.isNotEmpty).toList(),
+      );
       final list = (j['seasons'] as List? ?? [])
           .map((s) => s as Map<String, dynamic>)
           .where((s) => s['season_number'] != null)

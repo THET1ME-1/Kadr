@@ -1,0 +1,69 @@
+name: Release APK
+
+# Собирает релизные APK (по одному на ABI — split-per-abi) и публикует их в
+# GitHub Release. Запуск: пуш тега вида v* (публикует релиз) или вручную
+# (кладёт APK в артефакты сборки).
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.9
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Build split release APKs
+        run: flutter build apk --release --split-per-abi
+
+      - name: Rename APKs
+        run: |
+          cd build/app/outputs/flutter-apk
+          tag="${GITHUB_REF_NAME}"
+          for f in app-*-release.apk; do
+            abi=$(echo "$f" | sed -E 's/app-(.*)-release\.apk/\1/')
+            cp "$f" "Kadr-${tag}-${abi}.apk"
+          done
+          ls -la
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/app/outputs/flutter-apk/Kadr-*.apk
+          generate_release_notes: true
+
+      - name: Upload artifacts (manual runs)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kadr-release-apks
+          path: build/app/outputs/flutter-apk/app-*-release.apk

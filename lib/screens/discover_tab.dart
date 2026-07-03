@@ -1,194 +1,408 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/locale_controller.dart';
 import '../l10n/strings.dart';
-import '../models/library_entry.dart';
 import '../services/movie_repository.dart';
 import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/poster.dart';
-import '../widgets/pressable.dart';
-import '../widgets/reveal.dart';
-import 'movie_sheet.dart';
+import '../widgets/infinite_grid.dart';
+import '../widgets/movie_cards.dart';
 
 enum DiscoverMode { trending, nowPlaying }
 
-/// Лента «Обзор» (популярное) / «В кино» (сейчас в прокате) из TMDB. Тап по
-/// фильму → добавить в библиотеку («Буду смотреть» / «Просмотрено»).
+enum _DiscSort { popular, topRated, newest }
+
+/// Жанр TMDB для фильтра (id стабильны, названия локализуем сами).
+class _Genre {
+  final int id;
+  final String ru;
+  final String en;
+  const _Genre(this.id, this.ru, this.en);
+  String get label => LocaleController.instance.code == 'en' ? en : ru;
+}
+
+const List<_Genre> _movieGenres = [
+  _Genre(28, 'Боевик', 'Action'),
+  _Genre(12, 'Приключения', 'Adventure'),
+  _Genre(16, 'Мультфильм', 'Animation'),
+  _Genre(35, 'Комедия', 'Comedy'),
+  _Genre(80, 'Криминал', 'Crime'),
+  _Genre(99, 'Документальный', 'Documentary'),
+  _Genre(18, 'Драма', 'Drama'),
+  _Genre(10751, 'Семейный', 'Family'),
+  _Genre(14, 'Фэнтези', 'Fantasy'),
+  _Genre(36, 'История', 'History'),
+  _Genre(27, 'Ужасы', 'Horror'),
+  _Genre(10402, 'Музыка', 'Music'),
+  _Genre(9648, 'Детектив', 'Mystery'),
+  _Genre(10749, 'Мелодрама', 'Romance'),
+  _Genre(878, 'Фантастика', 'Science Fiction'),
+  _Genre(53, 'Триллер', 'Thriller'),
+  _Genre(10752, 'Военный', 'War'),
+  _Genre(37, 'Вестерн', 'Western'),
+];
+
+const List<_Genre> _tvGenres = [
+  _Genre(10759, 'Боевик и приключения', 'Action & Adventure'),
+  _Genre(16, 'Мультфильм', 'Animation'),
+  _Genre(35, 'Комедия', 'Comedy'),
+  _Genre(80, 'Криминал', 'Crime'),
+  _Genre(99, 'Документальный', 'Documentary'),
+  _Genre(18, 'Драма', 'Drama'),
+  _Genre(10751, 'Семейный', 'Family'),
+  _Genre(10762, 'Детский', 'Kids'),
+  _Genre(9648, 'Детектив', 'Mystery'),
+  _Genre(10764, 'Реалити-шоу', 'Reality'),
+  _Genre(10765, 'НФ и фэнтези', 'Sci-Fi & Fantasy'),
+  _Genre(10766, 'Мыльная опера', 'Soap'),
+  _Genre(10768, 'Война и политика', 'War & Politics'),
+  _Genre(37, 'Вестерн', 'Western'),
+];
+
+/// Лента «Обзор» (популярное) / «В кино» (сейчас в прокате) из TMDB, с двумя
+/// подвкладками — Фильмы и Сериалы. Общий поиск по всей базе (когда задан
+/// [query]), фильтры по жанру/году и сортировка. Бесконечная ленивая
+/// подгрузка. Тап по фильму → карточка, по сериалу → экран серий.
 class DiscoverTab extends StatefulWidget {
   final DiscoverMode mode;
-  const DiscoverTab({super.key, required this.mode});
+  final String query;
+  const DiscoverTab({super.key, required this.mode, this.query = ''});
 
   @override
   State<DiscoverTab> createState() => _DiscoverTabState();
 }
 
 class _DiscoverTabState extends State<DiscoverTab>
-    with AutomaticKeepAliveClientMixin {
-  List<TmdbMovie>? _movies;
-  bool _error = false;
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+  late final TabController _tab = TabController(length: 2, vsync: this);
+
+  // Фильтры — свои у каждой подвкладки (жанры фильмов и сериалов различаются).
+  _Genre? _mGenre, _tGenre;
+  int? _mYear, _tYear;
+  _DiscSort _mSort = _DiscSort.popular, _tSort = _DiscSort.popular;
 
   @override
   bool get wantKeepAlive => true;
 
   @override
-  void initState() {
-    super.initState();
-    _load();
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _movies = null;
-      _error = false;
-    });
-    final list = widget.mode == DiscoverMode.trending
-        ? await TmdbService.trending()
-        : await TmdbService.nowPlaying();
-    if (!mounted) return;
-    setState(() {
-      _movies = list;
-      _error = list.isEmpty;
-    });
+  String get _q => widget.query.trim();
+
+  bool get _mActive =>
+      _mGenre != null || _mYear != null || _mSort != _DiscSort.popular;
+  bool get _tActive =>
+      _tGenre != null || _tYear != null || _tSort != _DiscSort.popular;
+
+  String get _mSortBy => switch (_mSort) {
+        _DiscSort.popular => 'popularity.desc',
+        _DiscSort.topRated => 'vote_average.desc',
+        _DiscSort.newest => 'primary_release_date.desc',
+      };
+  String get _tSortBy => switch (_tSort) {
+        _DiscSort.popular => 'popularity.desc',
+        _DiscSort.topRated => 'vote_average.desc',
+        _DiscSort.newest => 'first_air_date.desc',
+      };
+
+  Future<List<TmdbMovie>> _movieLoader(int page) {
+    if (_q.isNotEmpty) return TmdbService.searchMovies(_q, page: page);
+    if (_mActive) {
+      return TmdbService.discoverMovies(
+        page: page,
+        genreId: _mGenre?.id,
+        year: _mYear,
+        sortBy: _mSortBy,
+        nowPlayingWindow: widget.mode == DiscoverMode.nowPlaying,
+      );
+    }
+    return widget.mode == DiscoverMode.trending
+        ? TmdbService.trending(page: page)
+        : TmdbService.nowPlaying(page: page);
+  }
+
+  Future<List<TmdbSeries>> _seriesLoader(int page) {
+    if (_q.isNotEmpty) return TmdbService.searchTvShows(_q, page: page);
+    if (_tActive) {
+      return TmdbService.discoverTv(
+        page: page,
+        genreId: _tGenre?.id,
+        year: _tYear,
+        sortBy: _tSortBy,
+      );
+    }
+    return widget.mode == DiscoverMode.trending
+        ? TmdbService.trendingTv(page: page)
+        : TmdbService.onAirTv(page: page);
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    if (_movies == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_error || _movies!.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.cloud_off_rounded,
-                size: 56, color: Theme.of(context).colorScheme.onSurfaceVariant),
-            const SizedBox(height: 12),
-            Text(tr('discover_error'),
-                style: const TextStyle(
-                    fontFamily: AppTheme.bodyFont, fontSize: 15)),
-            const SizedBox(height: 12),
-            FilledButton.tonal(onPressed: _load, child: Text(tr('retry'))),
+    final scheme = Theme.of(context).colorScheme;
+    final mKey =
+        'm|${widget.mode}|$_q|${_mGenre?.id}|$_mYear|$_mSort';
+    final tKey =
+        's|${widget.mode}|$_q|${_tGenre?.id}|$_tYear|$_tSort';
+    return Column(
+      children: [
+        TabBar(
+          controller: _tab,
+          labelColor: scheme.primary,
+          unselectedLabelColor: scheme.onSurfaceVariant,
+          indicatorColor: scheme.primary,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelStyle: const TextStyle(
+              fontFamily: AppTheme.displayFont,
+              fontWeight: FontWeight.w700,
+              fontSize: 14),
+          unselectedLabelStyle: const TextStyle(
+              fontFamily: AppTheme.displayFont,
+              fontWeight: FontWeight.w600,
+              fontSize: 14),
+          tabs: [
+            Tab(text: tr('filter_movies')),
+            Tab(text: tr('filter_series')),
           ],
         ),
-      );
-    }
-
-    return LayoutBuilder(builder: (context, c) {
-      const spacing = 12.0;
-      final cols = c.maxWidth ~/ 130;
-      final n = cols < 2 ? 2 : cols;
-      final w = (c.maxWidth - 32 - spacing * (n - 1)) / n;
-      return RefreshIndicator(
-        onRefresh: _load,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 96),
-          child: Wrap(
-            spacing: spacing,
-            runSpacing: 18,
+        Expanded(
+          child: TabBarView(
+            controller: _tab,
             children: [
-              for (var i = 0; i < _movies!.length; i++)
-                Reveal(
-                  delay: Duration(milliseconds: (i % n) * 40),
-                  child: _card(_movies![i], w),
-                ),
+              Column(
+                children: [
+                  // Фильтры действуют на ленту; при поиске идёт глобальный
+                  // поиск по базе — панель скрываем.
+                  if (_q.isEmpty) _filterBar(movies: true),
+                  Expanded(
+                    child: ListenableBuilder(
+                      listenable: MovieRepository.instance,
+                      builder: (context, _) => InfiniteGrid<TmdbMovie>(
+                        reloadKey: mKey,
+                        loader: _movieLoader,
+                        itemBuilder: (context, m, w) =>
+                            DiscoverMovieCard(movie: m, width: w),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                children: [
+                  if (_q.isEmpty) _filterBar(movies: false),
+                  Expanded(
+                    child: ListenableBuilder(
+                      listenable: MovieRepository.instance,
+                      builder: (context, _) => InfiniteGrid<TmdbSeries>(
+                        reloadKey: tKey,
+                        loader: _seriesLoader,
+                        itemBuilder: (context, s, w) =>
+                            DiscoverSeriesCard(series: s, width: w),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
-      );
-    });
+      ],
+    );
   }
 
-  Widget _card(TmdbMovie m, double w) {
-    final scheme = Theme.of(context).colorScheme;
-    final lib = MovieRepository.instance.movieByTmdb(m.id);
-    final showBadge = lib != null && lib.status != LibraryStatus.library;
+  // ----------------------------- фильтры -----------------------------
+
+  Widget _filterBar({required bool movies}) {
+    final genre = movies ? _mGenre : _tGenre;
+    final year = movies ? _mYear : _tYear;
+    final sort = movies ? _mSort : _tSort;
+    final active = movies ? _mActive : _tActive;
     return SizedBox(
-      width: w,
-      child: Pressable(
-        onTap: () => showMovieSheet(
-            context, MovieRepository.instance.ensureFromTmdb(m)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                Poster(title: m.title, url: m.posterUrl, width: w, radius: 16),
-                if (showBadge)
-                  Positioned(top: 6, right: 6, child: _statusBadge(scheme, lib)),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(m.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontFamily: AppTheme.displayFont,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    height: 1.1,
-                    color: scheme.onSurface)),
-            const SizedBox(height: 2),
-            Row(
-              children: [
-                if (m.rating != null && m.rating! > 0) ...[
-                  Icon(Icons.star_rounded, size: 13, color: scheme.primary),
-                  const SizedBox(width: 2),
-                  Text(m.rating!.toStringAsFixed(1),
-                      style: TextStyle(
-                          fontFamily: AppTheme.bodyFont,
-                          fontSize: 12,
-                          color: scheme.onSurfaceVariant)),
-                  const SizedBox(width: 6),
-                ],
-                if (m.year != null)
-                  Text('${m.year}',
-                      style: TextStyle(
-                          fontFamily: AppTheme.bodyFont,
-                          fontSize: 12,
-                          color: scheme.onSurfaceVariant)),
-              ],
+      height: 52,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+        children: [
+          _chip(
+            label: genre?.label ?? tr('filter_genre'),
+            selected: genre != null,
+            icon: Icons.theater_comedy_rounded,
+            onTap: () => _pickGenre(movies),
+          ),
+          const SizedBox(width: 8),
+          _chip(
+            label: year?.toString() ?? tr('filter_year'),
+            selected: year != null,
+            icon: Icons.calendar_month_rounded,
+            onTap: () => _pickYear(movies),
+          ),
+          const SizedBox(width: 8),
+          _chip(
+            label: _sortLabel(sort),
+            selected: sort != _DiscSort.popular,
+            icon: Icons.sort_rounded,
+            onTap: () => _pickSort(movies),
+          ),
+          if (active) ...[
+            const SizedBox(width: 8),
+            _chip(
+              label: tr('reset'),
+              selected: false,
+              icon: Icons.filter_alt_off_rounded,
+              onTap: () => setState(() {
+                if (movies) {
+                  _mGenre = null;
+                  _mYear = null;
+                  _mSort = _DiscSort.popular;
+                } else {
+                  _tGenre = null;
+                  _tYear = null;
+                  _tSort = _DiscSort.popular;
+                }
+              }),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
 
-  /// Значок статуса в ленте: просмотрено → галочка + моя оценка; в списке →
-  /// закладка.
-  Widget _statusBadge(ColorScheme scheme, LibraryMovie lib) {
-    if (lib.status == LibraryStatus.watched) {
-      final sc = lib.currentScore;
-      return Container(
-        padding: EdgeInsets.symmetric(horizontal: sc != null ? 8 : 5, vertical: 4),
-        decoration: BoxDecoration(
-            color: scheme.primary, borderRadius: BorderRadius.circular(20)),
-        child: Row(
+  Widget _chip({
+    required String label,
+    required bool selected,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return FilterChip(
+      selected: selected,
+      showCheckmark: false,
+      avatar: Icon(icon,
+          size: 17,
+          color: selected
+              ? Theme.of(context).colorScheme.onSecondaryContainer
+              : Theme.of(context).colorScheme.onSurfaceVariant),
+      label: Text(label),
+      labelStyle: const TextStyle(
+          fontFamily: AppTheme.bodyFont,
+          fontWeight: FontWeight.w600,
+          fontSize: 13),
+      onSelected: (_) => onTap(),
+    );
+  }
+
+  String _sortLabel(_DiscSort s) => switch (s) {
+        _DiscSort.popular => tr('sort_popular'),
+        _DiscSort.topRated => tr('sort_top_rated'),
+        _DiscSort.newest => tr('sort_new_release'),
+      };
+
+  void _pickGenre(bool movies) {
+    final genres = movies ? _movieGenres : _tvGenres;
+    final current = movies ? _mGenre : _tGenre;
+    _sheet(
+      title: tr('filter_genre'),
+      children: [
+        _sheetTile(tr('all_genres'), current == null, () {
+          setState(() => movies ? _mGenre = null : _tGenre = null);
+          Navigator.pop(context);
+        }),
+        for (final g in genres)
+          _sheetTile(g.label, current?.id == g.id, () {
+            setState(() => movies ? _mGenre = g : _tGenre = g);
+            Navigator.pop(context);
+          }),
+      ],
+    );
+  }
+
+  void _pickYear(bool movies) {
+    final now = DateTime.now().year;
+    final current = movies ? _mYear : _tYear;
+    _sheet(
+      title: tr('filter_year'),
+      children: [
+        _sheetTile(tr('all_years'), current == null, () {
+          setState(() => movies ? _mYear = null : _tYear = null);
+          Navigator.pop(context);
+        }),
+        for (var y = now; y >= 1950; y--)
+          _sheetTile('$y', current == y, () {
+            setState(() => movies ? _mYear = y : _tYear = y);
+            Navigator.pop(context);
+          }),
+      ],
+    );
+  }
+
+  void _pickSort(bool movies) {
+    final current = movies ? _mSort : _tSort;
+    _sheet(
+      title: tr('sort'),
+      children: [
+        for (final s in _DiscSort.values)
+          _sheetTile(_sortLabel(s), current == s, () {
+            setState(() => movies ? _mSort = s : _tSort = s);
+            Navigator.pop(context);
+          }),
+      ],
+    );
+  }
+
+  Widget _sheetTile(String label, bool selected, VoidCallback onTap) {
+    final scheme = Theme.of(context).colorScheme;
+    return ListTile(
+      title: Text(label,
+          style: const TextStyle(
+              fontFamily: AppTheme.bodyFont, fontWeight: FontWeight.w600)),
+      trailing: selected
+          ? Icon(Icons.check_circle_rounded, color: scheme.primary)
+          : null,
+      onTap: onTap,
+    );
+  }
+
+  void _sheet({required String title, required List<Widget> children}) {
+    final scheme = Theme.of(context).colorScheme;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.check_rounded, size: 14, color: scheme.onPrimary),
-            if (sc != null) ...[
-              const SizedBox(width: 3),
-              Text(sc.toStringAsFixed(1),
-                  style: TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
-                      color: scheme.onPrimary)),
-            ],
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: scheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 14, 24, 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(title,
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                        color: scheme.onSurface)),
+              ),
+            ),
+            Flexible(
+              child: ListView(shrinkWrap: true, children: children),
+            ),
+            const SizedBox(height: 8),
           ],
         ),
-      );
-    }
-    return Container(
-      padding: const EdgeInsets.all(5),
-      decoration:
-          BoxDecoration(color: scheme.secondaryContainer, shape: BoxShape.circle),
-      child: Icon(Icons.bookmark_rounded,
-          size: 14, color: scheme.onSecondaryContainer),
+      ),
     );
   }
 }

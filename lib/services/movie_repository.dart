@@ -278,7 +278,8 @@ class MovieRepository extends ChangeNotifier {
     return result;
   }
 
-  int get seriesCount => _series.length;
+  /// Сериалы с хотя бы одной просмотренной серией (пустые заготовки не в счёт).
+  int get seriesCount => _series.where((s) => s.episodes.isNotEmpty).length;
 
   // ------------------------------ мутации ------------------------------
 
@@ -287,6 +288,54 @@ class MovieRepository extends ChangeNotifier {
       if (s.tvShowId == id) return s;
     }
     return null;
+  }
+
+  LibrarySeries? seriesByTmdb(int id) {
+    for (final s in _series) {
+      if (s.tmdbId == id) return s;
+    }
+    return null;
+  }
+
+  /// Возвращает сериал библиотеки для TMDB-карточки, добавляя заготовку, если
+  /// его ещё нет (чтобы открыть экран серий из ленты «Сериалы»). Отметки серий
+  /// наполняют его дальше. Сериалы из импорта TV Time могут ещё не иметь
+  /// tmdbId — сопоставляем по названию, чтобы не плодить дубликаты.
+  LibrarySeries ensureSeriesFromTmdb(TmdbSeries t) {
+    final existing = seriesByTmdb(t.id);
+    if (existing != null) return existing;
+    final tl = t.title.toLowerCase().trim();
+    final ol = (t.originalTitle ?? '').toLowerCase().trim();
+    for (final s in _series) {
+      if (s.tmdbId != null) continue;
+      final names = {
+        s.title.toLowerCase().trim(),
+        (s.ruTitle ?? '').toLowerCase().trim(),
+      }..remove('');
+      if (names.contains(tl) || (ol.isNotEmpty && names.contains(ol))) {
+        s.tmdbId = t.id;
+        s.posterUrl ??= t.posterUrl;
+        s.ruTitle ??= t.title;
+        s.kpRating ??= t.rating;
+        s.enrichTried = true;
+        notifyListeners();
+        _persistSoon();
+        return s;
+      }
+    }
+    final s = LibrarySeries(
+      tvShowId: 'tmdb-tv-${t.id}',
+      title: t.originalTitle ?? t.title,
+      ruTitle: t.title,
+      tmdbId: t.id,
+      posterUrl: t.posterUrl,
+      kpRating: t.rating,
+      enrichTried: true,
+    );
+    _series.add(s);
+    notifyListeners();
+    _persistSoon();
+    return s;
   }
 
   Future<void> setSeriesScore(String id, double? score) async {
@@ -356,12 +405,171 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
+  /// Сопоставляет безномерные просмотренные серии (импорт TV Time хранил только
+  /// даты, без сезона/номера) с сериями TMDB ПО ПОРЯДКУ: N просмотренных →
+  /// первые N серий (по сезонам). Даты сохраняются (ранний просмотр → серия 1).
+  /// [ordered] — все (сезон, номер) сериала по порядку. Без сети — номера берутся
+  /// из уже загруженного списка сезонов. Идемпотентно (безномерных не осталось —
+  /// ничего не делает).
+  Future<void> reconcileSeriesEpisodes(
+      String seriesId, List<List<int>> ordered) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    final unnumbered = s.episodes
+        .where((e) => e.season == null || e.number == null)
+        .toList()
+      ..sort((a, b) => (a.watchedAt ?? DateTime(0))
+          .compareTo(b.watchedAt ?? DateTime(0)));
+    if (unnumbered.isEmpty) return;
+    // Слоты, уже занятые сериями с номерами (не назначаем поверх).
+    final taken = <String>{
+      for (final e in s.episodes)
+        if (e.season != null && e.number != null) '${e.season}-${e.number}'
+    };
+    var idx = 0;
+    for (final slot in ordered) {
+      if (idx >= unnumbered.length) break;
+      final key = '${slot[0]}-${slot[1]}';
+      if (taken.contains(key)) continue;
+      final ep = unnumbered[idx++];
+      ep.season = slot[0];
+      ep.number = slot[1];
+    }
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Отмечает просмотренными сразу все переданные серии сезона (по одному тапу).
+  /// [numbers] — номера серий сезона; [runtimes] — их длительности (опц.).
+  Future<void> markSeason(String seriesId, int season, List<int> numbers,
+      {Map<int, int?> runtimes = const {}}) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    final now = DateTime.now();
+    var added = 0;
+    for (final n in numbers) {
+      if (!s.isEpisodeWatched(season, n)) {
+        s.episodes.add(Episode(
+            season: season,
+            number: n,
+            // Небольшой сдвиг, чтобы серии сезона легли в один блок по порядку.
+            watchedAt: now.add(Duration(seconds: added)),
+            runtimeMin: runtimes[n]));
+        added++;
+      }
+    }
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Массово отмечает просмотренными переданные серии (последовательный режим:
+  /// «отметил серию 10 → серии 1–10»). [eps] — список [сезон, номер].
+  Future<void> markEpisodesBulk(String seriesId, List<List<int>> eps) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    final now = DateTime.now();
+    var added = 0;
+    for (final e in eps) {
+      if (!s.isEpisodeWatched(e[0], e[1])) {
+        s.episodes.add(Episode(
+            season: e[0],
+            number: e[1],
+            watchedAt: now.add(Duration(seconds: added))));
+        added++;
+      }
+    }
+    if (added > 0) {
+      notifyListeners();
+      await _persist();
+    }
+  }
+
+  /// Массово снимает отметки с переданных серий (последовательный режим:
+  /// «снял серию → все после неё»). [eps] — список [сезон, номер].
+  Future<void> unmarkEpisodesBulk(String seriesId, List<List<int>> eps) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    final keys = {for (final e in eps) '${e[0]}-${e[1]}'};
+    final before = s.episodes.length;
+    s.episodes.removeWhere((e) => keys.contains('${e.season}-${e.number}'));
+    if (s.episodes.length != before) {
+      notifyListeners();
+      await _persist();
+    }
+  }
+
+  /// Снимает отметки со всех серий сезона.
+  Future<void> unmarkSeason(String seriesId, int season) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    s.episodes.removeWhere((e) => e.season == season);
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Добавляет повторный просмотр серии (серию можно смотреть несколько раз).
+  Future<void> addEpisodeRewatch(String seriesId, int season, int number,
+      {int? runtimeMin}) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    final ep = s.watchedEpisode(season, number);
+    if (ep == null) {
+      // Ещё не отмечена — первый просмотр.
+      await markEpisodeWatched(seriesId, season, number, runtimeMin: runtimeMin);
+      return;
+    }
+    ep.rewatchCount += 1;
+    ep.watchedAt = DateTime.now();
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Убирает один повторный просмотр серии (не снимая саму отметку просмотра).
+  Future<void> removeEpisodeRewatch(
+      String seriesId, int season, int number) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    final ep = s.watchedEpisode(season, number);
+    if (ep == null || ep.rewatchCount <= 0) return;
+    ep.rewatchCount -= 1;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// «Вернуть один просмотр» — сбрасывает все повторы, оставляя ровно один
+  /// просмотр серии (серия остаётся отмеченной, ×N исчезает).
+  Future<void> resetEpisodeToSingle(
+      String seriesId, int season, int number) async {
+    final s = seriesById(seriesId);
+    final ep = s?.watchedEpisode(season, number);
+    if (ep == null || ep.rewatchCount == 0) return;
+    ep.rewatchCount = 0;
+    notifyListeners();
+    await _persist();
+  }
+
   /// Сериалы «сейчас смотрю» — с просмотренными сериями, по свежести.
   List<LibrarySeries> get currentlyWatching {
     final list = _series.where((s) => s.episodes.isNotEmpty).toList()
       ..sort((a, b) => (b.lastWatch ?? DateTime(0))
           .compareTo(a.lastWatch ?? DateTime(0)));
     return list;
+  }
+
+  /// Только НЕЗАВЕРШЁННЫЕ сериалы (для экрана «Сейчас смотрю»): есть
+  /// просмотренные серии, не брошен и просмотрены не все серии.
+  List<LibrarySeries> get nowWatching => currentlyWatching
+      .where((s) => !s.dropped && !s.isCompleted)
+      .toList();
+
+  /// Запоминает общее число серий сериала (из TMDB) — чтобы отличать
+  /// завершённые от незавершённых в «Сейчас смотрю».
+  Future<void> setSeriesTotal(String id, int total) async {
+    final s = seriesById(id);
+    if (s == null || total <= 0 || s.totalEpisodes == total) return;
+    s.totalEpisodes = total;
+    notifyListeners();
+    await _persist();
   }
 
   LibraryMovie? byUuid(String uuid) {
@@ -432,6 +640,37 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
+  // ------------------------------ брошено ------------------------------
+
+  /// Брошенные фильмы (просмотр прекращён) — для официального списка «Брошено».
+  List<LibraryMovie> get droppedMovies =>
+      _movies.where((m) => m.status == LibraryStatus.dropped).toList();
+
+  /// Брошенные сериалы.
+  List<LibrarySeries> get droppedSeries =>
+      _series.where((s) => s.dropped).toList();
+
+  /// Помечает фильм брошенным / снимает пометку (возврат в библиотеку).
+  Future<void> toggleDropped(String uuid) async {
+    final m = byUuid(uuid);
+    if (m == null) return;
+    m.status = m.status == LibraryStatus.dropped
+        ? LibraryStatus.library
+        : LibraryStatus.dropped;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Помечает сериал брошенным / снимает пометку (просмотренные серии не
+  /// стираются — брошено лишь исключает из уведомлений о новых сериях).
+  Future<void> toggleSeriesDropped(String id) async {
+    final s = seriesById(id);
+    if (s == null) return;
+    s.dropped = !s.dropped;
+    notifyListeners();
+    await _persist();
+  }
+
   /// Отмечает просмотр (со своей оценкой). Если фильм уже смотрели — это
   /// повторный просмотр. [date] = null → «неизвестная дата».
   /// Возвращает true, если это был повтор.
@@ -464,6 +703,28 @@ class MovieRepository extends ChangeNotifier {
     v.date = date;
     notifyListeners();
     await _persist();
+  }
+
+  /// Отменяет последний просмотр фильма (удобная широкая кнопка в карточке).
+  /// Если это был единственный просмотр — фильм возвращается из «Просмотрено».
+  /// Возвращает true, если после этого фильм больше не просмотрен.
+  Future<bool> undoLastViewing(String uuid) async {
+    final m = byUuid(uuid);
+    if (m == null) return true;
+    if (m.viewings.isNotEmpty) {
+      // Убираем самый поздний по дате просмотр (неизвестные даты — последними).
+      final v = m.currentViewing ?? m.viewings.last;
+      m.viewings.remove(v);
+    }
+    if (m.rewatchCount > 0) m.rewatchCount -= 1;
+    final nowUnwatched = m.viewings.isEmpty;
+    if (nowUnwatched) {
+      m.status = LibraryStatus.library;
+      m.rewatchCount = 0;
+    }
+    notifyListeners();
+    await _persist();
+    return nowUnwatched;
   }
 
   /// Удаляет просмотр.
@@ -552,6 +813,30 @@ class MovieRepository extends ChangeNotifier {
   LibraryMovie ensureFromTmdb(TmdbMovie t) {
     final existing = movieByTmdb(t.id);
     if (existing != null) return existing;
+    // Импортированный фильм мог ещё не получить tmdbId (enrich не дошёл) —
+    // сопоставляем по названию и году, иначе появится дубликат.
+    final tl = t.title.toLowerCase().trim();
+    final ol = (t.originalTitle ?? '').toLowerCase().trim();
+    for (final m in _movies) {
+      if (m.tmdbId != null) continue;
+      if (t.year != null && m.year != null && (m.year! - t.year!).abs() > 1) {
+        continue;
+      }
+      final names = {
+        m.title.toLowerCase().trim(),
+        (m.ruTitle ?? '').toLowerCase().trim(),
+      }..remove('');
+      if (names.contains(tl) || (ol.isNotEmpty && names.contains(ol))) {
+        m.tmdbId = t.id;
+        m.posterUrl ??= t.posterUrl;
+        m.ruTitle ??= t.title;
+        m.kpRating ??= t.rating;
+        m.enrichTried = true;
+        notifyListeners();
+        _persistSoon();
+        return m;
+      }
+    }
     final m = LibraryMovie(
       uuid: 'tmdb-${t.id}',
       title: t.originalTitle ?? t.title,

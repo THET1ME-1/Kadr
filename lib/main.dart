@@ -41,8 +41,12 @@ class KadrApp extends StatelessWidget {
             if (theme.useDynamicColor &&
                 lightDynamic != null &&
                 darkDynamic != null) {
-              lightTheme = AppTheme.fromScheme(lightDynamic.harmonized());
-              darkTheme = AppTheme.fromScheme(darkDynamic.harmonized());
+              // Схема из плагина dynamic_color приходит без новых M3-тонов
+              // surfaceContainer* — карточки сливаются с фоном («пропадают
+              // блоки»). Поэтому строим ПОЛНУЮ схему из wallpaper-цвета.
+              lightTheme = AppTheme.light(lightDynamic.primary);
+              darkTheme =
+                  AppTheme.dark(darkDynamic.primary, amoled: theme.amoled);
             } else {
               lightTheme = AppTheme.light(theme.seedColor);
               darkTheme = AppTheme.dark(theme.seedColor, amoled: theme.amoled);

@@ -5,6 +5,8 @@ import '../l10n/strings.dart';
 import '../services/backup_service.dart';
 import '../services/movie_repository.dart';
 import '../services/movie_source.dart';
+import '../services/notification_service.dart';
+import '../services/store.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/color_picker_sheet.dart';
@@ -24,6 +26,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _theme = ThemeController.instance;
   final _locale = LocaleController.instance;
   final _source = SourceController.instance;
+  bool _notify = true;
+  bool _sequential = true;
+
+  @override
+  void initState() {
+    super.initState();
+    Store.instance.getBool('notifyNewEpisodes', def: true).then((v) {
+      if (mounted) setState(() => _notify = v);
+    });
+    Store.instance.getBool('sequentialEpisodes', def: true).then((v) {
+      if (mounted) setState(() => _sequential = v);
+    });
+  }
 
   /// Фирменные палитры (кинематографичные), включая бирюзовую по умолчанию.
   static const List<Color> _palettes = [
@@ -113,6 +128,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: '${_source.source.label} · ${_source.source.note}',
                   onTap: _pickSource,
                 ),
+              ]),
+              _section(tr('nav_series')),
+              _card([
+                SwitchListTile(
+                  secondary: const Icon(Icons.playlist_add_check_rounded),
+                  title: Text(tr('seq_mode')),
+                  subtitle: Text(tr('seq_mode_sub')),
+                  value: _sequential,
+                  onChanged: (v) {
+                    setState(() => _sequential = v);
+                    Store.instance.setBool('sequentialEpisodes', v);
+                  },
+                ),
+              ]),
+              _section(tr('notif_new_episodes')),
+              _card([
+                SwitchListTile(
+                  secondary: const Icon(Icons.notifications_active_rounded),
+                  title: Text(tr('notif_new_episodes')),
+                  subtitle: Text(tr('notif_new_episodes_sub')),
+                  value: _notify,
+                  onChanged: (v) async {
+                    setState(() => _notify = v);
+                    await NotificationService.instance.setEnabled(v);
+                    if (v) await NotificationService.instance.checkNewEpisodes();
+                  },
+                ),
+                if (_notify) ...[
+                  _divider(),
+                  _tile(
+                    icon: Icons.notifications_none_rounded,
+                    title: tr('notif_test'),
+                    subtitle: tr('notif_test_sub'),
+                    onTap: () => NotificationService.instance.showTest(),
+                  ),
+                ],
               ]),
               _section(tr('data')),
               _card([
