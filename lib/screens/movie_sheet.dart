@@ -119,7 +119,6 @@ class _MovieSheetState extends State<_MovieSheet> {
         ),
       ),
       const SizedBox(height: 16),
-      if (_details?.backdropUrl != null) _backdrop(scheme),
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -291,46 +290,6 @@ class _MovieSheetState extends State<_MovieSheet> {
   }
 
   // ------------------------ детали TMDB ------------------------
-  Widget _backdrop(ColorScheme scheme) {
-    return Reveal(
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                CachedNetworkImage(
-                  imageUrl: _details!.backdropUrl!,
-                  fit: BoxFit.cover,
-                  fadeInDuration: const Duration(milliseconds: 350),
-                  placeholder: (c, _) =>
-                      Container(color: scheme.surfaceContainerHighest),
-                  errorWidget: (c, u, e) =>
-                      Container(color: scheme.surfaceContainerHighest),
-                ),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        scheme.surfaceContainer.withValues(alpha: 0.55),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   List<Widget> _detailsWidgets(ColorScheme scheme, LibraryMovie m) {
     final d = _details;
     final links = _links(m);

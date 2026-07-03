@@ -33,6 +33,18 @@ const Map<String, Map<String, String>> _strings = {
   'apply': {'ru': 'Применить', 'en': 'Apply'},
   'done': {'ru': 'Готово', 'en': 'Done'},
   'add': {'ru': 'Добавить', 'en': 'Add'},
+  'select_all': {'ru': 'Выбрать все', 'en': 'Select all'},
+  'n_selected': {'ru': 'Выбрано: {n}', 'en': '{n} selected'},
+  'delete_selected_title': {'ru': 'Удалить выбранное?', 'en': 'Delete selected?'},
+  'delete_selected_watched': {
+    'ru': 'Отметки о просмотре ({n}) будут убраны. Сами фильмы и сериалы останутся в базе.',
+    'en': 'Watch records ({n}) will be removed. Titles stay in the database.'
+  },
+  'delete_selected_watchlist': {
+    'ru': 'Выбранное ({n}) уберётся из «Буду смотреть». Из базы фильмы не удаляются.',
+    'en': 'Selected ({n}) will be removed from the watchlist. Titles stay in the database.'
+  },
+  'removed_n': {'ru': 'Убрано: {n}', 'en': 'Removed: {n}'},
   'on': {'ru': 'Вкл', 'en': 'On'},
   'off': {'ru': 'Выкл', 'en': 'Off'},
   'soon': {'ru': 'Скоро', 'en': 'Coming soon'},

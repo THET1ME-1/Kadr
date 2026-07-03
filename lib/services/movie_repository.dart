@@ -527,6 +527,20 @@ class MovieRepository extends ChangeNotifier {
     }
   }
 
+  /// Снимает отметки с конкретных объектов-серий (по ссылке) — для удаления
+  /// целой сессии из «Просмотрено». Надёжнее ключей сезон-номер: работает и с
+  /// импортированными сериями, где season/number ещё не заполнены.
+  Future<void> removeEpisodes(String seriesId, List<Episode> eps) async {
+    final s = seriesById(seriesId);
+    if (s == null || eps.isEmpty) return;
+    final before = s.episodes.length;
+    s.episodes.removeWhere((e) => eps.contains(e));
+    if (s.episodes.length != before) {
+      notifyListeners();
+      await _persist();
+    }
+  }
+
   /// Снимает отметки со всех серий сезона.
   Future<void> unmarkSeason(String seriesId, int season) async {
     final s = seriesById(seriesId);

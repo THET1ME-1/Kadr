@@ -47,10 +47,117 @@ class _LibraryTabState extends State<LibraryTab> {
   _WatchedFilter _filter = _WatchedFilter.all;
   _LibSort _sort = _LibSort.dateNew;
 
+  /// Режим множественного выделения (по долгому нажатию на карточку).
+  bool _selecting = false;
+  final Set<String> _selected = {};
+
+  /// Ключ → элемент текущего рендера: нужен, чтобы при удалении знать, какой
+  /// именно просмотр/сессию убирать (перезаполняется на каждый build).
+  final Map<String, _LibEntry> _entryByKey = {};
+
   @override
   void initState() {
     super.initState();
     _loadSort();
+  }
+
+  /// Стабильный ключ элемента для выделения/удаления.
+  String _keyOf(_LibEntry e) {
+    if (e.session != null) {
+      final s = e.session!;
+      return 's:${s.series.tvShowId}:${s.start?.microsecondsSinceEpoch ?? 0}:${s.count}';
+    }
+    final m = e.movie!;
+    if (widget.mode == LibraryMode.watchlist) return 'wl:${m.uuid}';
+    return 'mv:${m.uuid}:${identityHashCode(e.viewing)}';
+  }
+
+  void _indexEntries(Iterable<_LibEntry> entries) {
+    _entryByKey.clear();
+    for (final e in entries) {
+      _entryByKey[_keyOf(e)] = e;
+    }
+    // Выделения, которых больше нет в рендере (например, после сортировки/
+    // фильтра), отбрасываем, чтобы счётчик не врал.
+    _selected.removeWhere((k) => !_entryByKey.containsKey(k));
+    if (_selected.isEmpty) _selecting = false;
+  }
+
+  void _onSelect(String key) {
+    setState(() {
+      if (_selected.remove(key)) {
+        if (_selected.isEmpty) _selecting = false;
+      } else {
+        _selected.add(key);
+        _selecting = true;
+      }
+    });
+  }
+
+  void _exitSelect() => setState(() {
+        _selected.clear();
+        _selecting = false;
+      });
+
+  Future<void> _confirmDeleteSelected() async {
+    final n = _selected.length;
+    if (n == 0) return;
+    final scheme = Theme.of(context).colorScheme;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('delete_selected_title')),
+        content: Text(trf(
+            widget.mode == LibraryMode.watchlist
+                ? 'delete_selected_watchlist'
+                : 'delete_selected_watched',
+            {'n': n})),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('cancel'))),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+                backgroundColor: kDroppedColor, foregroundColor: Colors.white),
+            child: Text(tr('delete')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await _deleteSelected();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(trf('removed_n', {'n': n})),
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: scheme.surfaceContainerHighest,
+    ));
+  }
+
+  Future<void> _deleteSelected() async {
+    final repo = MovieRepository.instance;
+    final entries = [
+      for (final k in _selected)
+        if (_entryByKey[k] != null) _entryByKey[k]!
+    ];
+    for (final e in entries) {
+      if (e.session != null) {
+        final s = e.session!;
+        await repo.removeEpisodes(s.series.tvShowId, s.episodes);
+      } else if (widget.mode == LibraryMode.watchlist) {
+        // Сброс статуса «Буду смотреть» (из базы не удаляем).
+        await repo.toggleWatchlist(e.movie!.uuid);
+      } else if (e.viewing != null) {
+        await repo.removeViewing(e.movie!.uuid, e.viewing!);
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _selected.clear();
+        _selecting = false;
+      });
+    }
   }
 
   /// Сортировка персистится отдельно на каждую вкладку.
@@ -84,12 +191,66 @@ class _LibraryTabState extends State<LibraryTab> {
   @override
   Widget build(BuildContext context) {
     final repo = MovieRepository.instance;
-    return ListenableBuilder(
-      listenable: repo,
-      builder: (context, _) {
-        if (widget.mode == LibraryMode.watchlist) return _watchlist(repo);
-        return _watched(repo);
+    return PopScope(
+      canPop: !_selecting,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _exitSelect();
       },
+      child: ListenableBuilder(
+        listenable: repo,
+        builder: (context, _) {
+          final body = widget.mode == LibraryMode.watchlist
+              ? _watchlist(repo)
+              : _watched(repo);
+          if (!_selecting) return body;
+          return Column(
+            children: [
+              _selectionBar(context),
+              Expanded(child: body),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Контекстная панель режима выделения: закрыть · счётчик · удалить.
+  Widget _selectionBar(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final empty = _selected.isEmpty;
+    final actionColor = empty ? scheme.onSurfaceVariant : kDroppedColor;
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 6, 8, 6),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.close_rounded),
+              tooltip: tr('cancel'),
+              onPressed: _exitSelect,
+            ),
+            Text(
+              trf('n_selected', {'n': _selected.length}),
+              style: TextStyle(
+                  fontFamily: AppTheme.displayFont,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  color: scheme.onSurface),
+            ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: empty ? null : _confirmDeleteSelected,
+              icon: Icon(Icons.delete_outline_rounded, color: actionColor),
+              label: Text(tr('delete'),
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontWeight: FontWeight.w700,
+                      color: actionColor)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -105,6 +266,7 @@ class _LibraryTabState extends State<LibraryTab> {
           subtitle: tr('lib_empty_watchlist'));
     }
     final entries = [for (final m in items) _LibEntry.movie(m)];
+    _indexEntries(entries);
     return LayoutBuilder(builder: (context, c) {
       final g = _grid(c.maxWidth);
       return CustomScrollView(
@@ -176,6 +338,7 @@ class _LibraryTabState extends State<LibraryTab> {
       _sortEntries(flat);
       render = [MapEntry<DateTime?, List<_LibEntry>>(null, flat)];
     }
+    _indexEntries([for (final grp in render) ...grp.value]);
 
     return LayoutBuilder(builder: (context, c) {
       final g = _grid(c.maxWidth);
@@ -291,12 +454,29 @@ class _LibraryTabState extends State<LibraryTab> {
   }
 
   Widget _rowFor(_LibEntry e) {
-    if (e.session != null) return _SeriesSessionCard(session: e.session!);
+    final key = _keyOf(e);
+    final sel = _selected.contains(key);
+    if (e.session != null) {
+      return _SeriesSessionCard(
+        session: e.session!,
+        selecting: _selecting,
+        selected: sel,
+        onSelect: () => _onSelect(key),
+      );
+    }
     return _MovieRow(
-        movie: e.movie!, viewing: e.viewing, rewatchNumber: e.rewatchNumber);
+      movie: e.movie!,
+      viewing: e.viewing,
+      rewatchNumber: e.rewatchNumber,
+      selecting: _selecting,
+      selected: sel,
+      onSelect: () => _onSelect(key),
+    );
   }
 
   Widget _posterFor(_LibEntry e, double w) {
+    final key = _keyOf(e);
+    final sel = _selected.contains(key);
     if (e.session != null) {
       final s = e.session!.series;
       return _PosterCell(
@@ -307,6 +487,9 @@ class _LibraryTabState extends State<LibraryTab> {
         favorite: s.favorite,
         series: true,
         dropped: s.dropped,
+        selecting: _selecting,
+        selected: sel,
+        onSelect: () => _onSelect(key),
         onTap: () => Navigator.of(context)
             .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
       );
@@ -318,11 +501,16 @@ class _LibraryTabState extends State<LibraryTab> {
       width: w,
       score: e.viewing != null ? m.scoreOf(e.viewing!) : null,
       favorite: m.favorite,
+      selecting: _selecting,
+      selected: sel,
+      onSelect: () => _onSelect(key),
       onTap: () => showMovieSheet(context, m),
     );
   }
 
   Widget _bannerFor(_LibEntry e) {
+    final key = _keyOf(e);
+    final sel = _selected.contains(key);
     if (e.session != null) {
       final s = e.session!.series;
       return _BannerCell(
@@ -333,6 +521,9 @@ class _LibraryTabState extends State<LibraryTab> {
         favorite: s.favorite,
         series: true,
         dropped: s.dropped,
+        selecting: _selecting,
+        selected: sel,
+        onSelect: () => _onSelect(key),
         onTap: () => Navigator.of(context)
             .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
       );
@@ -348,6 +539,9 @@ class _LibraryTabState extends State<LibraryTab> {
       ].join(' · '),
       score: e.viewing != null ? m.scoreOf(e.viewing!) : null,
       favorite: m.favorite,
+      selecting: _selecting,
+      selected: sel,
+      onSelect: () => _onSelect(key),
       onTap: () => showMovieSheet(context, m),
     );
   }
@@ -526,6 +720,9 @@ class _PosterCell extends StatelessWidget {
   final bool favorite;
   final bool series;
   final bool dropped;
+  final bool selecting;
+  final bool selected;
+  final VoidCallback? onSelect;
   final VoidCallback onTap;
   const _PosterCell({
     required this.title,
@@ -536,13 +733,17 @@ class _PosterCell extends StatelessWidget {
     this.favorite = false,
     this.series = false,
     this.dropped = false,
+    this.selecting = false,
+    this.selected = false,
+    this.onSelect,
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
-      onTap: onTap,
+      onTap: selecting ? onSelect : onTap,
+      onLongPress: onSelect,
       behavior: HitTestBehavior.opaque,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -589,6 +790,7 @@ class _PosterCell extends StatelessWidget {
                   right: 6,
                   child: _scorePill(score!),
                 ),
+              if (selecting) _selectOverlay(scheme, selected, 16),
             ],
           ),
           const SizedBox(height: 6),
@@ -616,6 +818,9 @@ class _BannerCell extends StatelessWidget {
   final bool favorite;
   final bool series;
   final bool dropped;
+  final bool selecting;
+  final bool selected;
+  final VoidCallback? onSelect;
   final VoidCallback onTap;
   const _BannerCell({
     required this.title,
@@ -626,6 +831,9 @@ class _BannerCell extends StatelessWidget {
     this.favorite = false,
     this.series = false,
     this.dropped = false,
+    this.selecting = false,
+    this.selected = false,
+    this.onSelect,
   });
 
   @override
@@ -638,7 +846,8 @@ class _BannerCell extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: onTap,
+          onTap: selecting ? onSelect : onTap,
+          onLongPress: onSelect,
           child: SizedBox(
             height: 168,
             width: double.infinity,
@@ -713,6 +922,7 @@ class _BannerCell extends StatelessWidget {
                   ),
                 if (score != null)
                   Positioned(top: 12, right: 12, child: _scorePill(score!)),
+                if (selecting) _selectOverlay(scheme, selected, 22),
               ],
             ),
           ),
@@ -739,6 +949,51 @@ class _BannerCell extends StatelessWidget {
           size: 44, color: scheme.onSurfaceVariant),
     );
   }
+}
+
+/// Индикатор выбора (режим выделения): заполненный кружок с галочкой, когда
+/// выбрано, иначе полупрозрачное кольцо-подсказка.
+Widget _selectCheck(ColorScheme scheme, bool selected, {double size = 30}) {
+  return AnimatedContainer(
+    duration: const Duration(milliseconds: 150),
+    curve: Curves.easeOut,
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      color: selected ? scheme.primary : Colors.black.withValues(alpha: 0.35),
+      shape: BoxShape.circle,
+      border: Border.all(color: Colors.white, width: 2),
+    ),
+    child: selected
+        ? Icon(Icons.check_rounded, size: size * 0.6, color: scheme.onPrimary)
+        : null,
+  );
+}
+
+/// Оверлей выбора поверх постера/баннера: затемнение + рамка + галочка по центру.
+Widget _selectOverlay(ColorScheme scheme, bool selected, double radius) {
+  return Positioned.fill(
+    child: IgnorePointer(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(radius),
+                color: selected
+                    ? scheme.primary.withValues(alpha: 0.30)
+                    : Colors.black.withValues(alpha: 0.12),
+                border: selected
+                    ? Border.all(color: scheme.primary, width: 3)
+                    : null,
+              ),
+            ),
+          ),
+          Center(child: _selectCheck(scheme, selected)),
+        ],
+      ),
+    ),
+  );
 }
 
 /// Пилюля оценки в цвете балла (красный→золото).
@@ -768,7 +1023,15 @@ Widget _scorePill(double score) {
 /// одной карточкой (как фильм) + список серий внутри, у каждой своя оценка.
 class _SeriesSessionCard extends StatelessWidget {
   final EpisodeSession session;
-  const _SeriesSessionCard({required this.session});
+  final bool selecting;
+  final bool selected;
+  final VoidCallback? onSelect;
+  const _SeriesSessionCard({
+    required this.session,
+    this.selecting = false,
+    this.selected = false,
+    this.onSelect,
+  });
 
   LibrarySeries get s => session.series;
 
@@ -780,14 +1043,18 @@ class _SeriesSessionCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
         child: Material(
-          color: scheme.surfaceContainerHigh,
+          color:
+              selected ? scheme.primaryContainer : scheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(22),
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
               InkWell(
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => SeriesScreen(series: s))),
+                onTap: selecting
+                    ? onSelect
+                    : () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => SeriesScreen(series: s))),
+                onLongPress: onSelect,
                 child: Padding(
                   padding: const EdgeInsets.all(10),
                   child: Row(
@@ -810,6 +1077,7 @@ class _SeriesSessionCard extends StatelessWidget {
                                   size: 12, color: scheme.onTertiary),
                             ),
                           ),
+                          if (selecting) _selectOverlay(scheme, selected, 12),
                         ],
                       ),
                       const SizedBox(width: 14),
@@ -878,12 +1146,20 @@ class _SeriesSessionCard extends StatelessWidget {
                   indent: 16,
                   endIndent: 16,
                   color: scheme.surfaceContainerHighest),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 10, 8),
-                child: Column(
-                  children: [
-                    for (final ep in session.episodes.take(12))
-                      _EpisodeRow(seriesId: s.tvShowId, ep: ep),
+              // В режиме выделения гасим внутренние тапы серий (иначе тап
+              // открыл бы диалог оценки), а по касанию — переключаем выбор.
+              GestureDetector(
+                onTap: selecting ? onSelect : null,
+                onLongPress: selecting ? onSelect : null,
+                behavior: HitTestBehavior.opaque,
+                child: AbsorbPointer(
+                  absorbing: selecting,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 4, 10, 8),
+                    child: Column(
+                      children: [
+                        for (final ep in session.episodes.take(12))
+                          _EpisodeRow(seriesId: s.tvShowId, ep: ep),
                     if (session.episodes.length > 12)
                       InkWell(
                         borderRadius: BorderRadius.circular(12),
@@ -910,7 +1186,9 @@ class _SeriesSessionCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1117,7 +1395,18 @@ class _MovieRow extends StatelessWidget {
   /// Номер повторного просмотра (2, 3, …); null — если это первый просмотр.
   final int? rewatchNumber;
 
-  const _MovieRow({required this.movie, this.viewing, this.rewatchNumber});
+  final bool selecting;
+  final bool selected;
+  final VoidCallback? onSelect;
+
+  const _MovieRow({
+    required this.movie,
+    this.viewing,
+    this.rewatchNumber,
+    this.selecting = false,
+    this.selected = false,
+    this.onSelect,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1134,20 +1423,26 @@ class _MovieRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
         child: Material(
-          color: scheme.surfaceContainerHigh,
+          color: selected ? scheme.primaryContainer : scheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(22),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            onTap: () => showMovieSheet(context, movie),
+            onTap: selecting ? onSelect : () => showMovieSheet(context, movie),
+            onLongPress: onSelect,
             child: Padding(
               padding: const EdgeInsets.all(10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Poster(
-                      title: movie.displayTitle,
-                      url: movie.posterUrl,
-                      width: 58),
+                  Stack(
+                    children: [
+                      Poster(
+                          title: movie.displayTitle,
+                          url: movie.posterUrl,
+                          width: 58),
+                      if (selecting) _selectOverlay(scheme, selected, 12),
+                    ],
+                  ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
