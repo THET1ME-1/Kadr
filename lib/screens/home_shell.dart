@@ -7,6 +7,7 @@ import '../l10n/strings.dart';
 import '../services/movie_repository.dart';
 import '../services/notification_service.dart';
 import '../services/store.dart';
+import '../services/sync/webdav_service.dart';
 import '../services/update_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/update_sheet.dart';
@@ -56,6 +57,8 @@ class _HomeShellState extends State<HomeShell> {
       await Future<void>.delayed(const Duration(seconds: 2));
       await NotificationService.instance.checkNewEpisodes();
       _checkForUpdate();
+      // Тихая авто-синхронизация с WebDAV (если настроена и включена).
+      WebdavService.instance.syncSilently();
       // Фоновая дозагрузка жанров/стран/длительности (для фильтров и статистики).
       await Future<void>.delayed(const Duration(seconds: 3));
       await MovieRepository.instance.backfillDetailsSweep();
@@ -88,6 +91,15 @@ class _HomeShellState extends State<HomeShell> {
   void _setViewMode(LibraryViewMode m) {
     setState(() => _libMode = m);
     Store.instance.setString('libViewMode', m.name);
+  }
+
+  /// Из пустого локального поиска — переключиться на «Обзор» с тем же запросом.
+  void _searchEverywhere() {
+    _searchDebounce?.cancel();
+    setState(() {
+      _netQuery = _query;
+      _index = 2;
+    });
   }
 
   @override
@@ -225,11 +237,13 @@ class _HomeShellState extends State<HomeShell> {
                 LibraryTab(
                     mode: LibraryMode.watchlist,
                     query: _query,
-                    viewMode: _libMode),
+                    viewMode: _libMode,
+                    onSearchEverywhere: _searchEverywhere),
                 LibraryTab(
                     mode: LibraryMode.watched,
                     query: _query,
-                    viewMode: _libMode),
+                    viewMode: _libMode,
+                    onSearchEverywhere: _searchEverywhere),
                 DiscoverTab(mode: DiscoverMode.trending, query: _netQuery),
                 DiscoverTab(mode: DiscoverMode.nowPlaying, query: _netQuery),
               ],

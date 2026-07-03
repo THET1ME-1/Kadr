@@ -33,11 +33,15 @@ class LibraryTab extends StatefulWidget {
   final LibraryMode mode;
   final String query;
   final LibraryViewMode viewMode;
+
+  /// Вызывается по кнопке «Искать по всей базе» из пустого результата поиска.
+  final VoidCallback? onSearchEverywhere;
   const LibraryTab({
     super.key,
     required this.mode,
     this.query = '',
     this.viewMode = LibraryViewMode.list,
+    this.onSearchEverywhere,
   });
 
   @override
@@ -279,16 +283,49 @@ class _LibraryTabState extends State<LibraryTab> {
     );
   }
 
+  /// Пустой результат: если это ПОИСК (query не пуст) — предлагаем искать по
+  /// всей базе (TMDB); иначе обычная заглушка раздела.
+  Widget _emptyView(Widget fallback) {
+    if (_q.isEmpty || widget.onSearchEverywhere == null) return fallback;
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.travel_explore_rounded,
+                size: 56, color: scheme.onSurfaceVariant),
+            const SizedBox(height: 14),
+            Text(trf('search_local_empty', {'q': widget.query.trim()}),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontSize: 14,
+                    height: 1.35,
+                    color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: widget.onSearchEverywhere,
+              icon: const Icon(Icons.search_rounded),
+              label: Text(tr('search_all_db')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // --------------------------- «Буду смотреть» ---------------------------
 
   Widget _watchlist(MovieRepository repo) {
     var items = repo.watchlist.where(_matchMovie).toList();
     items = _sortMovies(items);
     if (items.isEmpty) {
-      return EmptyState(
+      return _emptyView(EmptyState(
           icon: Icons.bookmark_rounded,
           title: tr('nav_watchlist'),
-          subtitle: tr('lib_empty_watchlist'));
+          subtitle: tr('lib_empty_watchlist')));
     }
     final entries = [for (final m in items) _LibEntry.movie(m)];
     _indexEntries(entries);
@@ -369,14 +406,14 @@ class _LibraryTabState extends State<LibraryTab> {
       final g = _grid(c.maxWidth);
       return CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(child: _filterBar(repo)),
+          SliverToBoxAdapter(child: _filterBar()),
           if (groups.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: EmptyState(
+              child: _emptyView(EmptyState(
                   icon: Icons.check_circle_rounded,
                   title: tr('nav_watched'),
-                  subtitle: tr('lib_empty_watched')),
+                  subtitle: tr('lib_empty_watched'))),
             )
           else ...[
             SliverToBoxAdapter(child: _countHeader(context, total)),
@@ -573,7 +610,7 @@ class _LibraryTabState extends State<LibraryTab> {
 
   // ------------------------------- шапки -------------------------------
 
-  Widget _filterBar(MovieRepository repo) {
+  Widget _filterBar() {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 2),
@@ -595,8 +632,7 @@ class _LibraryTabState extends State<LibraryTab> {
                   children: [
                     _segChip(scheme, _WatchedFilter.all, tr('filter_all')),
                     _segChip(scheme, _WatchedFilter.movies, tr('filter_movies')),
-                    _segChip(scheme, _WatchedFilter.series,
-                        '${tr('filter_series')} (${repo.seriesCount})'),
+                    _segChip(scheme, _WatchedFilter.series, tr('filter_series')),
                   ],
                 ),
               ),

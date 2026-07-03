@@ -41,6 +41,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
   /// Последовательный режим: отметил серию → все до неё; снял → все после.
   bool _sequential = true;
 
+  /// Запрет отмечать/оценивать невышедшие серии.
+  bool _restrictUnaired = true;
+
   LibrarySeries get s =>
       _repo.seriesById(widget.series.tvShowId) ?? widget.series;
 
@@ -50,7 +53,21 @@ class _SeriesScreenState extends State<SeriesScreen> {
     Store.instance.getBool('sequentialEpisodes', def: true).then((v) {
       if (mounted) setState(() => _sequential = v);
     });
+    Store.instance.getBool('restrictUnaired', def: true).then((v) {
+      if (mounted) setState(() => _restrictUnaired = v);
+    });
     _init();
+  }
+
+  /// Вышла ли серия (или запрет выключен). Неизвестная/непарсимая дата — не
+  /// блокируем.
+  bool _aired(TmdbEpisode ep) {
+    if (!_restrictUnaired) return true;
+    final d = ep.airDate;
+    if (d == null || d.isEmpty) return true;
+    final parsed = DateTime.tryParse(d);
+    if (parsed == null) return true;
+    return !parsed.isAfter(DateTime.now());
   }
 
   // ---- порядок серий (для последовательного режима) ----
@@ -106,6 +123,10 @@ class _SeriesScreenState extends State<SeriesScreen> {
   void _tapCheck(TmdbEpisode ep) {
     final we = s.watchedEpisode(ep.season, ep.number);
     if (we == null) {
+      if (!_aired(ep)) {
+        _snack(tr('episode_not_aired'));
+        return;
+      }
       _markEpisode(ep);
     } else {
       _repo.addEpisodeRewatch(s.tvShowId, ep.season, ep.number,
@@ -149,6 +170,10 @@ class _SeriesScreenState extends State<SeriesScreen> {
     }
     _seasons = await TmdbService.seasons(id);
     _extra = await TmdbService.tvExtra(id);
+    // Добавляем сезоны, которые есть в библиотеке, но которых нет в TMDB (напр.
+    // свежий 5-й сезон, ещё не заведённый в TMDB) — иначе просмотренные серии
+    // «пропадают» с экрана, хотя видны в карточке «Просмотрено».
+    _seasons = _mergeLibrarySeasons(_seasons);
     if (_seasons.isEmpty) {
       setState(() {
         _loading = false;
@@ -192,7 +217,55 @@ class _SeriesScreenState extends State<SeriesScreen> {
   Future<void> _loadSeason(int n) async {
     setState(() => _eps = null);
     final eps = await TmdbService.episodesOf(_tmdbId!, n);
-    if (mounted) setState(() => _eps = eps);
+    if (mounted) setState(() => _eps = _mergeLibraryEpisodes(n, eps));
+  }
+
+  /// Список сезонов = сезоны TMDB ∪ сезоны из библиотеки. Для сезона без TMDB
+  /// число серий = максимум из TMDB-счётчика, макс. номера и количества
+  /// просмотренных серий.
+  List<TmdbSeason> _mergeLibrarySeasons(List<TmdbSeason> tmdb) {
+    final byNum = {for (final se in tmdb) se.number: se};
+    final libMax = <int, int>{}; // сезон → макс. номер серии
+    final libCount = <int, int>{}; // сезон → сколько серий отмечено
+    for (final e in s.episodes) {
+      final se = e.season;
+      if (se == null) continue;
+      libCount[se] = (libCount[se] ?? 0) + 1;
+      final num = e.number;
+      if (num != null) {
+        libMax[se] = (libMax[se] == null || num > libMax[se]!) ? num : libMax[se]!;
+      }
+    }
+    final nums = <int>{...byNum.keys, ...libCount.keys}.toList()..sort();
+    return [
+      for (final n in nums)
+        TmdbSeason(
+          number: n,
+          name: byNum[n]?.name ?? 'Сезон $n',
+          episodeCount: [
+            byNum[n]?.episodeCount ?? 0,
+            libMax[n] ?? 0,
+            libCount[n] ?? 0,
+          ].reduce((a, b) => a > b ? a : b),
+        ),
+    ];
+  }
+
+  /// Дополняет TMDB-серии сезона просмотренными сериями из библиотеки, которых
+  /// нет в TMDB (чтобы их было видно и можно было снять/оценить).
+  List<TmdbEpisode> _mergeLibraryEpisodes(int season, List<TmdbEpisode> tmdb) {
+    final have = {for (final e in tmdb) e.number};
+    final extra = <TmdbEpisode>[];
+    for (final e in s.episodes) {
+      if (e.season != season || e.number == null || have.contains(e.number)) {
+        continue;
+      }
+      extra.add(TmdbEpisode(
+          season: season, number: e.number!, name: 'Серия ${e.number}'));
+    }
+    if (extra.isEmpty) return tmdb;
+    return [...tmdb, ...extra]
+      ..sort((a, b) => a.number.compareTo(b.number));
   }
 
   // ------------------------------ build ------------------------------
@@ -235,6 +308,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
               else ...[
                 SliverToBoxAdapter(child: _actions(scheme)),
                 SliverToBoxAdapter(child: _droppedButton(scheme)),
+                SliverToBoxAdapter(child: _reviewTile(scheme)),
                 if (_seasons.length > 1)
                   SliverToBoxAdapter(child: _seasonBar(scheme)),
                 SliverToBoxAdapter(child: _seasonToolbar(scheme)),
@@ -526,53 +600,53 @@ class _SeriesScreenState extends State<SeriesScreen> {
     if (eps == null || eps.isEmpty || _season == null) {
       return const SizedBox.shrink();
     }
+    // «Отметить весь сезон» и прогресс считаем по ВЫШЕДШИМ сериям.
+    final aired = eps.where(_aired).toList();
     final seenInSeason =
-        eps.where((e) => s.isEpisodeWatched(e.season, e.number)).length;
-    final allWatched = seenInSeason == eps.length;
+        aired.where((e) => s.isEpisodeWatched(e.season, e.number)).length;
+    final allWatched = aired.isNotEmpty && seenInSeason == aired.length;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              trf('season_progress',
-                  {'s': _season!, 'n': seenInSeason, 'm': eps.length}),
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: scheme.onSurfaceVariant),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Разом поставить одну оценку всем сериям сезона.
+          // Разом поставить одну оценку всем просмотренным сериям сезона.
           IconButton.filledTonal(
             onPressed: _rateSeason,
             icon: const Icon(Icons.star_rounded),
             tooltip: tr('rate_season'),
           ),
           const SizedBox(width: 8),
-          FilledButton.tonalIcon(
-            onPressed: () {
-              if (allWatched) {
-                _repo.unmarkSeason(s.tvShowId, _season!);
-              } else {
-                final runtimes = {for (final e in eps) e.number: e.runtime};
-                _repo.markSeason(
-                    s.tvShowId, _season!, [for (final e in eps) e.number],
-                    runtimes: runtimes);
-                _snack(trf('season_done', {'n': _season!}));
-              }
-            },
-            icon: Icon(allWatched
-                ? Icons.remove_done_rounded
-                : Icons.done_all_rounded),
-            label: Text(tr(allWatched ? 'unmark_season' : 'mark_season')),
-            style: allWatched
-                ? FilledButton.styleFrom(
-                    backgroundColor: scheme.surfaceContainerHighest,
-                    foregroundColor: scheme.onSurfaceVariant)
-                : null,
+          // Массово задать дату просмотра всем сериям сезона.
+          IconButton.filledTonal(
+            onPressed: _seasonDate,
+            icon: const Icon(Icons.event_rounded),
+            tooltip: tr('season_date'),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: FilledButton.tonalIcon(
+              onPressed: () {
+                if (allWatched) {
+                  _repo.unmarkSeason(s.tvShowId, _season!);
+                } else {
+                  // Отмечаем только вышедшие серии.
+                  final runtimes = {for (final e in aired) e.number: e.runtime};
+                  _repo.markSeason(
+                      s.tvShowId, _season!, [for (final e in aired) e.number],
+                      runtimes: runtimes);
+                  _snack(trf('season_done', {'n': _season!}));
+                }
+              },
+              icon: Icon(allWatched
+                  ? Icons.remove_done_rounded
+                  : Icons.done_all_rounded),
+              label: Text(tr(allWatched ? 'unmark_season' : 'mark_season')),
+              style: allWatched
+                  ? FilledButton.styleFrom(
+                      backgroundColor: scheme.surfaceContainerHighest,
+                      foregroundColor: scheme.onSurfaceVariant)
+                  : null,
+            ),
           ),
         ],
       ),
@@ -586,6 +660,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
     final watched = watchedEp != null;
     final sc = watchedEp?.score;
     final watches = watchedEp?.watchCount ?? 0; // 0 если не смотрел
+    final aired = _aired(ep);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 5, 16, 5),
       // Плавная смена фона отмеченной серии.
@@ -640,12 +715,20 @@ class _SeriesScreenState extends State<SeriesScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text('S${ep.season} · E${ep.number}',
-                                  style: TextStyle(
-                                      fontFamily: AppTheme.displayFont,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 12.5,
-                                      color: scheme.primary)),
+                              Row(
+                                children: [
+                                  Text('S${ep.season} · E${ep.number}',
+                                      style: TextStyle(
+                                          fontFamily: AppTheme.displayFont,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 12.5,
+                                          color: scheme.primary)),
+                                  if (!aired) ...[
+                                    const SizedBox(width: 6),
+                                    _soonBadge(scheme, ep),
+                                  ],
+                                ],
+                              ),
                               const SizedBox(height: 2),
                               Text(ep.name,
                                   maxLines: 2,
@@ -676,7 +759,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                     watched ? () => _checkmarkMenu(scheme, ep, watchedEp) : null,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(6, 8, 14, 8),
-                  child: _checkCircle(scheme, watched, watches),
+                  child: _checkCircle(scheme, watched, watches, aired),
                 ),
               ),
             ],
@@ -686,11 +769,45 @@ class _SeriesScreenState extends State<SeriesScreen> {
     );
   }
 
+  /// Мягко-красный бейдж «скоро» для невышедшей серии (с датой в подсказке).
+  Widget _soonBadge(ColorScheme scheme, TmdbEpisode ep) {
+    final d = ep.airDate != null ? DateTime.tryParse(ep.airDate!) : null;
+    return Tooltip(
+      message: d != null ? numericDate(d) : tr('not_aired_badge'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+            color: scheme.tertiaryContainer,
+            borderRadius: BorderRadius.circular(10)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.schedule_rounded,
+                size: 11, color: scheme.onTertiaryContainer),
+            const SizedBox(width: 3),
+            Text(tr('not_aired_badge'),
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 10.5,
+                    color: scheme.onTertiaryContainer)),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Кружок отметки: пусто → галочка → число просмотров (×2, ×3…) ВМЕСТО
-  /// галочки. Смена состояния — плавно (масштаб+прозрачность).
-  Widget _checkCircle(ColorScheme scheme, bool watched, int watches) {
+  /// галочки. Невышедшая непросмотренная серия — часы (нельзя отметить).
+  Widget _checkCircle(
+      ColorScheme scheme, bool watched, int watches, bool aired) {
     Widget child;
-    if (!watched) {
+    if (!watched && !aired) {
+      child = Icon(Icons.schedule_rounded,
+          key: const ValueKey('soon'),
+          size: 19,
+          color: scheme.onSurfaceVariant.withValues(alpha: 0.6));
+    } else if (!watched) {
       child = Icon(Icons.check_rounded,
           key: const ValueKey('empty'), size: 20, color: scheme.outline);
     } else if (watches >= 2) {
@@ -804,18 +921,180 @@ class _SeriesScreenState extends State<SeriesScreen> {
     );
   }
 
-  /// Ставит одну оценку разом всем сериям текущего сезона (через клавиатуру).
+  /// Плитка «Моя рецензия» на сериал: текст (тап → правка) или кнопка написать.
+  Widget _reviewTile(ColorScheme scheme) {
+    final has = s.review != null && s.review!.trim().isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+      child: has
+          ? GestureDetector(
+              onTap: _editReview,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(tr('my_review'),
+                            style: TextStyle(
+                                fontFamily: AppTheme.displayFont,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: scheme.primary)),
+                        const Spacer(),
+                        Icon(Icons.edit_rounded,
+                            size: 16, color: scheme.onSurfaceVariant),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(s.review!,
+                        style: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontSize: 14,
+                            height: 1.45,
+                            color: scheme.onSurface)),
+                  ],
+                ),
+              ),
+            )
+          : SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: _editReview,
+                icon: const Icon(Icons.rate_review_rounded),
+                label: Text(tr('write_review')),
+              ),
+            ),
+    );
+  }
+
+  /// Редактор рецензии на сериал — нижний лист с многострочным полем.
+  void _editReview() {
+    final ctl = TextEditingController(text: s.review ?? '');
+    final scheme = Theme.of(context).colorScheme;
+    final id = s.tvShowId;
+    final had = s.review != null && s.review!.trim().isNotEmpty;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 14,
+            bottom: 20 + MediaQuery.of(sheetCtx).viewInsets.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: scheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(2))),
+            ),
+            const SizedBox(height: 14),
+            Text(tr('my_review'),
+                style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: scheme.onSurface)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctl,
+              autofocus: true,
+              minLines: 4,
+              maxLines: 10,
+              textCapitalization: TextCapitalization.sentences,
+              style: const TextStyle(fontFamily: AppTheme.bodyFont, height: 1.4),
+              decoration: InputDecoration(
+                hintText: tr('review_hint'),
+                filled: true,
+                fillColor: scheme.surfaceContainerHigh,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                if (had)
+                  TextButton(
+                    onPressed: () {
+                      _repo.setSeriesReview(id, null);
+                      Navigator.pop(sheetCtx);
+                    },
+                    child: Text(tr('delete')),
+                  ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: () {
+                    _repo.setSeriesReview(id, ctl.text);
+                    Navigator.pop(sheetCtx);
+                  },
+                  child: Text(tr('save')),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Массово задаёт дату/время просмотра всем просмотренным сериям сезона.
+  Future<void> _seasonDate() async {
+    if (_season == null) return;
+    final watched = s.episodes.where((e) => e.season == _season).length;
+    if (watched == 0) {
+      _snack(tr('season_no_watched'));
+      return;
+    }
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(1900),
+      lastDate: now,
+    );
+    if (picked == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now),
+    );
+    final dt = time == null
+        ? DateTime(picked.year, picked.month, picked.day)
+        : DateTime(picked.year, picked.month, picked.day, time.hour, time.minute);
+    final n = await _repo.setSeasonWatchedAt(s.tvShowId, _season!, dt);
+    if (mounted) _snack(trf('season_dated', {'n': n}));
+  }
+
+  /// Ставит одну оценку всем УЖЕ ПРОСМОТРЕННЫМ сериям сезона (не отмечает новые
+  /// и не трогает невышедшие).
   Future<void> _rateSeason() async {
-    final eps = _eps;
-    if (eps == null || eps.isEmpty || _season == null) return;
+    if (_season == null) return;
     final r = await showScorePad(context, initial: null);
     if (r == null) return;
-    final runtimes = {for (final e in eps) e.number: e.runtime};
-    await _repo.setSeasonScore(
-        s.tvShowId, _season!, [for (final e in eps) e.number], r,
-        runtimes: runtimes);
+    final n = await _repo.setSeasonScore(s.tvShowId, _season!, r);
     if (mounted) {
-      _snack(trf('season_rated', {'n': _season!, 'v': r.toStringAsFixed(1)}));
+      _snack(n > 0
+          ? trf('season_rated', {'n': n, 'v': r.toStringAsFixed(1)})
+          : tr('season_no_watched'));
     }
   }
 
@@ -1067,6 +1346,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
         seriesId: s.tvShowId,
         seriesTitle: s.displayTitle,
         ep: ep,
+        canMark: _aired(ep),
         onMark: () => _markEpisode(ep),
         onRewatch: () => _repo.addEpisodeRewatch(
             s.tvShowId, ep.season, ep.number,
@@ -1196,6 +1476,7 @@ class _EpisodeSheet extends StatefulWidget {
   final String seriesId;
   final String seriesTitle;
   final TmdbEpisode ep;
+  final bool canMark;
   final VoidCallback onMark;
   final VoidCallback onRewatch;
   final VoidCallback onUnmark;
@@ -1203,6 +1484,7 @@ class _EpisodeSheet extends StatefulWidget {
     required this.seriesId,
     required this.seriesTitle,
     required this.ep,
+    required this.canMark,
     required this.onMark,
     required this.onRewatch,
     required this.onUnmark,
@@ -1381,6 +1663,34 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
 
   List<Widget> _watchButtons(ColorScheme scheme, bool watched) {
     if (!watched) {
+      // Невышедшую серию отметить нельзя — показываем подсказку.
+      if (!widget.canMark) {
+        return [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(16)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.schedule_rounded,
+                    size: 20, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(tr('episode_not_aired'),
+                      style: TextStyle(
+                          fontFamily: AppTheme.bodyFont,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: scheme.onSurfaceVariant)),
+                ),
+              ],
+            ),
+          ),
+        ];
+      }
       return [
         SizedBox(
           width: double.infinity,

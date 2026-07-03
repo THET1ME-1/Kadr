@@ -389,9 +389,28 @@ const Map<String, Map<String, String>> _strings = {
   'avg_of_episodes': {'ru': 'Средняя по сериям', 'en': 'Episode average'},
   'rate_season': {'ru': 'Оценить сезон', 'en': 'Rate season'},
   'season_rated': {
-    'ru': 'Сезон {n} оценён на {v}',
-    'en': 'Season {n} rated {v}'
+    'ru': 'Оценено серий: {n} · {v}',
+    'en': 'Rated {n} episodes · {v}'
   },
+  'season_no_watched': {
+    'ru': 'В сезоне нет просмотренных серий для оценки',
+    'en': 'No watched episodes in this season to rate'
+  },
+  'season_date': {'ru': 'Дата просмотра сезона', 'en': 'Season watch date'},
+  'season_dated': {
+    'ru': 'Дата задана для {n} серий',
+    'en': 'Date set for {n} episodes'
+  },
+  'restrict_unaired': {'ru': 'Запрет невышедших серий', 'en': 'Block unaired episodes'},
+  'restrict_unaired_sub': {
+    'ru': 'Нельзя отметить/оценить серию, которая ещё не вышла',
+    'en': "Can't mark or rate an episode that hasn't aired yet"
+  },
+  'episode_not_aired': {
+    'ru': 'Серия ещё не вышла',
+    'en': "Episode hasn't aired yet"
+  },
+  'not_aired_badge': {'ru': 'скоро', 'en': 'soon'},
   'series_avg_locked': {
     'ru': 'Оценка считается по оценкам серий. Уберите оценки серий, чтобы поставить вручную.',
     'en': 'Rating is the episode average. Clear episode ratings to set it manually.'
@@ -416,6 +435,18 @@ const Map<String, Map<String, String>> _strings = {
   'edit_watch_date': {'ru': 'Изменить дату и время', 'en': 'Change date & time'},
   'enter_score': {'ru': 'Введите оценку', 'en': 'Enter your score'},
   'collection': {'ru': 'Части франшизы', 'en': 'Franchise'},
+  'search_local_empty': {
+    'ru': 'В вашей библиотеке ничего не найдено по «{q}».',
+    'en': 'Nothing in your library for “{q}”.'
+  },
+  'search_all_db': {'ru': 'Искать по всей базе', 'en': 'Search the whole database'},
+  'edit': {'ru': 'Изменить', 'en': 'Edit'},
+  'my_review': {'ru': 'Моя рецензия', 'en': 'My review'},
+  'write_review': {'ru': 'Написать рецензию', 'en': 'Write a review'},
+  'review_hint': {
+    'ru': 'Что думаешь о фильме? Впечатления, мысли, оценка…',
+    'en': 'What did you think? Your impressions, thoughts…'
+  },
   'filters': {'ru': 'Фильтры', 'en': 'Filters'},
   'filter_genres': {'ru': 'Жанры', 'en': 'Genres'},
   'filter_genres_loading': {
@@ -445,6 +476,44 @@ const Map<String, Map<String, String>> _strings = {
     'en': "You're on the latest version"
   },
   'checking_updates': {'ru': 'Проверяю обновления…', 'en': 'Checking for updates…'},
+  'sync_title': {'ru': 'Синхронизация', 'en': 'Sync'},
+  'sync_webdav': {'ru': 'Синхронизация (WebDAV)', 'en': 'Sync (WebDAV)'},
+  'sync_webdav_sub': {
+    'ru': 'Между устройствами через ваш облачный диск',
+    'en': 'Between devices via your cloud drive'
+  },
+  'sync_intro': {
+    'ru': 'Двусторонняя синхронизация через WebDAV (Nextcloud, Яндекс.Диск, ownCloud). Данные на вашем сервере, ничего добавленного не теряется.',
+    'en': 'Two-way sync via WebDAV (Nextcloud, Yandex.Disk, ownCloud). Data stays on your server; nothing added is lost.'
+  },
+  'sync_url': {'ru': 'Адрес WebDAV', 'en': 'WebDAV URL'},
+  'sync_url_hint': {
+    'ru': 'https://облако.домен/remote.php/dav/files/user/',
+    'en': 'https://cloud.example/remote.php/dav/files/user/'
+  },
+  'sync_user': {'ru': 'Логин', 'en': 'Username'},
+  'sync_pass': {'ru': 'Пароль (или пароль приложения)', 'en': 'Password (or app password)'},
+  'sync_connect': {'ru': 'Подключить', 'en': 'Connect'},
+  'sync_connected': {'ru': 'Подключено', 'en': 'Connected'},
+  'sync_connect_failed': {
+    'ru': 'Не удалось подключиться. Проверьте адрес и данные.',
+    'en': 'Connection failed. Check URL and credentials.'
+  },
+  'sync_now': {'ru': 'Синхронизировать сейчас', 'en': 'Sync now'},
+  'sync_done': {
+    'ru': 'Синхронизировано (+{a}, объединено {m})',
+    'en': 'Synced (+{a}, merged {m})'
+  },
+  'sync_no_changes': {'ru': 'Всё уже синхронно', 'en': 'Already up to date'},
+  'sync_error': {'ru': 'Ошибка синхронизации', 'en': 'Sync failed'},
+  'sync_auto': {'ru': 'Авто-синхронизация', 'en': 'Auto-sync'},
+  'sync_auto_sub': {
+    'ru': 'Синхронизировать при запуске приложения',
+    'en': 'Sync on app start'
+  },
+  'sync_forget': {'ru': 'Отключить', 'en': 'Disconnect'},
+  'sync_last': {'ru': 'Последний синк: {t}', 'en': 'Last sync: {t}'},
+  'sync_never': {'ru': 'Ещё не синхронизировано', 'en': 'Not synced yet'},
   'seq_mode': {'ru': 'Отмечать серии по порядку', 'en': 'Mark episodes in order'},
   'seq_mode_sub': {
     'ru': 'Отметил серию — все до неё тоже; снял — все после снимаются',

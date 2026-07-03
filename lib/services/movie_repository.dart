@@ -10,6 +10,7 @@ import '../models/library_entry.dart';
 import 'kinopoisk_service.dart';
 import 'movie_source.dart';
 import 'store.dart';
+import 'sync/sync_merge.dart';
 import 'tmdb_service.dart';
 
 /// Единое хранилище библиотеки фильмов/сериалов Kadr.
@@ -174,6 +175,24 @@ class MovieRepository extends ChangeNotifier {
         'version': 1,
         ...toJson(),
       });
+
+  /// Снимок для синхронизации (без device-local настроек).
+  Map<String, dynamic> buildSyncSnapshot() => {
+        'kind': kSyncKind,
+        'version': kSyncVersion,
+        ...toJson(),
+      };
+
+  /// Сливает удалённый снимок с локальным (объединение), применяет результат и
+  /// сохраняет. Возвращает статистику изменений (для сообщения пользователю).
+  Future<SyncStats> mergeSyncSnapshot(Map<String, dynamic> remote) async {
+    final stats = SyncStats();
+    final merged = mergeSnapshots(buildSyncSnapshot(), remote, stats);
+    _ingest(merged);
+    await _persist();
+    notifyListeners();
+    return stats;
+  }
 
   /// Восстанавливает библиотеку из резервной копии (заменяет текущую).
   Future<bool> importJson(String raw) async {
@@ -505,30 +524,44 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
-  /// Ставит ОДНУ оценку сразу всем сериям сезона: непросмотренные при этом
-  /// помечаются просмотренными, у всех выставляется [score].
-  Future<void> setSeasonScore(
-      String seriesId, int season, List<int> numbers, double? score,
-      {Map<int, int?> runtimes = const {}}) async {
+  /// Ставит ОДНУ оценку всем УЖЕ ПРОСМОТРЕННЫМ сериям сезона. НЕ отмечает
+  /// новые серии просмотренными (и не трогает невышедшие). Возвращает число
+  /// оценённых серий.
+  Future<int> setSeasonScore(String seriesId, int season, double? score) async {
     final s = seriesById(seriesId);
-    if (s == null) return;
-    final now = DateTime.now();
-    var added = 0;
-    for (final n in numbers) {
-      var ep = s.watchedEpisode(season, n);
-      if (ep == null) {
-        ep = Episode(
-            season: season,
-            number: n,
-            watchedAt: now.add(Duration(seconds: added)),
-            runtimeMin: runtimes[n]);
-        s.episodes.add(ep);
-        added++;
+    if (s == null) return 0;
+    var n = 0;
+    for (final e in s.episodes) {
+      if (e.season == season) {
+        e.score = score;
+        n++;
       }
-      ep.score = score;
     }
-    notifyListeners();
-    await _persist();
+    if (n > 0) {
+      notifyListeners();
+      await _persist();
+    }
+    return n;
+  }
+
+  /// Массово ставит дату/время просмотра всем просмотренным сериям сезона.
+  /// Небольшой сдвиг по секундам сохраняет порядок серий. Возвращает число.
+  Future<int> setSeasonWatchedAt(
+      String seriesId, int season, DateTime? at) async {
+    final s = seriesById(seriesId);
+    if (s == null) return 0;
+    final eps = s.episodes.where((e) => e.season == season).toList()
+      ..sort((a, b) => (a.number ?? 0).compareTo(b.number ?? 0));
+    var i = 0;
+    for (final e in eps) {
+      e.watchedAt = at?.add(Duration(seconds: i));
+      i++;
+    }
+    if (eps.isNotEmpty) {
+      notifyListeners();
+      await _persist();
+    }
+    return eps.length;
   }
 
   /// Массово отмечает просмотренными переданные серии (последовательный режим:
@@ -711,6 +744,26 @@ class MovieRepository extends ChangeNotifier {
     final m = byUuid(uuid);
     if (m == null) return;
     m.score = score;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Своя рецензия на фильм (пустая строка → убрать). Бэкапится и синкается.
+  Future<void> setReview(String uuid, String? text) async {
+    final m = byUuid(uuid);
+    if (m == null) return;
+    final t = text?.trim();
+    m.review = (t == null || t.isEmpty) ? null : t;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Своя рецензия на сериал.
+  Future<void> setSeriesReview(String seriesId, String? text) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    final t = text?.trim();
+    s.review = (t == null || t.isEmpty) ? null : t;
     notifyListeners();
     await _persist();
   }

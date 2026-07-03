@@ -14,6 +14,7 @@ import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/color_picker_sheet.dart';
 import 'about_screen.dart';
+import 'sync_screen.dart';
 
 /// Экран настроек в духе Material 3 Expressive (перенос из ScoreMaster):
 /// внешний вид (тема, цвет, палитры, Material You, AMOLED), язык (7 языков),
@@ -31,6 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _source = SourceController.instance;
   bool _notify = true;
   bool _sequential = true;
+  bool _restrictUnaired = true;
 
   @override
   void initState() {
@@ -40,6 +42,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
     Store.instance.getBool('sequentialEpisodes', def: true).then((v) {
       if (mounted) setState(() => _sequential = v);
+    });
+    Store.instance.getBool('restrictUnaired', def: true).then((v) {
+      if (mounted) setState(() => _restrictUnaired = v);
     });
   }
 
@@ -144,6 +149,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Store.instance.setBool('sequentialEpisodes', v);
                   },
                 ),
+                _divider(),
+                SwitchListTile(
+                  secondary: const Icon(Icons.event_busy_rounded),
+                  title: Text(tr('restrict_unaired')),
+                  subtitle: Text(tr('restrict_unaired_sub')),
+                  value: _restrictUnaired,
+                  onChanged: (v) {
+                    setState(() => _restrictUnaired = v);
+                    Store.instance.setBool('restrictUnaired', v);
+                  },
+                ),
               ]),
               _section(tr('notif_new_episodes')),
               _card([
@@ -172,6 +188,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _card([
                 _tile(
                   icon: Icons.cloud_sync_rounded,
+                  title: tr('sync_webdav'),
+                  subtitle: tr('sync_webdav_sub'),
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SyncScreen())),
+                ),
+                _divider(),
+                _tile(
+                  icon: Icons.backup_rounded,
                   title: tr('sync_backup'),
                   subtitle: tr('sync_backup_sub'),
                   onTap: _backupSheet,
