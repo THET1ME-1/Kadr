@@ -154,6 +154,20 @@ class MovieRepository extends ChangeNotifier {
     }
   }
 
+  /// Полностью очищает личную библиотеку (просмотры, списки, оценки, избранное,
+  /// сериалы). Остаются только ленты Обзор/В кино (они из TMDB, не хранятся).
+  /// Как чистая установка. Необратимо (пусть пользователь сделает бэкап заранее).
+  Future<void> clearAll() async {
+    _movies.clear();
+    _series.clear();
+    _lists.clear();
+    _limitHit = false;
+    // Сбрасываем запомненные уведомления о новых сериях.
+    await Store.instance.setStringList('notifiedEpisodeKeys', const []);
+    await _persist();
+    notifyListeners();
+  }
+
   /// Полная резервная копия (JSON-строка) — для переноса на другое устройство.
   String exportJson() => const JsonEncoder.withIndent(' ').convert({
         'app': 'kadr',
@@ -336,6 +350,21 @@ class MovieRepository extends ChangeNotifier {
     notifyListeners();
     _persistSoon();
     return s;
+  }
+
+  /// Ручная привязка сериала к записи TMDB (когда автопоиск не сматчил —
+  /// напр. импортное имя латиницей vs. кириллица). Просмотренные серии остаются.
+  Future<void> linkSeriesTmdb(String id, TmdbSeries t) async {
+    final s = seriesById(id);
+    if (s == null) return;
+    s.tmdbId = t.id;
+    s.posterUrl = t.posterUrl ?? s.posterUrl;
+    s.ruTitle = t.title;
+    s.kpRating ??= t.rating;
+    s.enrichTried = true;
+    s.totalEpisodes = null; // пересчитается при загрузке сезонов
+    notifyListeners();
+    await _persist();
   }
 
   Future<void> setSeriesScore(String id, double? score) async {

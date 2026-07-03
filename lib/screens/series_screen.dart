@@ -817,10 +817,178 @@ class _SeriesScreenState extends State<SeriesScreen> {
               size: 52, color: scheme.onSurfaceVariant),
           const SizedBox(height: 12),
           Text(tr('no_episodes'),
+              textAlign: TextAlign.center,
               style: const TextStyle(fontFamily: AppTheme.bodyFont)),
-          const SizedBox(height: 12),
-          FilledButton.tonal(onPressed: _init, child: Text(tr('retry'))),
+          const SizedBox(height: 6),
+          Text(tr('link_hint'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontSize: 12.5,
+                  color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 16),
+          // Ручная привязка: ввести название кириллицей и выбрать из TMDB.
+          FilledButton.icon(
+            onPressed: _manualLinkSheet,
+            icon: const Icon(Icons.search_rounded),
+            label: Text(tr('link_find')),
+          ),
+          const SizedBox(height: 8),
+          TextButton(onPressed: _init, child: Text(tr('retry'))),
         ],
+      ),
+    );
+  }
+
+  /// Лист ручной привязки сериала к TMDB (поиск кириллицей + выбор).
+  void _manualLinkSheet() {
+    final scheme = Theme.of(context).colorScheme;
+    final ctl = TextEditingController(text: s.displayTitle);
+    List<TmdbSeries> results = [];
+    var loading = false;
+    var didInit = false;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheet) {
+          Future<void> run(String q) async {
+            q = q.trim();
+            if (q.isEmpty) {
+              setSheet(() => results = []);
+              return;
+            }
+            setSheet(() => loading = true);
+            final r = await TmdbService.searchTvShows(q);
+            setSheet(() {
+              results = r;
+              loading = false;
+            });
+          }
+
+          if (!didInit) {
+            didInit = true;
+            WidgetsBinding.instance
+                .addPostFrameCallback((_) => run(ctl.text));
+          }
+          return Padding(
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+            child: SizedBox(
+              height: MediaQuery.of(sheetCtx).size.height * 0.7,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                          color: scheme.outlineVariant,
+                          borderRadius: BorderRadius.circular(2))),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: ctl,
+                            autofocus: false,
+                            textInputAction: TextInputAction.search,
+                            onSubmitted: run,
+                            style: const TextStyle(fontFamily: AppTheme.bodyFont),
+                            decoration: InputDecoration(
+                              hintText: tr('link_hint_field'),
+                              prefixIcon: const Icon(Icons.search_rounded),
+                              filled: true,
+                              fillColor: scheme.surfaceContainerHigh,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                            onPressed: () => run(ctl.text),
+                            child: Text(tr('link_find'))),
+                      ],
+                    ),
+                  ),
+                  if (loading)
+                    const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: CircularProgressIndicator()),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
+                      itemCount: results.length,
+                      itemBuilder: (c, i) {
+                        final t = results[i];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Material(
+                            color: scheme.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(16),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: () async {
+                                await _repo.linkSeriesTmdb(s.tvShowId, t);
+                                if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                                _init();
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Row(children: [
+                                  Poster(
+                                      title: t.title,
+                                      url: t.posterUrl,
+                                      width: 44),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(t.title,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                fontFamily: AppTheme.displayFont,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 14.5,
+                                                color: scheme.onSurface)),
+                                        if (t.year != null)
+                                          Text('${t.year}',
+                                              style: TextStyle(
+                                                  fontFamily: AppTheme.bodyFont,
+                                                  fontSize: 12.5,
+                                                  color:
+                                                      scheme.onSurfaceVariant)),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.link_rounded,
+                                      color: scheme.primary),
+                                ]),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

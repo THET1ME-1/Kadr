@@ -173,6 +173,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: tr('sync_backup_sub'),
                   onTap: _backupSheet,
                 ),
+                _divider(),
+                ListTile(
+                  leading: Icon(Icons.delete_forever_rounded,
+                      color: Theme.of(context).colorScheme.error),
+                  title: Text(tr('clear_all_data'),
+                      style: TextStyle(
+                          fontFamily: AppTheme.bodyFont,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.error)),
+                  subtitle: Text(tr('clear_all_data_sub')),
+                  onTap: _confirmClearAll,
+                ),
               ]),
               _section(tr('about')),
               _card([
@@ -361,6 +373,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.pop(context);
               },
             ),
+        ],
+      ),
+    );
+  }
+
+  /// Подтверждение полной очистки личных данных (необратимо).
+  void _confirmClearAll() {
+    final scheme = Theme.of(context).colorScheme;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.delete_forever_rounded, color: scheme.error, size: 32),
+        title: Text(tr('clear_all_title'),
+            style: const TextStyle(fontFamily: AppTheme.displayFont)),
+        content: Text(tr('clear_all_body'),
+            style: const TextStyle(fontFamily: AppTheme.bodyFont)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: Text(tr('cancel'))),
+          FilledButton(
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.pop(ctx);
+              await MovieRepository.instance.clearAll();
+              messenger.showSnackBar(SnackBar(
+                  content: Text(tr('clear_all_done')),
+                  behavior: SnackBarBehavior.floating));
+            },
+            style: FilledButton.styleFrom(
+                backgroundColor: scheme.error, foregroundColor: scheme.onError),
+            child: Text(tr('clear')),
+          ),
         ],
       ),
     );

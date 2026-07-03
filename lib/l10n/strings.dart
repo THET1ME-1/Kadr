@@ -164,6 +164,18 @@ const Map<String, Map<String, String>> _strings = {
   },
   'backup_import_ok': {'ru': 'Библиотека восстановлена', 'en': 'Library restored'},
   'backup_import_fail': {'ru': 'Не удалось прочитать файл', 'en': 'Could not read file'},
+  'clear_all_data': {'ru': 'Очистить все данные', 'en': 'Clear all data'},
+  'clear_all_data_sub': {
+    'ru': 'Удалить все просмотры, списки, оценки и сериалы',
+    'en': 'Delete all watches, lists, ratings and series'
+  },
+  'clear_all_title': {'ru': 'Очистить все данные?', 'en': 'Clear all data?'},
+  'clear_all_body': {
+    'ru': 'Все просмотры, оценки, списки, избранное и сериалы будут удалены безвозвратно. Останутся только ленты «Обзор» и «В кино». Сделайте бэкап заранее, если нужно сохранить.',
+    'en': 'All watches, ratings, lists, favorites and series will be deleted permanently. Only the Discover and In theaters feeds remain. Make a backup first if you want to keep the data.'
+  },
+  'clear_all_done': {'ru': 'Все данные очищены', 'en': 'All data cleared'},
+  'clear': {'ru': 'Очистить', 'en': 'Clear'},
   'about': {'ru': 'О приложении', 'en': 'About'},
   'about_sub': {
     'ru': 'Трекер просмотренных фильмов и сериалов',
@@ -223,6 +235,15 @@ const Map<String, Map<String, String>> _strings = {
   'mark_upto': {'ru': 'Отметить по эту', 'en': 'Mark up to here'},
   'network_error': {'ru': 'Ошибка сети', 'en': 'Network error'},
   'no_episodes': {'ru': 'Не удалось загрузить серии', 'en': 'Could not load episodes'},
+  'link_hint': {
+    'ru': 'Сериал мог сохраниться другим названием (напр. латиницей). Найдите его в базе вручную — отметки серий сохранятся.',
+    'en': 'The series may be saved under another title. Find it manually — your episode marks are kept.'
+  },
+  'link_find': {'ru': 'Найти в TMDB', 'en': 'Find on TMDB'},
+  'link_hint_field': {
+    'ru': 'Название сериала (кириллицей)',
+    'en': 'Series name'
+  },
   'now_watching': {'ru': 'Сейчас смотрю', 'en': 'Now watching'},
   'now_watching_empty': {
     'ru': 'Начните смотреть сериал — он появится здесь',
