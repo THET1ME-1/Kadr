@@ -18,36 +18,27 @@ import '../widgets/reveal.dart';
 import 'browse_screens.dart';
 import 'when_watched_sheet.dart';
 
-/// Карточка фильма — выезжающая снизу панель (M3). Постер, мета, рейтинг КП,
-/// общая оценка + ОЦЕНКА У КАЖДОГО ПРОСМОТРА (мнение меняется при пересмотре) со
-/// сравнением. Обновляется на лету.
+/// Открывает полноэкранную карточку фильма (как экран сериала — отдельная
+/// страница, а не выезжающая панель).
 Future<void> showMovieSheet(BuildContext context, LibraryMovie movie) {
-  final scheme = Theme.of(context).colorScheme;
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: scheme.surfaceContainer,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
-    builder: (_) => _MovieSheet(movie: movie),
+  return Navigator.of(context).push(
+    MaterialPageRoute(builder: (_) => MovieScreen(movie: movie)),
   );
 }
 
-class _MovieSheet extends StatefulWidget {
+/// Полноэкранная карточка фильма (M3 Expressive): крупная шапка с бэкдропом и
+/// постером, оценка КАЖДОГО просмотра со сравнением, детали TMDB (описание,
+/// актёры, факты, ссылки). Обновляется на лету.
+class MovieScreen extends StatefulWidget {
   final LibraryMovie movie;
-  const _MovieSheet({required this.movie});
+  const MovieScreen({super.key, required this.movie});
 
   @override
-  State<_MovieSheet> createState() => _MovieSheetState();
+  State<MovieScreen> createState() => _MovieScreenState();
 }
 
-class _MovieSheetState extends State<_MovieSheet> {
+class _MovieScreenState extends State<MovieScreen> {
   final _repo = MovieRepository.instance;
-
-  /// Локальный messenger: снекбары root-Scaffold'а рендерятся ПОД модальным
-  /// листом и невидимы — показываем их внутри самого листа.
-  final _sheetMessenger = GlobalKey<ScaffoldMessengerState>();
 
   /// Значение слайдера во время перетаскивания (иначе берём из модели).
   double? _dragging;
@@ -74,110 +65,182 @@ class _MovieSheetState extends State<_MovieSheet> {
     if (mounted && d != null) setState(() => _details = d);
   }
 
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: _repo,
-      builder: (context, _) {
-        final m = _repo.byUuid(widget.movie.uuid) ?? widget.movie;
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.78,
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          builder: (context, controller) => ScaffoldMessenger(
-            key: _sheetMessenger,
-            child: Scaffold(
-              backgroundColor: Colors.transparent,
-              body: ListView(
-                controller: controller,
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-                children: _content(context, m),
-              ),
+    final scheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        // Полупрозрачный кружок под стрелкой — читается и на бэкдропе, и когда
+        // под шапку уезжает светлый контент списка.
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: Material(
+            color: Colors.black.withValues(alpha: 0.35),
+            shape: const CircleBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              onPressed: () => Navigator.of(context).maybePop(),
             ),
           ),
-        );
-      },
+        ),
+      ),
+      body: ListenableBuilder(
+        listenable: _repo,
+        builder: (context, _) {
+          final m = _repo.byUuid(widget.movie.uuid) ?? widget.movie;
+          return CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(child: _hero(scheme, m)),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate(_content(context, m)),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
-  List<Widget> _content(BuildContext context, LibraryMovie m) {
-    final scheme = Theme.of(context).colorScheme;
+  // ------------------------------ шапка ------------------------------
+
+  Widget _hero(ColorScheme scheme, LibraryMovie m) {
     final meta = [
       if (m.year != null) '${m.year}',
       if (m.runtimeMin != null) humanDuration(Duration(minutes: m.runtimeMin!)),
     ].join(' · ');
-
-    return [
-      Center(
-        child: Container(
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-              color: scheme.outlineVariant,
-              borderRadius: BorderRadius.circular(2)),
-        ),
-      ),
-      const SizedBox(height: 16),
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return SizedBox(
+      height: 300,
+      child: Stack(
+        fit: StackFit.expand,
         children: [
-          GestureDetector(
-            onTap: () => openPosterViewer(context,
-                title: m.displayTitle, url: m.posterUrl, heroTag: 'poster-${m.uuid}'),
-            child: Hero(
-              tag: 'poster-${m.uuid}',
-              child: Poster(
-                  title: m.displayTitle,
-                  url: m.posterUrl,
-                  width: 100,
-                  radius: 18),
+          // Бэкдроп (или цветной градиент) с затемнением снизу.
+          if (_details?.backdropUrl != null)
+            CachedNetworkImage(
+              imageUrl: _details!.backdropUrl!,
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+              placeholder: (c, _) =>
+                  Container(color: scheme.surfaceContainerHighest),
+              errorWidget: (c, u, e) => _gradientBg(scheme),
+            )
+          else
+            _gradientBg(scheme),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.black45, Colors.transparent, Colors.black87],
+                stops: [0, 0.32, 1],
+              ),
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 16,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 GestureDetector(
-                  onLongPress: () => _copy(m.displayTitle),
-                  child: Text(m.displayTitle,
-                      style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 22,
-                        height: 1.1,
-                        color: scheme.onSurface,
-                      )),
+                  onTap: () => openPosterViewer(context,
+                      title: m.displayTitle,
+                      url: m.posterUrl,
+                      heroTag: 'poster-${m.uuid}'),
+                  child: Hero(
+                    tag: 'poster-${m.uuid}',
+                    child: Material(
+                      elevation: 8,
+                      borderRadius: BorderRadius.circular(16),
+                      shadowColor: Colors.black54,
+                      child: Poster(
+                          title: m.displayTitle,
+                          url: m.posterUrl,
+                          width: 104,
+                          radius: 16),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 6),
-                if (meta.isNotEmpty)
-                  Text(meta,
-                      style: TextStyle(
-                          fontFamily: AppTheme.bodyFont,
-                          fontSize: 14,
-                          color: scheme.onSurfaceVariant)),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    _statusChip(scheme, m),
-                    if (m.isRewatched)
-                      _chip(scheme, Icons.repeat_rounded,
-                          trf('rewatches_n', {'n': m.rewatchCount}),
-                          tone: true),
-                    if (m.kpRating != null && m.kpRating! > 0)
-                      _chip(scheme, Icons.star_rounded,
-                          m.kpRating!.toStringAsFixed(1)),
-                  ],
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onLongPress: () => _copy(m.displayTitle),
+                        child: Text(m.displayTitle,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontFamily: AppTheme.displayFont,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 24,
+                                height: 1.05,
+                                color: Colors.white)),
+                      ),
+                      if (meta.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(meta,
+                            style: TextStyle(
+                                fontFamily: AppTheme.bodyFont,
+                                fontSize: 13,
+                                color: Colors.white.withValues(alpha: 0.85))),
+                      ],
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
         ],
       ),
-      const SizedBox(height: 20),
+    );
+  }
+
+  Widget _gradientBg(ColorScheme scheme) => DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [scheme.primary, scheme.tertiary],
+          ),
+        ),
+      );
+
+  List<Widget> _content(BuildContext context, LibraryMovie m) {
+    final scheme = Theme.of(context).colorScheme;
+    return [
+      // Чипы статуса под шапкой: статус, повторы, рейтинг КП.
+      Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          _statusChip(scheme, m),
+          if (m.isRewatched)
+            _chip(scheme, Icons.repeat_rounded,
+                trf('rewatches_n', {'n': m.rewatchCount}),
+                tone: true),
+          if (m.kpRating != null && m.kpRating! > 0)
+            _chip(scheme, Icons.star_rounded, m.kpRating!.toStringAsFixed(1)),
+        ],
+      ),
+      const SizedBox(height: 16),
       _scoreCard(scheme, m),
       // Широкая мягко-красная кнопка сброса оценки — только если оценка есть.
       if (m.currentScore != null) ...[
@@ -566,10 +629,7 @@ class _MovieSheetState extends State<_MovieSheet> {
   /// Копирует текст в буфер обмена (по удержанию названия/описания).
   void _copy(String text) {
     Clipboard.setData(ClipboardData(text: text));
-    _sheetMessenger.currentState?.showSnackBar(SnackBar(
-      content: Text(tr('copied')),
-      behavior: SnackBarBehavior.floating,
-    ));
+    _snack(tr('copied'));
   }
 
   String _money(int v) {
@@ -792,7 +852,7 @@ class _MovieSheetState extends State<_MovieSheet> {
       BuildContext context, LibraryMovie m, Viewing v, int ordinal) {
     DateTime? date = v.date;
     bool rated = m.scoreOf(v) != null;
-    double val = m.scoreOf(v) ?? 7.0;
+    double val = m.scoreOf(v) ?? 1.0;
     final scheme = Theme.of(context).colorScheme;
 
     showModalBottomSheet<void>(
@@ -924,9 +984,7 @@ class _MovieSheetState extends State<_MovieSheet> {
                       onPressed: () {
                         _repo.removeViewing(m.uuid, v);
                         Navigator.pop(sheetCtx);
-                        _sheetMessenger.currentState?.showSnackBar(SnackBar(
-                            content: Text(tr('viewing_deleted')),
-                            behavior: SnackBarBehavior.floating));
+                        _snack(tr('viewing_deleted'));
                       },
                       icon: const Icon(Icons.delete_outline_rounded),
                       style: IconButton.styleFrom(
@@ -1149,7 +1207,7 @@ class _MovieSheetState extends State<_MovieSheet> {
     // Пока не оценено — слайдер стоит на нейтральной середине, но число
     // показываем как «—», а не как балл 7.0 (иначе выглядит будто оценка есть).
     final rated = _dragging != null || m.currentScore != null;
-    final val = _dragging ?? m.currentScore ?? 6.5;
+    final val = _dragging ?? m.currentScore ?? 1.0;
     final accent = scoreColor(val);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
@@ -1253,10 +1311,7 @@ class _MovieSheetState extends State<_MovieSheet> {
     return FilledButton.tonalIcon(
       onPressed: () async {
         final removed = await _repo.undoLastViewing(m.uuid);
-        _sheetMessenger.currentState?.showSnackBar(SnackBar(
-          content: Text(tr(removed ? 'unwatched' : 'watch_undone')),
-          behavior: SnackBarBehavior.floating,
-        ));
+        _snack(tr(removed ? 'unwatched' : 'watch_undone'));
       },
       icon: const Icon(Icons.remove_done_rounded),
       label: Text(tr('undo_watch')),

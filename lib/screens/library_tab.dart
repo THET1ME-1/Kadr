@@ -483,7 +483,7 @@ class _LibraryTabState extends State<LibraryTab> {
         title: s.displayTitle,
         posterUrl: s.posterUrl,
         width: w,
-        score: e.session!.avgScore,
+        score: e.session!.avgScore ?? e.session!.series.score,
         favorite: s.favorite,
         series: true,
         dropped: s.dropped,
@@ -517,7 +517,7 @@ class _LibraryTabState extends State<LibraryTab> {
         title: s.displayTitle,
         posterUrl: s.posterUrl,
         subtitle: '${e.session!.rangeLabel} · ${e.session!.count} сер.',
-        score: e.session!.avgScore,
+        score: e.session!.avgScore ?? e.session!.series.score,
         favorite: s.favorite,
         series: true,
         dropped: s.dropped,
@@ -704,7 +704,7 @@ class _LibEntry {
   DateTime? get date =>
       session != null ? session!.start : viewing?.date;
   double? get score => session != null
-      ? session!.avgScore
+      ? (session!.avgScore ?? session!.series.score)
       : (viewing != null ? movie!.scoreOf(viewing!) : movie?.currentScore);
   String get title =>
       session != null ? session!.series.displayTitle : movie!.displayTitle;
@@ -1135,7 +1135,7 @@ class _SeriesSessionCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      _scoreBadge(scheme, session.avgScore),
+                      _scoreBadge(scheme, session.avgScore ?? s.score),
                     ],
                   ),
                 ),
@@ -1277,7 +1277,7 @@ class _EpisodeRow extends StatelessWidget {
 
   void _rate(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    double val = ep.score ?? 7.0;
+    double val = ep.score ?? 1.0;
     bool rated = ep.score != null;
     showModalBottomSheet<void>(
       context: context,

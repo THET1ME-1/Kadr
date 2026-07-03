@@ -1056,7 +1056,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
     required void Function(double?) onCommit,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    double val = initial ?? 6.5;
+    double val = initial ?? 1.0;
     bool rated = initial != null;
     showModalBottomSheet<void>(
       context: context,
@@ -1466,7 +1466,7 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
       );
     }
     final rated = _dragging != null || we.score != null;
-    final val = _dragging ?? we.score ?? 6.5;
+    final val = _dragging ?? we.score ?? 1.0;
     final accent = scoreColor(val);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
