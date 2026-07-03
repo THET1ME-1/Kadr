@@ -228,6 +228,10 @@ class MovieRepository extends ChangeNotifier {
   List<LibraryMovie> get favorites =>
       _movies.where((m) => m.favorite).toList();
 
+  /// Избранные сериалы (для списка «Избранное» рядом с фильмами).
+  List<LibrarySeries> get favoriteSeries =>
+      _series.where((s) => s.favorite).toList();
+
   /// Группировка просмотренного по месяцам: «2023-10» → фильмы (свежие сверху).
   /// Просмотры без даты попадают в группу с ключом-заглушкой `DateTime(1)`.
   List<MapEntry<DateTime, List<LibraryMovie>>> get watchedByMonth {
@@ -496,6 +500,32 @@ class MovieRepository extends ChangeNotifier {
             runtimeMin: runtimes[n]));
         added++;
       }
+    }
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Ставит ОДНУ оценку сразу всем сериям сезона: непросмотренные при этом
+  /// помечаются просмотренными, у всех выставляется [score].
+  Future<void> setSeasonScore(
+      String seriesId, int season, List<int> numbers, double? score,
+      {Map<int, int?> runtimes = const {}}) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    final now = DateTime.now();
+    var added = 0;
+    for (final n in numbers) {
+      var ep = s.watchedEpisode(season, n);
+      if (ep == null) {
+        ep = Episode(
+            season: season,
+            number: n,
+            watchedAt: now.add(Duration(seconds: added)),
+            runtimeMin: runtimes[n]);
+        s.episodes.add(ep);
+        added++;
+      }
+      ep.score = score;
     }
     notifyListeners();
     await _persist();
@@ -914,6 +944,29 @@ class MovieRepository extends ChangeNotifier {
   LibraryMovie? movieByTmdb(int id) {
     for (final m in _movies) {
       if (m.tmdbId == id) return m;
+    }
+    return null;
+  }
+
+  /// Ищет фильм библиотеки под TMDB-карточку БЕЗ создания/мутации: сперва по
+  /// tmdbId, затем по названию+году (как [ensureFromTmdb], но только поиск).
+  /// Нужно, чтобы части франшизы сразу показывали статус (просмотрено/в списке)
+  /// даже у импортированных фильмов, которым tmdbId ещё не проставлен.
+  LibraryMovie? findMovieForTmdb(TmdbMovie t) {
+    final byId = movieByTmdb(t.id);
+    if (byId != null) return byId;
+    final tl = t.title.toLowerCase().trim();
+    final ol = (t.originalTitle ?? '').toLowerCase().trim();
+    for (final m in _movies) {
+      if (m.tmdbId != null) continue;
+      if (t.year != null && m.year != null && (m.year! - t.year!).abs() > 1) {
+        continue;
+      }
+      final names = {
+        m.title.toLowerCase().trim(),
+        (m.ruTitle ?? '').toLowerCase().trim(),
+      }..remove('');
+      if (names.contains(tl) || (ol.isNotEmpty && names.contains(ol))) return m;
     }
     return null;
   }

@@ -149,6 +149,7 @@ const Map<String, Map<String, String>> _strings = {
   'stat_eps_n': {'ru': '{n} сер.', 'en': '{n} ep.'},
   'drawer_lists': {'ru': 'Списки', 'en': 'Lists'},
   'movies_count': {'ru': '{n} фильмов', 'en': '{n} movies'},
+  'series_count': {'ru': '{n} сериалов', 'en': '{n} series'},
   'list_empty': {'ru': 'Список пуст', 'en': 'Empty list'},
   'my_lists': {'ru': 'Мои списки', 'en': 'My lists'},
   'manage_lists': {'ru': 'Списки', 'en': 'Lists'},
@@ -380,6 +381,16 @@ const Map<String, Map<String, String>> _strings = {
   'unwatched': {'ru': 'Убрано из просмотренного', 'en': 'Removed from watched'},
   'rate_series': {'ru': 'Оценить сериал', 'en': 'Rate series'},
   'series_rating': {'ru': 'Оценка сериала', 'en': 'Series rating'},
+  'avg_of_episodes': {'ru': 'Средняя по сериям', 'en': 'Episode average'},
+  'rate_season': {'ru': 'Оценить сезон', 'en': 'Rate season'},
+  'season_rated': {
+    'ru': 'Сезон {n} оценён на {v}',
+    'en': 'Season {n} rated {v}'
+  },
+  'series_avg_locked': {
+    'ru': 'Оценка считается по оценкам серий. Уберите оценки серий, чтобы поставить вручную.',
+    'en': 'Rating is the episode average. Clear episode ratings to set it manually.'
+  },
   'mark_season': {'ru': 'Отметить весь сезон', 'en': 'Mark whole season'},
   'unmark_season': {'ru': 'Снять весь сезон', 'en': 'Unmark whole season'},
   'season_done': {'ru': 'Сезон {n} отмечен', 'en': 'Season {n} marked'},
@@ -398,6 +409,31 @@ const Map<String, Map<String, String>> _strings = {
   'reset_to_one': {'ru': 'Вернуть один просмотр', 'en': 'Keep a single watch'},
   'remove_one_watch': {'ru': 'Убрать просмотр', 'en': 'Remove one watch'},
   'edit_watch_date': {'ru': 'Изменить дату и время', 'en': 'Change date & time'},
+  'enter_score': {'ru': 'Введите оценку', 'en': 'Enter your score'},
+  'collection': {'ru': 'Части франшизы', 'en': 'Franchise'},
+  'update_available': {'ru': 'Доступно обновление', 'en': 'Update available'},
+  'update_new_version': {'ru': 'Новая версия {v}', 'en': 'New version {v}'},
+  'update_current_version': {'ru': 'У вас {v}', 'en': 'You have {v}'},
+  'update_now': {'ru': 'Обновить', 'en': 'Update'},
+  'update_later': {'ru': 'Позже', 'en': 'Later'},
+  'update_downloading': {'ru': 'Скачивание… {p}%', 'en': 'Downloading… {p}%'},
+  'update_installing': {'ru': 'Запуск установки…', 'en': 'Starting install…'},
+  'update_open_github': {'ru': 'Открыть на GitHub', 'en': 'Open on GitHub'},
+  'update_failed': {
+    'ru': 'Не удалось скачать. Откройте релиз вручную.',
+    'en': 'Download failed. Open the release manually.'
+  },
+  'update_whats_new': {'ru': 'Что нового', 'en': "What's new"},
+  'check_updates': {'ru': 'Проверить обновления', 'en': 'Check for updates'},
+  'check_updates_sub': {
+    'ru': 'Скачать новую версию с GitHub',
+    'en': 'Download the latest version from GitHub'
+  },
+  'up_to_date': {
+    'ru': 'У вас последняя версия',
+    'en': "You're on the latest version"
+  },
+  'checking_updates': {'ru': 'Проверяю обновления…', 'en': 'Checking for updates…'},
   'seq_mode': {'ru': 'Отмечать серии по порядку', 'en': 'Mark episodes in order'},
   'seq_mode_sub': {
     'ru': 'Отметил серию — все до неё тоже; снял — все после снимаются',

@@ -11,10 +11,12 @@ import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/score.dart';
+import '../widgets/movie_cards.dart' show statusBadges;
 import '../widgets/poster.dart';
 import '../widgets/poster_viewer.dart';
 import '../widgets/rating_slider.dart';
 import '../widgets/reveal.dart';
+import '../widgets/score_pad.dart';
 import 'browse_screens.dart';
 import 'when_watched_sheet.dart';
 
@@ -45,6 +47,10 @@ class _MovieScreenState extends State<MovieScreen> {
 
   TmdbDetails? _details;
 
+  /// Части коллекции/франшизы (если фильм входит в серию).
+  List<TmdbMovie>? _collection;
+  String? _collectionName;
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +69,16 @@ class _MovieScreenState extends State<MovieScreen> {
     if (id == null) return;
     final d = await TmdbService.details(id);
     if (mounted && d != null) setState(() => _details = d);
+    // Части франшизы (несколько фильмов) — грузим отдельно.
+    if (d?.collectionId != null) {
+      final parts = await TmdbService.collection(d!.collectionId!);
+      if (mounted && parts.length > 1) {
+        setState(() {
+          _collection = parts;
+          _collectionName = d.collectionName;
+        });
+      }
+    }
   }
 
   void _snack(String msg) {
@@ -301,6 +317,7 @@ class _MovieScreenState extends State<MovieScreen> {
         const SizedBox(height: 12),
         _droppedButton(scheme, m),
       ],
+      ..._collectionSection(scheme, m),
       ..._detailsWidgets(scheme, m),
       if (m.emotions.isNotEmpty) ...[
         const SizedBox(height: 18),
@@ -353,6 +370,105 @@ class _MovieScreenState extends State<MovieScreen> {
   }
 
   // ------------------------ детали TMDB ------------------------
+  /// Секция «части франшизы»: постеры всех фильмов серии по порядку выхода со
+  /// статусом (просмотрено/буду смотреть/брошено/без списка). Тап → карточка.
+  List<Widget> _collectionSection(ColorScheme scheme, LibraryMovie m) {
+    final parts = _collection;
+    if (parts == null || parts.length < 2) return const [];
+    return [
+      const SizedBox(height: 22),
+      _sectionTitle(scheme, _collectionName ?? tr('collection')),
+      const SizedBox(height: 12),
+      SizedBox(
+        height: 218,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: parts.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 12),
+          itemBuilder: (c, i) => Reveal(
+            delay: Duration(milliseconds: i * 45),
+            beginOffset: const Offset(0.15, 0),
+            child: _partCard(scheme, parts[i], i + 1, m.tmdbId),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  Widget _partCard(
+      ColorScheme scheme, TmdbMovie part, int order, int? currentTmdbId) {
+    // Матчим и по названию+году: у импортированных просмотренных фильмов часто
+    // ещё нет tmdbId — иначе статус (галочка) не показывался бы до открытия.
+    final lib = _repo.findMovieForTmdb(part);
+    final isCurrent = currentTmdbId != null && part.id == currentTmdbId;
+    return SizedBox(
+      width: 120,
+      child: GestureDetector(
+        onTap: isCurrent
+            ? null
+            : () => showMovieSheet(context, _repo.ensureFromTmdb(part)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                Poster(
+                    title: part.title,
+                    url: part.posterUrl,
+                    width: 120,
+                    radius: 14),
+                // Порядковый номер части.
+                Positioned(
+                  top: 6,
+                  left: 6,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                        color: Colors.black54, shape: BoxShape.circle),
+                    child: Text('$order',
+                        style: const TextStyle(
+                            fontFamily: AppTheme.displayFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            color: Colors.white)),
+                  ),
+                ),
+                Positioned(top: 6, right: 6, child: statusBadges(scheme, lib)),
+                if (isCurrent)
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: scheme.primary, width: 3),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(part.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
+                    height: 1.1,
+                    color: scheme.onSurface)),
+            if (part.year != null)
+              Text('${part.year}',
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 11.5,
+                      color: scheme.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+
   List<Widget> _detailsWidgets(ColorScheme scheme, LibraryMovie m) {
     final d = _details;
     final links = _links(m);
@@ -965,14 +1081,36 @@ class _MovieScreenState extends State<MovieScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // оценка
-                Text(rated ? val.toStringAsFixed(1) : '—',
-                    style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 46,
-                        color:
-                            rated ? scoreColor(val) : scheme.onSurfaceVariant)),
+                // оценка — тап по числу/«—» открывает калькулятор ввода
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () async {
+                    final r = await showScorePad(sheetCtx,
+                        initial: rated ? val : null);
+                    if (r != null) {
+                      setSheet(() {
+                        val = r;
+                        rated = true;
+                      });
+                    }
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(rated ? val.toStringAsFixed(1) : '—',
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 46,
+                              color: rated
+                                  ? scoreColor(val)
+                                  : scheme.onSurfaceVariant)),
+                      const SizedBox(width: 8),
+                      Icon(Icons.dialpad_rounded,
+                          size: 18, color: scheme.onSurfaceVariant),
+                    ],
+                  ),
+                ),
                 Text(tr('rate_this_viewing'),
                     style: TextStyle(
                         fontFamily: AppTheme.bodyFont,
@@ -1165,6 +1303,15 @@ class _MovieScreenState extends State<MovieScreen> {
     );
   }
 
+  /// Открывает клавиатуру-калькулятор для ручного ввода оценки текущего фильма.
+  Future<void> _openScorePad(LibraryMovie m) async {
+    final v = await showScorePad(context, initial: m.currentScore);
+    if (v != null) {
+      _commitCurrentScore(m, v);
+      if (mounted) setState(() => _dragging = null);
+    }
+  }
+
   /// Пишет оценку в текущий просмотр (или в общую, если просмотров ещё нет).
   void _commitCurrentScore(LibraryMovie m, double v) {
     final cv = m.currentViewing;
@@ -1232,7 +1379,11 @@ class _MovieScreenState extends State<MovieScreen> {
                   fontSize: 12.5,
                   color: scheme.onPrimaryContainer.withValues(alpha: 0.8))),
           const SizedBox(height: 2),
-          Row(
+          // Тап по числу/«—» → калькулятор ручного ввода оценки.
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _openScorePad(m),
+            child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -1271,7 +1422,12 @@ class _MovieScreenState extends State<MovieScreen> {
                       fontWeight: FontWeight.w700,
                       fontSize: 20,
                       color: scheme.onPrimaryContainer.withValues(alpha: 0.7))),
+              const SizedBox(width: 8),
+              Icon(Icons.dialpad_rounded,
+                  size: 18,
+                  color: scheme.onPrimaryContainer.withValues(alpha: 0.55)),
             ],
+          ),
           ),
           const SizedBox(height: 6),
           RatingSlider(

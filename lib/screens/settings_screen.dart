@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../l10n/locale_controller.dart';
 import '../l10n/strings.dart';
 import '../services/backup_service.dart';
+import '../services/update_service.dart';
+import '../widgets/update_sheet.dart';
 import '../services/movie_repository.dart';
 import '../services/movie_source.dart';
 import '../services/notification_service.dart';
@@ -189,6 +192,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _section(tr('about')),
               _card([
                 _tile(
+                  icon: Icons.system_update_rounded,
+                  title: tr('check_updates'),
+                  subtitle: tr('check_updates_sub'),
+                  onTap: _checkUpdates,
+                ),
+                _divider(),
+                _tile(
                   icon: Icons.movie_rounded,
                   title: tr('app_name'),
                   subtitle: tr('about_sub'),
@@ -201,6 +211,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       },
     );
+  }
+
+  /// Ручная проверка обновления: меню обновления или «последняя версия».
+  Future<void> _checkUpdates() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(SnackBar(
+        content: Text(tr('checking_updates')),
+        behavior: SnackBarBehavior.floating));
+    final current = (await PackageInfo.fromPlatform()).version;
+    final info = await UpdateService.checkForUpdate(current);
+    if (!mounted) return;
+    if (info == null) {
+      messenger.showSnackBar(SnackBar(
+          content: Text(tr('up_to_date')),
+          behavior: SnackBarBehavior.floating));
+    } else {
+      await UpdateSheet.show(context, info, current);
+    }
   }
 
   // --------------------------- строительные блоки ---------------------------

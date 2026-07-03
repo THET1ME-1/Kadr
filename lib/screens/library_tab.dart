@@ -13,6 +13,7 @@ import '../widgets/movie_cards.dart' show droppedBadge;
 import '../widgets/poster.dart';
 import '../widgets/rating_slider.dart';
 import '../widgets/reveal.dart';
+import '../widgets/score_pad.dart';
 import 'movie_sheet.dart';
 import 'series_screen.dart';
 
@@ -483,7 +484,7 @@ class _LibraryTabState extends State<LibraryTab> {
         title: s.displayTitle,
         posterUrl: s.posterUrl,
         width: w,
-        score: e.session!.avgScore ?? e.session!.series.score,
+        score: e.session!.avgScore ?? e.session!.series.displayScore,
         favorite: s.favorite,
         series: true,
         dropped: s.dropped,
@@ -517,7 +518,7 @@ class _LibraryTabState extends State<LibraryTab> {
         title: s.displayTitle,
         posterUrl: s.posterUrl,
         subtitle: '${e.session!.rangeLabel} · ${e.session!.count} сер.',
-        score: e.session!.avgScore ?? e.session!.series.score,
+        score: e.session!.avgScore ?? e.session!.series.displayScore,
         favorite: s.favorite,
         series: true,
         dropped: s.dropped,
@@ -704,7 +705,7 @@ class _LibEntry {
   DateTime? get date =>
       session != null ? session!.start : viewing?.date;
   double? get score => session != null
-      ? (session!.avgScore ?? session!.series.score)
+      ? (session!.avgScore ?? session!.series.displayScore)
       : (viewing != null ? movie!.scoreOf(viewing!) : movie?.currentScore);
   String get title =>
       session != null ? session!.series.displayTitle : movie!.displayTitle;
@@ -1135,7 +1136,7 @@ class _SeriesSessionCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      _scoreBadge(scheme, session.avgScore ?? s.score),
+                      _scoreBadge(scheme, session.avgScore ?? s.displayScore),
                     ],
                   ),
                 ),
@@ -1306,13 +1307,35 @@ class _EpisodeRow extends StatelessWidget {
                         fontSize: 18,
                         color: scheme.onSurface)),
                 const SizedBox(height: 6),
-                Text(rated ? val.toStringAsFixed(1) : '—',
-                    style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 44,
-                        color:
-                            rated ? scoreColor(val) : scheme.onSurfaceVariant)),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () async {
+                    final r = await showScorePad(sheetCtx,
+                        initial: rated ? val : null);
+                    if (r != null) {
+                      setSheet(() {
+                        val = r;
+                        rated = true;
+                      });
+                    }
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(rated ? val.toStringAsFixed(1) : '—',
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 44,
+                              color: rated
+                                  ? scoreColor(val)
+                                  : scheme.onSurfaceVariant)),
+                      const SizedBox(width: 8),
+                      Icon(Icons.dialpad_rounded,
+                          size: 18, color: scheme.onSurfaceVariant),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 4),
                 RatingSlider(
                   value: val,

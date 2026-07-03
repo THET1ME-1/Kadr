@@ -391,6 +391,18 @@ class LibrarySeries {
 
   int get episodesSeen => episodes.length;
 
+  /// Средняя оценка по оценённым сериям (или null, если ни одна не оценена).
+  double? get episodeScoreAvg {
+    final scores = episodes.map((e) => e.score).whereType<double>().toList();
+    if (scores.isEmpty) return null;
+    final avg = scores.reduce((a, b) => a + b) / scores.length;
+    return (avg * 10).round() / 10; // округляем до 0.1
+  }
+
+  /// Оценка сериала для показа: если есть оценки серий — их среднее (считается
+  /// автоматически, руками не задаётся); иначе — ручная общая оценка.
+  double? get displayScore => episodeScoreAvg ?? score;
+
   DateTime? get lastWatch {
     DateTime? best;
     for (final e in episodes) {

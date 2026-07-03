@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../l10n/strings.dart';
 import '../services/movie_repository.dart';
 import '../services/notification_service.dart';
 import '../services/store.dart';
+import '../services/update_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/update_sheet.dart';
 import 'about_screen.dart';
 import 'discover_tab.dart';
 import 'dropped_screen.dart';
@@ -52,7 +55,19 @@ class _HomeShellState extends State<HomeShell> {
       // Не блокируем первый кадр — проверяем серии чуть позже.
       await Future<void>.delayed(const Duration(seconds: 2));
       await NotificationService.instance.checkNewEpisodes();
+      _checkForUpdate();
     });
+  }
+
+  /// Тихая проверка обновления на GitHub при запуске: если версия новее —
+  /// показываем нижнее меню обновления (как в ScoreMaster).
+  Future<void> _checkForUpdate() async {
+    try {
+      final current = (await PackageInfo.fromPlatform()).version;
+      final info = await UpdateService.checkForUpdate(current);
+      if (!mounted || info == null) return;
+      UpdateSheet.show(context, info, current);
+    } catch (_) {/* молча */}
   }
 
   Future<void> _loadViewMode() async {

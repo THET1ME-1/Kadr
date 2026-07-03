@@ -112,6 +112,11 @@ class TmdbDetails {
   final int? revenue;
   final int? runtime;
   final List<TmdbCast> cast;
+
+  /// Коллекция/франшиза, к которой принадлежит фильм (напр. «Гарри Поттер»).
+  final int? collectionId;
+  final String? collectionName;
+
   const TmdbDetails({
     this.overview,
     this.tagline,
@@ -124,6 +129,8 @@ class TmdbDetails {
     this.revenue,
     this.runtime,
     this.cast = const [],
+    this.collectionId,
+    this.collectionName,
   });
 }
 
@@ -214,7 +221,10 @@ class TmdbService {
         }
       }
       final backdrop = j['backdrop_path'] as String?;
+      final coll = j['belongs_to_collection'] as Map<String, dynamic>?;
       final details = TmdbDetails(
+        collectionId: (coll?['id'] as num?)?.toInt(),
+        collectionName: coll?['name'] as String?,
         overview: j['overview'] as String?,
         imdbId: j['imdb_id'] as String?,
         tagline: (j['tagline'] as String?)?.isNotEmpty == true
@@ -241,6 +251,34 @@ class TmdbService {
     } catch (e) {
       debugPrint('tmdb details $tmdbId error: $e');
       return null;
+    }
+  }
+
+  /// Кэш частей коллекций (на сессию).
+  static final Map<int, List<TmdbMovie>> _collectionCache = {};
+
+  /// Части коллекции/франшизы по id, по порядку выхода (ранние сверху).
+  static Future<List<TmdbMovie>> collection(int collectionId) async {
+    if (_collectionCache.containsKey(collectionId)) {
+      return _collectionCache[collectionId]!;
+    }
+    try {
+      final uri = Uri.parse('${ApiConfig.tmdbBase}/collection/$collectionId')
+          .replace(queryParameters: {'language': 'ru-RU'});
+      final resp = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 12));
+      if (resp.statusCode != 200) return [];
+      final j = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      final parts = (j['parts'] as List? ?? [])
+          .map((e) => TmdbMovie.fromJson(e as Map<String, dynamic>))
+          .toList()
+        ..sort((a, b) => (a.year ?? 9999).compareTo(b.year ?? 9999));
+      _collectionCache[collectionId] = parts;
+      return parts;
+    } catch (e) {
+      debugPrint('tmdb collection $collectionId error: $e');
+      return [];
     }
   }
 

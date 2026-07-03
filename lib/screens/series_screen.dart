@@ -14,6 +14,7 @@ import '../widgets/poster.dart';
 import '../widgets/poster_viewer.dart';
 import '../widgets/rating_slider.dart';
 import '../widgets/reveal.dart';
+import '../widgets/score_pad.dart';
 
 /// Экран сериала (M3 Expressive): крупная шапка с бэкдропом, оценка всего
 /// сериала, выбор сезона, отметка «весь сезон разом», а у каждой серии —
@@ -387,7 +388,11 @@ class _SeriesScreenState extends State<SeriesScreen> {
   // ----------------------- действия (оценка/избранное) -----------------------
 
   Widget _actions(ColorScheme scheme) {
-    final sc = s.score;
+    // Если у серий есть оценки — показываем их среднее (считается автоматически).
+    // Ручная оценка сериала доступна ТОЛЬКО когда ни одна серия не оценена.
+    final epAvg = s.episodeScoreAvg;
+    final fromEp = epAvg != null;
+    final sc = epAvg ?? s.score;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
       child: Row(
@@ -400,7 +405,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
               borderRadius: BorderRadius.circular(18),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
-                onTap: _rateSeries,
+                onTap: fromEp ? () => _snack(tr('series_avg_locked')) : _rateSeries,
                 child: Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -415,7 +420,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                       const SizedBox(width: 8),
                       Text(
                         sc != null
-                            ? '${sc.toStringAsFixed(1)} · ${tr('series_rating')}'
+                            ? '${sc.toStringAsFixed(1)} · ${fromEp ? tr('avg_of_episodes') : tr('series_rating')}'
                             : tr('rate_series'),
                         style: TextStyle(
                             fontFamily: AppTheme.displayFont,
@@ -539,7 +544,14 @@ class _SeriesScreenState extends State<SeriesScreen> {
                   color: scheme.onSurfaceVariant),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
+          // Разом поставить одну оценку всем сериям сезона.
+          IconButton.filledTonal(
+            onPressed: _rateSeason,
+            icon: const Icon(Icons.star_rounded),
+            tooltip: tr('rate_season'),
+          ),
+          const SizedBox(width: 8),
           FilledButton.tonalIcon(
             onPressed: () {
               if (allWatched) {
@@ -790,6 +802,21 @@ class _SeriesScreenState extends State<SeriesScreen> {
         ),
       ),
     );
+  }
+
+  /// Ставит одну оценку разом всем сериям текущего сезона (через клавиатуру).
+  Future<void> _rateSeason() async {
+    final eps = _eps;
+    if (eps == null || eps.isEmpty || _season == null) return;
+    final r = await showScorePad(context, initial: null);
+    if (r == null) return;
+    final runtimes = {for (final e in eps) e.number: e.runtime};
+    await _repo.setSeasonScore(
+        s.tvShowId, _season!, [for (final e in eps) e.number], r,
+        runtimes: runtimes);
+    if (mounted) {
+      _snack(trf('season_rated', {'n': _season!, 'v': r.toStringAsFixed(1)}));
+    }
   }
 
   /// Правка даты и времени просмотра серии из меню списка (дата → время).
@@ -1088,13 +1115,35 @@ class _SeriesScreenState extends State<SeriesScreen> {
                         fontSize: 18,
                         color: scheme.onSurface)),
                 const SizedBox(height: 6),
-                Text(rated ? val.toStringAsFixed(1) : '—',
-                    style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 46,
-                        color:
-                            rated ? scoreColor(val) : scheme.onSurfaceVariant)),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () async {
+                    final r = await showScorePad(sheetCtx,
+                        initial: rated ? val : null);
+                    if (r != null) {
+                      setSheet(() {
+                        val = r;
+                        rated = true;
+                      });
+                    }
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(rated ? val.toStringAsFixed(1) : '—',
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 46,
+                              color: rated
+                                  ? scoreColor(val)
+                                  : scheme.onSurfaceVariant)),
+                      const SizedBox(width: 8),
+                      Icon(Icons.dialpad_rounded,
+                          size: 18, color: scheme.onSurfaceVariant),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 4),
                 RatingSlider(
                   value: val,
@@ -1481,35 +1530,50 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
                 fontSize: 12.5,
                 color: scheme.onPrimaryContainer.withValues(alpha: 0.8))),
         const SizedBox(height: 2),
-        TweenAnimationBuilder<Color?>(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-          tween: ColorTween(
-              end: rated
-                  ? accent
-                  : scheme.onPrimaryContainer.withValues(alpha: 0.55)),
-          builder: (context, color, _) => Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Icon(rated ? Icons.star_rounded : Icons.star_border_rounded,
-                  color: color, size: 30),
-              const SizedBox(width: 6),
-              Text(rated ? val.toStringAsFixed(1) : '—',
-                  style: TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 44,
-                      height: 1,
-                      color: color)),
-              Text(' / 10',
-                  style: TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 18,
-                      color: scheme.onPrimaryContainer.withValues(alpha: 0.7))),
-            ],
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () async {
+            final r = await showScorePad(context, initial: we.score);
+            if (r != null) {
+              _repo.setEpisodeScore(widget.seriesId, we, r);
+              if (mounted) setState(() => _dragging = null);
+            }
+          },
+          child: TweenAnimationBuilder<Color?>(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            tween: ColorTween(
+                end: rated
+                    ? accent
+                    : scheme.onPrimaryContainer.withValues(alpha: 0.55)),
+            builder: (context, color, _) => Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Icon(rated ? Icons.star_rounded : Icons.star_border_rounded,
+                    color: color, size: 30),
+                const SizedBox(width: 6),
+                Text(rated ? val.toStringAsFixed(1) : '—',
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 44,
+                        height: 1,
+                        color: color)),
+                Text(' / 10',
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        color:
+                            scheme.onPrimaryContainer.withValues(alpha: 0.7))),
+                const SizedBox(width: 8),
+                Icon(Icons.dialpad_rounded,
+                    size: 18,
+                    color: scheme.onPrimaryContainer.withValues(alpha: 0.55)),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 6),

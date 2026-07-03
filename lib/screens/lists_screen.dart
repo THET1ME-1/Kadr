@@ -8,6 +8,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/poster.dart';
 import '../widgets/reveal.dart';
 import 'movie_sheet.dart';
+import 'series_screen.dart';
 
 /// Экран «Списки»: избранное, «Буду смотреть», «Просмотрено» + свои списки
 /// (импортированные из TV Time). Тап → содержимое списка.
@@ -21,7 +22,8 @@ class ListsScreen extends StatelessWidget {
       listenable: repo,
       builder: (context, _) {
         final special = <_ListData>[
-          _ListData(tr('act_favorite'), Icons.favorite_rounded, repo.favorites),
+          _ListData(tr('act_favorite'), Icons.favorite_rounded, repo.favorites,
+              series: repo.favoriteSeries),
           _ListData(tr('nav_watchlist'), Icons.bookmark_rounded, repo.watchlist),
           _ListData(
               tr('nav_watched'), Icons.check_circle_rounded, repo.watched),
@@ -102,12 +104,15 @@ class ListsScreen extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => _ListDetail(title: data.name, movies: data.movies))),
+              builder: (_) => _ListDetail(
+                  title: data.name,
+                  movies: data.movies,
+                  series: data.series))),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Row(
               children: [
-                _collage(data.movies),
+                _collage(data),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -130,7 +135,7 @@ class ListsScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(trf('movies_count', {'n': data.movies.length}),
+                      Text(_countLabel(data),
                           style: TextStyle(
                               fontFamily: AppTheme.bodyFont,
                               fontSize: 13,
@@ -211,8 +216,20 @@ class ListsScreen extends StatelessWidget {
     );
   }
 
-  Widget _collage(List<LibraryMovie> movies) {
-    final shown = movies.take(3).toList();
+  String _countLabel(_ListData data) {
+    final parts = <String>[
+      if (data.movies.isNotEmpty) trf('movies_count', {'n': data.movies.length}),
+      if (data.series.isNotEmpty) trf('series_count', {'n': data.series.length}),
+    ];
+    return parts.isEmpty ? trf('movies_count', {'n': 0}) : parts.join(' · ');
+  }
+
+  Widget _collage(_ListData data) {
+    final items = <({String title, String? url})>[
+      for (final m in data.movies) (title: m.displayTitle, url: m.posterUrl),
+      for (final s in data.series) (title: s.displayTitle, url: s.posterUrl),
+    ];
+    final shown = items.take(3).toList();
     if (shown.isEmpty) {
       return const SizedBox(width: 56, height: 56);
     }
@@ -225,8 +242,8 @@ class ListsScreen extends StatelessWidget {
             Positioned(
               left: i * 10.0,
               child: Poster(
-                  title: shown[i].displayTitle,
-                  url: shown[i].posterUrl,
+                  title: shown[i].title,
+                  url: shown[i].url,
                   width: 40,
                   radius: 8),
             ),
@@ -240,97 +257,166 @@ class _ListData {
   final String name;
   final IconData icon;
   final List<LibraryMovie> movies;
+  final List<LibrarySeries> series;
   final bool deletable;
-  _ListData(this.name, this.icon, this.movies, {this.deletable = false});
+  _ListData(this.name, this.icon, this.movies,
+      {this.series = const [], this.deletable = false});
+  int get count => movies.length + series.length;
 }
 
 class _ListDetail extends StatelessWidget {
   final String title;
   final List<LibraryMovie> movies;
-  const _ListDetail({required this.title, required this.movies});
+  final List<LibrarySeries> series;
+  const _ListDetail(
+      {required this.title, required this.movies, this.series = const []});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final empty = movies.isEmpty && series.isEmpty;
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: movies.isEmpty
+      body: empty
           ? EmptyState(
               icon: Icons.list_alt_rounded,
               title: title,
               subtitle: tr('list_empty'))
-          : ListView.builder(
+          : ListView(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 32),
-              itemCount: movies.length,
-              itemBuilder: (context, i) {
-                final m = movies[i];
-                final meta = [
-                  if (m.year != null) '${m.year}',
-                ].join(' · ');
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  child: Material(
-                    color: scheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(20),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () => showMovieSheet(context, m),
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Row(
-                          children: [
-                            Poster(
-                                title: m.displayTitle,
-                                url: m.posterUrl,
-                                width: 52),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(m.displayTitle,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                          fontFamily: AppTheme.displayFont,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 15,
-                                          height: 1.1,
-                                          color: scheme.onSurface)),
-                                  if (meta.isNotEmpty) ...[
-                                    const SizedBox(height: 3),
-                                    Text(meta,
-                                        style: TextStyle(
-                                            fontFamily: AppTheme.bodyFont,
-                                            fontSize: 12.5,
-                                            color: scheme.onSurfaceVariant)),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            if (m.currentScore != null)
-                              Container(
-                                width: 44,
-                                height: 44,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                    color: scheme.primaryContainer,
-                                    shape: BoxShape.circle),
-                                child: Text(m.currentScore!.toStringAsFixed(1),
-                                    style: TextStyle(
-                                        fontFamily: AppTheme.displayFont,
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 14,
-                                        color: scheme.onPrimaryContainer)),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
+              children: [
+                for (final m in movies) _movieTile(context, m),
+                for (final s in series) _seriesTile(context, s),
+              ],
             ),
     );
   }
+
+  Widget _movieTile(BuildContext context, LibraryMovie m) {
+    final scheme = Theme.of(context).colorScheme;
+    final meta = [if (m.year != null) '${m.year}'].join(' · ');
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Material(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => showMovieSheet(context, m),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                Poster(title: m.displayTitle, url: m.posterUrl, width: 52),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(m.displayTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              height: 1.1,
+                              color: scheme.onSurface)),
+                      if (meta.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(meta,
+                            style: TextStyle(
+                                fontFamily: AppTheme.bodyFont,
+                                fontSize: 12.5,
+                                color: scheme.onSurfaceVariant)),
+                      ],
+                    ],
+                  ),
+                ),
+                if (m.currentScore != null) _scoreDot(scheme, m.currentScore!),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _seriesTile(BuildContext context, LibrarySeries s) {
+    final scheme = Theme.of(context).colorScheme;
+    final sc = s.displayScore;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Material(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                Stack(
+                  children: [
+                    Poster(title: s.displayTitle, url: s.posterUrl, width: 52),
+                    Positioned(
+                      left: 3,
+                      top: 3,
+                      child: Container(
+                        padding: const EdgeInsets.all(2.5),
+                        decoration: BoxDecoration(
+                            color: scheme.tertiary,
+                            borderRadius: BorderRadius.circular(7)),
+                        child: Icon(Icons.live_tv_rounded,
+                            size: 11, color: scheme.onTertiary),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(s.displayTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              height: 1.1,
+                              color: scheme.onSurface)),
+                      const SizedBox(height: 3),
+                      Text(trf('episodes_n', {'n': s.episodesSeen}),
+                          style: TextStyle(
+                              fontFamily: AppTheme.bodyFont,
+                              fontSize: 12.5,
+                              color: scheme.onSurfaceVariant)),
+                    ],
+                  ),
+                ),
+                if (sc != null) _scoreDot(scheme, sc),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _scoreDot(ColorScheme scheme, double score) => Container(
+        width: 44,
+        height: 44,
+        alignment: Alignment.center,
+        decoration:
+            BoxDecoration(color: scheme.primaryContainer, shape: BoxShape.circle),
+        child: Text(score.toStringAsFixed(1),
+            style: TextStyle(
+                fontFamily: AppTheme.displayFont,
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+                color: scheme.onPrimaryContainer)),
+      );
 }
