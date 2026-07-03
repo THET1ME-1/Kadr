@@ -74,6 +74,15 @@ class MovieRepository extends ChangeNotifier {
         await Store.instance.setInt('enrichVersion', 2);
         await _persist();
       }
+      // Чистим задвоенные серии (наследие старого бага bulk-операций): сливаем
+      // эпизоды с одинаковыми (сезон,номер), сохраняя оценку/дату. Оценки на
+      // экране сериала были, а в списке «Просмотрено» дубли шли пустыми.
+      var deduped = 0;
+      for (final s in _series) {
+        deduped += _dedupeEpisodes(s);
+      }
+      if (deduped > 0) await _persist();
+
       _watchlistNewestFirst =
           await Store.instance.getBool('watchlistNewestFirst', def: true);
     } catch (e) {
@@ -81,6 +90,43 @@ class MovieRepository extends ChangeNotifier {
     }
     _loaded = true;
     notifyListeners();
+  }
+
+  /// Сливает задвоенные серии сериала (одинаковые сезон+номер) в одну, сохраняя
+  /// оценку, раннюю дату и больший счётчик повторов. Возвращает число убранных.
+  int _dedupeEpisodes(LibrarySeries s) {
+    final byKey = <String, Episode>{};
+    final kept = <Episode>[];
+    final unnumbered = <Episode>[];
+    var removed = 0;
+    for (final e in s.episodes) {
+      if (e.season == null || e.number == null) {
+        unnumbered.add(e);
+        continue;
+      }
+      final key = '${e.season}-${e.number}';
+      final prev = byKey[key];
+      if (prev == null) {
+        byKey[key] = e;
+        kept.add(e);
+      } else {
+        prev.score ??= e.score;
+        if (prev.watchedAt == null) {
+          prev.watchedAt = e.watchedAt;
+        } else if (e.watchedAt != null &&
+            e.watchedAt!.isBefore(prev.watchedAt!)) {
+          prev.watchedAt = e.watchedAt;
+        }
+        if (e.rewatchCount > prev.rewatchCount) {
+          prev.rewatchCount = e.rewatchCount;
+        }
+        prev.runtimeMin ??= e.runtimeMin;
+        prev.epId ??= e.epId;
+        removed++;
+      }
+    }
+    if (removed > 0) s.episodes = [...kept, ...unnumbered];
+    return removed;
   }
 
   /// Дозаполняет обогащение (kinopoiskId/постер/рус. название) из свежего сида,
