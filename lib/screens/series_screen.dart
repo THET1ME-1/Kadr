@@ -765,6 +765,10 @@ class _SeriesScreenState extends State<SeriesScreen> {
                         color: scheme.onSurface)),
               ),
             ),
+            _menuTile(scheme, Icons.event_rounded, tr('edit_watch_date'), () {
+              Navigator.pop(sheetCtx);
+              _editEpisodeDate(watchedEp);
+            }),
             _menuTile(scheme, Icons.exposure_minus_1_rounded,
                 tr('remove_one_watch'), () {
               Navigator.pop(sheetCtx);
@@ -786,6 +790,27 @@ class _SeriesScreenState extends State<SeriesScreen> {
         ),
       ),
     );
+  }
+
+  /// Правка даты и времени просмотра серии из меню списка (дата → время).
+  Future<void> _editEpisodeDate(Episode we) async {
+    final now = DateTime.now();
+    final initial = we.watchedAt ?? now;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1900),
+      lastDate: now,
+    );
+    if (picked == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    final dt = time == null
+        ? DateTime(picked.year, picked.month, picked.day)
+        : DateTime(picked.year, picked.month, picked.day, time.hour, time.minute);
+    await _repo.setEpisodeWatchedAt(s.tvShowId, we, dt);
   }
 
   Widget _menuTile(
@@ -1257,6 +1282,11 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
                 fontSize: 14,
                 color: scheme.onSurfaceVariant)),
       ],
+      // Дата и время просмотра — редактируемые (как у фильмов).
+      if (we != null) ...[
+        const SizedBox(height: 14),
+        _watchedAtTile(scheme, we),
+      ],
       const SizedBox(height: 18),
       _scoreCard(scheme, we),
       if (we?.score != null) ...[
@@ -1339,6 +1369,79 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
         ),
       ),
     ];
+  }
+
+  /// Плитка «Дата и время просмотра» с правкой (дата+время) и очисткой.
+  Widget _watchedAtTile(ColorScheme scheme, Episode we) {
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _editWatchedAt(we),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(Icons.event_rounded, color: scheme.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(tr('date_time'),
+                        style: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant)),
+                    Text(
+                        we.watchedAt == null
+                            ? tr('when_unknown')
+                            : dateExactWithTime(we.watchedAt!),
+                        style: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: scheme.onSurface)),
+                  ],
+                ),
+              ),
+              if (we.watchedAt != null)
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  tooltip: tr('clear_date'),
+                  onPressed: () =>
+                      _repo.setEpisodeWatchedAt(widget.seriesId, we, null),
+                )
+              else
+                Icon(Icons.edit_rounded,
+                    size: 18, color: scheme.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Диалоги выбора даты, затем времени просмотра серии.
+  Future<void> _editWatchedAt(Episode we) async {
+    final now = DateTime.now();
+    final initial = we.watchedAt ?? now;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1900),
+      lastDate: now,
+    );
+    if (picked == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    final dt = time == null
+        ? DateTime(picked.year, picked.month, picked.day)
+        : DateTime(picked.year, picked.month, picked.day, time.hour, time.minute);
+    await _repo.setEpisodeWatchedAt(widget.seriesId, we, dt);
   }
 
   Widget _scoreCard(ColorScheme scheme, Episode? we) {

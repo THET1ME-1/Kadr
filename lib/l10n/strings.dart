@@ -352,6 +352,7 @@ const Map<String, Map<String, String>> _strings = {
   'clear_all_checks': {'ru': 'Снять просмотр', 'en': 'Unmark watched'},
   'reset_to_one': {'ru': 'Вернуть один просмотр', 'en': 'Keep a single watch'},
   'remove_one_watch': {'ru': 'Убрать просмотр', 'en': 'Remove one watch'},
+  'edit_watch_date': {'ru': 'Изменить дату и время', 'en': 'Change date & time'},
   'seq_mode': {'ru': 'Отмечать серии по порядку', 'en': 'Mark episodes in order'},
   'seq_mode_sub': {
     'ru': 'Отметил серию — все до неё тоже; снял — все после снимаются',

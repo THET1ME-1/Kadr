@@ -393,6 +393,16 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
+  /// Задаёт дату и время просмотра серии (для ручной правки, как у фильмов).
+  Future<void> setEpisodeWatchedAt(
+      String seriesId, Episode ep, DateTime? at) async {
+    final s = seriesById(seriesId);
+    if (s == null || !s.episodes.contains(ep)) return;
+    ep.watchedAt = at;
+    notifyListeners();
+    await _persist();
+  }
+
   /// Отмечает серию просмотренной (добавляет эпизод), если ещё не отмечена.
   Future<void> markEpisodeWatched(String seriesId, int season, int number,
       {int? runtimeMin, DateTime? at}) async {
