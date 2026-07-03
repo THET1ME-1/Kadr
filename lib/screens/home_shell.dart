@@ -21,6 +21,12 @@ import 'series_screen.dart';
 import 'settings_screen.dart';
 import 'statistics_screen.dart';
 
+/// Наблюдатель маршрутов — чтобы гасить клавиатуру при возврате на главную с
+/// любого экрана (иначе Flutter восстанавливает фокус на поле поиска и
+/// клавиатура «сама» всплывает).
+final RouteObserver<ModalRoute<void>> appRouteObserver =
+    RouteObserver<ModalRoute<void>>();
+
 /// Главная оболочка: четыре вкладки снизу (как в референсе — Буду смотреть /
 /// Просмотрено / Обзор / В кино) + выезжающее меню. Содержимое вкладок пока
 /// заглушки: экраны наполняются на этапе интеграции TMDB (см. PLAN.md).
@@ -31,7 +37,7 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with RouteAware {
   int _index = 0;
 
   /// Мгновенный запрос — для локальной фильтрации библиотеки.
@@ -93,6 +99,12 @@ class _HomeShellState extends State<HomeShell> {
     Store.instance.setString('libViewMode', m.name);
   }
 
+  /// Смена вкладки — сперва гасим клавиатуру (иначе она «висит» на новой вкладке).
+  void _goTab(int i) {
+    _dismissKeyboard();
+    setState(() => _index = i);
+  }
+
   /// Из пустого локального поиска — переключиться на «Обзор» с тем же запросом.
   void _searchEverywhere() {
     _searchDebounce?.cancel();
@@ -103,7 +115,22 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null) appRouteObserver.subscribe(this, route);
+  }
+
+  /// Вернулись на главную с любого экрана (карточка/настройки/сериал) — гасим
+  /// клавиатуру, чтобы поле поиска не «оживало» само.
+  @override
+  void didPopNext() => _dismissKeyboard();
+
+  void _dismissKeyboard() => FocusManager.instance.primaryFocus?.unfocus();
+
+  @override
   void dispose() {
+    appRouteObserver.unsubscribe(this);
     _searchDebounce?.cancel();
     _searchCtl.dispose();
     super.dispose();
@@ -224,7 +251,7 @@ class _HomeShellState extends State<HomeShell> {
         ],
       ),
       drawer: _KadrDrawer(
-        onSelectTab: (i) => setState(() => _index = i),
+        onSelectTab: _goTab,
       ),
       body: Column(
         children: [
@@ -253,14 +280,14 @@ class _HomeShellState extends State<HomeShell> {
       ),
       floatingActionButton: onLibrary
           ? FloatingActionButton.extended(
-              onPressed: () => setState(() => _index = 2),
+              onPressed: () => _goTab(2),
               icon: const Icon(Icons.add_rounded),
               label: Text(tr('add')),
             )
           : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: _goTab,
         destinations: [
           for (final t in tabs)
             NavigationDestination(

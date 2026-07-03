@@ -64,6 +64,7 @@ class KadrApp extends StatelessWidget {
                 GlobalWidgetsLocalizations.delegate,
                 GlobalCupertinoLocalizations.delegate,
               ],
+              navigatorObservers: [appRouteObserver],
               home: onboarded ? const HomeShell() : const OnboardingScreen(),
             );
           },
