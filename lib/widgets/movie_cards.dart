@@ -84,7 +84,7 @@ class DiscoverMovieCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final lib = MovieRepository.instance.movieByTmdb(movie.id);
+    final lib = MovieRepository.instance.findMovieForTmdb(movie);
     return SizedBox(
       width: width,
       child: Pressable(
@@ -268,7 +268,7 @@ class TmdbMovieRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final repo = MovieRepository.instance;
-    final lib = repo.movieByTmdb(movie.id);
+    final lib = repo.findMovieForTmdb(movie);
     final watched = lib?.status == LibraryStatus.watched;
     final inWatchlist = lib?.status == LibraryStatus.watchlist;
 
