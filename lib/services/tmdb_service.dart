@@ -440,8 +440,10 @@ class TmdbService {
           .map((r) => TmdbMovie.fromJson(r))
           .toList();
     } catch (e) {
+      // Пробрасываем сетевой сбой — лента (InfiniteGrid) покажет «нет
+      // соединения» с повтором, а не обманчивое «ничего не найдено».
       debugPrint('tmdb list $path error: $e');
-      return [];
+      rethrow;
     }
   }
 
@@ -484,8 +486,9 @@ class TmdbService {
           .map((r) => TmdbSeries.fromJson(r))
           .toList();
     } catch (e) {
+      // Пробрасываем сетевой сбой — лента покажет «нет соединения» с повтором.
       debugPrint('tmdb tv list $path error: $e');
-      return [];
+      rethrow;
     }
   }
 

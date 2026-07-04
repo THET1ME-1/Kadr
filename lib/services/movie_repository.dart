@@ -212,6 +212,35 @@ class MovieRepository extends ChangeNotifier {
     if (_persistDebounce?.isActive ?? false) await _persist();
   }
 
+  /// Восстанавливает фильмы/сериалы из JSON-снимка, снятого перед массовым
+  /// удалением (кнопка «Отмена» в снекбаре). Запись с тем же uuid/tvShowId
+  /// заменяется снимком; если её уже нет — добавляется заново.
+  Future<void> restoreFromSnapshot(
+    List<Map<String, dynamic>> movies,
+    List<Map<String, dynamic>> series,
+  ) async {
+    for (final j in movies) {
+      final m = LibraryMovie.fromJson(j);
+      final i = _movies.indexWhere((x) => x.uuid == m.uuid);
+      if (i >= 0) {
+        _movies[i] = m;
+      } else {
+        _movies.add(m);
+      }
+    }
+    for (final j in series) {
+      final s = LibrarySeries.fromJson(j);
+      final i = _series.indexWhere((x) => x.tvShowId == s.tvShowId);
+      if (i >= 0) {
+        _series[i] = s;
+      } else {
+        _series.add(s);
+      }
+    }
+    notifyListeners();
+    await _persist();
+  }
+
   /// Полностью очищает личную библиотеку (просмотры, списки, оценки, избранное,
   /// сериалы). Остаются только ленты Обзор/В кино (они из TMDB, не хранятся).
   /// Как чистая установка. Необратимо (пусть пользователь сделает бэкап заранее).

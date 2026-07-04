@@ -1222,11 +1222,19 @@ class _SeriesScreenState extends State<SeriesScreen> {
               return;
             }
             setSheet(() => loading = true);
-            final r = await TmdbService.searchTvShows(q);
-            setSheet(() {
-              results = r;
-              loading = false;
-            });
+            try {
+              final r = await TmdbService.searchTvShows(q);
+              setSheet(() {
+                results = r;
+                loading = false;
+              });
+            } catch (_) {
+              // Нет сети/сбой — не виснем на спиннере.
+              setSheet(() {
+                results = [];
+                loading = false;
+              });
+            }
           }
 
           if (!didInit) {

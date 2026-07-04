@@ -143,21 +143,42 @@ class _LibraryTabState extends State<LibraryTab> {
       ),
     );
     if (ok != true) return;
-    await _deleteSelected();
+    final (movieSnaps, seriesSnaps) = await _deleteSelected();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(trf('removed_n', {'n': n})),
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: scheme.surfaceContainerHighest,
-    ));
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        content: Text(trf('removed_n', {'n': n})),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: scheme.surfaceContainerHighest,
+        action: SnackBarAction(
+          label: tr('undo'),
+          onPressed: () => MovieRepository.instance
+              .restoreFromSnapshot(movieSnaps, seriesSnaps),
+        ),
+      ));
   }
 
-  Future<void> _deleteSelected() async {
+  /// Удаляет выделенное и возвращает JSON-снимок затронутых фильмов/сериалов,
+  /// снятый ДО удаления, — для восстановления кнопкой «Отмена».
+  Future<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)>
+      _deleteSelected() async {
     final repo = MovieRepository.instance;
     final entries = [
       for (final k in _selected)
         if (_entryByKey[k] != null) _entryByKey[k]!
     ];
+    // Снимок ДО мутаций (объекты записи — те же инстансы, что в репозитории).
+    final movieSnaps = <String, Map<String, dynamic>>{};
+    final seriesSnaps = <String, Map<String, dynamic>>{};
+    for (final e in entries) {
+      if (e.session != null) {
+        seriesSnaps.putIfAbsent(
+            e.session!.series.tvShowId, () => e.session!.series.toJson());
+      } else if (e.movie != null) {
+        movieSnaps.putIfAbsent(e.movie!.uuid, () => e.movie!.toJson());
+      }
+    }
     for (final e in entries) {
       if (e.session != null) {
         final s = e.session!;
@@ -175,6 +196,7 @@ class _LibraryTabState extends State<LibraryTab> {
         _selecting = false;
       });
     }
+    return (movieSnaps.values.toList(), seriesSnaps.values.toList());
   }
 
   /// Сортировка персистится отдельно на каждую вкладку.

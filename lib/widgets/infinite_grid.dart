@@ -44,6 +44,10 @@ class _InfiniteGridState<T> extends State<InfiniteGrid<T>>
   bool _loading = false;
   bool _done = false;
 
+  /// Последняя загрузка упала (нет сети/таймаут) — показываем состояние
+  /// «нет соединения» с повтором, а не «ничего не найдено» или вечный спиннер.
+  bool _error = false;
+
   /// Поколение ленты: растёт при каждом сбросе, чтобы отбрасывать ответы
   /// страниц, прилетевшие уже после смены запроса.
   int _gen = 0;
@@ -81,6 +85,7 @@ class _InfiniteGridState<T> extends State<InfiniteGrid<T>>
       _page = 0;
       _done = false;
       _loading = false;
+      _error = false;
     });
     _loadMore();
     if (_sc.hasClients) _sc.jumpTo(0);
@@ -93,6 +98,7 @@ class _InfiniteGridState<T> extends State<InfiniteGrid<T>>
     _page = 0;
     _done = false;
     _loading = false;
+    _error = false;
     await _loadMore();
   }
 
@@ -106,9 +112,24 @@ class _InfiniteGridState<T> extends State<InfiniteGrid<T>>
   Future<void> _loadMore() async {
     if (_loading || _done) return;
     final gen = _gen;
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = false;
+    });
     final next = _page + 1;
-    final list = await widget.loader(next);
+    final List<T> list;
+    try {
+      list = await widget.loader(next);
+    } catch (_) {
+      if (!mounted || gen != _gen) return;
+      // Сетевой сбой — снимаем спиннер и показываем повтор (иначе на первой
+      // странице спиннер висел бы вечно).
+      setState(() {
+        _loading = false;
+        _error = true;
+      });
+      return;
+    }
     if (!mounted || gen != _gen) return; // лента уже сброшена — ответ устарел
     setState(() {
       _page = next;
@@ -134,6 +155,24 @@ class _InfiniteGridState<T> extends State<InfiniteGrid<T>>
     super.build(context);
     if (_page == 0 && _loading) {
       return const Center(child: CircularProgressIndicator());
+    }
+    if (_items.isEmpty && _error) {
+      final scheme = Theme.of(context).colorScheme;
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_rounded,
+                size: 52, color: scheme.onSurfaceVariant),
+            const SizedBox(height: 10),
+            Text(tr('no_connection'),
+                style: const TextStyle(
+                    fontFamily: AppTheme.bodyFont, fontSize: 15)),
+            const SizedBox(height: 12),
+            FilledButton.tonal(onPressed: _loadMore, child: Text(tr('retry'))),
+          ],
+        ),
+      );
     }
     if (_items.isEmpty && _done) {
       final scheme = Theme.of(context).colorScheme;
@@ -192,15 +231,24 @@ class _InfiniteGridState<T> extends State<InfiniteGrid<T>>
                           width: 26,
                           height: 26,
                           child: CircularProgressIndicator(strokeWidth: 2.5))
-                      : (_done && _items.isNotEmpty
-                          // Пустая страница может быть и сетевым сбоем —
-                          // даём догрузить вручную.
+                      : _error
+                          // Догрузка следующей страницы упала (нет сети) —
+                          // повтор вместо застывшего спиннера.
                           ? TextButton.icon(
-                              onPressed: _retryMore,
+                              onPressed: _loadMore,
                               icon: const Icon(Icons.refresh_rounded, size: 18),
-                              label: Text(tr('load_more')),
+                              label: Text(tr('retry')),
                             )
-                          : const SizedBox.shrink()),
+                          : (_done && _items.isNotEmpty
+                              // Пустая страница может быть и сетевым сбоем —
+                              // даём догрузить вручную.
+                              ? TextButton.icon(
+                                  onPressed: _retryMore,
+                                  icon: const Icon(Icons.refresh_rounded,
+                                      size: 18),
+                                  label: Text(tr('load_more')),
+                                )
+                              : const SizedBox.shrink()),
                 ),
               ),
             ),

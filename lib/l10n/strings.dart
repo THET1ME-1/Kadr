@@ -27,6 +27,7 @@ const Map<String, Map<String, String>> _strings = {
   // ------------------------------ Общее ------------------------------
   'app_name': {'ru': 'Kadr', 'en': 'Kadr'},
   'cancel': {'ru': 'Отмена', 'en': 'Cancel'},
+  'undo': {'ru': 'Отменить', 'en': 'Undo'},
   'save': {'ru': 'Сохранить', 'en': 'Save'},
   'delete': {'ru': 'Удалить', 'en': 'Delete'},
   'reset': {'ru': 'Сбросить', 'en': 'Reset'},
@@ -342,6 +343,10 @@ const Map<String, Map<String, String>> _strings = {
   'sort_top_rated': {'ru': 'Высокий рейтинг', 'en': 'Top rated'},
   'sort_new_release': {'ru': 'Новинки', 'en': 'New releases'},
   'nothing_found': {'ru': 'Ничего не найдено', 'en': 'Nothing found'},
+  'no_connection': {
+    'ru': 'Нет подключения к интернету',
+    'en': 'No internet connection'
+  },
   'load_more': {'ru': 'Загрузить ещё', 'en': 'Load more'},
   'rate_after_watch': {
     'ru': 'Посмотрите фильм, чтобы его оценить',
