@@ -19,8 +19,23 @@ Future<void> main() async {
   await SourceController.instance.load();
   await AppPrefs.instance.load();
   await MovieRepository.instance.load();
+  // Сбрасываем отложенную запись библиотеки на диск при уходе в фон, чтобы не
+  // потерять последние изменения, если систему решит выгрузить процесс.
+  WidgetsBinding.instance.addObserver(_LifecycleFlusher());
   final onboarded = await Store.instance.getBool('onboardingDone');
   runApp(KadrApp(onboarded: onboarded));
+}
+
+/// Наблюдатель жизненного цикла: при сворачивании приложения принудительно
+/// сохраняет библиотеку (см. [MovieRepository.flush]).
+class _LifecycleFlusher extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      MovieRepository.instance.flush();
+    }
+  }
 }
 
 /// Корень приложения. Слушает контроллеры темы и языка — при смене цвета,

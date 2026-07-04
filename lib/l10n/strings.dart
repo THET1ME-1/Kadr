@@ -566,4 +566,11 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Preview how the notification looks'
   },
   'close': {'ru': 'Закрыть', 'en': 'Close'},
+  'kp_limit_hit': {
+    'ru': 'Лимит kinopoisk.dev на сегодня исчерпан (200 запросов/сутки). '
+        'Постеры и поиск дозагрузятся позже.',
+    'en': 'kinopoisk.dev daily limit reached (200 requests/day). '
+        'Posters and search will resume later.',
+  },
+  'kp_limit_switch': {'ru': 'На TMDB', 'en': 'Use TMDB'},
 };

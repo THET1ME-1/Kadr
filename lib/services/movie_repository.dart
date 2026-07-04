@@ -193,12 +193,23 @@ class MovieRepository extends ChangeNotifier {
       };
 
   Future<void> _persist() async {
+    _persistDebounce?.cancel(); // объединяем с отложенной записью
     try {
       final f = await _file();
-      await f.writeAsString(jsonEncode(toJson()));
+      // Пишем во временный файл и атомарно подменяем: если приложение убьют
+      // посреди записи, library.json не побьётся — останется прошлая версия.
+      final tmp = File('${f.path}.tmp');
+      await tmp.writeAsString(jsonEncode(toJson()), flush: true);
+      await tmp.rename(f.path);
     } catch (e) {
       debugPrint('MovieRepository.persist error: $e');
     }
+  }
+
+  /// Немедленно сбрасывает на диск отложенную (debounce) запись — вызывать при
+  /// уходе приложения в фон, чтобы не потерять последние изменения.
+  Future<void> flush() async {
+    if (_persistDebounce?.isActive ?? false) await _persist();
   }
 
   /// Полностью очищает личную библиотеку (просмотры, списки, оценки, избранное,

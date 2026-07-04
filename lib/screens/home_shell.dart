@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../l10n/strings.dart';
 import '../services/app_prefs.dart';
 import '../services/movie_repository.dart';
+import '../services/movie_source.dart';
 import '../services/notification_service.dart';
 import '../services/store.dart';
 import '../services/sync/webdav_service.dart';
@@ -280,6 +281,7 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
       body: Column(
         children: [
           const _NewEpisodesBanner(),
+          const _LimitBanner(),
           _searchField(context),
           Expanded(
             child: IndexedStack(
@@ -431,6 +433,67 @@ class _NewEpisodesBanner extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Баннер об исчерпании суточного лимита kinopoisk.dev (200 запросов). Иначе
+/// постеры/поиск просто перестают грузиться молча. Показывается только когда
+/// выбран источник kinopoisk и лимит достигнут; кнопка — переключить на TMDB
+/// (без лимита), после чего баннер сразу исчезает.
+class _LimitBanner extends StatelessWidget {
+  const _LimitBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ListenableBuilder(
+      listenable: Listenable.merge(
+          [MovieRepository.instance, SourceController.instance]),
+      builder: (context, _) {
+        final show = MovieRepository.instance.limitHit &&
+            SourceController.instance.source == MovieSource.kinopoisk;
+        return AnimatedSize(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: !show
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: Material(
+                    color: scheme.errorContainer,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+                      child: Row(
+                        children: [
+                          Icon(Icons.hourglass_disabled_rounded,
+                              color: scheme.onErrorContainer, size: 22),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              tr('kp_limit_hit'),
+                              style: TextStyle(
+                                  fontFamily: AppTheme.bodyFont,
+                                  fontSize: 12.5,
+                                  height: 1.25,
+                                  color: scheme.onErrorContainer),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton.tonal(
+                            onPressed: () => SourceController.instance
+                                .setSource(MovieSource.tmdb),
+                            child: Text(tr('kp_limit_switch')),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+        );
+      },
     );
   }
 }
