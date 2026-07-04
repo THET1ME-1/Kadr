@@ -8,11 +8,25 @@ import '../theme/app_theme.dart';
 ///
 /// Анимация проигрывается один раз при первом построении. Опциональная [delay]
 /// даёт каскадный эффект, когда несколько [Reveal] идут подряд (список/сетка).
+///
+/// В прокручиваемых списках ([ListView.builder]/[SliverChildBuilderDelegate])
+/// элементы пересоздаются каждый раз, когда возвращаются в зону видимости, из-за
+/// чего анимация появления перезапускалась на каждый скролл и роняла кадры.
+/// Чтобы этого не было, передайте [group] (набор уже показанных id, живущий в
+/// state родительского экрана) и стабильный [id] элемента — тогда анимация
+/// проиграется ТОЛЬКО при первом появлении, а при возврате на экран элемент
+/// покажется сразу, без анимации.
 class Reveal extends StatefulWidget {
   final Widget child;
   final Duration delay;
   final Duration duration;
   final Offset beginOffset;
+
+  /// Набор id уже показанных элементов (владелец — родительский экран).
+  final Set<Object>? group;
+
+  /// Стабильный идентификатор элемента в пределах [group].
+  final Object? id;
 
   const Reveal({
     super.key,
@@ -20,6 +34,8 @@ class Reveal extends StatefulWidget {
     this.delay = Duration.zero,
     this.duration = const Duration(milliseconds: 460),
     this.beginOffset = const Offset(0, 0.10),
+    this.group,
+    this.id,
   });
 
   @override
@@ -41,6 +57,16 @@ class _RevealState extends State<Reveal> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    // Элемент этой группы уже показывали (он вернулся в зону видимости при
+    // прокрутке — списки пересоздают виджеты) → не анимируем заново: именно
+    // повторная анимация на скролле давала дропы кадров. Set.add вернёт false,
+    // если id уже был, — так одним вызовом и проверяем, и регистрируем.
+    if (widget.group != null &&
+        widget.id != null &&
+        !widget.group!.add(widget.id!)) {
+      _c.value = 1;
+      return;
+    }
     if (widget.delay == Duration.zero) {
       _c.forward();
     } else {

@@ -15,6 +15,7 @@ import '../widgets/movie_cards.dart' show statusBadges;
 import '../widgets/poster.dart';
 import '../widgets/poster_viewer.dart';
 import '../widgets/rating_slider.dart';
+import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
 import 'browse_screens.dart';
 import 'when_watched_sheet.dart';
@@ -49,6 +50,11 @@ class _MovieScreenState extends State<MovieScreen> {
   /// Части коллекции/франшизы (если фильм входит в серию).
   List<TmdbMovie>? _collection;
   String? _collectionName;
+
+  /// id элементов, чья анимация появления уже проигралась — чтобы при
+  /// горизонтальной прокрутке актёров/франшизы карточки не анимировались заново
+  /// (это давало дропы кадров). См. [Reveal].
+  final Set<Object> _revealed = {};
 
   @override
   void initState() {
@@ -381,7 +387,13 @@ class _MovieScreenState extends State<MovieScreen> {
           scrollDirection: Axis.horizontal,
           itemCount: parts.length,
           separatorBuilder: (_, _) => const SizedBox(width: 12),
-          itemBuilder: (c, i) => _partCard(scheme, parts[i], i + 1, m.tmdbId),
+          itemBuilder: (c, i) => Reveal(
+            group: _revealed,
+            id: 'part:$i',
+            delay: Duration(milliseconds: i * 45),
+            beginOffset: const Offset(0.15, 0),
+            child: _partCard(scheme, parts[i], i + 1, m.tmdbId),
+          ),
         ),
       ),
     ];
@@ -464,7 +476,9 @@ class _MovieScreenState extends State<MovieScreen> {
   List<Widget> _detailsWidgets(ColorScheme scheme, LibraryMovie m) {
     final d = _details;
     final links = _links(m);
-    if (d == null) return links.isEmpty ? [] : [const SizedBox(height: 16), ...links];
+    if (d == null) {
+      return links.isEmpty ? [] : [const SizedBox(height: 16), ...links];
+    }
     final facts = <Widget>[
       if (d.director != null && d.director!.isNotEmpty)
         _personFact(scheme, Icons.movie_creation_rounded, tr('director'),
@@ -539,13 +553,19 @@ class _MovieScreenState extends State<MovieScreen> {
             scrollDirection: Axis.horizontal,
             itemCount: d.cast.length,
             separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (c, i) => GestureDetector(
-              onTap: d.cast[i].id > 0
-                  ? () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => PersonScreen(
-                          personId: d.cast[i].id, personName: d.cast[i].name)))
-                  : null,
-              child: _castCard(scheme, d.cast[i]),
+            itemBuilder: (c, i) => Reveal(
+              group: _revealed,
+              id: 'cast:$i',
+              delay: Duration(milliseconds: i * 45),
+              beginOffset: const Offset(0.15, 0),
+              child: GestureDetector(
+                onTap: d.cast[i].id > 0
+                    ? () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => PersonScreen(
+                            personId: d.cast[i].id, personName: d.cast[i].name)))
+                    : null,
+                child: _castCard(scheme, d.cast[i]),
+              ),
             ),
           ),
         ),

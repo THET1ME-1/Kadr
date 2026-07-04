@@ -13,6 +13,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/movie_cards.dart' show droppedBadge;
 import '../widgets/poster.dart';
 import '../widgets/rating_slider.dart';
+import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
 import 'movie_sheet.dart';
 import 'series_screen.dart';
@@ -65,6 +66,11 @@ class _LibraryTabState extends State<LibraryTab> {
   /// Ключ → элемент текущего рендера: нужен, чтобы при удалении знать, какой
   /// именно просмотр/сессию убирать (перезаполняется на каждый build).
   final Map<String, _LibEntry> _entryByKey = {};
+
+  /// id элементов, чья анимация появления уже проигралась. Живёт всё время
+  /// жизни вкладки, чтобы при возврате карточки в зону видимости на скролле она
+  /// не анимировалась заново (именно это давало лаги прокрутки). См. [Reveal].
+  final Set<Object> _revealed = {};
 
   @override
   void initState() {
@@ -501,7 +507,11 @@ class _LibraryTabState extends State<LibraryTab> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
-                (context, i) => _bannerFor(entries[i]),
+                (context, i) => Reveal(
+                  group: _revealed,
+                  id: _keyOf(entries[i]),
+                  child: _bannerFor(entries[i]),
+                ),
                 childCount: entries.length,
               ),
             ),
@@ -519,7 +529,12 @@ class _LibraryTabState extends State<LibraryTab> {
                 mainAxisExtent: g.tileH,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, i) => _posterFor(entries[i], g.w),
+                (context, i) => Reveal(
+                  group: _revealed,
+                  id: _keyOf(entries[i]),
+                  delay: Duration(milliseconds: (i % g.cols) * 40),
+                  child: _posterFor(entries[i], g.w),
+                ),
                 childCount: entries.length,
               ),
             ),
@@ -537,6 +552,8 @@ class _LibraryTabState extends State<LibraryTab> {
         selecting: _selecting,
         selected: sel,
         onSelect: () => _onSelect(key),
+        revealGroup: _revealed,
+        revealId: key,
       );
     }
     return _MovieRow(
@@ -546,6 +563,8 @@ class _LibraryTabState extends State<LibraryTab> {
       selecting: _selecting,
       selected: sel,
       onSelect: () => _onSelect(key),
+      revealGroup: _revealed,
+      revealId: key,
     );
   }
 
@@ -1355,11 +1374,15 @@ class _SeriesSessionCard extends StatelessWidget {
   final bool selecting;
   final bool selected;
   final VoidCallback? onSelect;
+  final Set<Object>? revealGroup;
+  final Object? revealId;
   const _SeriesSessionCard({
     required this.session,
     this.selecting = false,
     this.selected = false,
     this.onSelect,
+    this.revealGroup,
+    this.revealId,
   });
 
   LibrarySeries get s => session.series;
@@ -1368,7 +1391,10 @@ class _SeriesSessionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final start = session.start;
-    return Padding(
+    return Reveal(
+      group: revealGroup,
+      id: revealId,
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
         child: Material(
           color:
@@ -1523,7 +1549,8 @@ class _SeriesSessionCard extends StatelessWidget {
             ],
           ),
         ),
-      );
+      ),
+    );
   }
 }
 
@@ -1748,6 +1775,8 @@ class _MovieRow extends StatelessWidget {
   final bool selecting;
   final bool selected;
   final VoidCallback? onSelect;
+  final Set<Object>? revealGroup;
+  final Object? revealId;
 
   const _MovieRow({
     required this.movie,
@@ -1756,6 +1785,8 @@ class _MovieRow extends StatelessWidget {
     this.selecting = false,
     this.selected = false,
     this.onSelect,
+    this.revealGroup,
+    this.revealId,
   });
 
   @override
@@ -1769,7 +1800,10 @@ class _MovieRow extends StatelessWidget {
     final date = viewing?.date;
     final score = viewing != null ? movie.scoreOf(viewing!) : null;
 
-    return Padding(
+    return Reveal(
+      group: revealGroup,
+      id: revealId,
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
         child: Material(
           color: selected ? scheme.primaryContainer : scheme.surfaceContainerHigh,
@@ -1863,7 +1897,8 @@ class _MovieRow extends StatelessWidget {
             ),
           ),
         ),
-      );
+      ),
+    );
   }
 
   /// Бейдж повтора: «↻ N» — номер по счёту (2-й, 3-й… просмотр).
