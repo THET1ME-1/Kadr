@@ -15,7 +15,6 @@ import '../widgets/movie_cards.dart' show statusBadges;
 import '../widgets/poster.dart';
 import '../widgets/poster_viewer.dart';
 import '../widgets/rating_slider.dart';
-import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
 import 'browse_screens.dart';
 import 'when_watched_sheet.dart';
@@ -157,6 +156,10 @@ class _MovieScreenState extends State<MovieScreen> {
               imageUrl: _details!.backdropUrl!,
               fit: BoxFit.cover,
               alignment: Alignment.topCenter,
+              // Декод под ширину экрана, а не под исходные ~1280px.
+              memCacheWidth:
+                  (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context))
+                      .round(),
               placeholder: (c, _) =>
                   Container(color: scheme.surfaceContainerHighest),
               errorWidget: (c, u, e) => _gradientBg(scheme),
@@ -378,11 +381,7 @@ class _MovieScreenState extends State<MovieScreen> {
           scrollDirection: Axis.horizontal,
           itemCount: parts.length,
           separatorBuilder: (_, _) => const SizedBox(width: 12),
-          itemBuilder: (c, i) => Reveal(
-            delay: Duration(milliseconds: i * 45),
-            beginOffset: const Offset(0.15, 0),
-            child: _partCard(scheme, parts[i], i + 1, m.tmdbId),
-          ),
+          itemBuilder: (c, i) => _partCard(scheme, parts[i], i + 1, m.tmdbId),
         ),
       ),
     ];
@@ -540,17 +539,13 @@ class _MovieScreenState extends State<MovieScreen> {
             scrollDirection: Axis.horizontal,
             itemCount: d.cast.length,
             separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (c, i) => Reveal(
-              delay: Duration(milliseconds: i * 45),
-              beginOffset: const Offset(0.15, 0),
-              child: GestureDetector(
-                onTap: d.cast[i].id > 0
-                    ? () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => PersonScreen(
-                            personId: d.cast[i].id, personName: d.cast[i].name)))
-                    : null,
-                child: _castCard(scheme, d.cast[i]),
-              ),
+            itemBuilder: (c, i) => GestureDetector(
+              onTap: d.cast[i].id > 0
+                  ? () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => PersonScreen(
+                          personId: d.cast[i].id, personName: d.cast[i].name)))
+                  : null,
+              child: _castCard(scheme, d.cast[i]),
             ),
           ),
         ),
@@ -647,6 +642,8 @@ class _MovieScreenState extends State<MovieScreen> {
                 ? CachedNetworkImage(
                     imageUrl: c.photoUrl!,
                     fit: BoxFit.cover,
+                    memCacheWidth:
+                        (72 * MediaQuery.devicePixelRatioOf(context)).round(),
                     errorWidget: (ctx, u, e) => Icon(Icons.person_rounded,
                         color: scheme.onSurfaceVariant, size: 34),
                   )

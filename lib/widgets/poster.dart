@@ -24,6 +24,10 @@ class Poster extends StatelessWidget {
     final height = width * 3 / 2;
     final border = BorderRadius.circular(radius);
     if (url != null && url!.isNotEmpty) {
+      // Декодируем постер под фактический размер на экране (в пикселях), а не в
+      // полном разрешении — иначе прокрутка списка/сетки лагает на декодинге.
+      final dpr = MediaQuery.devicePixelRatioOf(context);
+      final decodeW = (width * dpr).round();
       return ClipRRect(
         borderRadius: border,
         child: CachedNetworkImage(
@@ -31,6 +35,8 @@ class Poster extends StatelessWidget {
           width: width,
           height: height,
           fit: BoxFit.cover,
+          memCacheWidth: decodeW,
+          fadeInDuration: const Duration(milliseconds: 150),
           placeholder: (c, _) => _placeholder(c),
           errorWidget: (c, url, error) => _placeholder(c),
         ),

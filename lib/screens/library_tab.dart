@@ -13,7 +13,6 @@ import '../widgets/empty_state.dart';
 import '../widgets/movie_cards.dart' show droppedBadge;
 import '../widgets/poster.dart';
 import '../widgets/rating_slider.dart';
-import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
 import 'movie_sheet.dart';
 import 'series_screen.dart';
@@ -502,7 +501,7 @@ class _LibraryTabState extends State<LibraryTab> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
-                (context, i) => Reveal(child: _bannerFor(entries[i])),
+                (context, i) => _bannerFor(entries[i]),
                 childCount: entries.length,
               ),
             ),
@@ -520,10 +519,7 @@ class _LibraryTabState extends State<LibraryTab> {
                 mainAxisExtent: g.tileH,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, i) => Reveal(
-                  delay: Duration(milliseconds: (i % g.cols) * 40),
-                  child: _posterFor(entries[i], g.w),
-                ),
+                (context, i) => _posterFor(entries[i], g.w),
                 childCount: entries.length,
               ),
             ),
@@ -1184,7 +1180,7 @@ class _BannerCell extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                _cover(scheme),
+                _cover(context, scheme),
                 DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -1261,12 +1257,15 @@ class _BannerCell extends StatelessWidget {
     );
   }
 
-  Widget _cover(ColorScheme scheme) {
+  Widget _cover(BuildContext context, ColorScheme scheme) {
     if (posterUrl != null && posterUrl!.isNotEmpty) {
       return CachedNetworkImage(
         imageUrl: posterUrl!,
         fit: BoxFit.cover,
         alignment: Alignment.topCenter,
+        memCacheWidth: (MediaQuery.sizeOf(context).width *
+                MediaQuery.devicePixelRatioOf(context))
+            .round(),
         placeholder: (c, _) => Container(color: scheme.surfaceContainerHighest),
         errorWidget: (c, u, e) =>
             Container(color: scheme.surfaceContainerHighest),
@@ -1369,8 +1368,7 @@ class _SeriesSessionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final start = session.start;
-    return Reveal(
-      child: Padding(
+    return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
         child: Material(
           color:
@@ -1525,8 +1523,7 @@ class _SeriesSessionCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -1772,8 +1769,7 @@ class _MovieRow extends StatelessWidget {
     final date = viewing?.date;
     final score = viewing != null ? movie.scoreOf(viewing!) : null;
 
-    return Reveal(
-      child: Padding(
+    return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
         child: Material(
           color: selected ? scheme.primaryContainer : scheme.surfaceContainerHigh,
@@ -1867,8 +1863,7 @@ class _MovieRow extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   /// Бейдж повтора: «↻ N» — номер по счёту (2-й, 3-й… просмотр).

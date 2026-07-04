@@ -709,6 +709,10 @@ class _SeriesScreenState extends State<SeriesScreen> {
                                 ? CachedNetworkImage(
                                     imageUrl: ep.stillUrl!,
                                     fit: BoxFit.cover,
+                                    memCacheWidth: (120 *
+                                            MediaQuery.devicePixelRatioOf(
+                                                context))
+                                        .round(),
                                     placeholder: (c, _) => Container(
                                         color: scheme.surfaceContainerHighest),
                                     errorWidget: (c, u, e) => Container(
