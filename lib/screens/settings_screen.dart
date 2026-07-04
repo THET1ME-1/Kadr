@@ -3,6 +3,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../l10n/locale_controller.dart';
 import '../l10n/strings.dart';
+import '../services/app_prefs.dart';
 import '../services/backup_service.dart';
 import '../services/update_service.dart';
 import '../widgets/update_sheet.dart';
@@ -11,6 +12,7 @@ import '../services/movie_source.dart';
 import '../services/notification_service.dart';
 import '../services/store.dart';
 import '../theme/app_theme.dart';
+import '../utils/format.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/color_picker_sheet.dart';
 import 'about_screen.dart';
@@ -30,6 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _theme = ThemeController.instance;
   final _locale = LocaleController.instance;
   final _source = SourceController.instance;
+  final _prefs = AppPrefs.instance;
   bool _notify = true;
   bool _sequential = true;
   bool _restrictUnaired = true;
@@ -63,7 +66,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_theme, _locale, _source]),
+      listenable: Listenable.merge([_theme, _locale, _source, _prefs]),
       builder: (context, _) {
         return Scaffold(
           appBar: AppBar(title: Text(tr('settings_title'))),
@@ -126,6 +129,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: tr('language'),
                   subtitle: _currentLanguageName(),
                   onTap: _pickLanguage,
+                ),
+              ]),
+              _section(tr('general')),
+              _card([
+                _tile(
+                  icon: Icons.home_rounded,
+                  title: tr('start_screen'),
+                  subtitle: _startScreenLabel(_prefs.startScreen),
+                  onTap: _pickStartScreen,
+                ),
+                _divider(),
+                _tile(
+                  icon: Icons.event_note_rounded,
+                  title: tr('date_format'),
+                  subtitle: _dateFormatExample(_prefs.numericDates),
+                  onTap: _pickDateFormat,
                 ),
               ]),
               _section(tr('movies_section')),
@@ -437,6 +456,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _pickStartScreen() {
+    _bottomSheet(
+      title: tr('start_screen'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final s in StartScreen.values)
+            ListTile(
+              leading: Icon(_startScreenIcon(s)),
+              title: Text(_startScreenLabel(s),
+                  style: const TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontWeight: FontWeight.w600)),
+              trailing: _prefs.startScreen == s
+                  ? Icon(Icons.check_circle_rounded,
+                      color: Theme.of(context).colorScheme.primary)
+                  : null,
+              onTap: () {
+                _prefs.setStartScreen(s);
+                Navigator.pop(context);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _pickDateFormat() {
+    final now = DateTime(2026, 6, 24);
+    _bottomSheet(
+      title: tr('date_format'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final numeric in [false, true])
+            ListTile(
+              leading: Icon(
+                  numeric ? Icons.pin_rounded : Icons.calendar_month_rounded),
+              title: Text(
+                  numeric ? tr('date_format_numeric') : tr('date_format_long'),
+                  style: const TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontWeight: FontWeight.w600)),
+              subtitle: Text(numeric ? numericDate(now) : longDate(now)),
+              trailing: _prefs.numericDates == numeric
+                  ? Icon(Icons.check_circle_rounded,
+                      color: Theme.of(context).colorScheme.primary)
+                  : null,
+              onTap: () {
+                _prefs.setNumericDates(numeric);
+                Navigator.pop(context);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
   /// Подтверждение полной очистки личных данных (необратимо).
   void _confirmClearAll() {
     final scheme = Theme.of(context).colorScheme;
@@ -580,5 +657,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (l.code == _locale.code) return l.nativeName;
     }
     return _locale.code;
+  }
+
+  String _startScreenLabel(StartScreen s) => switch (s) {
+        StartScreen.watchlist => tr('nav_watchlist'),
+        StartScreen.watched => tr('nav_watched'),
+        StartScreen.nowWatching => tr('now_watching'),
+        StartScreen.discover => tr('nav_discover'),
+        StartScreen.cinema => tr('nav_cinema'),
+      };
+
+  IconData _startScreenIcon(StartScreen s) => switch (s) {
+        StartScreen.watchlist => Icons.bookmark_rounded,
+        StartScreen.watched => Icons.check_circle_rounded,
+        StartScreen.nowWatching => Icons.live_tv_rounded,
+        StartScreen.discover => Icons.explore_rounded,
+        StartScreen.cinema => Icons.local_movies_rounded,
+      };
+
+  String _dateFormatExample(bool numeric) {
+    final now = DateTime(2026, 6, 24);
+    return numeric ? numericDate(now) : longDate(now);
   }
 }

@@ -761,11 +761,13 @@ class _MovieScreenState extends State<MovieScreen> {
 
   // ---- список просмотров: тап по строке = правка (дата+оценка+удаление) ----
   List<Widget> _viewingRows(ColorScheme scheme, LibraryMovie m) {
-    final sorted = m.sortedViewings; // по возрастанию, неизвестные в конце
+    // Порядок добавления (первый просмотр — внизу, последний — сверху),
+    // НЕЗАВИСИМО от даты: «Неизвестно» не прыгает при правке дат.
+    final list = m.viewings;
     final rows = <Widget>[];
-    for (var i = sorted.length - 1; i >= 0; i--) {
-      final v = sorted[i];
-      final isRewatch = i > 0; // самый ранний просмотр — не повтор
+    for (var i = list.length - 1; i >= 0; i--) {
+      final v = list[i];
+      final isRewatch = i > 0; // первый добавленный просмотр — не повтор
       // Эффективная оценка просмотра (с учётом общей) — согласуется с верхней.
       final sc = m.scoreOf(v);
       rows.add(Material(
@@ -853,7 +855,8 @@ class _MovieScreenState extends State<MovieScreen> {
 
   // ------------------ блок сравнения оценок ------------------
   Widget _comparison(ColorScheme scheme, LibraryMovie m) {
-    final rated = m.sortedViewings.where((v) => v.score != null).toList();
+    // Эволюция оценки — в порядке добавления просмотров (как и список ниже).
+    final rated = m.viewings.where((v) => v.score != null).toList();
     final delta = rated.last.score! - rated.first.score!;
     final verdict = delta.abs() < 0.05
         ? tr('cmp_same')

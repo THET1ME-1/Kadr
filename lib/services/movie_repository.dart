@@ -329,10 +329,13 @@ class MovieRepository extends ChangeNotifier {
       map.putIfAbsent(key, () => []).add(e);
     }
 
+    // Просмотры/сессии без даты («Неизвестно») в ленту НЕ попадают — они живут
+    // только в карточке фильма/сериала (по просьбе: не засорять «Просмотрено»).
     if (movies) {
       for (final m in _movies) {
         if (m.status != LibraryStatus.watched) continue;
         for (final v in m.viewings) {
+          if (v.date == null) continue;
           add(v.date, WatchedEntry.movie(m, v));
         }
       }
@@ -340,6 +343,7 @@ class MovieRepository extends ChangeNotifier {
     if (series) {
       for (final s in _series) {
         for (final sess in s.sessions()) {
+          if (sess.start == null) continue;
           add(sess.start, WatchedEntry.session(sess));
         }
       }
@@ -468,6 +472,24 @@ class MovieRepository extends ChangeNotifier {
     final s = seriesById(seriesId);
     if (s == null || !s.episodes.contains(ep)) return;
     ep.watchedAt = at;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Отмечает серию просмотренной с НЕИЗВЕСТНОЙ датой (или снимает дату у уже
+  /// отмеченной). Такая серия не попадает в ленту «Просмотрено», но остаётся
+  /// отмеченной галочкой и в карточке сериала.
+  Future<void> markEpisodeUnknown(String seriesId, int season, int number,
+      {int? runtimeMin}) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    final ep = s.watchedEpisode(season, number);
+    if (ep == null) {
+      s.episodes.add(Episode(
+          season: season, number: number, watchedAt: null, runtimeMin: runtimeMin));
+    } else {
+      ep.watchedAt = null;
+    }
     notifyListeners();
     await _persist();
   }

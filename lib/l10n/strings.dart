@@ -180,6 +180,11 @@ const Map<String, Map<String, String>> _strings = {
   // ---------------------------- Настройки ----------------------------
   'settings_title': {'ru': 'Настройки', 'en': 'Settings'},
   'appearance': {'ru': 'Внешний вид', 'en': 'Appearance'},
+  'general': {'ru': 'Общее', 'en': 'General'},
+  'start_screen': {'ru': 'Экран при запуске', 'en': 'Start screen'},
+  'date_format': {'ru': 'Формат даты', 'en': 'Date format'},
+  'date_format_long': {'ru': 'Как «24 июня 2026»', 'en': 'Like “June 24, 2026”'},
+  'date_format_numeric': {'ru': 'Как «24.06.2026»', 'en': 'Like “24.06.2026”'},
   'language': {'ru': 'Язык', 'en': 'Language'},
   'theme_mode': {'ru': 'Тема', 'en': 'Theme'},
   'theme_light': {'ru': 'Светлая', 'en': 'Light'},
@@ -433,6 +438,11 @@ const Map<String, Map<String, String>> _strings = {
   'reset_to_one': {'ru': 'Вернуть один просмотр', 'en': 'Keep a single watch'},
   'remove_one_watch': {'ru': 'Убрать просмотр', 'en': 'Remove one watch'},
   'edit_watch_date': {'ru': 'Изменить дату и время', 'en': 'Change date & time'},
+  'set_unknown_date': {'ru': 'Дата: неизвестно', 'en': 'Date: unknown'},
+  'marked_unknown': {
+    'ru': 'Отмечено без даты («Неизвестно»)',
+    'en': 'Marked without a date (“Unknown”)'
+  },
   'enter_score': {'ru': 'Введите оценку', 'en': 'Enter your score'},
   'collection': {'ru': 'Части франшизы', 'en': 'Franchise'},
   'search_local_empty': {

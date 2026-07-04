@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'l10n/locale_controller.dart';
+import 'services/app_prefs.dart';
 import 'services/movie_repository.dart';
 import 'services/movie_source.dart';
 import 'services/store.dart';
@@ -16,6 +17,7 @@ Future<void> main() async {
   await ThemeController.instance.load();
   await LocaleController.instance.load();
   await SourceController.instance.load();
+  await AppPrefs.instance.load();
   await MovieRepository.instance.load();
   final onboarded = await Store.instance.getBool('onboardingDone');
   runApp(KadrApp(onboarded: onboarded));
@@ -32,7 +34,7 @@ class KadrApp extends StatelessWidget {
     final theme = ThemeController.instance;
     final locale = LocaleController.instance;
     return ListenableBuilder(
-      listenable: Listenable.merge([theme, locale]),
+      listenable: Listenable.merge([theme, locale, AppPrefs.instance]),
       builder: (context, _) {
         return DynamicColorBuilder(
           builder: (lightDynamic, darkDynamic) {

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../l10n/strings.dart';
+import '../services/app_prefs.dart';
 import '../services/movie_repository.dart';
 import '../services/notification_service.dart';
 import '../services/store.dart';
@@ -53,6 +54,7 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
   @override
   void initState() {
     super.initState();
+    _applyStartScreen();
     _loadViewMode();
     // Фоновая дозагрузка русских названий и постеров + проверка новых серий.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -80,6 +82,28 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
       if (!mounted || info == null) return;
       UpdateSheet.show(context, info, current);
     } catch (_) {/* молча */}
+  }
+
+  /// Открывает выбранный в настройках стартовый экран. Вкладки — сразу через
+  /// _index; «Сейчас смотрю» — отдельный экран, открывается поверх «Просмотрено».
+  void _applyStartScreen() {
+    switch (AppPrefs.instance.startScreen) {
+      case StartScreen.watchlist:
+        _index = 0;
+      case StartScreen.watched:
+        _index = 1;
+      case StartScreen.discover:
+        _index = 2;
+      case StartScreen.cinema:
+        _index = 3;
+      case StartScreen.nowWatching:
+        _index = 1;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const NowWatchingScreen()));
+        });
+    }
   }
 
   Future<void> _loadViewMode() async {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
+import '../services/app_prefs.dart';
 import '../services/movie_repository.dart';
 import '../services/store.dart';
 import '../theme/app_theme.dart';
@@ -231,10 +232,20 @@ class _LibraryTabState extends State<LibraryTab> {
           final body = widget.mode == LibraryMode.watchlist
               ? _watchlist(repo)
               : _watched(repo);
-          if (!_selecting) return body;
+          // Панель выделения живёт в стабильном слоте (высота анимируется), а
+          // список всегда остаётся тем же Expanded — иначе при входе в режим
+          // выбора CustomScrollView пересоздавался и «прыгал» к последнему
+          // фильму. Теперь позиция прокрутки сохраняется.
           return Column(
             children: [
-              _selectionBar(context),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                alignment: Alignment.topCenter,
+                child: _selecting
+                    ? _selectionBar(context)
+                    : const SizedBox(width: double.infinity),
+              ),
               Expanded(child: body),
             ],
           );
@@ -417,11 +428,16 @@ class _LibraryTabState extends State<LibraryTab> {
             )
           else ...[
             SliverToBoxAdapter(child: _countHeader(context, total)),
-            for (final grp in render) ...[
-              if (grp.key != null)
+            for (final grp in render)
+              if (grp.key != null) ...[
                 SliverToBoxAdapter(child: _monthHeader(context, grp.key!)),
-              ..._entrySlivers(grp.value, g),
-            ],
+                // Внутри месяца — мини-разделители по дням («24 июня 2026»).
+                for (final day in _groupByDay(grp.value)) ...[
+                  SliverToBoxAdapter(child: _dayDivider(context, day.key)),
+                  ..._entrySlivers(day.value, g),
+                ],
+              ] else
+                ..._entrySlivers(grp.value, g),
             const SliverToBoxAdapter(child: SizedBox(height: 96)),
           ],
         ],
@@ -433,7 +449,8 @@ class _LibraryTabState extends State<LibraryTab> {
     if (e.isSeries) return _LibEntry.session(e.session!);
     final movie = e.movie!;
     final viewing = e.viewing!;
-    final ordinal = movie.sortedViewings.indexOf(viewing) + 1;
+    // Номер просмотра — по порядку добавления (стабилен, не зависит от даты).
+    final ordinal = movie.viewings.indexOf(viewing) + 1;
     final rewatchNum =
         (movie.viewings.length > 1 && ordinal > 1) ? ordinal : null;
     return _LibEntry.movie(movie, viewing: viewing, rewatchNumber: rewatchNum);
@@ -954,6 +971,51 @@ class _LibraryTabState extends State<LibraryTab> {
           ),
         ),
       );
+
+  /// Разбивает элементы месяца на дни (сохраняя их порядок) — для дневных
+  /// разделителей. Элементы уже отсортированы по дате, поэтому первое появление
+  /// ключа задаёт порядок дней.
+  List<MapEntry<DateTime, List<_LibEntry>>> _groupByDay(List<_LibEntry> es) {
+    final map = <String, List<_LibEntry>>{};
+    final days = <String, DateTime>{};
+    for (final e in es) {
+      final d = e.date;
+      final key = d == null ? 'x' : '${d.year}-${d.month}-${d.day}';
+      map.putIfAbsent(key, () => []).add(e);
+      days[key] = d == null ? DateTime(1) : DateTime(d.year, d.month, d.day);
+    }
+    return [for (final k in map.keys) MapEntry(days[k]!, map[k]!)];
+  }
+
+  /// Мини-разделитель дня: дата («24 июня 2026» либо «24.06.2026») + линия.
+  Widget _dayDivider(BuildContext context, DateTime day) {
+    final scheme = Theme.of(context).colorScheme;
+    final label = day.year <= 1
+        ? tr('when_unknown')
+        : (AppPrefs.instance.numericDates ? numericDate(day) : longDate(day));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 2),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: AppTheme.bodyFont,
+              fontWeight: FontWeight.w700,
+              fontSize: 12.5,
+              letterSpacing: 0.2,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Divider(
+                height: 1, thickness: 1, color: scheme.surfaceContainerHighest),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Внутренняя обёртка для элемента библиотеки (фильм-просмотр / сериал-сессия).

@@ -135,6 +135,19 @@ class _SeriesScreenState extends State<SeriesScreen> {
     HapticFeedback.selectionClick();
   }
 
+  /// Отмечает серию просмотренной с НЕИЗВЕСТНОЙ датой (удержание галочки у
+  /// неотмеченной). Такая серия не попадает в ленту «Просмотрено».
+  void _markUnknownDate(TmdbEpisode ep) {
+    if (s.watchedEpisode(ep.season, ep.number) == null && !_aired(ep)) {
+      _snack(tr('episode_not_aired'));
+      return;
+    }
+    _repo.markEpisodeUnknown(s.tvShowId, ep.season, ep.number,
+        runtimeMin: ep.runtime);
+    HapticFeedback.selectionClick();
+    _snack(tr('marked_unknown'));
+  }
+
   /// «Убрать просмотр»: есть повторы → −1; иначе снять просмотр (с каскадом).
   void _removeOneWatch(TmdbEpisode ep) {
     final we = s.watchedEpisode(ep.season, ep.number);
@@ -751,12 +764,15 @@ class _SeriesScreenState extends State<SeriesScreen> {
                   ),
                 ),
               ),
-              // Тап по галочке → +1 просмотр (×2, ×3…). Удержание → меню снятия.
+              // Тап по галочке → +1 просмотр (×2, ×3…). Удержание: у отмеченной
+              // серии — меню (снять / дата / «Неизвестно»); у неотмеченной —
+              // отметить без даты («смотрел, но не знаю когда»).
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => _tapCheck(ep),
-                onLongPress:
-                    watched ? () => _checkmarkMenu(scheme, ep, watchedEp) : null,
+                onLongPress: watched
+                    ? () => _checkmarkMenu(scheme, ep, watchedEp)
+                    : () => _markUnknownDate(ep),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(6, 8, 14, 8),
                   child: _checkCircle(scheme, watched, watches, aired),
@@ -898,6 +914,14 @@ class _SeriesScreenState extends State<SeriesScreen> {
               Navigator.pop(sheetCtx);
               _editEpisodeDate(watchedEp);
             }),
+            if (watchedEp.watchedAt != null)
+              _menuTile(
+                  scheme, Icons.help_outline_rounded, tr('set_unknown_date'),
+                  () {
+                Navigator.pop(sheetCtx);
+                _repo.setEpisodeWatchedAt(s.tvShowId, watchedEp, null);
+                _snack(tr('marked_unknown'));
+              }),
             _menuTile(scheme, Icons.exposure_minus_1_rounded,
                 tr('remove_one_watch'), () {
               Navigator.pop(sheetCtx);
@@ -1738,6 +1762,15 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => _editWatchedAt(we),
+        // Удержание — быстро пометить дату как «Неизвестно».
+        onLongPress: we.watchedAt == null
+            ? null
+            : () {
+                _repo.setEpisodeWatchedAt(widget.seriesId, we, null);
+                _messenger.currentState?.showSnackBar(SnackBar(
+                    content: Text(tr('marked_unknown')),
+                    behavior: SnackBarBehavior.floating));
+              },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
