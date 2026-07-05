@@ -625,20 +625,20 @@ class MovieRepository extends ChangeNotifier {
   }
 
   /// Отмечает просмотренными сразу все переданные серии сезона (по одному тапу).
-  /// [numbers] — номера серий сезона; [runtimes] — их длительности (опц.).
+  /// [numbers] — номера серий сезона; [runtimes] — их длительности (опц.);
+  /// [date] — когда посмотрели (null = «неизвестная дата», watchedAt пустой).
+  /// Небольшой сдвиг по секундам держит серии одной сессией по порядку.
   Future<void> markSeason(String seriesId, int season, List<int> numbers,
-      {Map<int, int?> runtimes = const {}}) async {
+      {Map<int, int?> runtimes = const {}, DateTime? date}) async {
     final s = seriesById(seriesId);
     if (s == null) return;
-    final now = DateTime.now();
     var added = 0;
     for (final n in numbers) {
       if (!s.isEpisodeWatched(season, n)) {
         s.episodes.add(Episode(
             season: season,
             number: n,
-            // Небольшой сдвиг, чтобы серии сезона легли в один блок по порядку.
-            watchedAt: now.add(Duration(seconds: added)),
+            watchedAt: date?.add(Duration(seconds: added)),
             runtimeMin: runtimes[n]));
         added++;
       }

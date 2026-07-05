@@ -665,7 +665,8 @@ class _SeriesScreenState extends State<SeriesScreen> {
           ),
           const SizedBox(width: 8),
           Expanded(
-            // Удержание — как у галочки серии: меню «весь сезон смотрел ×2/×3…».
+            // Отметить весь сезон — тап открывает меню выбора даты первого
+            // просмотра. Удержание — меню повторного просмотра сезона.
             child: GestureDetector(
               onLongPress: () => _seasonRewatchMenu(scheme),
               child: FilledButton.tonalIcon(
@@ -673,12 +674,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                   if (allWatched) {
                     _repo.unmarkSeason(s.tvShowId, _season!);
                   } else {
-                    // Отмечаем только вышедшие серии.
-                    final runtimes = {for (final e in aired) e.number: e.runtime};
-                    _repo.markSeason(
-                        s.tvShowId, _season!, [for (final e in aired) e.number],
-                        runtimes: runtimes);
-                    _snack(trf('season_done', {'n': _season!}));
+                    _seasonMarkSheet();
                   }
                 },
                 icon: Icon(allWatched
@@ -1144,22 +1140,76 @@ class _SeriesScreenState extends State<SeriesScreen> {
     if (mounted) _snack(trf('season_dated', {'n': n}));
   }
 
+  /// Тап по «Отметить весь сезон»: меню выбора даты ПЕРВОГО просмотра (как
+  /// «Когда вы посмотрели?» у фильма) — отмечает все вышедшие серии сезона с
+  /// выбранной датой (null = «Неизвестная дата»).
+  void _seasonMarkSheet() {
+    if (_season == null) return;
+    final eps = _eps;
+    if (eps == null) return;
+    final aired = eps
+        .where((e) => _aired(e) && !s.isEpisodeWatched(e.season, e.number))
+        .toList();
+    if (aired.isEmpty) {
+      _snack(tr('season_all_watched'));
+      return;
+    }
+    _showSeasonWhenSheet(
+      title: trf('season_mark_when', {'n': _season!}),
+      subtitle: trf('season_mark_sub', {'n': aired.length}),
+      onDate: (date) {
+        final runtimes = {for (final e in aired) e.number: e.runtime};
+        _repo.markSeason(s.tvShowId, _season!, [for (final e in aired) e.number],
+            runtimes: runtimes, date: date);
+        _snack(trf('season_done', {'n': _season!}));
+      },
+    );
+  }
+
   /// Меню по удержанию кнопки сезона: отметить ВЕСЬ сезон просмотренным ещё раз
-  /// с выбором даты (как «Когда вы посмотрели?» у фильма) + снять все просмотры.
+  /// с выбором даты + снять все просмотры.
   void _seasonRewatchMenu(ColorScheme scheme) {
     if (_season == null) return;
     final watchedInSeason = s.episodes.where((e) => e.season == _season).length;
-
-    Future<void> rewatch(DateTime? date) async {
-      final n = await _repo.rewatchSeason(s.tvShowId, _season!, date);
-      if (!mounted) return;
-      _snack(n > 0
-          ? trf('season_rewatched', {'c': n})
-          : tr('season_no_watched'));
+    if (watchedInSeason == 0) {
+      // Сезон ещё не смотрели — предлагаем обычную отметку с датой.
+      _seasonMarkSheet();
+      return;
     }
+    _showSeasonWhenSheet(
+      title: trf('season_rewatch_title', {'n': _season!}),
+      subtitle: trf('season_rewatch_sub', {'n': watchedInSeason}),
+      onDate: (date) async {
+        final n = await _repo.rewatchSeason(s.tvShowId, _season!, date);
+        if (!mounted) return;
+        _snack(n > 0
+            ? trf('season_rewatched', {'c': n})
+            : tr('season_no_watched'));
+      },
+      extra: (sheetCtx) => _seasonMenuTile(
+          Theme.of(sheetCtx).colorScheme,
+          Icons.remove_done_rounded,
+          tr('season_clear_all'), () {
+        Navigator.pop(sheetCtx);
+        _repo.unmarkSeason(s.tvShowId, _season!);
+        _snack(tr('season_cleared'));
+      }, danger: true),
+    );
+  }
+
+  /// Общий лист «когда» для сезона (в стиле «Когда вы посмотрели?»). [onDate]
+  /// получает выбранную дату (null = «Неизвестная дата»); [extra] — доп. плитка
+  /// внизу (напр. «Снять все просмотры»).
+  void _showSeasonWhenSheet({
+    required String title,
+    required String subtitle,
+    required void Function(DateTime?) onDate,
+    Widget Function(BuildContext sheetCtx)? extra,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final now = DateTime.now();
 
     Future<void> pickDate(BuildContext sheetCtx) async {
-      final now = DateTime.now();
       final date = await showDatePicker(
         context: sheetCtx,
         initialDate: now,
@@ -1175,10 +1225,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
           ? DateTime(date.year, date.month, date.day)
           : DateTime(date.year, date.month, date.day, time.hour, time.minute);
       if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-      await rewatch(dt);
+      onDate(dt);
     }
 
-    final now = DateTime.now();
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: scheme.surfaceContainer,
@@ -1200,7 +1249,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
               padding: const EdgeInsets.fromLTRB(24, 18, 24, 4),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(trf('season_rewatch_title', {'n': _season!}),
+                child: Text(title,
                     style: TextStyle(
                         fontFamily: AppTheme.displayFont,
                         fontWeight: FontWeight.w800,
@@ -1212,51 +1261,42 @@ class _SeriesScreenState extends State<SeriesScreen> {
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                    watchedInSeason > 0
-                        ? trf('season_rewatch_sub', {'n': watchedInSeason})
-                        : tr('season_no_watched'),
+                child: Text(subtitle,
                     style: TextStyle(
                         fontFamily: AppTheme.bodyFont,
                         fontSize: 13,
                         color: scheme.onSurfaceVariant)),
               ),
             ),
-            if (watchedInSeason > 0) ...[
-              _seasonMenuTile(scheme, Icons.help_outline_rounded,
-                  tr('when_unknown'), () {
-                Navigator.pop(sheetCtx);
-                rewatch(null);
-              }),
-              _seasonMenuTile(scheme, Icons.flag_rounded,
-                  tr('when_just_finished'), () {
-                Navigator.pop(sheetCtx);
-                rewatch(now);
-              }),
-              _seasonMenuTile(scheme, Icons.today_rounded, tr('when_today'), () {
-                Navigator.pop(sheetCtx);
-                rewatch(now);
-              }),
-              _seasonMenuTile(scheme, Icons.history_rounded, tr('when_yesterday'),
-                  () {
-                Navigator.pop(sheetCtx);
-                rewatch(now.subtract(const Duration(days: 1)));
-              }),
-              _seasonMenuTile(scheme, Icons.event_rounded, tr('when_pick_date'),
-                  () => pickDate(sheetCtx)),
+            _seasonMenuTile(scheme, Icons.help_outline_rounded,
+                tr('when_unknown'), () {
+              Navigator.pop(sheetCtx);
+              onDate(null);
+            }),
+            _seasonMenuTile(scheme, Icons.flag_rounded, tr('when_just_finished'),
+                () {
+              Navigator.pop(sheetCtx);
+              onDate(now);
+            }),
+            _seasonMenuTile(scheme, Icons.today_rounded, tr('when_today'), () {
+              Navigator.pop(sheetCtx);
+              onDate(now);
+            }),
+            _seasonMenuTile(scheme, Icons.history_rounded, tr('when_yesterday'),
+                () {
+              Navigator.pop(sheetCtx);
+              onDate(now.subtract(const Duration(days: 1)));
+            }),
+            _seasonMenuTile(scheme, Icons.event_rounded, tr('when_pick_date'),
+                () => pickDate(sheetCtx)),
+            if (extra != null) ...[
               Divider(
                   height: 20,
                   indent: 24,
                   endIndent: 24,
                   color: scheme.outlineVariant),
+              extra(sheetCtx),
             ],
-            // Снять ВСЕ просмотры сезона (убрать сериал из просмотренного).
-            _seasonMenuTile(scheme, Icons.remove_done_rounded,
-                tr('season_clear_all'), () {
-              Navigator.pop(sheetCtx);
-              _repo.unmarkSeason(s.tvShowId, _season!);
-              _snack(tr('season_cleared'));
-            }, danger: true),
             const SizedBox(height: 12),
           ],
         ),
