@@ -1188,6 +1188,9 @@ class _Stats {
     for (final s in allSeries) {
       for (final e in s.episodes) {
         episodesWatched++;
+        // Повторные просмотры серий тоже идут в счётчик «Повторы» (раньше туда
+        // попадали только фильмы). rewatchCount = число пересмотров сверх первого.
+        rewatches += e.rewatchCount.clamp(0, 100);
         final ert = e.runtimeMin;
         if (ert != null && ert > 0 && ert <= 600) {
           minutes += ert * e.watchCount.clamp(1, 100);

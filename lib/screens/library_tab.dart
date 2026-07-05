@@ -67,6 +67,17 @@ class _LibraryTabState extends State<LibraryTab> {
   /// именно просмотр/сессию убирать (перезаполняется на каждый build).
   final Map<String, _LibEntry> _entryByKey = {};
 
+  /// Мемоизация «Просмотрено»: структура ленты (месяцы→записи) считается только
+  /// когда меняются данные (revision), фильтр, сортировка или поиск — а не на
+  /// каждый rebuild (переключение вида/вкладок/меню больше не пересчитывает
+  /// ленту → без фризов на большой базе).
+  int _wmRev = -1;
+  _WatchedFilter? _wmFilter;
+  _LibSort? _wmSort;
+  String? _wmQuery;
+  List<MapEntry<DateTime?, List<_LibEntry>>>? _wmRender;
+  int _wmTotal = 0;
+
   /// id элементов, чья анимация появления уже проигралась. Живёт всё время
   /// жизни вкладки, чтобы при возврате карточки в зону видимости на скролле она
   /// не анимировалась заново (именно это давало лаги прокрутки). См. [Reveal].
@@ -403,49 +414,29 @@ class _LibraryTabState extends State<LibraryTab> {
   // ----------------------------- «Просмотрено» -----------------------------
 
   Widget _watched(MovieRepository repo) {
-    final groups = [
-      for (final g in repo.watchedEntriesByMonth(
-        movies: _filter != _WatchedFilter.series,
-        series: _filter != _WatchedFilter.movies,
-      ))
-        if (g.value.any(_matchEntry))
-          MapEntry(g.key, g.value.where(_matchEntry).toList()),
-    ];
-    final total = groups.fold<int>(0, (s, g) => s + g.value.length);
-
-    // По дате — оставляем помесячную разбивку; иначе — плоский отсортированный
-    // список без заголовков месяцев.
-    final grouped = _sort == _LibSort.dateNew || _sort == _LibSort.dateOld;
-    final List<MapEntry<DateTime?, List<_LibEntry>>> render;
-    if (grouped) {
-      final gs = [
-        for (final g in groups)
-          MapEntry<DateTime?, List<_LibEntry>>(
-              g.key, [for (final e in g.value) _entry(e)])
-      ];
-      render = _sort == _LibSort.dateOld ? gs.reversed.toList() : gs;
-      if (_sort == _LibSort.dateOld) {
-        for (final g in render) {
-          g.value.sort((a, b) => (a.date ?? DateTime(0))
-              .compareTo(b.date ?? DateTime(0)));
-        }
-      }
-    } else {
-      final flat = <_LibEntry>[
-        for (final g in groups)
-          for (final e in g.value) _entry(e)
-      ];
-      _sortEntries(flat);
-      render = [MapEntry<DateTime?, List<_LibEntry>>(null, flat)];
+    // Пересчитываем структуру ленты только при изменении данных/фильтра/
+    // сортировки/поиска. На переключение вида/вкладок/меню — берём готовое.
+    final rev = repo.revision;
+    if (_wmRender == null ||
+        _wmRev != rev ||
+        _wmFilter != _filter ||
+        _wmSort != _sort ||
+        _wmQuery != _q) {
+      _computeWatched(repo);
+      _wmRev = rev;
+      _wmFilter = _filter;
+      _wmSort = _sort;
+      _wmQuery = _q;
     }
-    _indexEntries([for (final grp in render) ...grp.value]);
+    final render = _wmRender!;
+    final total = _wmTotal;
 
     return LayoutBuilder(builder: (context, c) {
       final g = _grid(c.maxWidth);
       return CustomScrollView(
         slivers: [
           SliverToBoxAdapter(child: _filterBar()),
-          if (groups.isEmpty)
+          if (total == 0)
             SliverFillRemaining(
               hasScrollBody: false,
               child: _emptyView(EmptyState(
@@ -459,8 +450,15 @@ class _LibraryTabState extends State<LibraryTab> {
               if (grp.key != null) ...[
                 SliverToBoxAdapter(child: _monthHeader(context, grp.key!)),
                 // Внутри месяца — мини-разделители по дням («24 июня 2026»).
+                // Разделитель строится лениво (только видимый) — иначе сотни
+                // дней в истории строились разом на каждый rebuild → фризы.
                 for (final day in _groupByDay(grp.value)) ...[
-                  SliverToBoxAdapter(child: _dayDivider(context, day.key)),
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, _) => _dayDivider(context, day.key),
+                      childCount: 1,
+                    ),
+                  ),
                   ..._entrySlivers(day.value, g),
                 ],
               ] else
@@ -470,6 +468,45 @@ class _LibraryTabState extends State<LibraryTab> {
         ],
       );
     });
+  }
+
+  /// Тяжёлый расчёт ленты «Просмотрено» (мемоизируется, см. поля _wm*).
+  void _computeWatched(MovieRepository repo) {
+    final groups = [
+      for (final g in repo.watchedEntriesByMonth(
+        movies: _filter != _WatchedFilter.series,
+        series: _filter != _WatchedFilter.movies,
+      ))
+        if (g.value.any(_matchEntry))
+          MapEntry(g.key, g.value.where(_matchEntry).toList()),
+    ];
+    _wmTotal = groups.fold<int>(0, (s, g) => s + g.value.length);
+
+    // По дате — помесячная разбивка; иначе — плоский отсортированный список.
+    final grouped = _sort == _LibSort.dateNew || _sort == _LibSort.dateOld;
+    if (grouped) {
+      final gs = [
+        for (final g in groups)
+          MapEntry<DateTime?, List<_LibEntry>>(
+              g.key, [for (final e in g.value) _entry(e)])
+      ];
+      final render = _sort == _LibSort.dateOld ? gs.reversed.toList() : gs;
+      if (_sort == _LibSort.dateOld) {
+        for (final g in render) {
+          g.value.sort((a, b) =>
+              (a.date ?? DateTime(0)).compareTo(b.date ?? DateTime(0)));
+        }
+      }
+      _wmRender = render;
+    } else {
+      final flat = <_LibEntry>[
+        for (final g in groups)
+          for (final e in g.value) _entry(e)
+      ];
+      _sortEntries(flat);
+      _wmRender = [MapEntry<DateTime?, List<_LibEntry>>(null, flat)];
+    }
+    _indexEntries([for (final grp in _wmRender!) ...grp.value]);
   }
 
   _LibEntry _entry(WatchedEntry e) {

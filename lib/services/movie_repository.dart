@@ -28,6 +28,27 @@ class MovieRepository extends ChangeNotifier {
   final List<MovieList> _lists = [];
   bool _loaded = false;
 
+  /// Кэш ленты «Просмотрено» (по комбинации фильмы/сериалы). Пересборка ленты
+  /// (сессии всех сериалов + помесячная сортировка) тяжёлая на большой базе —
+  /// считаем один раз и переиспользуем, пока данные не изменились. Сбрасывается
+  /// в [notifyListeners] при любой мутации. Так переключение вида/вкладок и
+  /// открытие меню (не меняют данные) больше не пересчитывают ленту → без фризов.
+  final Map<String, List<MapEntry<DateTime, List<WatchedEntry>>>>
+      _watchedCache = {};
+
+  /// Версия данных: растёт при любой мутации. Экраны мемоизируют тяжёлые
+  /// вычисления по ней — пересчитывают только когда данные реально изменились,
+  /// а не на каждый rebuild (переключение вида/вкладок/меню).
+  int _revision = 0;
+  int get revision => _revision;
+
+  @override
+  void notifyListeners() {
+    _watchedCache.clear();
+    _revision++;
+    super.notifyListeners();
+  }
+
   bool get isLoaded => _loaded;
   List<LibraryMovie> get movies => List.unmodifiable(_movies);
   List<LibrarySeries> get series => List.unmodifiable(_series);
@@ -374,6 +395,9 @@ class MovieRepository extends ChangeNotifier {
   /// Лента «Просмотрено» с фильмами И сериалами (фильтруется), по месяцам.
   List<MapEntry<DateTime, List<WatchedEntry>>> watchedEntriesByMonth(
       {bool movies = true, bool series = true}) {
+    final cacheKey = '$movies-$series';
+    final cached = _watchedCache[cacheKey];
+    if (cached != null) return cached;
     final map = <String, List<WatchedEntry>>{};
     final months = <String, DateTime>{};
     void add(DateTime? d, WatchedEntry e) {
@@ -417,6 +441,7 @@ class MovieRepository extends ChangeNotifier {
         });
       result.add(MapEntry(months[k]!, list));
     }
+    _watchedCache[cacheKey] = result;
     return result;
   }
 
