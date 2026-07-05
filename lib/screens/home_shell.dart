@@ -71,6 +71,8 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
       // Фоновая дозагрузка жанров/стран/длительности (для фильтров и статистики).
       await Future<void>.delayed(const Duration(seconds: 3));
       await MovieRepository.instance.backfillDetailsSweep();
+      // Разовая чистка «хвостов» серий вне реальной структуры TMDB.
+      await MovieRepository.instance.pruneStructureSweep();
     });
   }
 

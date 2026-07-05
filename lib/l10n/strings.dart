@@ -449,6 +449,10 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Просмотры сезона сняты',
     'en': 'Season watches removed'
   },
+  'extra_episodes_removed': {
+    'ru': 'Убрано лишних серий: {n}',
+    'en': 'Removed {n} extra episodes'
+  },
   'ep_watched_n': {'ru': 'Просмотров: {n}', 'en': 'Watches: {n}'},
   'rewatch_removed': {'ru': 'Повтор убран', 'en': 'Rewatch removed'},
   'season_progress': {'ru': 'Сезон {s}: {n}/{m}', 'en': 'Season {s}: {n}/{m}'},

@@ -759,6 +759,54 @@ class MovieRepository extends ChangeNotifier {
     }
   }
 
+  /// Удаляет из сериала серии ВНЕ реальной структуры TMDB: сезон не из [sizes]
+  /// или номер больше числа серий сезона. Так чистятся «хвосты» от неточного
+  /// импорта/матча (напр. мультсериал, привязанный к 8-серийному ремейку —
+  /// лишние S1·E9…E21, целые сезоны, которых у шоу нет). Безномерные серии
+  /// (season/number == null) не трогаем — их разложит [reconcileSeriesEpisodes].
+  /// Вызывать только когда [sizes] получены из TMDB. Возвращает число удалённых.
+  Future<int> pruneToStructure(String seriesId, Map<int, int> sizes) async {
+    final s = seriesById(seriesId);
+    if (s == null || sizes.isEmpty) return 0;
+    final before = s.episodes.length;
+    s.episodes.removeWhere((e) {
+      final se = e.season, num = e.number;
+      if (se == null || num == null) return false;
+      if (num < 1) return true; // спецвыпуск
+      final cap = sizes[se];
+      return cap == null || num > cap; // сезона нет / номер за пределами
+    });
+    final removed = before - s.episodes.length;
+    if (removed > 0) {
+      notifyListeners();
+      await _persist();
+    }
+    return removed;
+  }
+
+  /// Разовый фоновый обход: у всех сериалов с tmdbId чистит серии вне реальной
+  /// структуры TMDB (лишние «хвосты» от неточного импорта/матча — напр. серии
+  /// сверх числа серий сезона или целые сезоны, которых у шоу нет). Идёт
+  /// порциями, чтобы не грузить сеть; выполняется один раз (флаг в Store).
+  Future<void> pruneStructureSweep() async {
+    if (await Store.instance.getBool('prunedStructureV1', def: false)) return;
+    final targets =
+        _series.where((s) => s.tmdbId != null && s.episodes.isNotEmpty).toList();
+    for (final s in targets) {
+      try {
+        final seasons = await TmdbService.seasons(s.tmdbId!);
+        if (seasons.isNotEmpty) {
+          final sizes = {for (final se in seasons) se.number: se.episodeCount};
+          await pruneToStructure(s.tvShowId, sizes);
+        }
+      } catch (e) {
+        debugPrint('pruneStructureSweep ${s.title}: $e');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+    }
+    await Store.instance.setBool('prunedStructureV1', true);
+  }
+
   /// Снимает отметки со всех серий сезона.
   Future<void> unmarkSeason(String seriesId, int season) async {
     final s = seriesById(seriesId);

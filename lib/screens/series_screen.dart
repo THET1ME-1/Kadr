@@ -181,18 +181,27 @@ class _SeriesScreenState extends State<SeriesScreen> {
       });
       return;
     }
-    _seasons = await TmdbService.seasons(id);
+    final tmdbSeasons = await TmdbService.seasons(id);
     _extra = await TmdbService.tvExtra(id);
-    // Добавляем сезоны, которые есть в библиотеке, но которых нет в TMDB (напр.
-    // свежий 5-й сезон, ещё не заведённый в TMDB) — иначе просмотренные серии
-    // «пропадают» с экрана, хотя видны в карточке «Просмотрено».
-    _seasons = _mergeLibrarySeasons(_seasons);
+    // TMDB — источник истины структуры. Библиотечные сезоны берём лишь когда
+    // TMDB ничего не отдал (сериал не найден).
+    _seasons = _mergeLibrarySeasons(tmdbSeasons);
     if (_seasons.isEmpty) {
       setState(() {
         _loading = false;
         _error = true;
       });
       return;
+    }
+    // Чистим «хвосты» вне реальной структуры TMDB (лишние серии/сезоны от
+    // неточного импорта/матча) — не только на экране, но и в данных, чтобы они
+    // не всплывали в ленте «Просмотрено». Только когда TMDB дал структуру.
+    if (tmdbSeasons.isNotEmpty) {
+      final sizes = {for (final se in tmdbSeasons) se.number: se.episodeCount};
+      final removed = await _repo.pruneToStructure(s.tvShowId, sizes);
+      if (removed > 0 && mounted) {
+        _snack(trf('extra_episodes_removed', {'n': removed}));
+      }
     }
     // Запоминаем общее число серий (для «Сейчас смотрю» — только незавершённые).
     final total = _seasons.fold<int>(0, (a, b) => a + b.episodeCount);
