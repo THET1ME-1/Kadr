@@ -667,26 +667,26 @@ class MovieRepository extends ChangeNotifier {
     return n;
   }
 
-  /// Ставит всем УЖЕ ПРОСМОТРЕННЫМ сериям сезона одинаковое число просмотров
-  /// (например, «весь сезон смотрел 3 раза»). [watchCount] 1 = убрать повторы.
-  /// Даты просмотров не трогаем (чтобы не рассыпать сессии). Возвращает число.
-  Future<int> setSeasonWatchCount(
-      String seriesId, int season, int watchCount) async {
+  /// Отмечает ПОВТОРНЫЙ просмотр всего сезона: всем уже просмотренным сериям
+  /// сезона +1 к числу просмотров. [date] — когда пересмотрели (null =
+  /// «неизвестно», дату серий не трогаем). Небольшой сдвиг по секундам держит
+  /// серии одной сессией по порядку. Возвращает число затронутых серий.
+  Future<int> rewatchSeason(String seriesId, int season, DateTime? date) async {
     final s = seriesById(seriesId);
     if (s == null) return 0;
-    final target = watchCount < 1 ? 0 : watchCount - 1;
-    var n = 0;
-    for (final e in s.episodes) {
-      if (e.season == season && e.rewatchCount != target) {
-        e.rewatchCount = target;
-        n++;
-      }
+    final eps = s.episodes.where((e) => e.season == season).toList()
+      ..sort((a, b) => (a.number ?? 0).compareTo(b.number ?? 0));
+    var i = 0;
+    for (final e in eps) {
+      e.rewatchCount += 1;
+      if (date != null) e.watchedAt = date.add(Duration(seconds: i));
+      i++;
     }
-    if (n > 0) {
+    if (eps.isNotEmpty) {
       notifyListeners();
       await _persist();
     }
-    return n;
+    return eps.length;
   }
 
   /// Массово ставит дату/время просмотра всем просмотренным сериям сезона.

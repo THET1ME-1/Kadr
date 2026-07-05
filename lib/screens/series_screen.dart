@@ -1135,23 +1135,41 @@ class _SeriesScreenState extends State<SeriesScreen> {
     if (mounted) _snack(trf('season_dated', {'n': n}));
   }
 
-  /// Меню по удержанию кнопки сезона: отметить ВЕСЬ сезон просмотренным
-  /// несколько раз (×2, ×3, ×4) одним выбором — как повтор у отдельной серии.
+  /// Меню по удержанию кнопки сезона: отметить ВЕСЬ сезон просмотренным ещё раз
+  /// с выбором даты (как «Когда вы посмотрели?» у фильма) + снять все просмотры.
   void _seasonRewatchMenu(ColorScheme scheme) {
     if (_season == null) return;
     final watchedInSeason = s.episodes.where((e) => e.season == _season).length;
-    if (watchedInSeason == 0) {
-      _snack(tr('season_no_watched'));
-      return;
-    }
-    Future<void> apply(int times) async {
-      final n = await _repo.setSeasonWatchCount(s.tvShowId, _season!, times);
+
+    Future<void> rewatch(DateTime? date) async {
+      final n = await _repo.rewatchSeason(s.tvShowId, _season!, date);
       if (!mounted) return;
-      _snack(times <= 1
-          ? tr('season_repeats_cleared')
-          : trf('season_rewatched', {'n': times, 'c': n}));
+      _snack(n > 0
+          ? trf('season_rewatched', {'c': n})
+          : tr('season_no_watched'));
     }
 
+    Future<void> pickDate(BuildContext sheetCtx) async {
+      final now = DateTime.now();
+      final date = await showDatePicker(
+        context: sheetCtx,
+        initialDate: now,
+        firstDate: DateTime(1900),
+        lastDate: now,
+      );
+      if (date == null || !sheetCtx.mounted) return;
+      final time = await showTimePicker(
+        context: sheetCtx,
+        initialTime: TimeOfDay.now(),
+      );
+      final dt = time == null
+          ? DateTime(date.year, date.month, date.day)
+          : DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+      await rewatch(dt);
+    }
+
+    final now = DateTime.now();
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: scheme.surfaceContainer,
@@ -1169,31 +1187,99 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 decoration: BoxDecoration(
                     color: scheme.outlineVariant,
                     borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 8),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 6, 24, 6),
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 4),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(trf('season_rewatch_title', {'n': _season!}),
                     style: TextStyle(
                         fontFamily: AppTheme.displayFont,
                         fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                        color: scheme.onSurface)),
+                        fontSize: 20,
+                        color: scheme.primary)),
               ),
             ),
-            for (final t in [2, 3, 4])
-              _menuTile(scheme, Icons.repeat_rounded,
-                  trf('season_times', {'n': t}), () {
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                    watchedInSeason > 0
+                        ? trf('season_rewatch_sub', {'n': watchedInSeason})
+                        : tr('season_no_watched'),
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 13,
+                        color: scheme.onSurfaceVariant)),
+              ),
+            ),
+            if (watchedInSeason > 0) ...[
+              _seasonMenuTile(scheme, Icons.help_outline_rounded,
+                  tr('when_unknown'), () {
                 Navigator.pop(sheetCtx);
-                apply(t);
+                rewatch(null);
               }),
-            _menuTile(
-                scheme, Icons.looks_one_rounded, tr('season_times_one'), () {
+              _seasonMenuTile(scheme, Icons.flag_rounded,
+                  tr('when_just_finished'), () {
+                Navigator.pop(sheetCtx);
+                rewatch(now);
+              }),
+              _seasonMenuTile(scheme, Icons.today_rounded, tr('when_today'), () {
+                Navigator.pop(sheetCtx);
+                rewatch(now);
+              }),
+              _seasonMenuTile(scheme, Icons.history_rounded, tr('when_yesterday'),
+                  () {
+                Navigator.pop(sheetCtx);
+                rewatch(now.subtract(const Duration(days: 1)));
+              }),
+              _seasonMenuTile(scheme, Icons.event_rounded, tr('when_pick_date'),
+                  () => pickDate(sheetCtx)),
+              Divider(
+                  height: 20,
+                  indent: 24,
+                  endIndent: 24,
+                  color: scheme.outlineVariant),
+            ],
+            // Снять ВСЕ просмотры сезона (убрать сериал из просмотренного).
+            _seasonMenuTile(scheme, Icons.remove_done_rounded,
+                tr('season_clear_all'), () {
               Navigator.pop(sheetCtx);
-              apply(1);
-            }),
+              _repo.unmarkSeason(s.tvShowId, _season!);
+              _snack(tr('season_cleared'));
+            }, danger: true),
             const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Плитка меню сезона в стиле «Когда вы посмотрели?» (крупный круглый значок).
+  Widget _seasonMenuTile(
+      ColorScheme scheme, IconData icon, String label, VoidCallback onTap,
+      {bool danger = false}) {
+    final bg = danger ? kDroppedColor.withValues(alpha: 0.16) : scheme.primaryContainer;
+    final fg = danger ? kDroppedColor : scheme.onPrimaryContainer;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+              child: Icon(icon, color: fg, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Text(label,
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    color: danger ? kDroppedColor : scheme.onSurface)),
           ],
         ),
       ),

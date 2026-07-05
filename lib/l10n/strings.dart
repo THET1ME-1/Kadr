@@ -430,21 +430,24 @@ const Map<String, Map<String, String>> _strings = {
   'season_done': {'ru': 'Сезон {n} отмечен', 'en': 'Season {n} marked'},
   'watch_again': {'ru': 'Смотрел ещё раз', 'en': 'Watched again'},
   'season_rewatch_title': {
-    'ru': 'Сезон {n}: сколько раз смотрели?',
-    'en': 'Season {n}: how many times watched?'
+    'ru': 'Отметить весь сезон {n} ещё раз?',
+    'en': 'Mark whole season {n} watched again?'
   },
-  'season_times': {'ru': 'Смотрел {n} раза', 'en': 'Watched {n} times'},
-  'season_times_one': {
-    'ru': 'Один раз (убрать повторы)',
-    'en': 'Once (remove repeats)'
+  'season_rewatch_sub': {
+    'ru': 'Повторный просмотр всех {n} серий сезона',
+    'en': 'Rewatch all {n} episodes of the season'
   },
   'season_rewatched': {
-    'ru': 'Сезон: {n} просмотра ({c} серий)',
-    'en': 'Season set to {n} watches ({c} episodes)'
+    'ru': 'Сезон отмечен ещё раз ({c} серий)',
+    'en': 'Season marked again ({c} episodes)'
   },
-  'season_repeats_cleared': {
-    'ru': 'Повторы сезона убраны',
-    'en': 'Season repeats removed'
+  'season_clear_all': {
+    'ru': 'Снять все просмотры',
+    'en': 'Remove all watches'
+  },
+  'season_cleared': {
+    'ru': 'Просмотры сезона сняты',
+    'en': 'Season watches removed'
   },
   'ep_watched_n': {'ru': 'Просмотров: {n}', 'en': 'Watches: {n}'},
   'rewatch_removed': {'ru': 'Повтор убран', 'en': 'Rewatch removed'},
