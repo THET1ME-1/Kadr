@@ -233,52 +233,71 @@ class _SeriesScreenState extends State<SeriesScreen> {
     if (mounted) setState(() => _eps = _mergeLibraryEpisodes(n, eps));
   }
 
-  /// Список сезонов = сезоны TMDB ∪ сезоны из библиотеки. Для сезона без TMDB
-  /// число серий = максимум из TMDB-счётчика, макс. номера и количества
-  /// просмотренных серий.
+  /// Список сезонов. TMDB — источник истины: если он знает сезоны сериала,
+  /// показываем ТОЛЬКО их (реальную структуру шоу). Библиотечные «хвосты» от
+  /// неточного матча (лишние серии/сезоны, спецвыпуски) не подмешиваем.
+  /// Библиотечные сезоны берём лишь когда TMDB ничего не отдал (сериал не
+  /// найден) — чтобы не потерять просмотренные серии, исключая спецвыпуски.
   List<TmdbSeason> _mergeLibrarySeasons(List<TmdbSeason> tmdb) {
-    final byNum = {for (final se in tmdb) se.number: se};
+    if (tmdb.isNotEmpty) return tmdb;
     final libMax = <int, int>{}; // сезон → макс. номер серии
     final libCount = <int, int>{}; // сезон → сколько серий отмечено
     for (final e in s.episodes) {
       final se = e.season;
-      if (se == null) continue;
+      if (se == null || se < 1) continue; // спецвыпуски (сезон 0) пропускаем
       libCount[se] = (libCount[se] ?? 0) + 1;
       final num = e.number;
-      if (num != null) {
+      if (num != null && num >= 1) {
         libMax[se] = (libMax[se] == null || num > libMax[se]!) ? num : libMax[se]!;
       }
     }
-    final nums = <int>{...byNum.keys, ...libCount.keys}.toList()..sort();
+    final nums = libCount.keys.toList()..sort();
     return [
       for (final n in nums)
         TmdbSeason(
           number: n,
-          name: byNum[n]?.name ?? 'Сезон $n',
-          episodeCount: [
-            byNum[n]?.episodeCount ?? 0,
-            libMax[n] ?? 0,
-            libCount[n] ?? 0,
-          ].reduce((a, b) => a > b ? a : b),
+          name: 'Сезон $n',
+          episodeCount: [libMax[n] ?? 0, libCount[n] ?? 0]
+              .reduce((a, b) => a > b ? a : b),
         ),
     ];
   }
 
-  /// Дополняет TMDB-серии сезона просмотренными сериями из библиотеки, которых
-  /// нет в TMDB (чтобы их было видно и можно было снять/оценить).
+  /// Серии сезона. Если TMDB знает серии — показываем только их (реальный набор,
+  /// без библиотечных хвостов сверх числа серий и без спецвыпусков). Только
+  /// когда TMDB не вернул серий, показываем просмотренные из библиотеки
+  /// (исключая спецвыпуски number ≤ 0), чтобы их было видно и можно было снять.
   List<TmdbEpisode> _mergeLibraryEpisodes(int season, List<TmdbEpisode> tmdb) {
-    final have = {for (final e in tmdb) e.number};
+    if (tmdb.isNotEmpty) return tmdb;
     final extra = <TmdbEpisode>[];
+    final seen = <int>{};
     for (final e in s.episodes) {
-      if (e.season != season || e.number == null || have.contains(e.number)) {
+      final num = e.number;
+      if (e.season != season || num == null || num < 1 || seen.contains(num)) {
         continue;
       }
-      extra.add(TmdbEpisode(
-          season: season, number: e.number!, name: 'Серия ${e.number}'));
+      seen.add(num);
+      extra.add(TmdbEpisode(season: season, number: num, name: 'Серия $num'));
     }
-    if (extra.isEmpty) return tmdb;
-    return [...tmdb, ...extra]
-      ..sort((a, b) => a.number.compareTo(b.number));
+    extra.sort((a, b) => a.number.compareTo(b.number));
+    return extra;
+  }
+
+  /// Сколько серий просмотрено В ПРЕДЕЛАХ показываемой структуры (сезоны/серии
+  /// из [_seasons]). Библиотека могла накопить серии от неточного матча
+  /// (напр. мультсериал, привязанный к 8-серийному ремейку) — их не считаем,
+  /// иначе шапка показывает «45 из 8».
+  int _seenInStructure() {
+    final bounds = {for (final se in _seasons) se.number: se.episodeCount};
+    var n = 0;
+    for (final e in s.episodes) {
+      final se = e.season, num = e.number;
+      if (se == null || num == null || num < 1) continue;
+      final cap = bounds[se];
+      if (cap == null || num > cap) continue;
+      n++;
+    }
+    return n;
   }
 
   // ------------------------------ build ------------------------------
@@ -355,7 +374,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
 
   Widget _hero(ColorScheme scheme) {
     final total = _seasons.fold<int>(0, (a, b) => a + b.episodeCount);
-    final seen = s.episodes.length;
+    final seen = _seenInStructure();
     final progress = total > 0 ? (seen / total).clamp(0.0, 1.0) : 0.0;
     return SizedBox(
       height: 300,
@@ -637,28 +656,32 @@ class _SeriesScreenState extends State<SeriesScreen> {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: FilledButton.tonalIcon(
-              onPressed: () {
-                if (allWatched) {
-                  _repo.unmarkSeason(s.tvShowId, _season!);
-                } else {
-                  // Отмечаем только вышедшие серии.
-                  final runtimes = {for (final e in aired) e.number: e.runtime};
-                  _repo.markSeason(
-                      s.tvShowId, _season!, [for (final e in aired) e.number],
-                      runtimes: runtimes);
-                  _snack(trf('season_done', {'n': _season!}));
-                }
-              },
-              icon: Icon(allWatched
-                  ? Icons.remove_done_rounded
-                  : Icons.done_all_rounded),
-              label: Text(tr(allWatched ? 'unmark_season' : 'mark_season')),
-              style: allWatched
-                  ? FilledButton.styleFrom(
-                      backgroundColor: scheme.surfaceContainerHighest,
-                      foregroundColor: scheme.onSurfaceVariant)
-                  : null,
+            // Удержание — как у галочки серии: меню «весь сезон смотрел ×2/×3…».
+            child: GestureDetector(
+              onLongPress: () => _seasonRewatchMenu(scheme),
+              child: FilledButton.tonalIcon(
+                onPressed: () {
+                  if (allWatched) {
+                    _repo.unmarkSeason(s.tvShowId, _season!);
+                  } else {
+                    // Отмечаем только вышедшие серии.
+                    final runtimes = {for (final e in aired) e.number: e.runtime};
+                    _repo.markSeason(
+                        s.tvShowId, _season!, [for (final e in aired) e.number],
+                        runtimes: runtimes);
+                    _snack(trf('season_done', {'n': _season!}));
+                  }
+                },
+                icon: Icon(allWatched
+                    ? Icons.remove_done_rounded
+                    : Icons.done_all_rounded),
+                label: Text(tr(allWatched ? 'unmark_season' : 'mark_season')),
+                style: allWatched
+                    ? FilledButton.styleFrom(
+                        backgroundColor: scheme.surfaceContainerHighest,
+                        foregroundColor: scheme.onSurfaceVariant)
+                    : null,
+              ),
             ),
           ),
         ],
@@ -1110,6 +1133,71 @@ class _SeriesScreenState extends State<SeriesScreen> {
         : DateTime(picked.year, picked.month, picked.day, time.hour, time.minute);
     final n = await _repo.setSeasonWatchedAt(s.tvShowId, _season!, dt);
     if (mounted) _snack(trf('season_dated', {'n': n}));
+  }
+
+  /// Меню по удержанию кнопки сезона: отметить ВЕСЬ сезон просмотренным
+  /// несколько раз (×2, ×3, ×4) одним выбором — как повтор у отдельной серии.
+  void _seasonRewatchMenu(ColorScheme scheme) {
+    if (_season == null) return;
+    final watchedInSeason = s.episodes.where((e) => e.season == _season).length;
+    if (watchedInSeason == 0) {
+      _snack(tr('season_no_watched'));
+      return;
+    }
+    Future<void> apply(int times) async {
+      final n = await _repo.setSeasonWatchCount(s.tvShowId, _season!, times);
+      if (!mounted) return;
+      _snack(times <= 1
+          ? tr('season_repeats_cleared')
+          : trf('season_rewatched', {'n': times, 'c': n}));
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: scheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 6, 24, 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(trf('season_rewatch_title', {'n': _season!}),
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        color: scheme.onSurface)),
+              ),
+            ),
+            for (final t in [2, 3, 4])
+              _menuTile(scheme, Icons.repeat_rounded,
+                  trf('season_times', {'n': t}), () {
+                Navigator.pop(sheetCtx);
+                apply(t);
+              }),
+            _menuTile(
+                scheme, Icons.looks_one_rounded, tr('season_times_one'), () {
+              Navigator.pop(sheetCtx);
+              apply(1);
+            }),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Ставит одну оценку всем УЖЕ ПРОСМОТРЕННЫМ сериям сезона (не отмечает новые

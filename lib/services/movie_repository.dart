@@ -77,8 +77,11 @@ class MovieRepository extends ChangeNotifier {
       // Чистим задвоенные серии (наследие старого бага bulk-операций): сливаем
       // эпизоды с одинаковыми (сезон,номер), сохраняя оценку/дату. Оценки на
       // экране сериала были, а в списке «Просмотрено» дубли шли пустыми.
+      // Заодно выкидываем спецвыпуски (сезон/серия 0), которые импорт TV Time
+      // сохранил как «Серия 0» — они мусорят список серий и счётчики.
       var deduped = 0;
       for (final s in _series) {
+        deduped += _dropSpecials(s);
         deduped += _dedupeEpisodes(s);
       }
       if (deduped > 0) await _persist();
@@ -90,6 +93,18 @@ class MovieRepository extends ChangeNotifier {
     }
     _loaded = true;
     notifyListeners();
+  }
+
+  /// Убирает спецвыпуски сериала — серии, у которых сезон или номер ≤ 0
+  /// (импорт TV Time сохранял такие как «Серия 0»). Возвращает число убранных.
+  /// Безномерные серии (season/number == null) НЕ трогаем — их разложит
+  /// [reconcileSeriesEpisodes] по порядку.
+  int _dropSpecials(LibrarySeries s) {
+    final before = s.episodes.length;
+    s.episodes.removeWhere((e) =>
+        (e.season != null && e.season! <= 0) ||
+        (e.number != null && e.number! <= 0));
+    return before - s.episodes.length;
   }
 
   /// Сливает задвоенные серии сериала (одинаковые сезон+номер) в одну, сохраняя
@@ -642,6 +657,28 @@ class MovieRepository extends ChangeNotifier {
     for (final e in s.episodes) {
       if (e.season == season) {
         e.score = score;
+        n++;
+      }
+    }
+    if (n > 0) {
+      notifyListeners();
+      await _persist();
+    }
+    return n;
+  }
+
+  /// Ставит всем УЖЕ ПРОСМОТРЕННЫМ сериям сезона одинаковое число просмотров
+  /// (например, «весь сезон смотрел 3 раза»). [watchCount] 1 = убрать повторы.
+  /// Даты просмотров не трогаем (чтобы не рассыпать сессии). Возвращает число.
+  Future<int> setSeasonWatchCount(
+      String seriesId, int season, int watchCount) async {
+    final s = seriesById(seriesId);
+    if (s == null) return 0;
+    final target = watchCount < 1 ? 0 : watchCount - 1;
+    var n = 0;
+    for (final e in s.episodes) {
+      if (e.season == season && e.rewatchCount != target) {
+        e.rewatchCount = target;
         n++;
       }
     }

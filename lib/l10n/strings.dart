@@ -429,6 +429,23 @@ const Map<String, Map<String, String>> _strings = {
   'unmark_season': {'ru': 'Снять весь сезон', 'en': 'Unmark whole season'},
   'season_done': {'ru': 'Сезон {n} отмечен', 'en': 'Season {n} marked'},
   'watch_again': {'ru': 'Смотрел ещё раз', 'en': 'Watched again'},
+  'season_rewatch_title': {
+    'ru': 'Сезон {n}: сколько раз смотрели?',
+    'en': 'Season {n}: how many times watched?'
+  },
+  'season_times': {'ru': 'Смотрел {n} раза', 'en': 'Watched {n} times'},
+  'season_times_one': {
+    'ru': 'Один раз (убрать повторы)',
+    'en': 'Once (remove repeats)'
+  },
+  'season_rewatched': {
+    'ru': 'Сезон: {n} просмотра ({c} серий)',
+    'en': 'Season set to {n} watches ({c} episodes)'
+  },
+  'season_repeats_cleared': {
+    'ru': 'Повторы сезона убраны',
+    'en': 'Season repeats removed'
+  },
   'ep_watched_n': {'ru': 'Просмотров: {n}', 'en': 'Watches: {n}'},
   'rewatch_removed': {'ru': 'Повтор убран', 'en': 'Rewatch removed'},
   'season_progress': {'ru': 'Сезон {s}: {n}/{m}', 'en': 'Season {s}: {n}/{m}'},

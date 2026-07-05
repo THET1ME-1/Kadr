@@ -165,8 +165,15 @@ class TmdbSeason {
   final int number;
   final String name;
   final int episodeCount;
+
+  /// Дата выхода сезона (первой серии), ISO `YYYY-MM-DD`. Нужна, чтобы не
+  /// показывать сезоны, которые ещё не начали выходить.
+  final String? airDate;
   const TmdbSeason(
-      {required this.number, required this.name, required this.episodeCount});
+      {required this.number,
+      required this.name,
+      required this.episodeCount,
+      this.airDate});
 }
 
 /// Эпизод сериала из TMDB.
@@ -564,6 +571,7 @@ class TmdbService {
             )
         ].where((g) => g.name.isNotEmpty).toList(),
       );
+      final now = DateTime.now();
       final list = (j['seasons'] as List? ?? [])
           .map((s) => s as Map<String, dynamic>)
           .where((s) => s['season_number'] != null)
@@ -571,8 +579,11 @@ class TmdbService {
                 number: (s['season_number'] as num).toInt(),
                 name: s['name'] as String? ?? '',
                 episodeCount: (s['episode_count'] as num?)?.toInt() ?? 0,
+                airDate: s['air_date'] as String?,
               ))
-          .where((s) => s.episodeCount > 0 && s.number >= 1)
+          // Спецматериалы (сезон 0) и пустые сезоны — пропускаем. Сезоны, которые
+          // ещё не начали выходить (дата эфира в будущем), тоже не показываем.
+          .where((s) => s.episodeCount > 0 && s.number >= 1 && !_seasonInFuture(s, now))
           .toList()
         ..sort((a, b) => a.number.compareTo(b.number));
       _seasonsCache[tvId] = list;
@@ -581,6 +592,16 @@ class TmdbService {
       debugPrint('tmdb seasons $tvId error: $e');
       return [];
     }
+  }
+
+  /// Сезон ещё не начал выходить (дата эфира строго в будущем). Неизвестную
+  /// дату считаем «вышел» (сериалы в эфире часто без даты у текущего сезона).
+  static bool _seasonInFuture(TmdbSeason s, DateTime now) {
+    final d = s.airDate;
+    if (d == null || d.isEmpty) return false;
+    final parsed = DateTime.tryParse(d);
+    if (parsed == null) return false;
+    return parsed.isAfter(now);
   }
 
   /// Эпизоды конкретного сезона сериала.
