@@ -228,6 +228,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
     // Запоминаем общее число серий (для «Сейчас смотрю» — только незавершённые).
     final total = _seasons.fold<int>(0, (a, b) => a + b.episodeCount);
     await _repo.setSeriesTotal(s.tvShowId, total);
+    await _repo.setSeriesYear(s.tvShowId, _extra?.year);
     // Импорт TV Time мог сохранить серии только датами (без сезона/номера) —
     // раскладываем их по сериям TMDB по порядку, чтобы галочки совпали со счётчиком.
     if (s.episodes.any((e) => e.season == null || e.number == null)) {

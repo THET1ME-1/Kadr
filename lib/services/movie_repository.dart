@@ -566,7 +566,10 @@ class MovieRepository extends ChangeNotifier {
   /// tmdbId — сопоставляем по названию, чтобы не плодить дубликаты.
   LibrarySeries ensureSeriesFromTmdb(TmdbSeries t) {
     final existing = seriesByTmdb(t.id);
-    if (existing != null) return existing;
+    if (existing != null) {
+      if (existing.year == null && t.year != null) existing.year = t.year;
+      return existing;
+    }
     final tl = t.title.toLowerCase().trim();
     final ol = (t.originalTitle ?? '').toLowerCase().trim();
     for (final s in _series) {
@@ -580,6 +583,7 @@ class MovieRepository extends ChangeNotifier {
         s.posterUrl ??= t.posterUrl;
         s.ruTitle ??= t.title;
         s.kpRating ??= t.rating;
+        s.year ??= t.year;
         s.enrichTried = true;
         notifyListeners();
         _persistSoon();
@@ -593,6 +597,7 @@ class MovieRepository extends ChangeNotifier {
       tmdbId: t.id,
       posterUrl: t.posterUrl,
       kpRating: t.rating,
+      year: t.year,
       enrichTried: true,
     );
     _series.add(s);
@@ -1171,6 +1176,15 @@ class MovieRepository extends ChangeNotifier {
     final s = seriesById(id);
     if (s == null || total <= 0 || s.totalEpisodes == total) return;
     s.totalEpisodes = total;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Год выхода сериала (из TMDB) — для статистики. Ставим только если ещё нет.
+  Future<void> setSeriesYear(String id, int? year) async {
+    final s = seriesById(id);
+    if (s == null || year == null || s.year != null) return;
+    s.year = year;
     notifyListeners();
     await _persist();
   }

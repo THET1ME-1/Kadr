@@ -157,7 +157,9 @@ class TmdbTvExtra {
   final String? backdropUrl;
   final String? overview;
   final List<TmdbGenre> genres;
-  const TmdbTvExtra({this.backdropUrl, this.overview, this.genres = const []});
+  final int? year;
+  const TmdbTvExtra(
+      {this.backdropUrl, this.overview, this.genres = const [], this.year});
 }
 
 /// Сезон сериала (для навигации по сериям).
@@ -563,6 +565,10 @@ class TmdbService {
         overview: (j['overview'] as String?)?.isNotEmpty == true
             ? j['overview'] as String
             : null,
+        year: () {
+          final r = j['first_air_date'] as String? ?? '';
+          return r.length >= 4 ? int.tryParse(r.substring(0, 4)) : null;
+        }(),
         genres: [
           for (final g in (j['genres'] as List? ?? []))
             TmdbGenre(

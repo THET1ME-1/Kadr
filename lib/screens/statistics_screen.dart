@@ -75,6 +75,7 @@ class StatisticsScreen extends StatelessWidget {
                           ? null
                           : '${tr('stat_avg')}: ${s.avgScore.toStringAsFixed(1)}',
                     ),
+                    _myRatingsByWatchYearCard(context),
                     _ratingsByReleaseYearCard(context),
                     if (s.byDecade.isNotEmpty) ...[
                       const SizedBox(height: 20),
@@ -126,18 +127,82 @@ class StatisticsScreen extends StatelessWidget {
 
   // ------------------------------ шапка-итог ------------------------------
 
-  /// Умная карточка: как ты оцениваешь кино РАЗНЫХ лет выхода. График средней
-  /// твоей оценки по десятилетиям + вердикт (лучший/худший год, тренд).
+  /// Как ты оцениваешь кино РАЗНЫХ лет ВЫХОДА (фильмы+сериалы), по десятилетиям.
   Widget _ratingsByReleaseYearCard(BuildContext context) {
     final repo = MovieRepository.instance;
-    final sum = <int, double>{};
-    final cnt = <int, int>{};
+    final sum = <int, double>{}, cnt = <int, int>{};
     for (final m in repo.watched) {
       final y = m.year, sc = m.currentScore;
       if (y == null || y < 1900 || sc == null) continue;
       sum[y] = (sum[y] ?? 0) + sc;
       cnt[y] = (cnt[y] ?? 0) + 1;
     }
+    for (final s in repo.series) {
+      final y = s.year, sc = s.displayScore;
+      if (y == null || y < 1900 || sc == null || s.episodes.isEmpty) continue;
+      sum[y] = (sum[y] ?? 0) + sc;
+      cnt[y] = (cnt[y] ?? 0) + 1;
+    }
+    return _ratingsCard(context,
+        title: tr('stat_ratings_by_year'),
+        sum: sum,
+        cnt: cnt,
+        byDecade: true,
+        bestKey: 'stat_ry_best',
+        worstKey: 'stat_ry_worst',
+        trendUpKey: 'stat_ry_trend_up',
+        trendDownKey: 'stat_ry_trend_down',
+        trendFlatKey: 'stat_ry_trend_flat');
+  }
+
+  /// Средняя ТВОЯ оценка по годам ПРОСМОТРА (когда ставил оценку) — фильмы+серии.
+  /// Показывает, строже или добрее ты оцениваешь со временем.
+  Widget _myRatingsByWatchYearCard(BuildContext context) {
+    final repo = MovieRepository.instance;
+    final sum = <int, double>{}, cnt = <int, int>{};
+    for (final m in repo.watched) {
+      for (final v in m.viewings) {
+        final sc = m.scoreOf(v);
+        if (v.date == null || sc == null) continue;
+        sum[v.date!.year] = (sum[v.date!.year] ?? 0) + sc;
+        cnt[v.date!.year] = (cnt[v.date!.year] ?? 0) + 1;
+      }
+    }
+    for (final s in repo.series) {
+      for (final e in s.episodes) {
+        for (final v in e.views) {
+          final sc = e.scoreOfView(v);
+          if (v.date == null || sc == null) continue;
+          sum[v.date!.year] = (sum[v.date!.year] ?? 0) + sc;
+          cnt[v.date!.year] = (cnt[v.date!.year] ?? 0) + 1;
+        }
+      }
+    }
+    return _ratingsCard(context,
+        title: tr('stat_my_ratings_by_year'),
+        sum: sum,
+        cnt: cnt,
+        byDecade: false,
+        bestKey: 'stat_wy_best',
+        worstKey: 'stat_wy_worst',
+        trendUpKey: 'stat_wy_trend_up',
+        trendDownKey: 'stat_wy_trend_down',
+        trendFlatKey: 'stat_wy_trend_flat');
+  }
+
+  /// Общий рендер карточки «средняя оценка по годам»: график + вердикт + тренд.
+  Widget _ratingsCard(
+    BuildContext context, {
+    required String title,
+    required Map<int, double> sum,
+    required Map<int, int> cnt,
+    required bool byDecade,
+    required String bestKey,
+    required String worstKey,
+    required String trendUpKey,
+    required String trendDownKey,
+    required String trendFlatKey,
+  }) {
     final total = cnt.values.fold<int>(0, (a, b) => a + b);
     if (cnt.length < 2 || total < 4) return const SizedBox.shrink();
 
@@ -162,20 +227,23 @@ class StatisticsScreen extends StatelessWidget {
     final years = avg.keys.toList()..sort();
     final totalChange = slope * (years.last - years.first);
     final trendKey = totalChange > 0.5
-        ? 'stat_ry_trend_up'
+        ? trendUpKey
         : totalChange < -0.5
-            ? 'stat_ry_trend_down'
-            : 'stat_ry_trend_flat';
+            ? trendDownKey
+            : trendFlatKey;
 
-    // По десятилетиям для графика.
+    // Группировка для графика: по десятилетиям (год выхода) или по годам.
     final dSum = <int, double>{}, dCnt = <int, int>{};
     for (final y in sum.keys) {
-      final d = (y ~/ 10) * 10;
+      final d = byDecade ? (y ~/ 10) * 10 : y;
       dSum[d] = (dSum[d] ?? 0) + sum[y]!;
       dCnt[d] = (dCnt[d] ?? 0) + cnt[y]!;
     }
     final decades = dSum.keys.toList()..sort();
     final scheme = Theme.of(context).colorScheme;
+    String barLabel(int d) => byDecade
+        ? '${(d % 100).toString().padLeft(2, '0')}-е'
+        : "'${(d % 100).toString().padLeft(2, '0')}";
 
     Widget verdict(IconData icon, String text, Color c) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 3),
@@ -197,7 +265,7 @@ class StatisticsScreen extends StatelessWidget {
       padding: const EdgeInsets.only(top: 20),
       child: _card(
         context,
-        tr('stat_ratings_by_year'),
+        title,
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -227,7 +295,7 @@ class StatisticsScreen extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(6)),
                           ),
                           const SizedBox(height: 6),
-                          Text('${(d % 100).toString().padLeft(2, '0')}-е',
+                          Text(barLabel(d),
                               style: TextStyle(
                                   fontFamily: AppTheme.bodyFont,
                                   fontSize: 11,
@@ -241,13 +309,11 @@ class StatisticsScreen extends StatelessWidget {
             const SizedBox(height: 14),
             verdict(
                 Icons.emoji_events_rounded,
-                trf('stat_ry_best',
-                    {'y': best, 's': avg[best]!.toStringAsFixed(1)}),
+                trf(bestKey, {'y': best, 's': avg[best]!.toStringAsFixed(1)}),
                 scoreColor(avg[best]!)),
             verdict(
                 Icons.trending_down_rounded,
-                trf('stat_ry_worst',
-                    {'y': worst, 's': avg[worst]!.toStringAsFixed(1)}),
+                trf(worstKey, {'y': worst, 's': avg[worst]!.toStringAsFixed(1)}),
                 scoreColor(avg[worst]!)),
             const SizedBox(height: 8),
             Container(

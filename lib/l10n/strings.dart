@@ -515,6 +515,30 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Оценки по годам выхода',
     'en': 'Ratings by release year'
   },
+  'stat_my_ratings_by_year': {
+    'ru': 'Мои оценки по годам просмотра',
+    'en': 'My ratings by year watched'
+  },
+  'stat_wy_best': {
+    'ru': 'Щедрее всего оценивали в {y} ({s})',
+    'en': 'Most generous in {y} ({s})'
+  },
+  'stat_wy_worst': {
+    'ru': 'Строже всего — в {y} ({s})',
+    'en': 'Harshest in {y} ({s})'
+  },
+  'stat_wy_trend_up': {
+    'ru': 'Со временем вы оцениваете кино добрее — средний балл растёт.',
+    'en': 'Over time you rate films more kindly — your average is rising.'
+  },
+  'stat_wy_trend_down': {
+    'ru': 'Со временем вы оцениваете строже — средний балл снижается.',
+    'en': 'Over time you rate more harshly — your average is dropping.'
+  },
+  'stat_wy_trend_flat': {
+    'ru': 'Ваши оценки стабильны из года в год — вкус устоялся.',
+    'en': 'Your ratings are steady year to year — a settled taste.'
+  },
   'stat_ry_best': {
     'ru': 'Выше всех — фильмы {y} года ({s})',
     'en': 'Highest — {y} films ({s})'

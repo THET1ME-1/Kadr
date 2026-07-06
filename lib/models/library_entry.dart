@@ -434,6 +434,9 @@ class LibrarySeries {
   /// Всего серий по данным TMDB (заполняется при открытии экрана сериала).
   /// Нужно, чтобы «Сейчас смотрю» показывал только незавершённые сериалы.
   int? totalEpisodes;
+
+  /// Год выхода (первый эфир) — из TMDB. Для статистики оценок по годам выхода.
+  int? year;
   double? score;
   String? review;
   int? kinopoiskId;
@@ -452,6 +455,7 @@ class LibrarySeries {
     this.dropped = false,
     this.finished = false,
     this.totalEpisodes,
+    this.year,
     this.score,
     this.review,
     this.kinopoiskId,
@@ -564,6 +568,7 @@ class LibrarySeries {
       dropped: j['dropped'] == true,
       finished: j['finished'] == true,
       totalEpisodes: (j['totalEpisodes'] as num?)?.toInt(),
+      year: (j['year'] as num?)?.toInt(),
       score: (j['score'] as num?)?.toDouble(),
       review: j['review'] as String?,
       kinopoiskId: (j['kinopoiskId'] as num?)?.toInt(),
@@ -584,6 +589,7 @@ class LibrarySeries {
         'dropped': dropped,
         'finished': finished,
         'totalEpisodes': totalEpisodes,
+        'year': year,
         'score': score,
         'review': review,
         'kinopoiskId': kinopoiskId,
