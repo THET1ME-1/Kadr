@@ -1866,29 +1866,44 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
                 fontSize: 14,
                 color: scheme.onSurfaceVariant)),
       ],
-      // Дата и время просмотра — редактируемые (как у фильмов).
-      if (we != null) ...[
-        const SizedBox(height: 14),
-        _watchedAtTile(scheme, we),
-      ],
-      const SizedBox(height: 18),
-      _scoreCard(scheme, we),
-      if (we?.score != null) ...[
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.tonalIcon(
-            onPressed: () {
-              _repo.setEpisodeScore(widget.seriesId, we!, null);
-              setState(() => _dragging = null);
-            },
-            icon: const Icon(Icons.star_outline_rounded),
-            label: Text(tr('remove_score')),
-            style: FilledButton.styleFrom(
-                backgroundColor: kDroppedColor.withValues(alpha: 0.16),
-                foregroundColor: kDroppedColor),
+      // Несколько просмотров → список «Оценки по просмотрам»: у КАЖДОГО своя
+      // дата и оценка, каждый редактируется/удаляется (как у фильмов). Один
+      // просмотр → обычная карточка оценки + дата.
+      if (we != null && we.watchCount > 1) ...[
+        const SizedBox(height: 20),
+        Text(tr('per_viewing_scores'),
+            style: TextStyle(
+                fontFamily: AppTheme.displayFont,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                color: scheme.primary)),
+        const SizedBox(height: 8),
+        ..._episodeViewRows(scheme, we),
+      ] else ...[
+        // Дата и время просмотра — редактируемые (как у фильмов).
+        if (we != null) ...[
+          const SizedBox(height: 14),
+          _watchedAtTile(scheme, we),
+        ],
+        const SizedBox(height: 18),
+        _scoreCard(scheme, we),
+        if (we?.score != null) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () {
+                _repo.setEpisodeScore(widget.seriesId, we!, null);
+                setState(() => _dragging = null);
+              },
+              icon: const Icon(Icons.star_outline_rounded),
+              label: Text(tr('remove_score')),
+              style: FilledButton.styleFrom(
+                  backgroundColor: kDroppedColor.withValues(alpha: 0.16),
+                  foregroundColor: kDroppedColor),
+            ),
           ),
-        ),
+        ],
       ],
       const SizedBox(height: 16),
       ..._watchButtons(scheme, watched),
@@ -1912,6 +1927,289 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
         ),
       ],
     ];
+  }
+
+  /// Список «Оценки по просмотрам» серии: каждый просмотр (первый + повторы) со
+  /// своей датой и оценкой; тап → редактор (как у фильмов).
+  List<Widget> _episodeViewRows(ColorScheme scheme, Episode we) {
+    final list = we.views;
+    final rows = <Widget>[];
+    for (var i = list.length - 1; i >= 0; i--) {
+      final v = list[i];
+      final isRewatch = i > 0;
+      final sc = we.scoreOfView(v);
+      rows.add(Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _editEpisodeView(context, we, i),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: Row(
+              children: [
+                Icon(isRewatch ? Icons.repeat_rounded : Icons.event_rounded,
+                    size: 20, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                          v.hasDate
+                              ? dateExactWithTime(v.date!)
+                              : tr('when_unknown'),
+                          style: TextStyle(
+                              fontFamily: AppTheme.bodyFont,
+                              fontSize: 14,
+                              color: scheme.onSurface)),
+                      if (isRewatch)
+                        Text(trf('viewing_n', {'n': i + 1}),
+                            style: TextStyle(
+                                fontFamily: AppTheme.bodyFont,
+                                fontSize: 11.5,
+                                color: scheme.onSurfaceVariant
+                                    .withValues(alpha: 0.8))),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: sc != null
+                        ? scoreColor(sc)
+                        : scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                          sc != null
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
+                          size: 16,
+                          color: sc != null
+                              ? onScoreColor(sc)
+                              : scheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Text(sc != null ? sc.toStringAsFixed(1) : tr('not_rated'),
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: sc != null
+                                  ? onScoreColor(sc)
+                                  : scheme.onSurfaceVariant)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(Icons.edit_rounded,
+                    size: 17,
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.7)),
+              ],
+            ),
+          ),
+        ),
+      ));
+    }
+    return rows;
+  }
+
+  /// Редактор одного просмотра серии: дата + оценка + удаление (как у фильмов).
+  void _editEpisodeView(BuildContext context, Episode we, int viewIndex) {
+    final v = we.views[viewIndex];
+    DateTime? date = v.date;
+    bool rated = we.scoreOfView(v) != null;
+    double val = we.scoreOfView(v) ?? 1.0;
+    final scheme = Theme.of(context).colorScheme;
+    final sid = widget.seriesId;
+    final season = ep.season, number = ep.number;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheet) => SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 14,
+                bottom: 20 + MediaQuery.of(sheetCtx).viewInsets.bottom),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: scheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 14),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                      viewIndex > 0
+                          ? trf('viewing_n', {'n': viewIndex + 1})
+                          : tr('edit_viewing'),
+                      style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          color: scheme.onSurface)),
+                ),
+                const SizedBox(height: 12),
+                Material(
+                  color: scheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(16),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () async {
+                      final now = DateTime.now();
+                      final picked = await showDatePicker(
+                        context: sheetCtx,
+                        initialDate: date ?? now,
+                        firstDate: DateTime(1900),
+                        lastDate: now,
+                      );
+                      if (picked == null || !sheetCtx.mounted) return;
+                      final time = await showTimePicker(
+                        context: sheetCtx,
+                        initialTime: TimeOfDay.fromDateTime(date ?? now),
+                      );
+                      setSheet(() => date = time == null
+                          ? DateTime(picked.year, picked.month, picked.day)
+                          : DateTime(picked.year, picked.month, picked.day,
+                              time.hour, time.minute));
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          Icon(Icons.event_rounded, color: scheme.primary),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(tr('date_time'),
+                                    style: TextStyle(
+                                        fontFamily: AppTheme.bodyFont,
+                                        fontSize: 12,
+                                        color: scheme.onSurfaceVariant)),
+                                Text(
+                                    date == null
+                                        ? tr('when_unknown')
+                                        : dateExactWithTime(date!),
+                                    style: TextStyle(
+                                        fontFamily: AppTheme.bodyFont,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15,
+                                        color: scheme.onSurface)),
+                              ],
+                            ),
+                          ),
+                          if (date != null)
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 20),
+                              tooltip: tr('clear_date'),
+                              onPressed: () => setSheet(() => date = null),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () async {
+                    final r =
+                        await showScorePad(sheetCtx, initial: rated ? val : null);
+                    if (r != null) {
+                      setSheet(() {
+                        val = r;
+                        rated = true;
+                      });
+                    }
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(rated ? val.toStringAsFixed(1) : '—',
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 46,
+                              color: rated
+                                  ? scoreColor(val)
+                                  : scheme.onSurfaceVariant)),
+                      const SizedBox(width: 8),
+                      Icon(Icons.dialpad_rounded,
+                          size: 18, color: scheme.onSurfaceVariant),
+                    ],
+                  ),
+                ),
+                Text(tr('rate_this_viewing'),
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 12.5,
+                        color: scheme.onSurfaceVariant)),
+                const SizedBox(height: 4),
+                RatingSlider(
+                  value: val,
+                  onChanged: (x) => setSheet(() {
+                    val = x;
+                    rated = true;
+                  }),
+                ),
+                Row(
+                  children: [
+                    IconButton.filledTonal(
+                      onPressed: () {
+                        _repo.removeEpisodeView(sid, season, number, viewIndex);
+                        Navigator.pop(sheetCtx);
+                      },
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      style: IconButton.styleFrom(
+                          backgroundColor: scheme.errorContainer,
+                          foregroundColor: scheme.onErrorContainer),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => setSheet(() => rated = false),
+                        child: Text(tr('remove_score')),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () {
+                          _repo.setEpisodeViewDate(
+                              sid, season, number, viewIndex, date);
+                          _repo.setEpisodeViewScore(
+                              sid, season, number, viewIndex, rated ? val : null);
+                          Navigator.pop(sheetCtx);
+                        },
+                        child: Text(tr('done')),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   List<Widget> _watchButtons(ColorScheme scheme, bool watched) {

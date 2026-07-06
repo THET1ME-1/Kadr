@@ -264,14 +264,13 @@ class Episode {
   String? epId;
 
   /// Сколько раз серию пересматривали (0 — смотрели один раз). Всего просмотров
-  /// серии = rewatchCount + 1.
+  /// серии = rewatchCount + 1. Оставлен для ×N у СТАРЫХ данных без дат.
   int rewatchCount;
 
-  /// Даты ПОВТОРНЫХ просмотров (сверх первого в [watchedAt]). Нужны, чтобы
-  /// пересмотр в другой день был отдельной записью в ленте «Просмотрено» — как
-  /// отдельные просмотры у фильмов. У старых данных пуст (даты прошлых пересмотров
-  /// неизвестны); новые пересмотры добавляют сюда дату.
-  List<DateTime> rewatchDates;
+  /// ПОВТОРНЫЕ просмотры (сверх первого в [watchedAt]/[score]) — у КАЖДОГО своя
+  /// дата и своя оценка, как отдельные просмотры фильма. Первый просмотр — это
+  /// сами поля watchedAt+score. Старые данные (rewatchDates) мигрируются сюда.
+  List<Viewing> rewatchViews;
 
   Episode({
     this.season,
@@ -281,23 +280,29 @@ class Episode {
     this.score,
     this.epId,
     this.rewatchCount = 0,
-    List<DateTime>? rewatchDates,
-  }) : rewatchDates = rewatchDates ?? [];
+    List<Viewing>? rewatchViews,
+  }) : rewatchViews = rewatchViews ?? [];
 
-  /// Всего просмотров серии (первый + повторы).
-  int get watchCount => rewatchCount + 1;
+  /// Все просмотры серии как список (первый = watchedAt+score, затем повторы) —
+  /// для карточки «Оценки по просмотрам» и ленты. Порядок добавления сохранён.
+  List<Viewing> get views =>
+      [Viewing(date: watchedAt, score: score), ...rewatchViews];
 
-  /// Все даты просмотра (первый + датированные повторы) — для ленты по событиям.
-  List<DateTime> get watchDates => [?watchedAt, ...rewatchDates];
+  /// Эффективная оценка конкретного просмотра (своя, иначе — общая первого).
+  double? scoreOfView(Viewing v) => v.score ?? score;
 
-  /// Копия-«событие» одного просмотра с конкретной датой (для построения ленты:
-  /// один просмотр = одна запись). rewatchCount обнуляем — событие атомарно.
-  Episode copyForEvent(DateTime date) => Episode(
+  /// Всего просмотров серии (первый + повторы). Учитываем и старый rewatchCount.
+  int get watchCount =>
+      1 + (rewatchViews.length > rewatchCount ? rewatchViews.length : rewatchCount);
+
+  /// Копия-«событие» одного просмотра (дата + его оценка) — для ленты, где один
+  /// просмотр = одна запись. rewatchCount/rewatchViews обнуляем: событие атомарно.
+  Episode copyForView(Viewing v) => Episode(
         season: season,
         number: number,
-        watchedAt: date,
+        watchedAt: v.date,
         runtimeMin: runtimeMin,
-        score: score,
+        score: v.score ?? score,
         epId: epId,
       );
 
@@ -323,17 +328,22 @@ class Episode {
         score: (j['score'] as num?)?.toDouble(),
         epId: j['epId'] as String?,
         rewatchCount: (j['rewatchCount'] as num?)?.toInt() ?? 0,
-        rewatchDates: _parseDates(j['rewatchDates']),
+        rewatchViews: _parseViews(j),
       );
 
-  static List<DateTime> _parseDates(dynamic v) {
-    if (v is! List) return [];
-    final out = <DateTime>[];
-    for (final e in v) {
-      final d = _parse(e);
-      if (d != null) out.add(d);
+  /// Читает повторы: новый формат rewatchViews (дата+оценка) или старый
+  /// rewatchDates (только даты v0.6.4 → оценка null).
+  static List<Viewing> _parseViews(Map<String, dynamic> j) {
+    final rv = j['rewatchViews'];
+    if (rv is List) return [for (final e in rv) Viewing.fromAny(e)];
+    final rd = j['rewatchDates'];
+    if (rd is List) {
+      return [
+        for (final e in rd)
+          if (_parse(e) != null) Viewing(date: _parse(e))
+      ];
     }
-    return out;
+    return [];
   }
 
   Map<String, dynamic> toJson() => {
@@ -344,9 +354,8 @@ class Episode {
         'score': score,
         'epId': epId,
         'rewatchCount': rewatchCount,
-        if (rewatchDates.isNotEmpty)
-          'rewatchDates':
-              [for (final d in rewatchDates) d.toIso8601String()],
+        if (rewatchViews.isNotEmpty)
+          'rewatchViews': [for (final v in rewatchViews) v.toJson()],
       };
 }
 
@@ -490,12 +499,12 @@ class LibrarySeries {
     final dated = <Episode>[];
     final undated = <Episode>[];
     for (final e in episodes) {
-      final dates = e.watchDates;
-      if (dates.isEmpty) {
-        undated.add(e);
-      } else {
-        for (final d in dates) {
-          dated.add(e.copyForEvent(d));
+      // Каждый просмотр (первый + повторы) — своё событие с датой и своей оценкой.
+      for (final v in e.views) {
+        if (v.date == null) {
+          undated.add(e.copyForView(v));
+        } else {
+          dated.add(e.copyForView(v));
         }
       }
     }

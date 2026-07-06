@@ -156,10 +156,8 @@ class MovieRepository extends ChangeNotifier {
         if (e.rewatchCount > prev.rewatchCount) {
           prev.rewatchCount = e.rewatchCount;
         }
-        // Объединяем даты повторов дублей (не теряем историю пересмотров).
-        for (final d in e.rewatchDates) {
-          if (!prev.rewatchDates.contains(d)) prev.rewatchDates.add(d);
-        }
+        // Объединяем повторы дублей (не теряем историю пересмотров).
+        prev.rewatchViews.addAll(e.rewatchViews);
         prev.runtimeMin ??= e.runtimeMin;
         prev.epId ??= e.epId;
         removed++;
@@ -735,10 +733,11 @@ class MovieRepository extends ChangeNotifier {
     var i = 0;
     for (final e in eps) {
       e.rewatchCount += 1;
-      // Дата пересмотра идёт в rewatchDates — первый просмотр (watchedAt) НЕ
-      // затираем, чтобы прошлая запись осталась в ленте. null = «неизвестно»:
-      // считаем повтор, но отдельную датированную запись не создаём.
-      if (date != null) e.rewatchDates.add(date.add(Duration(seconds: i)));
+      // Пересмотр = новый просмотр (дата+оценка). Первый (watchedAt) НЕ затираем.
+      // null = «неизвестно»: считаем повтор, но датированную запись не создаём.
+      if (date != null) {
+        e.rewatchViews.add(Viewing(date: date.add(Duration(seconds: i))));
+      }
       i++;
     }
     if (eps.isNotEmpty) {
@@ -823,17 +822,19 @@ class MovieRepository extends ChangeNotifier {
               : null);
       if (stored == null) continue;
       final date = ev.watchedAt;
-      if (date != null &&
-          date != stored.watchedAt &&
-          stored.rewatchDates.contains(date)) {
-        // Удаляем конкретный датированный повтор.
-        stored.rewatchDates.remove(date);
+      final idx = date == null
+          ? -1
+          : stored.rewatchViews.indexWhere((v) => v.date == date);
+      if (idx >= 0 && date != stored.watchedAt) {
+        // Удаляем конкретный повтор (по дате события).
+        stored.rewatchViews.removeAt(idx);
         if (stored.rewatchCount > 0) stored.rewatchCount -= 1;
         changed = true;
-      } else if (stored.rewatchDates.isNotEmpty) {
-        // Удаляем первый просмотр, но повторы есть → повышаем ближайший повтор.
-        stored.rewatchDates.sort();
-        stored.watchedAt = stored.rewatchDates.removeAt(0);
+      } else if (stored.rewatchViews.isNotEmpty) {
+        // Удаляем первый просмотр, но повторы есть → повышаем первый повтор.
+        final v = stored.rewatchViews.removeAt(0);
+        stored.watchedAt = v.date;
+        stored.score = v.score ?? stored.score;
         if (stored.rewatchCount > 0) stored.rewatchCount -= 1;
         changed = true;
       } else {
@@ -916,22 +917,102 @@ class MovieRepository extends ChangeNotifier {
       return;
     }
     ep.rewatchCount += 1;
-    // Пересмотр = НОВАЯ датированная запись (первый просмотр watchedAt НЕ
-    // затираем), чтобы прошлый просмотр остался в ленте — как у фильмов.
-    ep.rewatchDates.add(DateTime.now());
+    // Пересмотр = НОВЫЙ просмотр (дата+своя оценка). Первый (watchedAt) НЕ
+    // затираем, чтобы прошлый просмотр остался в ленте — как у фильмов.
+    ep.rewatchViews.add(Viewing(date: DateTime.now()));
     notifyListeners();
     await _persist();
   }
 
-  /// Убирает один повторный просмотр серии (не снимая саму отметку просмотра).
+  /// Убирает ОДИН последний повтор серии (не снимая саму отметку просмотра).
   Future<void> removeEpisodeRewatch(
       String seriesId, int season, int number) async {
+    final ep = seriesById(seriesId)?.watchedEpisode(season, number);
+    if (ep == null || ep.watchCount <= 1) return;
+    if (ep.rewatchViews.isNotEmpty) ep.rewatchViews.removeLast();
+    if (ep.rewatchCount > 0) ep.rewatchCount -= 1;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Оценка КОНКРЕТНОГО просмотра серии. viewIndex 0 = первый (watchedAt+score),
+  /// ≥1 = повтор rewatchViews[viewIndex-1]. Как у фильмов (setViewingScore).
+  Future<void> setEpisodeViewScore(String seriesId, int? season, int? number,
+      int viewIndex, double? score) async {
+    final ep = seriesById(seriesId)?.watchedEpisode(season, number);
+    if (ep == null) return;
+    if (viewIndex <= 0) {
+      ep.score = score;
+    } else if (viewIndex - 1 < ep.rewatchViews.length) {
+      ep.rewatchViews[viewIndex - 1].score = score;
+    } else {
+      return;
+    }
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Дата конкретного просмотра серии (null = «неизвестно»). viewIndex как выше.
+  Future<void> setEpisodeViewDate(String seriesId, int? season, int? number,
+      int viewIndex, DateTime? date) async {
+    final ep = seriesById(seriesId)?.watchedEpisode(season, number);
+    if (ep == null) return;
+    if (viewIndex <= 0) {
+      ep.watchedAt = date;
+    } else if (viewIndex - 1 < ep.rewatchViews.length) {
+      ep.rewatchViews[viewIndex - 1].date = date;
+    } else {
+      return;
+    }
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Добавляет ещё один просмотр серии (дата+оценка) — «смотрел ещё раз».
+  Future<void> addEpisodeView(String seriesId, int season, int number,
+      {DateTime? date, double? score, int? runtimeMin}) async {
     final s = seriesById(seriesId);
     if (s == null) return;
     final ep = s.watchedEpisode(season, number);
-    if (ep == null || ep.rewatchCount <= 0) return;
-    ep.rewatchCount -= 1;
-    if (ep.rewatchDates.isNotEmpty) ep.rewatchDates.removeLast();
+    if (ep == null) {
+      await markEpisodeWatched(seriesId, season, number, runtimeMin: runtimeMin);
+      final e2 = s.watchedEpisode(season, number);
+      if (e2 != null) {
+        e2.watchedAt = date;
+        e2.score = score;
+        notifyListeners();
+        await _persist();
+      }
+      return;
+    }
+    ep.rewatchCount += 1;
+    ep.rewatchViews.add(Viewing(date: date, score: score));
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Удаляет КОНКРЕТНЫЙ просмотр серии по индексу (0 = первый). Если первый и
+  /// есть повторы — повышаем ближайший; если это был единственный — снимаем серию.
+  Future<void> removeEpisodeView(
+      String seriesId, int? season, int? number, int viewIndex) async {
+    final s = seriesById(seriesId);
+    final ep = s?.watchedEpisode(season, number);
+    if (s == null || ep == null) return;
+    if (viewIndex <= 0) {
+      if (ep.rewatchViews.isNotEmpty) {
+        final v = ep.rewatchViews.removeAt(0);
+        ep.watchedAt = v.date;
+        ep.score = v.score ?? ep.score;
+        if (ep.rewatchCount > 0) ep.rewatchCount -= 1;
+      } else {
+        s.episodes.remove(ep);
+      }
+    } else if (viewIndex - 1 < ep.rewatchViews.length) {
+      ep.rewatchViews.removeAt(viewIndex - 1);
+      if (ep.rewatchCount > 0) ep.rewatchCount -= 1;
+    } else {
+      return;
+    }
     notifyListeners();
     await _persist();
   }
@@ -942,9 +1023,9 @@ class MovieRepository extends ChangeNotifier {
       String seriesId, int season, int number) async {
     final s = seriesById(seriesId);
     final ep = s?.watchedEpisode(season, number);
-    if (ep == null || ep.rewatchCount == 0) return;
+    if (ep == null || (ep.rewatchCount == 0 && ep.rewatchViews.isEmpty)) return;
     ep.rewatchCount = 0;
-    ep.rewatchDates.clear();
+    ep.rewatchViews.clear();
     notifyListeners();
     await _persist();
   }

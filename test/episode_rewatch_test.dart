@@ -17,7 +17,7 @@ void main() {
 
     // Отметил пересмотр сегодня (как addEpisodeRewatch).
     s.episodes.first.rewatchCount += 1;
-    s.episodes.first.rewatchDates.add(today);
+    s.episodes.first.rewatchViews.add(Viewing(date: today));
 
     final sessions = s.sessions();
     // Теперь ДВЕ сессии: вчерашняя и сегодняшняя.
@@ -35,12 +35,30 @@ void main() {
       number: 1,
       watchedAt: DateTime(2026, 7, 5),
       rewatchCount: 1,
-      rewatchDates: [DateTime(2026, 7, 6)],
+      rewatchViews: [Viewing(date: DateTime(2026, 7, 6))],
     );
     final back = Episode.fromJson(e.toJson());
-    expect(back.rewatchDates.length, 1);
-    expect(back.rewatchDates.first, DateTime(2026, 7, 6));
-    expect(back.watchDates.length, 2); // первый + повтор
+    expect(back.rewatchViews.length, 1);
+    expect(back.rewatchViews.first.date, DateTime(2026, 7, 6));
+    expect(back.views.length, 2); // первый + повтор
+  });
+
+  test('у каждого просмотра серии своя оценка в ленте', () {
+    final s = LibrarySeries(tvShowId: 't2', title: 'T');
+    s.episodes.add(Episode(
+      season: 1,
+      number: 1,
+      watchedAt: DateTime(2026, 7, 5, 20),
+      score: 7.0,
+      rewatchViews: [Viewing(date: DateTime(2026, 7, 6, 21), score: 9.0)],
+    ));
+    final sessions = s.sessions();
+    expect(sessions.length, 2);
+    final byDay = {
+      for (final x in sessions) x.start!.day: x.episodes.first.score
+    };
+    expect(byDay[5], 7.0, reason: 'первый просмотр — оценка 7');
+    expect(byDay[6], 9.0, reason: 'пересмотр — своя оценка 9');
   });
 
   test('старые данные без rewatchDates не ломаются', () {
@@ -50,8 +68,8 @@ void main() {
       'watchedAt': '2026-07-05T20:00:00.000',
       'rewatchCount': 2, // старые повторы без дат
     });
-    expect(e.rewatchDates, isEmpty);
-    expect(e.watchDates.length, 1); // только первый просмотр в ленте
+    expect(e.rewatchViews, isEmpty);
+    expect(e.views.length, 1); // только первый просмотр в ленте
     expect(e.watchCount, 3); // ×N по-прежнему считается
   });
 }
