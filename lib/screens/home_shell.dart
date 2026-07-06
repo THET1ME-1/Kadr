@@ -168,48 +168,63 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-      child: TextField(
-        controller: _searchCtl,
-        onChanged: (v) {
-          setState(() => _query = v);
-          _searchDebounce?.cancel();
-          _searchDebounce = Timer(const Duration(milliseconds: 350), () {
-            if (mounted) setState(() => _netQuery = v);
-          });
-        },
-        textInputAction: TextInputAction.search,
-        style: const TextStyle(fontFamily: AppTheme.bodyFont),
-        decoration: InputDecoration(
-          hintText: _index >= 2 ? tr('search_all_hint') : tr('search_hint'),
-          prefixIcon: const Icon(Icons.search_rounded),
-          suffixIcon: _searchCtl.text.isEmpty
-              ? null
-              : IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () {
-                    _searchDebounce?.cancel();
-                    _searchCtl.clear();
-                    setState(() {
-                      _query = '';
-                      _netQuery = '';
-                    });
-                    FocusScope.of(context).unfocus();
-                  },
-                ),
-          filled: true,
-          fillColor: scheme.surfaceContainerHigh,
-          contentPadding: const EdgeInsets.symmetric(vertical: 4),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30),
-            borderSide: BorderSide(color: scheme.primary, width: 2),
+      // Слушаем сам контроллер: крестик «очистить» появляется/исчезает мгновенно,
+      // не перестраивая вкладки. Тяжёлый rebuild (фильтр библиотеки + сетевой
+      // поиск) запускает только отложенный setState ниже.
+      child: ValueListenableBuilder<TextEditingValue>(
+        valueListenable: _searchCtl,
+        builder: (context, value, _) => TextField(
+          controller: _searchCtl,
+          onChanged: (v) {
+            // Ключевое для отзывчивости: НЕ дёргаем setState на каждый символ.
+            // Иначе на большой библиотеке лента «Просмотрено» пересобиралась на
+            // каждую букву и блокировала UI-поток — набор «отставал» на секунды.
+            // Локальный фильтр и сетевой поиск запускаем одним отложенным
+            // rebuild'ом; само поле обновляется через контроллер, без setState.
+            _searchDebounce?.cancel();
+            _searchDebounce = Timer(const Duration(milliseconds: 280), () {
+              if (mounted) {
+                setState(() {
+                  _query = v;
+                  _netQuery = v;
+                });
+              }
+            });
+          },
+          textInputAction: TextInputAction.search,
+          style: const TextStyle(fontFamily: AppTheme.bodyFont),
+          decoration: InputDecoration(
+            hintText: _index >= 2 ? tr('search_all_hint') : tr('search_hint'),
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: value.text.isEmpty
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () {
+                      _searchDebounce?.cancel();
+                      _searchCtl.clear();
+                      setState(() {
+                        _query = '';
+                        _netQuery = '';
+                      });
+                      FocusScope.of(context).unfocus();
+                    },
+                  ),
+            filled: true,
+            fillColor: scheme.surfaceContainerHigh,
+            contentPadding: const EdgeInsets.symmetric(vertical: 4),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30),
+              borderSide: BorderSide(color: scheme.primary, width: 2),
+            ),
           ),
         ),
       ),

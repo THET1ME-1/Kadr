@@ -75,8 +75,18 @@ class _LibraryTabState extends State<LibraryTab> {
   _WatchedFilter? _wmFilter;
   _LibSort? _wmSort;
   String? _wmQuery;
-  List<MapEntry<DateTime?, List<_LibEntry>>>? _wmRender;
+  String? _wmFilterKey;
+  List<_MonthSection>? _wmRender;
   int _wmTotal = 0;
+
+  /// Мемоизация «Буду смотреть» — по тем же входам (данные/сортировка/поиск/
+  /// фильтр). Иначе переключение вида/вкладок каждый раз заново фильтрует и
+  /// сортирует список.
+  int _wlRev = -1;
+  _LibSort? _wlSort;
+  String? _wlQuery;
+  String? _wlFilterKey;
+  List<LibraryMovie>? _wlItems;
 
   /// id элементов, чья анимация появления уже проигралась. Живёт всё время
   /// жизни вкладки, чтобы при возврате карточки в зону видимости на скролле она
@@ -227,6 +237,16 @@ class _LibraryTabState extends State<LibraryTab> {
   }
 
   String get _q => widget.query.toLowerCase().trim();
+
+  /// Стабильный ключ активного фильтра (жанры+год) для мемоизации лент. Жанры
+  /// сортируем — порядок в Set не гарантирован.
+  String get _filterKey {
+    final genres = _genreFilter.isEmpty
+        ? ''
+        : (_genreFilter.toList()..sort()).join(',');
+    return '$genres|${_yearFilter?.start.round()}-${_yearFilter?.end.round()}';
+  }
+
   bool _matchMovie(LibraryMovie m) {
     if (!(_q.isEmpty ||
         m.displayTitle.toLowerCase().contains(_q) ||
@@ -368,8 +388,22 @@ class _LibraryTabState extends State<LibraryTab> {
   // --------------------------- «Буду смотреть» ---------------------------
 
   Widget _watchlist(MovieRepository repo) {
-    var items = repo.watchlist.where(_matchMovie).toList();
-    items = _sortMovies(items);
+    // Фильтр+сортировку считаем только при изменении данных/поиска/сортировки/
+    // фильтра — не на каждый rebuild (переключение вида/вкладок больше не
+    // пересчитывает список).
+    final rev = repo.revision;
+    if (_wlItems == null ||
+        _wlRev != rev ||
+        _wlSort != _sort ||
+        _wlQuery != _q ||
+        _wlFilterKey != _filterKey) {
+      _wlItems = _sortMovies(repo.watchlist.where(_matchMovie).toList());
+      _wlRev = rev;
+      _wlSort = _sort;
+      _wlQuery = _q;
+      _wlFilterKey = _filterKey;
+    }
+    final items = _wlItems!;
     if (items.isEmpty) {
       return _emptyView(EmptyState(
           icon: Icons.bookmark_rounded,
@@ -421,12 +455,14 @@ class _LibraryTabState extends State<LibraryTab> {
         _wmRev != rev ||
         _wmFilter != _filter ||
         _wmSort != _sort ||
-        _wmQuery != _q) {
+        _wmQuery != _q ||
+        _wmFilterKey != _filterKey) {
       _computeWatched(repo);
       _wmRev = rev;
       _wmFilter = _filter;
       _wmSort = _sort;
       _wmQuery = _q;
+      _wmFilterKey = _filterKey;
     }
     final render = _wmRender!;
     final total = _wmTotal;
@@ -446,13 +482,15 @@ class _LibraryTabState extends State<LibraryTab> {
             )
           else ...[
             SliverToBoxAdapter(child: _countHeader(context, total)),
-            for (final grp in render)
-              if (grp.key != null) ...[
-                SliverToBoxAdapter(child: _monthHeader(context, grp.key!)),
+            for (final section in render)
+              if (section.month != null) ...[
+                SliverToBoxAdapter(
+                    child: _monthHeader(context, section.month!)),
                 // Внутри месяца — мини-разделители по дням («24 июня 2026»).
-                // Разделитель строится лениво (только видимый) — иначе сотни
-                // дней в истории строились разом на каждый rebuild → фризы.
-                for (final day in _groupByDay(grp.value)) ...[
+                // Разбивка по дням уже посчитана в _computeWatched (мемо), а
+                // разделитель строится лениво (только видимый) — иначе сотни
+                // дней в истории пересчитывались/строились на каждый rebuild.
+                for (final day in section.days!) ...[
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, _) => _dayDivider(context, day.key),
@@ -462,7 +500,7 @@ class _LibraryTabState extends State<LibraryTab> {
                   ..._entrySlivers(day.value, g),
                 ],
               ] else
-                ..._entrySlivers(grp.value, g),
+                ..._entrySlivers(section.entries, g),
             const SliverToBoxAdapter(child: SizedBox(height: 96)),
           ],
         ],
@@ -482,31 +520,36 @@ class _LibraryTabState extends State<LibraryTab> {
     ];
     _wmTotal = groups.fold<int>(0, (s, g) => s + g.value.length);
 
-    // По дате — помесячная разбивка; иначе — плоский отсортированный список.
+    // По дате — помесячная разбивка (+ дни внутри месяца); иначе — плоский
+    // отсортированный список без заголовков.
     final grouped = _sort == _LibSort.dateNew || _sort == _LibSort.dateOld;
     if (grouped) {
       final gs = [
         for (final g in groups)
-          MapEntry<DateTime?, List<_LibEntry>>(
+          MapEntry<DateTime, List<_LibEntry>>(
               g.key, [for (final e in g.value) _entry(e)])
       ];
-      final render = _sort == _LibSort.dateOld ? gs.reversed.toList() : gs;
+      final ordered = _sort == _LibSort.dateOld ? gs.reversed.toList() : gs;
       if (_sort == _LibSort.dateOld) {
-        for (final g in render) {
+        for (final g in ordered) {
           g.value.sort((a, b) =>
               (a.date ?? DateTime(0)).compareTo(b.date ?? DateTime(0)));
         }
       }
-      _wmRender = render;
+      // Дни считаем здесь (в мемо), чтобы build не делал этого на каждый кадр.
+      _wmRender = [
+        for (final g in ordered)
+          _MonthSection(g.key, _groupByDay(g.value), g.value),
+      ];
     } else {
       final flat = <_LibEntry>[
         for (final g in groups)
           for (final e in g.value) _entry(e)
       ];
       _sortEntries(flat);
-      _wmRender = [MapEntry<DateTime?, List<_LibEntry>>(null, flat)];
+      _wmRender = [_MonthSection(null, null, flat)];
     }
-    _indexEntries([for (final grp in _wmRender!) ...grp.value]);
+    _indexEntries([for (final s in _wmRender!) ...s.entries]);
   }
 
   _LibEntry _entry(WatchedEntry e) {
@@ -1090,6 +1133,17 @@ class _LibraryTabState extends State<LibraryTab> {
       ),
     );
   }
+}
+
+/// Предрассчитанная секция ленты «Просмотрено» (мемоизируется в _computeWatched).
+/// [month] == null — плоский вид без заголовков (сортировка не по дате); тогда
+/// [days] тоже null, а элементы лежат в [entries]. Для помесячного вида [days]
+/// содержит разбивку по дням (каждый день → свои записи).
+class _MonthSection {
+  final DateTime? month;
+  final List<MapEntry<DateTime, List<_LibEntry>>>? days;
+  final List<_LibEntry> entries;
+  const _MonthSection(this.month, this.days, this.entries);
 }
 
 /// Внутренняя обёртка для элемента библиотеки (фильм-просмотр / сериал-сессия).
