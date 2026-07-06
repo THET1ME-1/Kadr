@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'l10n/locale_controller.dart';
 import 'services/app_prefs.dart';
+import 'services/auto_backup_service.dart';
 import 'services/movie_repository.dart';
 import 'services/movie_source.dart';
 import 'services/store.dart';
@@ -19,6 +20,9 @@ Future<void> main() async {
   await SourceController.instance.load();
   await AppPrefs.instance.load();
   await MovieRepository.instance.load();
+  await AutoBackupService.instance.load();
+  // Автобекап по расписанию — при запуске (и при возврате в приложение ниже).
+  AutoBackupService.instance.maybePeriodic();
   // Сбрасываем отложенную запись библиотеки на диск при уходе в фон, чтобы не
   // потерять последние изменения, если систему решит выгрузить процесс.
   WidgetsBinding.instance.addObserver(_LifecycleFlusher());
@@ -34,6 +38,8 @@ class _LifecycleFlusher extends WidgetsBindingObserver {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       MovieRepository.instance.flush();
+    } else if (state == AppLifecycleState.resumed) {
+      AutoBackupService.instance.maybePeriodic();
     }
   }
 }

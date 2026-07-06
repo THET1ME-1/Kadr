@@ -16,6 +16,7 @@ import '../utils/format.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/color_picker_sheet.dart';
 import 'about_screen.dart';
+import 'auto_backup_screen.dart';
 import 'sync_screen.dart';
 
 /// Экран настроек в духе Material 3 Expressive (перенос из ScoreMaster):
@@ -205,6 +206,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ]),
               _section(tr('data')),
               _card([
+                _tile(
+                  icon: Icons.folder_zip_rounded,
+                  title: tr('auto_backup'),
+                  subtitle: tr('auto_backup_sub'),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const AutoBackupScreen())),
+                ),
+                _divider(),
                 _tile(
                   icon: Icons.cloud_sync_rounded,
                   title: tr('sync_webdav'),

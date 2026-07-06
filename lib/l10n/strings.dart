@@ -459,6 +459,49 @@ const Map<String, Map<String, String>> _strings = {
   },
   'watched_movies': {'ru': 'Просмотренные фильмы', 'en': 'Watched movies'},
   'watched_series': {'ru': 'Просмотренные сериалы', 'en': 'Watched series'},
+  'auto_backup': {'ru': 'Автобекап', 'en': 'Auto backup'},
+  'auto_backup_sub': {
+    'ru': 'Локальные копии в выбранную папку',
+    'en': 'Local copies to a chosen folder'
+  },
+  'auto_backup_hint': {
+    'ru': 'Приложение само сохраняет копию библиотеки в выбранную папку. Копии переживают удаление приложения — это защита от потери данных. Хранятся последние 20 копий.',
+    'en': 'The app saves a copy of your library to the chosen folder. Copies survive uninstall — a safety net. Last 20 copies are kept.'
+  },
+  'auto_backup_enable': {'ru': 'Включить автобекап', 'en': 'Enable auto backup'},
+  'auto_backup_folder': {'ru': 'Папка', 'en': 'Folder'},
+  'auto_backup_no_folder': {'ru': 'Не выбрана', 'en': 'Not selected'},
+  'auto_backup_need_folder': {
+    'ru': 'Сначала выберите папку и выдайте доступ',
+    'en': 'Choose a folder and grant access first'
+  },
+  'auto_backup_not_writable': {
+    'ru': 'В эту папку нельзя писать — выберите другую',
+    'en': 'This folder is not writable — pick another'
+  },
+  'auto_backup_when': {'ru': 'Когда сохранять', 'en': 'When to save'},
+  'auto_backup_on_change': {'ru': 'При изменениях', 'en': 'On changes'},
+  'auto_backup_on_change_sub': {
+    'ru': 'Через полминуты после правок, не чаще раза в 10 минут',
+    'en': 'Half a minute after edits, at most once per 10 minutes'
+  },
+  'auto_backup_daily': {'ru': 'Раз в день', 'en': 'Once a day'},
+  'auto_backup_daily_sub': {
+    'ru': 'Проверяется при запуске приложения',
+    'en': 'Checked on app launch'
+  },
+  'auto_backup_now': {'ru': 'Создать копию сейчас', 'en': 'Back up now'},
+  'auto_backup_done': {'ru': 'Копия сохранена', 'en': 'Backup saved'},
+  'auto_backup_failed': {
+    'ru': 'Не удалось сохранить копию',
+    'en': 'Backup failed'
+  },
+  'auto_backup_never': {'ru': 'Копий ещё не было', 'en': 'No backups yet'},
+  'auto_backup_last': {
+    'ru': 'Последняя копия: {when}',
+    'en': 'Last backup: {when}'
+  },
+  'choose': {'ru': 'Выбрать', 'en': 'Choose'},
   'mark_finished': {'ru': 'Досмотрел сериал', 'en': 'Finished the series'},
   'finished_removed': {
     'ru': 'Убрано из «Сейчас смотрю»',
