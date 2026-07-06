@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ (targetSdk 31+): полностью отключаем и облачный Auto Backup, и
+     перенос данных на новое устройство. Иначе Google восстанавливает СТАРЫЙ
+     снимок library.json при новой установке — «чистая установка уже содержит
+     базу» и «откат к старому состоянию». Источник истины — сам файл на
+     устройстве + ручной экспорт/импорт в Настройках. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

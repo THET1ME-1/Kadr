@@ -228,10 +228,26 @@ class MovieRepository extends ChangeNotifier {
         'lists': [for (final l in _lists) l.toJson()],
       };
 
+  /// Разрешает записать ПУСТУЮ библиотеку (только для явной очистки clearAll).
+  bool _allowEmptyPersist = false;
+
   Future<void> _persist() async {
     _persistDebounce?.cancel(); // объединяем с отложенной записью
     try {
       final f = await _file();
+      // ЗАЩИТА ОТ ПОТЕРИ ДАННЫХ: никогда не затираем непустую базу на диске
+      // пустой в памяти (кроме явной очистки clearAll). Ловит любые сбои, где
+      // _movies случайно опустел — гонка, исключение в load(), фон-sweep до
+      // загрузки и т.п. Раньше такой сценарий мог перезаписать всю библиотеку
+      // пустым файлом безвозвратно.
+      if (!_allowEmptyPersist &&
+          _movies.isEmpty &&
+          _series.isEmpty &&
+          _lists.isEmpty &&
+          await f.exists()) {
+        debugPrint('Kadr: пропускаю запись пустой базы поверх существующей');
+        return;
+      }
       // Пишем во временный файл и атомарно подменяем: если приложение убьют
       // посреди записи, library.json не побьётся — останется прошлая версия.
       final tmp = File('${f.path}.tmp');
@@ -287,7 +303,10 @@ class MovieRepository extends ChangeNotifier {
     _limitHit = false;
     // Сбрасываем запомненные уведомления о новых сериях.
     await Store.instance.setStringList('notifiedEpisodeKeys', const []);
+    // Явная очистка — единственный случай, когда разрешено записать пустую базу.
+    _allowEmptyPersist = true;
     await _persist();
+    _allowEmptyPersist = false;
     notifyListeners();
   }
 
