@@ -394,6 +394,15 @@ class MovieRepository extends ChangeNotifier {
   List<LibrarySeries> get favoriteSeries =>
       _series.where((s) => s.favorite).toList();
 
+  /// Просмотренные сериалы — с хотя бы одной просмотренной серией, по свежести
+  /// (для системного списка «Просмотренные сериалы»).
+  List<LibrarySeries> get watchedSeries {
+    final list = _series.where((s) => s.episodes.isNotEmpty).toList()
+      ..sort((a, b) =>
+          (b.lastWatch ?? DateTime(0)).compareTo(a.lastWatch ?? DateTime(0)));
+    return list;
+  }
+
   /// Группировка просмотренного по месяцам: «2023-10» → фильмы (свежие сверху).
   /// Просмотры без даты попадают в группу с ключом-заглушкой `DateTime(1)`.
   List<MapEntry<DateTime, List<LibraryMovie>>> get watchedByMonth {

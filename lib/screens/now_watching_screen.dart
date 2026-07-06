@@ -10,6 +10,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/poster.dart';
 import '../widgets/pressable.dart';
 import '../widgets/reveal.dart';
+import '../widgets/series_progress.dart';
 import 'series_screen.dart';
 
 /// Экран «Сейчас смотрю»: только НЕЗАВЕРШЁННЫЕ сериалы, по свежести.
@@ -167,14 +168,9 @@ class _NowWatchingScreenState extends State<NowWatchingScreen> {
                 Poster(title: s.displayTitle, url: s.posterUrl, width: w, radius: 16),
                 Positioned(
                   left: 6,
-                  top: 6,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                        color: scheme.tertiary, shape: BoxShape.circle),
-                    child: Icon(Icons.live_tv_rounded,
-                        size: 13, color: scheme.onTertiary),
-                  ),
+                  bottom: 6,
+                  child: SeriesProgressPill(
+                      seen: s.episodesSeen, total: s.totalEpisodes),
                 ),
               ],
             ),

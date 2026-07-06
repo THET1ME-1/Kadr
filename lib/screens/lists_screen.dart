@@ -24,9 +24,11 @@ class ListsScreen extends StatelessWidget {
         final special = <_ListData>[
           _ListData(tr('act_favorite'), Icons.favorite_rounded, repo.favorites,
               series: repo.favoriteSeries),
-          _ListData(tr('nav_watchlist'), Icons.bookmark_rounded, repo.watchlist),
-          _ListData(
-              tr('nav_watched'), Icons.check_circle_rounded, repo.watched),
+          _ListData(tr('nav_watchlist'), Icons.bookmark_rounded, repo.watchlist,
+              series: repo.watchlistSeries),
+          _ListData(tr('watched_movies'), Icons.movie_rounded, repo.watched),
+          _ListData(tr('watched_series'), Icons.live_tv_rounded, const [],
+              series: repo.watchedSeries),
         ];
         final custom = [
           for (final l in repo.lists)

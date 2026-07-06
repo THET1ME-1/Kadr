@@ -15,6 +15,7 @@ import '../widgets/poster.dart';
 import '../widgets/rating_slider.dart';
 import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
+import '../widgets/series_progress.dart';
 import 'movie_sheet.dart';
 import 'series_screen.dart';
 
@@ -795,6 +796,8 @@ class _LibraryTabState extends State<LibraryTab> {
         dropped: s.dropped,
         selecting: _selecting,
         selected: sel,
+        episodesSeen: s.episodesSeen,
+        totalEpisodes: s.totalEpisodes,
         onSelect: () => _onSelect(key),
         onTap: () => Navigator.of(context)
             .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
@@ -1364,6 +1367,10 @@ class _PosterCell extends StatelessWidget {
   final bool selected;
   final VoidCallback? onSelect;
   final VoidCallback onTap;
+
+  /// Прогресс сериала (для кольца на постере). null — не сериал / не показывать.
+  final int? episodesSeen;
+  final int? totalEpisodes;
   const _PosterCell({
     required this.title,
     required this.posterUrl,
@@ -1376,6 +1383,8 @@ class _PosterCell extends StatelessWidget {
     this.selecting = false,
     this.selected = false,
     this.onSelect,
+    this.episodesSeen,
+    this.totalEpisodes,
   });
 
   @override
@@ -1411,7 +1420,7 @@ class _PosterCell extends StatelessWidget {
                     ],
                   ),
                 ),
-              if (series)
+              if (series && episodesSeen == null)
                 Positioned(
                   top: 6,
                   right: 6,
@@ -1423,6 +1432,14 @@ class _PosterCell extends StatelessWidget {
                     child: Icon(Icons.live_tv_rounded,
                         size: 13, color: scheme.onTertiary),
                   ),
+                ),
+              // Прогресс сериала (кольцо + N/M) в нижнем левом углу постера.
+              if (series && episodesSeen != null)
+                Positioned(
+                  bottom: 6,
+                  left: 6,
+                  child: SeriesProgressPill(
+                      seen: episodesSeen!, total: totalEpisodes),
                 ),
               if (score != null)
                 Positioned(

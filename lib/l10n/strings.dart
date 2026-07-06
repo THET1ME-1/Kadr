@@ -457,6 +457,8 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Когда вы посмотрели серию?',
     'en': 'When did you watch this episode?'
   },
+  'watched_movies': {'ru': 'Просмотренные фильмы', 'en': 'Watched movies'},
+  'watched_series': {'ru': 'Просмотренные сериалы', 'en': 'Watched series'},
   'mark_finished': {'ru': 'Досмотрел сериал', 'en': 'Finished the series'},
   'finished_removed': {
     'ru': 'Убрано из «Сейчас смотрю»',
