@@ -1928,8 +1928,8 @@ class _EpisodeRow extends StatelessWidget {
                     Expanded(
                       child: TextButton(
                         onPressed: () {
-                          MovieRepository.instance
-                              .setEpisodeScore(seriesId, ep, null);
+                          MovieRepository.instance.setEpisodeViewScoreByDate(
+                              seriesId, ep.season, ep.number, ep.watchedAt, null);
                           Navigator.pop(sheetCtx);
                         },
                         child: Text(tr('remove_score')),
@@ -1939,8 +1939,12 @@ class _EpisodeRow extends StatelessWidget {
                     Expanded(
                       child: FilledButton(
                         onPressed: () {
-                          MovieRepository.instance
-                              .setEpisodeScore(seriesId, ep, rated ? val : null);
+                          MovieRepository.instance.setEpisodeViewScoreByDate(
+                              seriesId,
+                              ep.season,
+                              ep.number,
+                              ep.watchedAt,
+                              rated ? val : null);
                           Navigator.pop(sheetCtx);
                         },
                         child: Text(tr('done')),

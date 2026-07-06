@@ -952,6 +952,26 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
+  /// Ставит оценку КОНКРЕТНОМУ просмотру серии, найденному ПО ДАТЕ. Нужно для
+  /// ленты «Просмотрено», где каждый просмотр — своё событие-копия с датой:
+  /// иначе оценка уходила бы на первый просмотр. Если дата совпадает с первым
+  /// (или не найдена среди повторов) — меняем оценку первого просмотра.
+  Future<void> setEpisodeViewScoreByDate(String seriesId, int? season,
+      int? number, DateTime? date, double? score) async {
+    final ep = seriesById(seriesId)?.watchedEpisode(season, number);
+    if (ep == null) return;
+    final idx = date == null
+        ? -1
+        : ep.rewatchViews.indexWhere((v) => v.date == date);
+    if (idx >= 0 && date != ep.watchedAt) {
+      ep.rewatchViews[idx].score = score;
+    } else {
+      ep.score = score;
+    }
+    notifyListeners();
+    await _persist();
+  }
+
   /// Дата конкретного просмотра серии (null = «неизвестно»). viewIndex как выше.
   Future<void> setEpisodeViewDate(String seriesId, int? season, int? number,
       int viewIndex, DateTime? date) async {
