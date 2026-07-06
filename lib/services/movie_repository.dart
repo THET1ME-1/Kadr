@@ -156,6 +156,10 @@ class MovieRepository extends ChangeNotifier {
         if (e.rewatchCount > prev.rewatchCount) {
           prev.rewatchCount = e.rewatchCount;
         }
+        // Объединяем даты повторов дублей (не теряем историю пересмотров).
+        for (final d in e.rewatchDates) {
+          if (!prev.rewatchDates.contains(d)) prev.rewatchDates.add(d);
+        }
         prev.runtimeMin ??= e.runtimeMin;
         prev.epId ??= e.epId;
         removed++;
@@ -559,8 +563,16 @@ class MovieRepository extends ChangeNotifier {
   Future<void> setEpisodeScore(
       String seriesId, Episode ep, double? score) async {
     final s = seriesById(seriesId);
-    if (s == null || !s.episodes.contains(ep)) return;
-    ep.score = score;
+    if (s == null) return;
+    // В ленте эпизоды — это копии-события (см. sessions()), поэтому находим
+    // ХРАНИМЫЙ эпизод по идентичности либо по (сезон, номер).
+    final target = s.episodes.contains(ep)
+        ? ep
+        : (ep.season != null && ep.number != null
+            ? s.watchedEpisode(ep.season, ep.number)
+            : null);
+    if (target == null) return;
+    target.score = score;
     notifyListeners();
     await _persist();
   }
@@ -723,7 +735,10 @@ class MovieRepository extends ChangeNotifier {
     var i = 0;
     for (final e in eps) {
       e.rewatchCount += 1;
-      if (date != null) e.watchedAt = date.add(Duration(seconds: i));
+      // Дата пересмотра идёт в rewatchDates — первый просмотр (watchedAt) НЕ
+      // затираем, чтобы прошлая запись осталась в ленте. null = «неизвестно»:
+      // считаем повтор, но отдельную датированную запись не создаём.
+      if (date != null) e.rewatchDates.add(date.add(Duration(seconds: i)));
       i++;
     }
     if (eps.isNotEmpty) {
@@ -792,12 +807,41 @@ class MovieRepository extends ChangeNotifier {
   /// Снимает отметки с конкретных объектов-серий (по ссылке) — для удаления
   /// целой сессии из «Просмотрено». Надёжнее ключей сезон-номер: работает и с
   /// импортированными сериями, где season/number ещё не заполнены.
+  /// Удаляет из ленты выбранные записи-сессии. В ленте эпизоды — копии-СОБЫТИЯ
+  /// (первый просмотр или конкретный повтор), поэтому удаляем именно то событие:
+  /// повтор — убираем его дату; первый просмотр при наличии повторов — повышаем
+  /// ближайший повтор до основного; единственный просмотр — убираем эпизод.
   Future<void> removeEpisodes(String seriesId, List<Episode> eps) async {
     final s = seriesById(seriesId);
     if (s == null || eps.isEmpty) return;
-    final before = s.episodes.length;
-    s.episodes.removeWhere((e) => eps.contains(e));
-    if (s.episodes.length != before) {
+    var changed = false;
+    for (final ev in eps) {
+      final stored = s.episodes.contains(ev)
+          ? ev
+          : (ev.season != null && ev.number != null
+              ? s.watchedEpisode(ev.season, ev.number)
+              : null);
+      if (stored == null) continue;
+      final date = ev.watchedAt;
+      if (date != null &&
+          date != stored.watchedAt &&
+          stored.rewatchDates.contains(date)) {
+        // Удаляем конкретный датированный повтор.
+        stored.rewatchDates.remove(date);
+        if (stored.rewatchCount > 0) stored.rewatchCount -= 1;
+        changed = true;
+      } else if (stored.rewatchDates.isNotEmpty) {
+        // Удаляем первый просмотр, но повторы есть → повышаем ближайший повтор.
+        stored.rewatchDates.sort();
+        stored.watchedAt = stored.rewatchDates.removeAt(0);
+        if (stored.rewatchCount > 0) stored.rewatchCount -= 1;
+        changed = true;
+      } else {
+        // Единственный просмотр → убираем эпизод целиком.
+        changed = s.episodes.remove(stored) || changed;
+      }
+    }
+    if (changed) {
       notifyListeners();
       await _persist();
     }
@@ -872,7 +916,9 @@ class MovieRepository extends ChangeNotifier {
       return;
     }
     ep.rewatchCount += 1;
-    ep.watchedAt = DateTime.now();
+    // Пересмотр = НОВАЯ датированная запись (первый просмотр watchedAt НЕ
+    // затираем), чтобы прошлый просмотр остался в ленте — как у фильмов.
+    ep.rewatchDates.add(DateTime.now());
     notifyListeners();
     await _persist();
   }
@@ -885,6 +931,7 @@ class MovieRepository extends ChangeNotifier {
     final ep = s.watchedEpisode(season, number);
     if (ep == null || ep.rewatchCount <= 0) return;
     ep.rewatchCount -= 1;
+    if (ep.rewatchDates.isNotEmpty) ep.rewatchDates.removeLast();
     notifyListeners();
     await _persist();
   }
@@ -897,6 +944,7 @@ class MovieRepository extends ChangeNotifier {
     final ep = s?.watchedEpisode(season, number);
     if (ep == null || ep.rewatchCount == 0) return;
     ep.rewatchCount = 0;
+    ep.rewatchDates.clear();
     notifyListeners();
     await _persist();
   }

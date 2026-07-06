@@ -267,6 +267,12 @@ class Episode {
   /// серии = rewatchCount + 1.
   int rewatchCount;
 
+  /// Даты ПОВТОРНЫХ просмотров (сверх первого в [watchedAt]). Нужны, чтобы
+  /// пересмотр в другой день был отдельной записью в ленте «Просмотрено» — как
+  /// отдельные просмотры у фильмов. У старых данных пуст (даты прошлых пересмотров
+  /// неизвестны); новые пересмотры добавляют сюда дату.
+  List<DateTime> rewatchDates;
+
   Episode({
     this.season,
     this.number,
@@ -275,10 +281,25 @@ class Episode {
     this.score,
     this.epId,
     this.rewatchCount = 0,
-  });
+    List<DateTime>? rewatchDates,
+  }) : rewatchDates = rewatchDates ?? [];
 
   /// Всего просмотров серии (первый + повторы).
   int get watchCount => rewatchCount + 1;
+
+  /// Все даты просмотра (первый + датированные повторы) — для ленты по событиям.
+  List<DateTime> get watchDates => [?watchedAt, ...rewatchDates];
+
+  /// Копия-«событие» одного просмотра с конкретной датой (для построения ленты:
+  /// один просмотр = одна запись). rewatchCount обнуляем — событие атомарно.
+  Episode copyForEvent(DateTime date) => Episode(
+        season: season,
+        number: number,
+        watchedAt: date,
+        runtimeMin: runtimeMin,
+        score: score,
+        epId: epId,
+      );
 
   /// Метка «S1E5» / «Серия 5» / «Эпизод».
   String get label {
@@ -302,7 +323,18 @@ class Episode {
         score: (j['score'] as num?)?.toDouble(),
         epId: j['epId'] as String?,
         rewatchCount: (j['rewatchCount'] as num?)?.toInt() ?? 0,
+        rewatchDates: _parseDates(j['rewatchDates']),
       );
+
+  static List<DateTime> _parseDates(dynamic v) {
+    if (v is! List) return [];
+    final out = <DateTime>[];
+    for (final e in v) {
+      final d = _parse(e);
+      if (d != null) out.add(d);
+    }
+    return out;
+  }
 
   Map<String, dynamic> toJson() => {
         'season': season,
@@ -312,6 +344,9 @@ class Episode {
         'score': score,
         'epId': epId,
         'rewatchCount': rewatchCount,
+        if (rewatchDates.isNotEmpty)
+          'rewatchDates':
+              [for (final d in rewatchDates) d.toIso8601String()],
       };
 }
 
@@ -449,9 +484,22 @@ class LibrarySeries {
   /// Разбивка на сессии: эпизоды, просмотренные с перерывом ≤ [gap], — вместе.
   List<EpisodeSession> sessions(
       {Duration gap = const Duration(hours: 3)}) {
-    final dated = episodes.where((e) => e.watchedAt != null).toList()
-      ..sort((a, b) => a.watchedAt!.compareTo(b.watchedAt!));
-    final undated = episodes.where((e) => e.watchedAt == null).toList();
+    // Разворачиваем каждый эпизод в отдельные СОБЫТИЯ просмотра (первый + каждый
+    // датированный повтор), чтобы пересмотр в другой день был отдельной записью
+    // в ленте — как отдельные просмотры у фильмов. Событие = копия с одной датой.
+    final dated = <Episode>[];
+    final undated = <Episode>[];
+    for (final e in episodes) {
+      final dates = e.watchDates;
+      if (dates.isEmpty) {
+        undated.add(e);
+      } else {
+        for (final d in dates) {
+          dated.add(e.copyForEvent(d));
+        }
+      }
+    }
+    dated.sort((a, b) => a.watchedAt!.compareTo(b.watchedAt!));
     final result = <EpisodeSession>[];
     var cur = <Episode>[];
     DateTime? last;
