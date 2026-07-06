@@ -1703,9 +1703,6 @@ class _SeriesSessionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final start = session.start;
-    // Порядковый номер просмотра (2, 3…) — для метки «2-й просмотр», как у фильмов.
-    final rewatchOrd = session.episodes
-        .fold<int>(0, (m, e) => e.rewatchOrdinal > m ? e.rewatchOrdinal : m);
     return Reveal(
       group: revealGroup,
       id: revealId,
@@ -1791,23 +1788,14 @@ class _SeriesSessionCard extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            if (start != null || rewatchOrd >= 2) ...[
+                            if (start != null) ...[
                               const SizedBox(height: 3),
-                              Row(
-                                children: [
-                                  if (start != null)
-                                    Text(dateExactWithTime(start),
-                                        style: TextStyle(
-                                            fontFamily: AppTheme.bodyFont,
-                                            fontSize: 12,
-                                            color: scheme.onSurfaceVariant
-                                                .withValues(alpha: 0.85))),
-                                  if (rewatchOrd >= 2) ...[
-                                    if (start != null) const SizedBox(width: 8),
-                                    _rewatchChip(scheme, rewatchOrd),
-                                  ],
-                                ],
-                              ),
+                              Text(dateExactWithTime(start),
+                                  style: TextStyle(
+                                      fontFamily: AppTheme.bodyFont,
+                                      fontSize: 12,
+                                      color: scheme.onSurfaceVariant
+                                          .withValues(alpha: 0.85))),
                             ],
                           ],
                         ),
@@ -1916,6 +1904,11 @@ class _EpisodeRow extends StatelessWidget {
                       fontFamily: AppTheme.bodyFont,
                       fontSize: 12,
                       color: scheme.onSurfaceVariant.withValues(alpha: 0.8))),
+            // Бейдж повтора «↻ N» — на самой серии (номер этого просмотра).
+            if (ep.rewatchOrdinal >= 2) ...[
+              const SizedBox(width: 8),
+              _rewatchChip(scheme, ep.rewatchOrdinal),
+            ],
             const Spacer(),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
