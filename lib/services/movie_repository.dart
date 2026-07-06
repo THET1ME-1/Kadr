@@ -295,6 +295,29 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
+  /// Полностью удаляет сериал из базы (для мусорных/ненаходимых записей).
+  /// Возвращает JSON-снимок для «Отмены» (restoreFromSnapshot) или null.
+  Future<Map<String, dynamic>?> deleteSeries(String id) async {
+    final s = seriesById(id);
+    if (s == null) return null;
+    final snap = s.toJson();
+    _series.remove(s);
+    notifyListeners();
+    await _persist();
+    return snap;
+  }
+
+  /// Полностью удаляет фильм из базы. Возвращает JSON-снимок для «Отмены».
+  Future<Map<String, dynamic>?> deleteMovie(String uuid) async {
+    final m = byUuid(uuid);
+    if (m == null) return null;
+    final snap = m.toJson();
+    _movies.remove(m);
+    notifyListeners();
+    await _persist();
+    return snap;
+  }
+
   /// Полностью очищает личную библиотеку (просмотры, списки, оценки, избранное,
   /// сериалы). Остаются только ленты Обзор/В кино (они из TMDB, не хранятся).
   /// Как чистая установка. Необратимо (пусть пользователь сделает бэкап заранее).

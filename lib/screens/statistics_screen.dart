@@ -75,6 +75,7 @@ class StatisticsScreen extends StatelessWidget {
                           ? null
                           : '${tr('stat_avg')}: ${s.avgScore.toStringAsFixed(1)}',
                     ),
+                    _ratingsByReleaseYearCard(context),
                     if (s.byDecade.isNotEmpty) ...[
                       const SizedBox(height: 20),
                       _card(context, tr('stat_by_decade'),
@@ -124,6 +125,150 @@ class StatisticsScreen extends StatelessWidget {
   }
 
   // ------------------------------ шапка-итог ------------------------------
+
+  /// Умная карточка: как ты оцениваешь кино РАЗНЫХ лет выхода. График средней
+  /// твоей оценки по десятилетиям + вердикт (лучший/худший год, тренд).
+  Widget _ratingsByReleaseYearCard(BuildContext context) {
+    final repo = MovieRepository.instance;
+    final sum = <int, double>{};
+    final cnt = <int, int>{};
+    for (final m in repo.watched) {
+      final y = m.year, sc = m.currentScore;
+      if (y == null || y < 1900 || sc == null) continue;
+      sum[y] = (sum[y] ?? 0) + sc;
+      cnt[y] = (cnt[y] ?? 0) + 1;
+    }
+    final total = cnt.values.fold<int>(0, (a, b) => a + b);
+    if (cnt.length < 2 || total < 4) return const SizedBox.shrink();
+
+    final avg = {for (final y in sum.keys) y: sum[y]! / cnt[y]!};
+    final stable = avg.keys.where((y) => cnt[y]! >= 2).toList();
+    final pool = stable.length >= 2 ? stable : avg.keys.toList();
+    final best = pool.reduce((a, b) => avg[a]! >= avg[b]! ? a : b);
+    final worst = pool.reduce((a, b) => avg[a]! <= avg[b]! ? a : b);
+
+    // Взвешенная регрессия score ~ year → знак/величина тренда.
+    var sx = 0.0, sy = 0.0, sxy = 0.0, sxx = 0.0, sw = 0.0;
+    for (final y in avg.keys) {
+      final w = cnt[y]!.toDouble();
+      sx += w * y;
+      sy += w * avg[y]!;
+      sxy += w * y * avg[y]!;
+      sxx += w * y * y;
+      sw += w;
+    }
+    final denom = sw * sxx - sx * sx;
+    final slope = denom.abs() < 1e-9 ? 0.0 : (sw * sxy - sx * sy) / denom;
+    final years = avg.keys.toList()..sort();
+    final totalChange = slope * (years.last - years.first);
+    final trendKey = totalChange > 0.5
+        ? 'stat_ry_trend_up'
+        : totalChange < -0.5
+            ? 'stat_ry_trend_down'
+            : 'stat_ry_trend_flat';
+
+    // По десятилетиям для графика.
+    final dSum = <int, double>{}, dCnt = <int, int>{};
+    for (final y in sum.keys) {
+      final d = (y ~/ 10) * 10;
+      dSum[d] = (dSum[d] ?? 0) + sum[y]!;
+      dCnt[d] = (dCnt[d] ?? 0) + cnt[y]!;
+    }
+    final decades = dSum.keys.toList()..sort();
+    final scheme = Theme.of(context).colorScheme;
+
+    Widget verdict(IconData icon, String text, Color c) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: c),
+              const SizedBox(width: 8),
+              Expanded(
+                  child: Text(text,
+                      style: TextStyle(
+                          fontFamily: AppTheme.bodyFont,
+                          fontSize: 13.5,
+                          color: scheme.onSurface))),
+            ],
+          ),
+        );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: _card(
+        context,
+        tr('stat_ratings_by_year'),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 150,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (final d in decades)
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text((dSum[d]! / dCnt[d]!).toStringAsFixed(1),
+                              style: TextStyle(
+                                  fontFamily: AppTheme.displayFont,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 11.5,
+                                  color: scoreColor(dSum[d]! / dCnt[d]!))),
+                          const SizedBox(height: 4),
+                          Container(
+                            height:
+                                ((dSum[d]! / dCnt[d]!) / 10 * 108).clamp(6, 108),
+                            margin: const EdgeInsets.symmetric(horizontal: 5),
+                            decoration: BoxDecoration(
+                                color: scoreColor(dSum[d]! / dCnt[d]!),
+                                borderRadius: BorderRadius.circular(6)),
+                          ),
+                          const SizedBox(height: 6),
+                          Text('${(d % 100).toString().padLeft(2, '0')}-е',
+                              style: TextStyle(
+                                  fontFamily: AppTheme.bodyFont,
+                                  fontSize: 11,
+                                  color: scheme.onSurfaceVariant)),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            verdict(
+                Icons.emoji_events_rounded,
+                trf('stat_ry_best',
+                    {'y': best, 's': avg[best]!.toStringAsFixed(1)}),
+                scoreColor(avg[best]!)),
+            verdict(
+                Icons.trending_down_rounded,
+                trf('stat_ry_worst',
+                    {'y': worst, 's': avg[worst]!.toStringAsFixed(1)}),
+                scoreColor(avg[worst]!)),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(14)),
+              child: Text(tr(trendKey),
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 13.5,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _wrappedButton(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;

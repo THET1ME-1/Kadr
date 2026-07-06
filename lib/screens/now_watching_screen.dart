@@ -11,6 +11,7 @@ import '../widgets/poster.dart';
 import '../widgets/pressable.dart';
 import '../widgets/reveal.dart';
 import '../widgets/series_progress.dart';
+import 'delete_helpers.dart';
 import 'series_screen.dart';
 
 /// Экран «Сейчас смотрю»: только НЕЗАВЕРШЁННЫЕ сериалы, по свежести.
@@ -141,6 +142,19 @@ class _NowWatchingScreenState extends State<NowWatchingScreen> {
                             .setSeriesFinished(s.tvShowId, false),
                       ),
                     ));
+                },
+              ),
+              const Divider(height: 1, indent: 20, endIndent: 20),
+              ListTile(
+                leading: Icon(Icons.delete_forever_rounded, color: scheme.error),
+                title: Text(tr('delete_from_base'),
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.error)),
+                onTap: () async {
+                  Navigator.pop(sheetCtx);
+                  await deleteSeriesFromBase(context, s);
                 },
               ),
             ],

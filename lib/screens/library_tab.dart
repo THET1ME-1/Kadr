@@ -363,10 +363,97 @@ class _LibraryTabState extends State<LibraryTab> {
                       fontWeight: FontWeight.w700,
                       color: actionColor)),
             ),
+            PopupMenuButton<String>(
+              enabled: !empty,
+              icon: Icon(Icons.more_vert_rounded, color: scheme.onSurfaceVariant),
+              onSelected: (v) {
+                if (v == 'base') _confirmDeleteFromBase();
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'base',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_forever_rounded,
+                          size: 20, color: scheme.error),
+                      const SizedBox(width: 10),
+                      Text(tr('delete_from_base')),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
+  }
+
+  /// Полностью удаляет выбранные записи (сериалы/фильмы) из базы — с отменой.
+  Future<void> _confirmDeleteFromBase() async {
+    final n = _selected.length;
+    if (n == 0) return;
+    final scheme = Theme.of(context).colorScheme;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('delete_from_base')),
+        content: Text(trf('delete_from_base_n', {'n': n})),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('cancel'))),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+                backgroundColor: scheme.error, foregroundColor: scheme.onError),
+            child: Text(tr('delete')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final repo = MovieRepository.instance;
+    // Собираем уникальные фильмы/сериалы из выделения.
+    final movieUuids = <String>{};
+    final seriesIds = <String>{};
+    for (final k in _selected) {
+      final e = _entryByKey[k];
+      if (e == null) continue;
+      if (e.session != null) {
+        seriesIds.add(e.session!.series.tvShowId);
+      } else if (e.seriesItem != null) {
+        seriesIds.add(e.seriesItem!.tvShowId);
+      } else if (e.movie != null) {
+        movieUuids.add(e.movie!.uuid);
+      }
+    }
+    final movieSnaps = <Map<String, dynamic>>[];
+    final seriesSnaps = <Map<String, dynamic>>[];
+    for (final id in seriesIds) {
+      final snap = await repo.deleteSeries(id);
+      if (snap != null) seriesSnaps.add(snap);
+    }
+    for (final uuid in movieUuids) {
+      final snap = await repo.deleteMovie(uuid);
+      if (snap != null) movieSnaps.add(snap);
+    }
+    if (!mounted) return;
+    setState(() {
+      _selected.clear();
+      _selecting = false;
+    });
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(trf('deleted_n_from_base',
+            {'n': movieSnaps.length + seriesSnaps.length})),
+        action: SnackBarAction(
+          label: tr('undo'),
+          onPressed: () => repo.restoreFromSnapshot(movieSnaps, seriesSnaps),
+        ),
+      ));
   }
 
   /// Пустой результат: если это ПОИСК (query не пуст) — предлагаем искать по

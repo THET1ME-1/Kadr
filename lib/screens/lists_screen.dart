@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/poster.dart';
 import '../widgets/reveal.dart';
+import 'delete_helpers.dart';
 import 'movie_sheet.dart';
 import 'series_screen.dart';
 
@@ -304,6 +305,7 @@ class _ListDetail extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => showMovieSheet(context, m),
+          onLongPress: () => deleteMovieFromBase(context, m),
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: Row(
@@ -355,6 +357,7 @@ class _ListDetail extends StatelessWidget {
         child: InkWell(
           onTap: () => Navigator.of(context)
               .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
+          onLongPress: () => deleteSeriesFromBase(context, s),
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: Row(

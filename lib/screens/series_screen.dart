@@ -15,6 +15,7 @@ import '../widgets/poster_viewer.dart';
 import '../widgets/rating_slider.dart';
 import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
+import 'delete_helpers.dart';
 
 /// Экран сериала (M3 Expressive): крупная шапка с бэкдропом, оценка всего
 /// сериала, выбор сезона, отметка «весь сезон разом», а у каждой серии —
@@ -165,6 +166,14 @@ class _SeriesScreenState extends State<SeriesScreen> {
         runtimeMin: ep.runtime);
     HapticFeedback.selectionClick();
     _snack(tr('marked_unknown'));
+  }
+
+  /// Полностью удалить сериал из базы (для мусорных/ненаходимых) → закрыть экран.
+  Future<void> _deleteSeriesFromBase() async {
+    await deleteSeriesFromBase(context, s);
+    if (mounted && _repo.seriesById(s.tvShowId) == null) {
+      Navigator.of(context).maybePop();
+    }
   }
 
   /// «Убрать просмотр»: есть повторы → −1; иначе снять просмотр (с каскадом).
@@ -347,6 +356,35 @@ class _SeriesScreenState extends State<SeriesScreen> {
             ),
           ),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Material(
+              color: Colors.black.withValues(alpha: 0.35),
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+                onSelected: (v) {
+                  if (v == 'delete') _deleteSeriesFromBase();
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_forever_rounded,
+                            size: 20, color: scheme.error),
+                        const SizedBox(width: 10),
+                        Text(tr('delete_from_base')),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
       body: ListenableBuilder(
         listenable: _repo,

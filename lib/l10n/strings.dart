@@ -458,6 +458,20 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'When did you watch this episode?'
   },
   'share': {'ru': 'Поделиться', 'en': 'Share'},
+  'delete_from_base': {'ru': 'Удалить из базы', 'en': 'Delete from library'},
+  'delete_from_base_confirm': {
+    'ru': '«{title}» будет полностью удалён из базы. Можно отменить сразу после удаления.',
+    'en': '"{title}" will be permanently removed. You can undo right after.'
+  },
+  'deleted_from_base': {'ru': 'Удалено из базы', 'en': 'Deleted from library'},
+  'delete_from_base_n': {
+    'ru': 'Выбранное ({n}) будет полностью удалено из базы. Можно отменить сразу.',
+    'en': 'Selected ({n}) will be permanently removed. You can undo right after.'
+  },
+  'deleted_n_from_base': {
+    'ru': 'Удалено из базы: {n}',
+    'en': 'Deleted from library: {n}'
+  },
   'import_tracker': {
     'ru': 'Импорт из трекера (CSV)',
     'en': 'Import from tracker (CSV)'
@@ -497,6 +511,30 @@ const Map<String, Map<String, String>> _strings = {
   'wrapped_mood': {'ru': 'Эмоция года', 'en': 'Mood of the year'},
   'wrapped_movie': {'ru': 'Фильм года', 'en': 'Movie of the year'},
   'wrapped_series': {'ru': 'Сериал года', 'en': 'Series of the year'},
+  'stat_ratings_by_year': {
+    'ru': 'Оценки по годам выхода',
+    'en': 'Ratings by release year'
+  },
+  'stat_ry_best': {
+    'ru': 'Выше всех — фильмы {y} года ({s})',
+    'en': 'Highest — {y} films ({s})'
+  },
+  'stat_ry_worst': {
+    'ru': 'Ниже всех — {y} года ({s})',
+    'en': 'Lowest — {y} ({s})'
+  },
+  'stat_ry_trend_up': {
+    'ru': 'Чем новее фильм — тем выше вы его оцениваете. Современное кино заходит вам больше классики.',
+    'en': 'The newer the film, the higher you rate it — modern cinema wins over classics for you.'
+  },
+  'stat_ry_trend_down': {
+    'ru': 'Чем новее фильм — тем ниже оценка. Классику вы цените заметно выше нового кино.',
+    'en': 'The newer the film, the lower the score — you value the classics over modern films.'
+  },
+  'stat_ry_trend_flat': {
+    'ru': 'Старое и новое кино вы оцениваете примерно одинаково — год выхода на оценку почти не влияет.',
+    'en': 'You rate old and new films about the same — release year barely affects your score.'
+  },
   'watched_movies': {'ru': 'Просмотренные фильмы', 'en': 'Watched movies'},
   'watched_series': {'ru': 'Просмотренные сериалы', 'en': 'Watched series'},
   'auto_backup': {'ru': 'Автобекап', 'en': 'Auto backup'},
