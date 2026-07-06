@@ -119,20 +119,39 @@ class _SeriesScreenState extends State<SeriesScreen> {
     }
   }
 
-  /// Тап по галочке: не смотрел → отметить; смотрел → +1 просмотр (×2, ×3…).
+  /// Тап по галочке серии → всегда открываем меню «когда посмотрели?» (как у
+  /// сезона), чтобы отметить просмотр/пересмотр с выбранной датой.
   void _tapCheck(TmdbEpisode ep) {
     final we = s.watchedEpisode(ep.season, ep.number);
-    if (we == null) {
-      if (!_aired(ep)) {
-        _snack(tr('episode_not_aired'));
-        return;
-      }
-      _markEpisode(ep);
-    } else {
-      _repo.addEpisodeRewatch(s.tvShowId, ep.season, ep.number,
-          runtimeMin: ep.runtime);
+    final firstWatch = we == null;
+    if (firstWatch && !_aired(ep)) {
+      _snack(tr('episode_not_aired'));
+      return;
     }
-    HapticFeedback.selectionClick();
+    _showSeasonWhenSheet(
+      title: firstWatch ? tr('episode_mark_when') : tr('episode_rewatch_when'),
+      subtitle: ep.name,
+      onDate: (date) async {
+        if (firstWatch) {
+          // Отмечаем (учитывая последовательный режим), затем ставим дату именно
+          // этой серии (в т.ч. null = «неизвестно»).
+          if (_sequential) {
+            await _repo.markEpisodesBulk(
+                s.tvShowId, _orderedUpTo(ep.season, ep.number));
+          } else {
+            await _repo.markEpisodeWatched(s.tvShowId, ep.season, ep.number,
+                runtimeMin: ep.runtime);
+          }
+          await _repo.setEpisodeViewDate(
+              s.tvShowId, ep.season, ep.number, 0, date);
+        } else {
+          // Пересмотр — отдельный просмотр с выбранной датой.
+          await _repo.addEpisodeView(s.tvShowId, ep.season, ep.number,
+              date: date, runtimeMin: ep.runtime);
+        }
+        HapticFeedback.selectionClick();
+      },
+    );
   }
 
   /// Отмечает серию просмотренной с НЕИЗВЕСТНОЙ датой (удержание галочки у
@@ -1224,23 +1243,28 @@ class _SeriesScreenState extends State<SeriesScreen> {
 
     showModalBottomSheet<void>(
       context: context,
+      // Прокручиваемый: лист может вырасти на всю высоту, и SafeArea поднимает
+      // содержимое над системными кнопками — иначе нижний (красный) пункт и
+      // заголовок обрезались на невысоком экране.
+      isScrollControlled: true,
       backgroundColor: scheme.surfaceContainer,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (sheetCtx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: scheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(2))),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 18, 24, 4),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: scheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(2))),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 18, 24, 4),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(title,
@@ -1292,7 +1316,8 @@ class _SeriesScreenState extends State<SeriesScreen> {
               extra(sheetCtx),
             ],
             const SizedBox(height: 12),
-          ],
+            ],
+          ),
         ),
       ),
     );

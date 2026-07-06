@@ -453,6 +453,14 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Сезон отмечен ещё раз ({c} серий)',
     'en': 'Season marked again ({c} episodes)'
   },
+  'episode_mark_when': {
+    'ru': 'Когда вы посмотрели серию?',
+    'en': 'When did you watch this episode?'
+  },
+  'episode_rewatch_when': {
+    'ru': 'Когда вы пересмотрели серию?',
+    'en': 'When did you rewatch this episode?'
+  },
   'season_clear_all': {
     'ru': 'Снять все просмотры',
     'en': 'Remove all watches'
