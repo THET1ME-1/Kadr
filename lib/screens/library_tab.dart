@@ -79,6 +79,15 @@ class _LibraryTabState extends State<LibraryTab> {
   List<_MonthSection>? _wmRender;
   int _wmTotal = 0;
 
+  /// Плоский список строк ленты «Просмотрено» для ЛЕНИВОЙ отрисовки: один
+  /// SliverList строит только видимые строки (заголовок/разделитель/карточка/
+  /// ряд постеров) вместо сотен sliver'ов по дням истории. Пересобирается только
+  /// при смене структуры ленты, вида или числа колонок.
+  List<_FeedRow>? _wmRows;
+  Object? _rowsFor; // идентичность _wmRender, под которую построены строки
+  LibraryViewMode? _rowsMode;
+  int _rowsCols = -1;
+
   /// Мемоизация «Буду смотреть» — по тем же входам (данные/сортировка/поиск/
   /// фильтр). Иначе переключение вида/вкладок каждый раз заново фильтрует и
   /// сортирует список.
@@ -464,11 +473,11 @@ class _LibraryTabState extends State<LibraryTab> {
       _wmQuery = _q;
       _wmFilterKey = _filterKey;
     }
-    final render = _wmRender!;
     final total = _wmTotal;
 
     return LayoutBuilder(builder: (context, c) {
       final g = _grid(c.maxWidth);
+      final rows = total == 0 ? const <_FeedRow>[] : _watchedRows(g.cols);
       return CustomScrollView(
         slivers: [
           SliverToBoxAdapter(child: _filterBar()),
@@ -482,30 +491,107 @@ class _LibraryTabState extends State<LibraryTab> {
             )
           else ...[
             SliverToBoxAdapter(child: _countHeader(context, total)),
-            for (final section in render)
-              if (section.month != null) ...[
-                SliverToBoxAdapter(
-                    child: _monthHeader(context, section.month!)),
-                // Внутри месяца — мини-разделители по дням («24 июня 2026»).
-                // Разбивка по дням уже посчитана в _computeWatched (мемо), а
-                // разделитель строится лениво (только видимый) — иначе сотни
-                // дней в истории пересчитывались/строились на каждый rebuild.
-                for (final day in section.days!) ...[
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, _) => _dayDivider(context, day.key),
-                      childCount: 1,
-                    ),
-                  ),
-                  ..._entrySlivers(day.value, g),
-                ],
-              ] else
-                ..._entrySlivers(section.entries, g),
+            // ОДИН ленивый список на всю ленту: Flutter строит только видимые
+            // строки. Раньше на каждый день истории создавался отдельный sliver
+            // (сотни разом) — отсюда фризы при смене вида/вкладки на большой базе.
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => _buildFeedRow(rows[i], g),
+                childCount: rows.length,
+              ),
+            ),
             const SliverToBoxAdapter(child: SizedBox(height: 96)),
           ],
         ],
       );
     });
+  }
+
+  /// Плоский список строк ленты (мемо по структуре/виду/колонкам).
+  List<_FeedRow> _watchedRows(int cols) {
+    if (_wmRows == null ||
+        !identical(_rowsFor, _wmRender) ||
+        _rowsMode != widget.viewMode ||
+        _rowsCols != cols) {
+      _wmRows = _buildFeedRows(cols);
+      _rowsFor = _wmRender;
+      _rowsMode = widget.viewMode;
+      _rowsCols = cols;
+    }
+    return _wmRows!;
+  }
+
+  List<_FeedRow> _buildFeedRows(int cols) {
+    final rows = <_FeedRow>[];
+    void addEntries(List<_LibEntry> entries) {
+      if (widget.viewMode == LibraryViewMode.posters) {
+        for (var i = 0; i < entries.length; i += cols) {
+          final end = (i + cols < entries.length) ? i + cols : entries.length;
+          rows.add(_FeedGrid(entries.sublist(i, end)));
+        }
+      } else {
+        for (final e in entries) {
+          rows.add(_FeedItem(e));
+        }
+      }
+    }
+
+    for (final section in _wmRender!) {
+      if (section.month != null) {
+        rows.add(_FeedMonth(section.month!));
+        for (final day in section.days!) {
+          rows.add(_FeedDay(day.key));
+          addEntries(day.value);
+        }
+      } else {
+        addEntries(section.entries);
+      }
+    }
+    return rows;
+  }
+
+  Widget _buildFeedRow(
+      _FeedRow row, ({int cols, double w, double tileH}) g) {
+    switch (row) {
+      case _FeedMonth(:final month):
+        return _monthHeader(context, month);
+      case _FeedDay(:final day):
+        return _dayDivider(context, day);
+      case _FeedItem(:final entry):
+        if (widget.viewMode == LibraryViewMode.banners) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Reveal(
+                group: _revealed, id: _keyOf(entry), child: _bannerFor(entry)),
+          );
+        }
+        // list — карточки уже содержат свои отступы и Reveal внутри.
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: _rowFor(entry),
+        );
+      case _FeedGrid(:final entries):
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < g.cols; i++) ...[
+                if (i > 0) const SizedBox(width: 12),
+                SizedBox(
+                  width: g.w,
+                  child: i < entries.length
+                      ? Reveal(
+                          group: _revealed,
+                          id: _keyOf(entries[i]),
+                          child: _posterFor(entries[i], g.w))
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ],
+          ),
+        );
+    }
   }
 
   /// Тяжёлый расчёт ленты «Просмотрено» (мемоизируется, см. поля _wm*).
@@ -1144,6 +1230,32 @@ class _MonthSection {
   final List<MapEntry<DateTime, List<_LibEntry>>>? days;
   final List<_LibEntry> entries;
   const _MonthSection(this.month, this.days, this.entries);
+}
+
+/// Строка плоской ленты «Просмотрено» для ленивой отрисовки одним SliverList.
+sealed class _FeedRow {
+  const _FeedRow();
+}
+
+class _FeedMonth extends _FeedRow {
+  final DateTime month;
+  const _FeedMonth(this.month);
+}
+
+class _FeedDay extends _FeedRow {
+  final DateTime day;
+  const _FeedDay(this.day);
+}
+
+class _FeedItem extends _FeedRow {
+  final _LibEntry entry;
+  const _FeedItem(this.entry);
+}
+
+/// Ряд постеров (режим «Постеры») — до [cols] карточек в строке.
+class _FeedGrid extends _FeedRow {
+  final List<_LibEntry> entries;
+  const _FeedGrid(this.entries);
 }
 
 /// Внутренняя обёртка для элемента библиотеки (фильм-просмотр / сериал-сессия).
