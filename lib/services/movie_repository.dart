@@ -557,6 +557,21 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
+  /// «Буду смотреть» для сериала (добавить/убрать). Снимаем «Брошено», если было.
+  Future<void> toggleSeriesWatchlist(String id) async {
+    final s = seriesById(id);
+    if (s == null) return;
+    s.watchlist = !s.watchlist;
+    if (s.watchlist) s.dropped = false;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Сериалы в «Буду смотреть»: помечены и ещё не начаты (нет просмотренных серий).
+  List<LibrarySeries> get watchlistSeries => _series
+      .where((s) => s.watchlist && s.episodes.isEmpty && !s.dropped)
+      .toList();
+
   /// Оценка конкретного эпизода сериала.
   Future<void> setEpisodeScore(
       String seriesId, Episode ep, double? score) async {
@@ -613,6 +628,8 @@ class MovieRepository extends ChangeNotifier {
         number: number,
         watchedAt: at ?? DateTime.now(),
         runtimeMin: runtimeMin));
+    // Отметили новую серию → сериал снова «смотрю» (напр. вышел новый сезон).
+    s.finished = false;
     notifyListeners();
     await _persist();
   }
@@ -1061,8 +1078,17 @@ class MovieRepository extends ChangeNotifier {
   /// Только НЕЗАВЕРШЁННЫЕ сериалы (для экрана «Сейчас смотрю»): есть
   /// просмотренные серии, не брошен и просмотрены не все серии.
   List<LibrarySeries> get nowWatching => currentlyWatching
-      .where((s) => !s.dropped && !s.isCompleted)
+      .where((s) => !s.dropped && !s.finished && !s.isCompleted)
       .toList();
+
+  /// Пометить сериал досмотренным / вернуть в «Сейчас смотрю».
+  Future<void> setSeriesFinished(String id, bool finished) async {
+    final s = seriesById(id);
+    if (s == null || s.finished == finished) return;
+    s.finished = finished;
+    notifyListeners();
+    await _persist();
+  }
 
   /// Запоминает общее число серий сериала (из TMDB) — чтобы отличать
   /// завершённые от незавершённых в «Сейчас смотрю».

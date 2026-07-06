@@ -415,9 +415,17 @@ class LibrarySeries {
   List<Episode> episodes;
   bool favorite;
 
+  /// Сериал добавлен в «Буду смотреть» (ещё не начат). Показывается во вкладке
+  /// «Буду смотреть», пока нет ни одной просмотренной серии.
+  bool watchlist;
+
   /// Сериал брошен (просмотр прекращён) — попадает в список «Брошено» и не
   /// участвует в уведомлениях о новых сериях.
   bool dropped;
+
+  /// Пользователь пометил сериал досмотренным — убирается из «Сейчас смотрю»
+  /// даже если общее число серий неизвестно (кривой/отсутствующий TMDB-матч).
+  bool finished;
 
   /// Всего серий по данным TMDB (заполняется при открытии экрана сериала).
   /// Нужно, чтобы «Сейчас смотрю» показывал только незавершённые сериалы.
@@ -436,7 +444,9 @@ class LibrarySeries {
     this.ruTitle,
     List<Episode>? episodes,
     this.favorite = false,
+    this.watchlist = false,
     this.dropped = false,
+    this.finished = false,
     this.totalEpisodes,
     this.score,
     this.review,
@@ -543,7 +553,9 @@ class LibrarySeries {
       ruTitle: j['ruTitle'] as String?,
       episodes: eps,
       favorite: j['favorite'] == true,
+      watchlist: j['watchlist'] == true,
       dropped: j['dropped'] == true,
+      finished: j['finished'] == true,
       totalEpisodes: (j['totalEpisodes'] as num?)?.toInt(),
       score: (j['score'] as num?)?.toDouble(),
       review: j['review'] as String?,
@@ -561,7 +573,9 @@ class LibrarySeries {
         'ruTitle': ruTitle,
         'episodes': [for (final e in episodes) e.toJson()],
         'favorite': favorite,
+        'watchlist': watchlist,
         'dropped': dropped,
+        'finished': finished,
         'totalEpisodes': totalEpisodes,
         'score': score,
         'review': review,

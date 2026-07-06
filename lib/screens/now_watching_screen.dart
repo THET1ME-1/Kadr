@@ -86,15 +86,80 @@ class _NowWatchingScreenState extends State<NowWatchingScreen> {
     );
   }
 
+  /// Удержание плитки → пометить сериал досмотренным (убрать из «Сейчас смотрю»),
+  /// с возможностью отмены. Полезно, когда общее число серий неизвестно.
+  void _finishSheet(BuildContext context, LibrarySeries s) {
+    final scheme = Theme.of(context).colorScheme;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: scheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(s.displayTitle,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                        color: scheme.onSurface)),
+              ),
+              const SizedBox(height: 10),
+              ListTile(
+                leading: Icon(Icons.done_all_rounded, color: scheme.primary),
+                title: Text(tr('mark_finished'),
+                    style: const TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  MovieRepository.instance.setSeriesFinished(s.tvShowId, true);
+                  ScaffoldMessenger.of(context)
+                    ..clearSnackBars()
+                    ..showSnackBar(SnackBar(
+                      behavior: SnackBarBehavior.floating,
+                      content: Text(tr('finished_removed')),
+                      action: SnackBarAction(
+                        label: tr('undo'),
+                        onPressed: () => MovieRepository.instance
+                            .setSeriesFinished(s.tvShowId, false),
+                      ),
+                    ));
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _card(BuildContext context, LibrarySeries s, double w) {
     final scheme = Theme.of(context).colorScheme;
     final last = s.lastWatch;
     return SizedBox(
       width: w,
-      child: Pressable(
-        onTap: () => Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
-        child: Column(
+      child: GestureDetector(
+        onLongPress: () => _finishSheet(context, s),
+        child: Pressable(
+          onTap: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Stack(
@@ -133,6 +198,7 @@ class _NowWatchingScreenState extends State<NowWatchingScreen> {
                     fontSize: 11.5,
                     color: scheme.onSurfaceVariant)),
           ],
+        ),
         ),
       ),
     );

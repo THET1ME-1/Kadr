@@ -2,7 +2,7 @@ name: kadr
 description: "Kadr — трекер просмотренных фильмов и сериалов. Material 3 Expressive."
 publish_to: 'none'
 
-version: 0.6.8+33
+version: 0.6.9+34
 
 environment:
   sdk: ^3.11.5
@@ -27,6 +27,7 @@ dependencies:
   # Данные, бэкап, синхронизация
   path_provider: ^2.1.4
   file_picker: ^10.2.0
+  permission_handler: ^11.3.1
   share_plus: ^10.1.4
   package_info_plus: ^8.0.2
   url_launcher: ^6.3.1

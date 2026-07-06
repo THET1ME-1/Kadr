@@ -114,6 +114,7 @@ class _LibraryTabState extends State<LibraryTab> {
       final s = e.session!;
       return 's:${s.series.tvShowId}:${s.start?.microsecondsSinceEpoch ?? 0}:${s.count}';
     }
+    if (e.seriesItem != null) return 'sw:${e.seriesItem!.tvShowId}';
     final m = e.movie!;
     if (widget.mode == LibraryMode.watchlist) return 'wl:${m.uuid}';
     return 'mv:${m.uuid}:${identityHashCode(e.viewing)}';
@@ -205,6 +206,9 @@ class _LibraryTabState extends State<LibraryTab> {
       if (e.session != null) {
         seriesSnaps.putIfAbsent(
             e.session!.series.tvShowId, () => e.session!.series.toJson());
+      } else if (e.seriesItem != null) {
+        seriesSnaps.putIfAbsent(
+            e.seriesItem!.tvShowId, () => e.seriesItem!.toJson());
       } else if (e.movie != null) {
         movieSnaps.putIfAbsent(e.movie!.uuid, () => e.movie!.toJson());
       }
@@ -213,6 +217,9 @@ class _LibraryTabState extends State<LibraryTab> {
       if (e.session != null) {
         final s = e.session!;
         await repo.removeEpisodes(s.series.tvShowId, s.episodes);
+      } else if (e.seriesItem != null) {
+        // Убрать сериал из «Буду смотреть» (данные не удаляем).
+        await repo.toggleSeriesWatchlist(e.seriesItem!.tvShowId);
       } else if (widget.mode == LibraryMode.watchlist) {
         // Сброс статуса «Буду смотреть» (из базы не удаляем).
         await repo.toggleWatchlist(e.movie!.uuid);
@@ -413,19 +420,26 @@ class _LibraryTabState extends State<LibraryTab> {
       _wlFilterKey = _filterKey;
     }
     final items = _wlItems!;
-    if (items.isEmpty) {
+    // Сериалы в «Буду смотреть» (небольшой список — считаем на месте).
+    final seriesItems = repo.watchlistSeries.where(_matchSeries).toList()
+      ..sort((a, b) =>
+          a.displayTitle.toLowerCase().compareTo(b.displayTitle.toLowerCase()));
+    if (items.isEmpty && seriesItems.isEmpty) {
       return _emptyView(EmptyState(
           icon: Icons.bookmark_rounded,
           title: tr('nav_watchlist'),
           subtitle: tr('lib_empty_watchlist')));
     }
-    final entries = [for (final m in items) _LibEntry.movie(m)];
+    final entries = [
+      for (final m in items) _LibEntry.movie(m),
+      for (final s in seriesItems) _LibEntry.series(s),
+    ];
     _indexEntries(entries);
     return LayoutBuilder(builder: (context, c) {
       final g = _grid(c.maxWidth);
       return CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(child: _header(context, items.length)),
+          SliverToBoxAdapter(child: _header(context, entries.length)),
           ..._entrySlivers(entries, g),
           const SliverToBoxAdapter(child: SizedBox(height: 96)),
         ],
@@ -744,6 +758,16 @@ class _LibraryTabState extends State<LibraryTab> {
         revealId: key,
       );
     }
+    if (e.seriesItem != null) {
+      return _WatchlistSeriesRow(
+        series: e.seriesItem!,
+        selecting: _selecting,
+        selected: sel,
+        onSelect: () => _onSelect(key),
+        revealGroup: _revealed,
+        revealId: key,
+      );
+    }
     return _MovieRow(
       movie: e.movie!,
       viewing: e.viewing,
@@ -766,6 +790,23 @@ class _LibraryTabState extends State<LibraryTab> {
         posterUrl: s.posterUrl,
         width: w,
         score: e.session!.avgScore ?? e.session!.series.displayScore,
+        favorite: s.favorite,
+        series: true,
+        dropped: s.dropped,
+        selecting: _selecting,
+        selected: sel,
+        onSelect: () => _onSelect(key),
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
+      );
+    }
+    if (e.seriesItem != null) {
+      final s = e.seriesItem!;
+      return _PosterCell(
+        title: s.displayTitle,
+        posterUrl: s.posterUrl,
+        width: w,
+        score: null,
         favorite: s.favorite,
         series: true,
         dropped: s.dropped,
@@ -800,6 +841,23 @@ class _LibraryTabState extends State<LibraryTab> {
         posterUrl: s.posterUrl,
         subtitle: '${e.session!.rangeLabel} · ${e.session!.count} сер.',
         score: e.session!.avgScore ?? e.session!.series.displayScore,
+        favorite: s.favorite,
+        series: true,
+        dropped: s.dropped,
+        selecting: _selecting,
+        selected: sel,
+        onSelect: () => _onSelect(key),
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
+      );
+    }
+    if (e.seriesItem != null) {
+      final s = e.seriesItem!;
+      return _BannerCell(
+        title: s.displayTitle,
+        posterUrl: s.posterUrl,
+        subtitle: tr('act_watchlist'),
+        score: null,
         favorite: s.favorite,
         series: true,
         dropped: s.dropped,
@@ -1264,21 +1322,33 @@ class _LibEntry {
   final Viewing? viewing;
   final int? rewatchNumber;
   final EpisodeSession? session;
+
+  /// Сериал в «Буду смотреть» (без сессии — ещё не начат).
+  final LibrarySeries? seriesItem;
   _LibEntry.movie(this.movie, {this.viewing, this.rewatchNumber})
-      : session = null;
+      : session = null,
+        seriesItem = null;
   _LibEntry.session(this.session)
       : movie = null,
         viewing = null,
-        rewatchNumber = null;
+        rewatchNumber = null,
+        seriesItem = null;
+  _LibEntry.series(this.seriesItem)
+      : movie = null,
+        viewing = null,
+        rewatchNumber = null,
+        session = null;
 
   DateTime? get date =>
       session != null ? session!.start : viewing?.date;
   double? get score => session != null
       ? (session!.avgScore ?? session!.series.displayScore)
       : (viewing != null ? movie!.scoreOf(viewing!) : movie?.currentScore);
-  String get title =>
-      session != null ? session!.series.displayTitle : movie!.displayTitle;
-  int? get year => session != null ? null : movie!.year;
+  String get title => session != null
+      ? session!.series.displayTitle
+      : (seriesItem != null ? seriesItem!.displayTitle : movie!.displayTitle);
+  int? get year =>
+      (session != null || seriesItem != null) ? null : movie!.year;
 }
 
 /// Карточка-постер для сетки (режим «Постеры»).
@@ -2151,4 +2221,112 @@ class _MovieRow extends StatelessWidget {
           ],
         ),
       );
+}
+
+/// Строка сериала в списке «Буду смотреть» (постер + название + тап → экран сериала).
+class _WatchlistSeriesRow extends StatelessWidget {
+  final LibrarySeries series;
+  final bool selecting;
+  final bool selected;
+  final VoidCallback? onSelect;
+  final Set<Object>? revealGroup;
+  final Object? revealId;
+  const _WatchlistSeriesRow({
+    required this.series,
+    this.selecting = false,
+    this.selected = false,
+    this.onSelect,
+    this.revealGroup,
+    this.revealId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Reveal(
+      group: revealGroup,
+      id: revealId,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+        child: Material(
+          color:
+              selected ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(22),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: selecting
+                ? onSelect
+                : () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => SeriesScreen(series: series))),
+            onLongPress: onSelect,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Row(
+                children: [
+                  Stack(
+                    children: [
+                      Poster(
+                          title: series.displayTitle,
+                          url: series.posterUrl,
+                          width: 58),
+                      Positioned(
+                        left: 4,
+                        top: 4,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                              color: scheme.tertiary,
+                              borderRadius: BorderRadius.circular(8)),
+                          child: Icon(Icons.live_tv_rounded,
+                              size: 12, color: scheme.onTertiary),
+                        ),
+                      ),
+                      if (selecting) _selectOverlay(scheme, selected, 12),
+                    ],
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(series.displayTitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontFamily: AppTheme.displayFont,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                height: 1.1,
+                                color: scheme.onSurface)),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            if (series.favorite)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: Icon(Icons.favorite_rounded,
+                                    size: 15, color: scheme.primary),
+                              ),
+                            Text(tr('act_watchlist'),
+                                style: TextStyle(
+                                    fontFamily: AppTheme.bodyFont,
+                                    fontSize: 13,
+                                    color: scheme.onSurfaceVariant)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Icon(Icons.chevron_right_rounded,
+                      color: scheme.onSurfaceVariant),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

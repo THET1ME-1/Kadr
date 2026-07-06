@@ -457,6 +457,15 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Когда вы посмотрели серию?',
     'en': 'When did you watch this episode?'
   },
+  'mark_finished': {'ru': 'Досмотрел сериал', 'en': 'Finished the series'},
+  'finished_removed': {
+    'ru': 'Убрано из «Сейчас смотрю»',
+    'en': 'Removed from Now Watching'
+  },
+  'now_watching_hint': {
+    'ru': 'Удержание — «Досмотрел»',
+    'en': 'Long-press to mark finished'
+  },
   'episode_rewatch_when': {
     'ru': 'Когда вы пересмотрели серию?',
     'en': 'When did you rewatch this episode?'

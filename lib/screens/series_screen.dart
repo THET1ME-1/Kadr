@@ -361,6 +361,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 SliverToBoxAdapter(child: _errorCard(context))
               else ...[
                 SliverToBoxAdapter(child: _actions(scheme)),
+                // «Буду смотреть» — пока сериал не начат (нет просмотренных серий).
+                if (s.episodes.isEmpty)
+                  SliverToBoxAdapter(child: _watchlistButton(scheme)),
                 SliverToBoxAdapter(child: _droppedButton(scheme)),
                 SliverToBoxAdapter(child: _reviewTile(scheme)),
                 if (_seasons.length > 1)
@@ -583,6 +586,31 @@ class _SeriesScreenState extends State<SeriesScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Широкая кнопка «Буду смотреть» для сериала (активна — когда в списке).
+  Widget _watchlistButton(ColorScheme scheme) {
+    final active = s.watchlist;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+      child: SizedBox(
+        width: double.infinity,
+        child: active
+            ? FilledButton.icon(
+                onPressed: () => _repo.toggleSeriesWatchlist(s.tvShowId),
+                icon: const Icon(Icons.bookmark_rounded),
+                label: Text(tr('in_watchlist')),
+              )
+            : FilledButton.tonalIcon(
+                onPressed: () {
+                  _repo.toggleSeriesWatchlist(s.tvShowId);
+                  _snack(tr('added_to_watchlist'));
+                },
+                icon: const Icon(Icons.bookmark_add_outlined),
+                label: Text(tr('add_watchlist')),
+              ),
       ),
     );
   }
