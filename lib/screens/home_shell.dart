@@ -71,8 +71,11 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
       // Фоновая дозагрузка жанров/стран/длительности (для фильтров и статистики).
       await Future<void>.delayed(const Duration(seconds: 3));
       await MovieRepository.instance.backfillDetailsSweep();
-      // Разовая чистка «хвостов» серий вне реальной структуры TMDB.
-      await MovieRepository.instance.pruneStructureSweep();
+      // ВНИМАНИЕ: авто-чистку серий по структуре TMDB (pruneStructureSweep)
+      // УБРАЛИ намеренно. Она удаляла реальные серии пользователя по НЕТОЧНОМУ
+      // авто-совпадению названия с TMDB (enrichSeries ставит чужой tmdbId), и
+      // делала это порциями на каждом запуске → «серии появляются и удаляются».
+      // Никакого автоматического удаления серий больше нет.
     });
   }
 

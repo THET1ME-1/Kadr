@@ -193,16 +193,10 @@ class _SeriesScreenState extends State<SeriesScreen> {
       });
       return;
     }
-    // Чистим «хвосты» вне реальной структуры TMDB (лишние серии/сезоны от
-    // неточного импорта/матча) — не только на экране, но и в данных, чтобы они
-    // не всплывали в ленте «Просмотрено». Только когда TMDB дал структуру.
-    if (tmdbSeasons.isNotEmpty) {
-      final sizes = {for (final se in tmdbSeasons) se.number: se.episodeCount};
-      final removed = await _repo.pruneToStructure(s.tvShowId, sizes);
-      if (removed > 0 && mounted) {
-        _snack(trf('extra_episodes_removed', {'n': removed}));
-      }
-    }
+    // НЕ удаляем серии автоматически по структуре TMDB: авто-совпадение шоу
+    // часто НЕТОЧНОЕ, и такая чистка стирала реальные серии пользователя. Лишние
+    // серии просто показываются как есть; структуру TMDB используем только для
+    // отображения (галочки/счётчик), но данные не трогаем.
     // Запоминаем общее число серий (для «Сейчас смотрю» — только незавершённые).
     final total = _seasons.fold<int>(0, (a, b) => a + b.episodeCount);
     await _repo.setSeriesTotal(s.tvShowId, total);
