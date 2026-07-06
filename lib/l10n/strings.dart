@@ -458,6 +458,22 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'When did you watch this episode?'
   },
   'share': {'ru': 'Поделиться', 'en': 'Share'},
+  'import_tracker': {
+    'ru': 'Импорт из трекера (CSV)',
+    'en': 'Import from tracker (CSV)'
+  },
+  'import_tracker_sub': {
+    'ru': 'Letterboxd, IMDb и другие — файл .csv',
+    'en': 'Letterboxd, IMDb and others — .csv file'
+  },
+  'import_tracker_ok': {
+    'ru': 'Импортировано: +{a}, обновлено {u}',
+    'en': 'Imported: +{a}, updated {u}'
+  },
+  'import_tracker_fail': {
+    'ru': 'Не удалось прочитать файл',
+    'en': 'Could not read the file'
+  },
   'wrapped_title': {'ru': 'Кинокод года', 'en': 'Year in review'},
   'wrapped_open': {'ru': 'Кинокод {year}', 'en': 'Year in review {year}'},
   'wrapped_open_sub': {

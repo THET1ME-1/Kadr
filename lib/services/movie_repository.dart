@@ -352,6 +352,49 @@ class MovieRepository extends ChangeNotifier {
     }
   }
 
+  /// Импорт фильмов из другого трекера (Letterboxd/IMDb/…): добавляет новые
+  /// (дедуп по названию+году), у существующих дозаполняет просмотры/оценку/
+  /// статус. НЕ дублирует просмотры с той же датой. Возвращает (добавлено,
+  /// обновлено). Постеры/детали подтянет фоновая дозагрузка.
+  Future<(int, int)> importMovies(List<LibraryMovie> incoming) async {
+    String norm(String s) => s.toLowerCase().trim();
+    final index = <String, LibraryMovie>{};
+    for (final m in _movies) {
+      index['${norm(m.title)}|${m.year ?? 0}'] = m;
+      if (m.ruTitle != null) index['${norm(m.ruTitle!)}|${m.year ?? 0}'] = m;
+    }
+    var added = 0, updated = 0;
+    for (final inc in incoming) {
+      final key = '${norm(inc.title)}|${inc.year ?? 0}';
+      final existing = index[key];
+      if (existing != null) {
+        if (inc.status == LibraryStatus.watched) {
+          existing.status = LibraryStatus.watched;
+        } else if (inc.status == LibraryStatus.watchlist &&
+            existing.status == LibraryStatus.library) {
+          existing.status = LibraryStatus.watchlist;
+        }
+        final dates = existing.viewings.map((v) => v.date).toSet();
+        for (final v in inc.viewings) {
+          if (!dates.contains(v.date)) existing.viewings.add(v);
+        }
+        existing.score ??= inc.score;
+        existing.addedAt ??= inc.addedAt;
+        updated++;
+      } else {
+        _movies.add(inc);
+        index[key] = inc;
+        added++;
+      }
+    }
+    if (added > 0 || updated > 0) {
+      notifyListeners();
+      await _persist();
+      startEnrichSweep(); // подтянуть постеры/названия в фоне
+    }
+    return (added, updated);
+  }
+
   // ------------------------------ выборки ------------------------------
 
   /// Просмотренные — по убыванию последнего просмотра.

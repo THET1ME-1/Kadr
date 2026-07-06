@@ -5,6 +5,7 @@ import '../l10n/locale_controller.dart';
 import '../l10n/strings.dart';
 import '../services/app_prefs.dart';
 import '../services/backup_service.dart';
+import '../services/import_service.dart';
 import '../services/update_service.dart';
 import '../widgets/update_sheet.dart';
 import '../services/movie_repository.dart';
@@ -592,6 +593,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               messenger.showSnackBar(SnackBar(
                 content:
                     Text(tr(ok ? 'backup_import_ok' : 'backup_import_fail')),
+              ));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.move_to_inbox_rounded),
+            title: Text(tr('import_tracker')),
+            subtitle: Text(tr('import_tracker_sub')),
+            onTap: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.pop(context);
+              final res = await ImportService.pickAndImport();
+              if (!res.ok) {
+                messenger.showSnackBar(
+                    SnackBar(content: Text(tr('import_tracker_fail'))));
+                return;
+              }
+              messenger.showSnackBar(SnackBar(
+                content: Text(trf('import_tracker_ok',
+                    {'a': res.added, 'u': res.updated})),
               ));
             },
           ),

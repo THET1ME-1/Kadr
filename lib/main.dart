@@ -7,6 +7,7 @@ import 'services/app_prefs.dart';
 import 'services/auto_backup_service.dart';
 import 'services/movie_repository.dart';
 import 'services/movie_source.dart';
+import 'services/sync/webdav_service.dart';
 import 'services/store.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
@@ -38,8 +39,12 @@ class _LifecycleFlusher extends WidgetsBindingObserver {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       MovieRepository.instance.flush();
+      // При сворачивании — заливаем изменения сессии на WebDAV (если настроен).
+      WebdavService.instance.syncSilently();
     } else if (state == AppLifecycleState.resumed) {
       AutoBackupService.instance.maybePeriodic();
+      // При возврате — подтягиваем изменения с других устройств.
+      WebdavService.instance.syncSilently();
     }
   }
 }
