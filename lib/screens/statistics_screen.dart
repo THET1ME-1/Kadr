@@ -10,6 +10,7 @@ import '../widgets/poster.dart';
 import '../widgets/reveal.dart';
 import 'movie_sheet.dart';
 import 'series_screen.dart';
+import 'wrapped_screen.dart';
 
 /// Экран статистики (Material 3 Expressive): градиентная шапка-итог, крупные
 /// тональные плитки, графики активности (годы/месяцы/дни недели/десятилетия),
@@ -34,6 +35,8 @@ class StatisticsScreen extends StatelessWidget {
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
                   children: [
+                    _wrappedButton(context),
+                    const SizedBox(height: 16),
                     _hero(context, s),
                     const SizedBox(height: 16),
                     _tiles(context, s),
@@ -121,6 +124,57 @@ class StatisticsScreen extends StatelessWidget {
   }
 
   // ------------------------------ шапка-итог ------------------------------
+
+  Widget _wrappedButton(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final year = DateTime.now().year;
+    return Material(
+      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const WrappedScreen())),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [scheme.primary, scheme.tertiary],
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome_rounded,
+                    color: scheme.onPrimary, size: 28),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(trf('wrapped_open', {'year': year}),
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                              color: scheme.onPrimary)),
+                      Text(tr('wrapped_open_sub'),
+                          style: TextStyle(
+                              fontFamily: AppTheme.bodyFont,
+                              fontSize: 12.5,
+                              color: scheme.onPrimary.withValues(alpha: 0.9))),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: scheme.onPrimary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _hero(BuildContext context, _Stats s) {
     final scheme = Theme.of(context).colorScheme;

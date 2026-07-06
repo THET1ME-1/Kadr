@@ -457,6 +457,30 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Когда вы посмотрели серию?',
     'en': 'When did you watch this episode?'
   },
+  'share': {'ru': 'Поделиться', 'en': 'Share'},
+  'wrapped_title': {'ru': 'Кинокод года', 'en': 'Year in review'},
+  'wrapped_open': {'ru': 'Кинокод {year}', 'en': 'Year in review {year}'},
+  'wrapped_open_sub': {
+    'ru': 'Твой год в кино — красиво и можно поделиться',
+    'en': 'Your movie year — shareable recap'
+  },
+  'wrapped_empty': {
+    'ru': 'За этот год ещё нет отметок',
+    'en': 'Nothing marked this year yet'
+  },
+  'wrapped_watched': {
+    'ru': '{m} фильмов · {e} серий',
+    'en': '{m} movies · {e} episodes'
+  },
+  'wrapped_more': {'ru': 'На {n} больше, чем годом ранее', 'en': '{n} more than last year'},
+  'wrapped_less': {'ru': 'На {n} меньше, чем годом ранее', 'en': '{n} fewer than last year'},
+  'wrapped_hours': {'ru': 'часов у экрана', 'en': 'hours watched'},
+  'wrapped_avg': {'ru': 'средняя оценка', 'en': 'average score'},
+  'wrapped_busiest': {'ru': 'Самый активный месяц', 'en': 'Busiest month'},
+  'wrapped_top_genres': {'ru': 'Топ жанры года', 'en': 'Top genres'},
+  'wrapped_mood': {'ru': 'Эмоция года', 'en': 'Mood of the year'},
+  'wrapped_movie': {'ru': 'Фильм года', 'en': 'Movie of the year'},
+  'wrapped_series': {'ru': 'Сериал года', 'en': 'Series of the year'},
   'watched_movies': {'ru': 'Просмотренные фильмы', 'en': 'Watched movies'},
   'watched_series': {'ru': 'Просмотренные сериалы', 'en': 'Watched series'},
   'auto_backup': {'ru': 'Автобекап', 'en': 'Auto backup'},
