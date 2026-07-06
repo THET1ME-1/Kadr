@@ -1703,6 +1703,9 @@ class _SeriesSessionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final start = session.start;
+    // Порядковый номер просмотра (2, 3…) — для метки «2-й просмотр», как у фильмов.
+    final rewatchOrd = session.episodes
+        .fold<int>(0, (m, e) => e.rewatchOrdinal > m ? e.rewatchOrdinal : m);
     return Reveal(
       group: revealGroup,
       id: revealId,
@@ -1788,14 +1791,23 @@ class _SeriesSessionCard extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            if (start != null) ...[
+                            if (start != null || rewatchOrd >= 2) ...[
                               const SizedBox(height: 3),
-                              Text(dateExactWithTime(start),
-                                  style: TextStyle(
-                                      fontFamily: AppTheme.bodyFont,
-                                      fontSize: 12,
-                                      color: scheme.onSurfaceVariant
-                                          .withValues(alpha: 0.85))),
+                              Row(
+                                children: [
+                                  if (start != null)
+                                    Text(dateExactWithTime(start),
+                                        style: TextStyle(
+                                            fontFamily: AppTheme.bodyFont,
+                                            fontSize: 12,
+                                            color: scheme.onSurfaceVariant
+                                                .withValues(alpha: 0.85))),
+                                  if (rewatchOrd >= 2) ...[
+                                    if (start != null) const SizedBox(width: 8),
+                                    _rewatchChip(scheme, rewatchOrd),
+                                  ],
+                                ],
+                              ),
                             ],
                           ],
                         ),
@@ -2218,27 +2230,28 @@ class _MovieRow extends StatelessWidget {
   }
 
   /// Бейдж повтора: «↻ N» — номер по счёту (2-й, 3-й… просмотр).
-  Widget _rewatchChip(ColorScheme scheme, int n) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-            color: scheme.tertiaryContainer,
-            borderRadius: BorderRadius.circular(12)),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.repeat_rounded,
-                size: 13, color: scheme.onTertiaryContainer),
-            const SizedBox(width: 3),
-            Text('$n',
-                style: TextStyle(
-                    fontFamily: AppTheme.displayFont,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                    color: scheme.onTertiaryContainer)),
-          ],
-        ),
-      );
 }
+
+/// Бейдж повтора «↻ N» — номер просмотра (2-й, 3-й…). Общий для фильмов и серий.
+Widget _rewatchChip(ColorScheme scheme, int n) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+          color: scheme.tertiaryContainer,
+          borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.repeat_rounded, size: 13, color: scheme.onTertiaryContainer),
+          const SizedBox(width: 3),
+          Text('$n',
+              style: TextStyle(
+                  fontFamily: AppTheme.displayFont,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: scheme.onTertiaryContainer)),
+        ],
+      ),
+    );
 
 /// Строка сериала в списке «Буду смотреть» (постер + название + тап → экран сериала).
 class _WatchlistSeriesRow extends StatelessWidget {

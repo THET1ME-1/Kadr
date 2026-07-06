@@ -272,6 +272,10 @@ class Episode {
   /// сами поля watchedAt+score. Старые данные (rewatchDates) мигрируются сюда.
   List<Viewing> rewatchViews;
 
+  /// НЕ сохраняется. Порядковый номер просмотра для копии-события в ленте
+  /// (1 — первый, 2 — второй…); нужен, чтобы показать «2-й просмотр» как у фильмов.
+  int rewatchOrdinal = 0;
+
   Episode({
     this.season,
     this.number,
@@ -509,12 +513,15 @@ class LibrarySeries {
     final dated = <Episode>[];
     final undated = <Episode>[];
     for (final e in episodes) {
-      // Каждый просмотр (первый + повторы) — своё событие с датой и своей оценкой.
-      for (final v in e.views) {
-        if (v.date == null) {
-          undated.add(e.copyForView(v));
+      // Каждый просмотр (первый + повторы) — своё событие с датой, оценкой и
+      // порядковым номером (для метки «2-й просмотр» в ленте).
+      final vs = e.views;
+      for (var i = 0; i < vs.length; i++) {
+        final copy = e.copyForView(vs[i])..rewatchOrdinal = i + 1;
+        if (vs[i].date == null) {
+          undated.add(copy);
         } else {
-          dated.add(e.copyForView(v));
+          dated.add(copy);
         }
       }
     }
