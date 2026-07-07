@@ -85,6 +85,13 @@ class NotificationService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Показать соц-уведомление (заявка в друзья и т.п.). Фиксированный id —
+  /// новое заменяет предыдущее, а не копит стопку.
+  Future<void> showSocial(String title, String body) async {
+    await init();
+    await _showSystem(9200, title, body);
+  }
+
   Future<void> _showSystem(int id, String title, String body) async {
     const details = NotificationDetails(
       android: AndroidNotificationDetails(

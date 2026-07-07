@@ -81,4 +81,25 @@ void main() {
     expect(friend.watchlist.length, 1);
     expect(friend.series.first.episodes.length, 1);
   });
+
+  test('hideRatings вырезает оценки, записи остаются', () {
+    final repo = MovieRepository.detached(sample());
+    final pub = repo.buildPublicProfile(hideRatings: true);
+    final friend = MovieRepository.detached(pub);
+    expect(friend.watched.length, 1); // фильм на месте
+    expect(friend.watched.first.currentScore, isNull); // оценки нет
+    // Дата просмотра сохранена (скрывали только оценки).
+    expect(friend.watched.first.viewings.first.date, isNotNull);
+  });
+
+  test('hideDates огрубляет даты до начала месяца (лента не пустеет)', () {
+    final repo = MovieRepository.detached(sample());
+    final pub = repo.buildPublicProfile(hideDates: true);
+    final friend = MovieRepository.detached(pub);
+    final d = friend.watched.first.viewings.first.date;
+    expect(d, isNotNull); // дата есть → попадёт в ленту «Просмотрено»
+    expect(d!.day, 1); // но огрублена до 1-го числа
+    // Оценка при этом сохранена (скрывали только даты).
+    expect(friend.watched.first.currentScore, 8.0);
+  });
 }

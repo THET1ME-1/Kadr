@@ -13,12 +13,16 @@ class SocialUser {
   final String friendCode;
   final String? email;
 
+  /// Задан ли код восстановления (только в своём профиле) — для подсказки.
+  final bool hasRecovery;
+
   const SocialUser({
     required this.id,
     required this.displayName,
     required this.avatarVer,
     required this.friendCode,
     this.email,
+    this.hasRecovery = false,
   });
 
   /// URL аватара (null — фото не загружено). Версия в query сбрасывает кэш.
@@ -38,6 +42,7 @@ class SocialUser {
         avatarVer: (j['avatar'] as num?)?.toInt() ?? 0,
         friendCode: j['friendCode'] as String? ?? '',
         email: j['email'] as String?,
+        hasRecovery: j['hasRecovery'] == true,
       );
 
   Map<String, dynamic> toJson() => {

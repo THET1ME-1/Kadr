@@ -4,6 +4,7 @@ import '../../l10n/strings.dart';
 import '../../services/social/social_api.dart';
 import '../../services/social/social_controller.dart';
 import '../../theme/app_theme.dart';
+import 'recovery.dart';
 
 /// Понятный текст ошибки соц-слоя по её коду.
 String socialErrorText(Object e) {
@@ -70,7 +71,12 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       final ctl = SocialController.instance;
       if (_register) {
-        await ctl.register(email: email, password: pass, displayName: name);
+        final code =
+            await ctl.register(email: email, password: pass, displayName: name);
+        // Показать код восстановления один раз перед закрытием экрана.
+        if (mounted && code != null && code.isNotEmpty) {
+          await showRecoveryCodeSheet(context, code);
+        }
       } else {
         await ctl.login(email: email, password: pass);
       }
@@ -176,6 +182,16 @@ class _AuthScreenState extends State<AuthScreen> {
                         fontWeight: FontWeight.w700,
                         fontSize: 15)),
           ),
+          if (!_register) ...[
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const ResetPasswordScreen())),
+                child: Text(tr('reset_forgot')),
+              ),
+            ),
+          ],
         ],
       ),
     );

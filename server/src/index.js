@@ -45,6 +45,18 @@ function makeFriendCode() {
   return s;
 }
 
+// Код восстановления: 12 символов (~60 бит) из того же алфавита, показывается
+// сгруппированным «XXXX-XXXX-XXXX». Хранится хэшем; для сверки нормализуем.
+function makeRecoveryCode() {
+  const buf = new Uint8Array(12);
+  crypto.getRandomValues(buf);
+  let s = '';
+  for (const b of buf) s += CODE_ALPHABET[b % CODE_ALPHABET.length];
+  return s;
+}
+const formatRecovery = (s) => `${s.slice(0, 4)}-${s.slice(4, 8)}-${s.slice(8, 12)}`;
+const normRecovery = (s) => String(s).toUpperCase().replace(/[^A-Z0-9]/g, '');
+
 async function pbkdf2(password, saltBytes, iterations) {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -164,7 +176,12 @@ const publicUser = (u) => ({
 });
 
 // Полное представление своего профиля (с email) — для владельца.
-const selfUser = (u) => ({ ...publicUser(u), email: u.email });
+// hasRecovery — задан ли код восстановления (для подсказки «создай код»).
+const selfUser = (u) => ({
+  ...publicUser(u),
+  email: u.email,
+  hasRecovery: !!u.recovery_hash,
+});
 
 // ------------------------------- запросы БД -------------------------------
 
@@ -243,16 +260,20 @@ async function register(request, env) {
   let code = makeFriendCode();
   for (let i = 0; i < 5 && (await getUserByCode(env, code)); i++) code = makeFriendCode();
 
+  // Код восстановления доступа (показывается один раз, хранится хэшем).
+  const recovery = makeRecoveryCode();
+  const recoveryHash = await hashPassword(recovery);
+
   await env.DB.prepare(
-    `INSERT INTO users (id, email, pass_hash, display_name, friend_code, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (id, email, pass_hash, display_name, friend_code, recovery_hash, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(id, email, passHash, displayName, code, ts, ts)
+    .bind(id, email, passHash, displayName, code, recoveryHash, ts, ts)
     .run();
 
   const token = await createSession(env, id);
   const user = await getUserById(env, id);
-  return json({ token, user: selfUser(user) });
+  return json({ token, user: selfUser(user), recoveryCode: formatRecovery(recovery) });
 }
 
 async function login(request, env) {
@@ -285,6 +306,62 @@ async function logout(request, env) {
       .run();
   }
   return json({ ok: true });
+}
+
+// Сброс пароля по коду восстановления: меняет пароль, РОТИРУЕТ код (старый
+// больше не работает), гасит все прежние сессии и входит заново.
+async function resetPassword(request, env) {
+  if (!(await rateLimit(env, `reset:${clientIp(request)}`, 10, 15 * 60 * 1000))) {
+    return err('rate_limited', 429);
+  }
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err('bad_json');
+  }
+  const email = normEmail(body.email || '');
+  const code = normRecovery(body.recoveryCode || body.code || '');
+  const newPassword = String(body.newPassword || '');
+  if (newPassword.length < 8) return err('weak_password');
+
+  const user = await getUserByEmail(env, email);
+  if (
+    !user ||
+    !user.recovery_hash ||
+    !(await verifyPassword(code, user.recovery_hash))
+  ) {
+    return err('invalid_recovery', 401);
+  }
+
+  const passHash = await hashPassword(newPassword);
+  const recovery = makeRecoveryCode();
+  const recoveryHash = await hashPassword(recovery);
+  await env.DB.prepare(
+    'UPDATE users SET pass_hash = ?, recovery_hash = ?, updated_at = ? WHERE id = ?',
+  )
+    .bind(passHash, recoveryHash, now(), user.id)
+    .run();
+  // Безопасность: сброс всех прежних сессий пользователя.
+  await env.DB.prepare('DELETE FROM tokens WHERE user_id = ?').bind(user.id).run();
+
+  const token = await createSession(env, user.id);
+  const fresh = await getUserById(env, user.id);
+  return json({
+    token,
+    user: selfUser(fresh),
+    recoveryCode: formatRecovery(recovery),
+  });
+}
+
+// Перегенерация кода восстановления (в профиле). Возвращает новый код.
+async function regenerateRecovery(env, me) {
+  const recovery = makeRecoveryCode();
+  const recoveryHash = await hashPassword(recovery);
+  await env.DB.prepare('UPDATE users SET recovery_hash = ?, updated_at = ? WHERE id = ?')
+    .bind(recoveryHash, now(), me.id)
+    .run();
+  return json({ recoveryCode: formatRecovery(recovery) });
 }
 
 async function updateMe(request, env, me) {
@@ -535,6 +612,7 @@ export default {
       if (path === '/health') return json({ ok: true });
       if (path === '/auth/register' && method === 'POST') return register(request, env);
       if (path === '/auth/login' && method === 'POST') return login(request, env);
+      if (path === '/auth/reset' && method === 'POST') return resetPassword(request, env);
 
       // Публичная отдача аватара (без токена — картинка не секрет).
       const avaMatch = path.match(/^\/avatars\/([^/?]+)$/);
@@ -548,6 +626,7 @@ export default {
       if (path === '/me' && method === 'GET') return json({ user: selfUser(me) });
       if (path === '/me' && method === 'PATCH') return updateMe(request, env, me);
       if (path === '/me/avatar' && method === 'PUT') return uploadAvatar(request, env, me);
+      if (path === '/me/recovery' && method === 'POST') return regenerateRecovery(env, me);
 
       if (path === '/friends' && method === 'GET') return listFriends(env, me);
       if (path === '/friends/request' && method === 'POST') return requestFriend(request, env, me);
@@ -568,5 +647,14 @@ export default {
     } catch (e) {
       return err(`server_error: ${e && e.message ? e.message : e}`, 500);
     }
+  },
+
+  // Периодическая уборка (cron): просроченные сессии и старые счётчики лимитов.
+  async scheduled(event, env, ctx) {
+    const ts = Date.now();
+    await env.DB.prepare('DELETE FROM tokens WHERE expires_at < ?').bind(ts).run();
+    await env.DB.prepare('DELETE FROM rate_limits WHERE window_start < ?')
+      .bind(ts - 24 * 60 * 60 * 1000)
+      .run();
   },
 };

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -9,12 +10,14 @@ import '../../models/social.dart';
 import '../../services/movie_repository.dart';
 import '../../services/social/avatar_util.dart';
 import '../../services/social/social_controller.dart';
+import '../../services/store.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/user_avatar.dart';
 import '../statistics_screen.dart';
 import 'auth_screen.dart';
 import 'friend_profile_screen.dart';
 import 'profile_stats.dart';
+import 'recovery.dart';
 
 /// Свой профиль (4-я вкладка навигации). Не вошёл — приглашение войти; вошёл —
 /// аватар/ник/код с правкой, входящие заявки, друзья и своя статистика.
@@ -27,14 +30,40 @@ class MyProfileScreen extends StatefulWidget {
 
 class _MyProfileScreenState extends State<MyProfileScreen> {
   bool _uploading = false;
+  bool _hideRatings = false;
+  bool _hideDates = false;
 
   @override
   void initState() {
     super.initState();
+    _loadPrivacy();
     // Подтянуть свежие заявки/друзей при открытии вкладки.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SocialController.instance.refreshFriends();
     });
+  }
+
+  Future<void> _loadPrivacy() async {
+    final r = await Store.instance.getBool('socialHideRatings');
+    final d = await Store.instance.getBool('socialHideDates');
+    if (mounted) {
+      setState(() {
+        _hideRatings = r;
+        _hideDates = d;
+      });
+    }
+  }
+
+  Future<void> _setHideRatings(bool v) async {
+    setState(() => _hideRatings = v);
+    await Store.instance.setBool('socialHideRatings', v);
+    unawaited(SocialController.instance.publishSilently()); // перепубликовать
+  }
+
+  Future<void> _setHideDates(bool v) async {
+    setState(() => _hideDates = v);
+    await Store.instance.setBool('socialHideDates', v);
+    unawaited(SocialController.instance.publishSilently());
   }
 
   @override
@@ -120,6 +149,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           ],
           const SizedBox(height: 24),
           _friendsSection(context, ctl),
+          const SizedBox(height: 24),
+          _accountSection(context, me),
           const SizedBox(height: 24),
           Text(tr('drawer_stats'),
               style: TextStyle(
@@ -398,6 +429,94 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         ),
       ),
     );
+  }
+
+  // -------------------------- аккаунт/приватность --------------------------
+
+  Widget _accountSection(BuildContext context, SocialUser me) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+          color: scheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(22)),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        children: [
+          // Код восстановления. Если не задан — подсвечиваем как призыв к действию.
+          ListTile(
+            leading: Icon(Icons.vpn_key_rounded,
+                color: me.hasRecovery ? scheme.onSurfaceVariant : scheme.primary),
+            title: Text(tr('recovery_title'),
+                style: const TextStyle(
+                    fontFamily: AppTheme.bodyFont, fontWeight: FontWeight.w600)),
+            subtitle: Text(
+                me.hasRecovery ? tr('recovery_sub') : tr('recovery_missing'),
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontSize: 12,
+                    color: me.hasRecovery
+                        ? scheme.onSurfaceVariant
+                        : scheme.primary)),
+            trailing: Icon(Icons.chevron_right_rounded,
+                color: scheme.onSurfaceVariant),
+            onTap: _regenerateRecovery,
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          SwitchListTile(
+            value: _hideRatings,
+            onChanged: _setHideRatings,
+            secondary:
+                Icon(Icons.star_border_rounded, color: scheme.onSurfaceVariant),
+            title: Text(tr('privacy_hide_ratings'),
+                style: const TextStyle(
+                    fontFamily: AppTheme.bodyFont, fontWeight: FontWeight.w600)),
+          ),
+          SwitchListTile(
+            value: _hideDates,
+            onChanged: _setHideDates,
+            secondary: Icon(Icons.event_busy_rounded,
+                color: scheme.onSurfaceVariant),
+            title: Text(tr('privacy_hide_dates'),
+                style: const TextStyle(
+                    fontFamily: AppTheme.bodyFont, fontWeight: FontWeight.w600)),
+            subtitle: Text(tr('privacy_hide_dates_sub'),
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontSize: 11.5,
+                    color: scheme.onSurfaceVariant)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _regenerateRecovery() async {
+    // Подтверждение — старый код перестанет работать.
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('recovery_title')),
+        content: Text(tr('recovery_regen_q')),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(tr('recovery_regen'))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final code = await SocialController.instance.regenerateRecovery();
+      if (mounted) await showRecoveryCodeSheet(context, code, isNew: true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
+      }
+    }
   }
 
   // ------------------------------ действия ------------------------------

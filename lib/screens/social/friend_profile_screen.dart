@@ -9,6 +9,7 @@ import '../../widgets/user_avatar.dart';
 import '../library_tab.dart';
 import 'auth_screen.dart';
 import 'profile_stats.dart';
+import 'taste_match.dart';
 
 /// Профиль друга: шапка (аватар/ник/код), его просмотры и желания ТОЧНО как на
 /// экране «Просмотрено» (read-only), важная статистика и его друзья.
@@ -152,7 +153,11 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
       children: [
         _header(),
         const SizedBox(height: 20),
-        if (repo != null) ProfileStats(repo: repo),
+        if (repo != null) ...[
+          TasteMatch(mine: MovieRepository.instance, friend: repo),
+          const SizedBox(height: 20),
+          ProfileStats(repo: repo),
+        ],
         if (_friends.isNotEmpty) ...[
           const SizedBox(height: 22),
           _friendsSection(),

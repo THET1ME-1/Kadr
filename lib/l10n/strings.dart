@@ -95,6 +95,65 @@ const Map<String, Map<String, String>> _strings = {
   'social_err_user_not_found': {'ru': 'Друг по коду не найден', 'en': 'No user with that code'},
   'social_err_network': {'ru': 'Нет связи с сервером', 'en': 'Can’t reach the server'},
   'social_err_generic': {'ru': 'Что-то пошло не так', 'en': 'Something went wrong'},
+  // ------------------------- Код восстановления -------------------------
+  'recovery_title': {'ru': 'Код восстановления', 'en': 'Recovery code'},
+  'recovery_sub': {'ru': 'Создать новый код', 'en': 'Generate a new code'},
+  'recovery_missing': {
+    'ru': 'Не задан — создай, чтобы не потерять доступ',
+    'en': 'Not set — create one so you don’t lose access'
+  },
+  'recovery_save_hint': {
+    'ru': 'Сохрани этот код. Он понадобится, чтобы восстановить доступ, если забудешь пароль. Показывается один раз.',
+    'en': 'Save this code. You’ll need it to recover access if you forget your password. Shown once.'
+  },
+  'recovery_copied': {'ru': 'Код скопирован', 'en': 'Code copied'},
+  'recovery_saved': {'ru': 'Я сохранил', 'en': 'I saved it'},
+  'recovery_regen_q': {
+    'ru': 'Создать новый код? Старый перестанет работать.',
+    'en': 'Generate a new code? The old one will stop working.'
+  },
+  'recovery_regen': {'ru': 'Создать', 'en': 'Generate'},
+  'reset_title': {'ru': 'Сброс пароля', 'en': 'Reset password'},
+  'reset_hint': {
+    'ru': 'Введи email, код восстановления и новый пароль.',
+    'en': 'Enter your email, recovery code and a new password.'
+  },
+  'reset_code': {'ru': 'Код восстановления', 'en': 'Recovery code'},
+  'reset_new_password': {'ru': 'Новый пароль', 'en': 'New password'},
+  'reset_submit': {'ru': 'Сбросить пароль', 'en': 'Reset password'},
+  'reset_forgot': {'ru': 'Забыли пароль?', 'en': 'Forgot password?'},
+  'reset_err_code': {'ru': 'Введите код восстановления', 'en': 'Enter the recovery code'},
+  'reset_err_invalid': {
+    'ru': 'Неверный email или код восстановления',
+    'en': 'Wrong email or recovery code'
+  },
+  // ------------------------- Приватность витрины -------------------------
+  'privacy_hide_ratings': {'ru': 'Скрывать мои оценки', 'en': 'Hide my ratings'},
+  'privacy_hide_dates': {'ru': 'Скрывать точные даты', 'en': 'Hide exact dates'},
+  'privacy_hide_dates_sub': {
+    'ru': 'Друзья увидят месяц, но не день',
+    'en': 'Friends see the month, not the day'
+  },
+  // --------------------------- Сравнение вкусов ---------------------------
+  'taste_title': {'ru': 'Сравнение вкусов', 'en': 'Taste match'},
+  'taste_none': {
+    'ru': 'Пока нет общих просмотренных фильмов',
+    'en': 'No films you’ve both watched yet'
+  },
+  'taste_common_n': {'ru': '{n} общих фильмов', 'en': '{n} films in common'},
+  'taste_and_more': {'ru': 'и ещё {n}', 'en': 'and {n} more'},
+  'taste_you': {'ru': 'Ты', 'en': 'You'},
+  'taste_friend': {'ru': 'Друг', 'en': 'Friend'},
+  // ------------------------ Уведомления (заявки) ------------------------
+  'notif_friend_req_title': {'ru': 'Заявка в друзья', 'en': 'Friend request'},
+  'notif_friend_req_one': {
+    'ru': '{name} хочет добавить вас в друзья',
+    'en': '{name} wants to be your friend'
+  },
+  'notif_friend_req_many': {
+    'ru': '{name} и ещё {n} хотят добавить вас',
+    'en': '{name} and {n} more want to add you'
+  },
   'select_all': {'ru': 'Выбрать все', 'en': 'Select all'},
   'n_selected': {'ru': 'Выбрано: {n}', 'en': '{n} selected'},
   'delete_selected_title': {'ru': 'Удалить выбранное?', 'en': 'Delete selected?'},

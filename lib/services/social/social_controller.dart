@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../l10n/strings.dart';
 import '../../models/social.dart';
 import '../movie_repository.dart';
+import '../notification_service.dart';
 import '../store.dart';
 import 'social_api.dart';
 
@@ -29,6 +31,7 @@ class SocialController extends ChangeNotifier {
 
   /// Восстановление сессии при старте: валидируем токен, тянем свежий профиль.
   Future<void> load() async {
+    attachLibraryListener(); // публиковать витрину при изменениях библиотеки
     _token = await Store.instance.getString(_kToken);
     if (_token == null) return;
     try {
@@ -60,7 +63,8 @@ class SocialController extends ChangeNotifier {
 
   // ------------------------------- auth -------------------------------
 
-  Future<void> register({
+  /// Регистрация. Возвращает КОД ВОССТАНОВЛЕНИЯ (показать один раз пользователю).
+  Future<String?> register({
     required String email,
     required String password,
     required String displayName,
@@ -75,6 +79,7 @@ class SocialController extends ChangeNotifier {
       await _saveSession(r.token, r.user);
       unawaited(publishSilently()); // сразу выкладываем свою библиотеку
       unawaited(refreshFriends());
+      return r.recoveryCode;
     } finally {
       _setLoading(false);
     }
@@ -90,6 +95,49 @@ class SocialController extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  /// Сброс пароля по коду восстановления. Возвращает НОВЫЙ код восстановления.
+  Future<String?> resetPassword({
+    required String email,
+    required String recoveryCode,
+    required String newPassword,
+  }) async {
+    _setLoading(true);
+    try {
+      final r = await SocialApi.instance.resetPassword(
+        email: email,
+        recoveryCode: recoveryCode,
+        newPassword: newPassword,
+      );
+      await _saveSession(r.token, r.user);
+      unawaited(publishSilently());
+      unawaited(refreshFriends());
+      return r.recoveryCode;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Перегенерация кода восстановления (в профиле).
+  Future<String> regenerateRecovery() async {
+    final t = _token;
+    if (t == null) throw const SocialException('unauthorized', status: 401);
+    final code = await SocialApi.instance.regenerateRecovery(t);
+    // Обновим hasRecovery в профиле.
+    final u = _user;
+    if (u != null) {
+      _user = SocialUser(
+        id: u.id,
+        displayName: u.displayName,
+        avatarVer: u.avatarVer,
+        friendCode: u.friendCode,
+        email: u.email,
+        hasRecovery: true,
+      );
+      notifyListeners();
+    }
+    return code;
   }
 
   Future<void> logout() async {
@@ -133,9 +181,28 @@ class SocialController extends ChangeNotifier {
     try {
       _friends = await SocialApi.instance.friends(t);
       notifyListeners();
+      await _notifyNewRequests();
     } on SocialException catch (e) {
       if (e.status == 401) await _clearSession();
     }
+  }
+
+  /// Локальное уведомление о НОВЫХ входящих заявках (появившихся с прошлой
+  /// проверки). Срабатывает при открытии/возврате приложения — без фонового пуша.
+  Future<void> _notifyNewRequests() async {
+    final incoming = _friends.incoming;
+    final seen = (await Store.instance.getStringList('socialSeenRequests')).toSet();
+    final current = incoming.map((f) => f.user.id).toSet();
+    final fresh = incoming.where((f) => !seen.contains(f.user.id)).toList();
+    if (fresh.isNotEmpty) {
+      final name = fresh.first.user.displayName;
+      final body = fresh.length > 1
+          ? trf('notif_friend_req_many', {'name': name, 'n': fresh.length - 1})
+          : trf('notif_friend_req_one', {'name': name});
+      await NotificationService.instance.showSocial(tr('notif_friend_req_title'), body);
+    }
+    // Запоминаем текущий набор входящих (и убираем ушедшие).
+    await Store.instance.setStringList('socialSeenRequests', current.toList());
   }
 
   /// Заявка по коду (или id). Возвращает статус (`pending`/`accepted`).
@@ -177,13 +244,39 @@ class SocialController extends ChangeNotifier {
   // ------------------------------ library ------------------------------
 
   /// Тихо публикует мою публичную проекцию (при логине/синке/сворачивании).
+  /// Учитывает настройки видимости (скрыть оценки/даты).
   Future<void> publishSilently() async {
     final t = _token;
     if (t == null || _user == null) return;
     try {
-      await SocialApi.instance
-          .putLibrary(t, MovieRepository.instance.buildPublicProfile());
+      final hideRatings = await Store.instance.getBool('socialHideRatings');
+      final hideDates = await Store.instance.getBool('socialHideDates');
+      await SocialApi.instance.putLibrary(
+        t,
+        MovieRepository.instance.buildPublicProfile(
+            hideRatings: hideRatings, hideDates: hideDates),
+      );
     } catch (_) {/* молча — попробуем в следующий раз */}
+  }
+
+  // ------------------------ свежесть витрины (#3) ------------------------
+
+  Timer? _publishDebounce;
+  bool _repoAttached = false;
+
+  /// Подписка на изменения библиотеки — публикуем витрину с дебаунсом, чтобы
+  /// друг видел свежие просмотры, не дожидаясь сворачивания приложения.
+  void attachLibraryListener() {
+    if (_repoAttached) return;
+    _repoAttached = true;
+    MovieRepository.instance.addListener(_onLibraryChanged);
+  }
+
+  void _onLibraryChanged() {
+    if (_token == null) return;
+    _publishDebounce?.cancel();
+    _publishDebounce =
+        Timer(const Duration(seconds: 6), () => unawaited(publishSilently()));
   }
 
   /// Загружает публичную библиотеку друга как read-only [MovieRepository].

@@ -69,7 +69,7 @@ class SocialApi {
 
   // ------------------------------- auth -------------------------------
 
-  Future<({String token, SocialUser user})> register({
+  Future<({String token, SocialUser user, String? recoveryCode})> register({
     required String email,
     required String password,
     required String displayName,
@@ -83,7 +83,33 @@ class SocialApi {
         return (
           token: b['token'] as String,
           user: SocialUser.fromJson(b['user'] as Map<String, dynamic>),
+          recoveryCode: b['recoveryCode'] as String?,
         );
+      });
+
+  /// Сброс пароля по коду восстановления. Возвращает сессию + НОВЫЙ код.
+  Future<({String token, SocialUser user, String? recoveryCode})> resetPassword({
+    required String email,
+    required String recoveryCode,
+    required String newPassword,
+  }) =>
+      _guard(() async {
+        final b = _decode(await _post('/auth/reset', {
+          'email': email,
+          'recoveryCode': recoveryCode,
+          'newPassword': newPassword,
+        }));
+        return (
+          token: b['token'] as String,
+          user: SocialUser.fromJson(b['user'] as Map<String, dynamic>),
+          recoveryCode: b['recoveryCode'] as String?,
+        );
+      });
+
+  /// Перегенерация кода восстановления (в профиле). Возвращает новый код.
+  Future<String> regenerateRecovery(String token) => _guard(() async {
+        final b = _decode(await _post('/me/recovery', {}, token));
+        return b['recoveryCode'] as String? ?? '';
       });
 
   Future<({String token, SocialUser user})> login({

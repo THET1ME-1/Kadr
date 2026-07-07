@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   display_name   TEXT NOT NULL,
   avatar_updated INTEGER NOT NULL DEFAULT 0, -- 0 = фото нет; иначе ver (cache-bust)
   friend_code    TEXT UNIQUE NOT NULL,    -- короткий код для добавления в друзья
+  recovery_hash  TEXT,                    -- PBKDF2-хэш кода восстановления (nullable)
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
 );

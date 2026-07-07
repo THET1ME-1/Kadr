@@ -370,7 +370,51 @@ class MovieRepository extends ChangeNotifier {
   /// желаний (чтобы друг видел ленту «Просмотрено»/«Буду смотреть» и статистику
   /// теми же экранами), но БЕЗ приватного — рецензий и личных списков. В облако
   /// уезжает только это; настройки и device-local данные не входят.
-  Map<String, dynamic> buildPublicProfile() {
+  ///
+  /// [hideRatings] — не делиться оценками; [hideDates] — скрыть точные даты
+  /// (огрубляются до начала месяца, чтобы лента друга оставалась заполненной).
+  Map<String, dynamic> buildPublicProfile(
+      {bool hideRatings = false, bool hideDates = false}) {
+    String? coarse(dynamic iso) {
+      if (iso == null) return null;
+      final d = DateTime.tryParse('$iso');
+      return d == null ? null : DateTime(d.year, d.month).toIso8601String();
+    }
+
+    void stripMovie(Map m) {
+      if (hideRatings) {
+        m['score'] = null;
+        for (final v in (m['viewings'] as List? ?? [])) {
+          (v as Map)['score'] = null;
+        }
+      }
+      if (hideDates) {
+        m['addedAt'] = coarse(m['addedAt']);
+        for (final v in (m['viewings'] as List? ?? [])) {
+          (v as Map)['date'] = coarse(v['date']);
+        }
+      }
+    }
+
+    void stripSeries(Map s) {
+      if (hideRatings) s['score'] = null;
+      for (final e in (s['episodes'] as List? ?? [])) {
+        final em = e as Map;
+        if (hideRatings) {
+          em['score'] = null;
+          for (final v in (em['rewatchViews'] as List? ?? [])) {
+            (v as Map)['score'] = null;
+          }
+        }
+        if (hideDates) {
+          em['watchedAt'] = coarse(em['watchedAt']);
+          for (final v in (em['rewatchViews'] as List? ?? [])) {
+            (v as Map)['date'] = coarse(v['date']);
+          }
+        }
+      }
+    }
+
     final movies = [
       for (final m in _movies)
         if (m.status == LibraryStatus.watched ||
@@ -384,6 +428,14 @@ class MovieRepository extends ChangeNotifier {
         if (s.episodes.isNotEmpty || s.watchlist || s.favorite || s.dropped)
           (s.toJson()..remove('review')),
     ];
+    if (hideRatings || hideDates) {
+      for (final m in movies) {
+        stripMovie(m);
+      }
+      for (final s in series) {
+        stripSeries(s);
+      }
+    }
     return {'app': 'kadr', 'v': 1, 'movies': movies, 'series': series};
   }
 
