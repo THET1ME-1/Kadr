@@ -154,6 +154,59 @@ const Map<String, Map<String, String>> _strings = {
     'ru': '{name} и ещё {n} хотят добавить вас',
     'en': '{name} and {n} more want to add you'
   },
+  // --------------------------- Совместные списки ---------------------------
+  'sl_section': {'ru': 'Совместные списки', 'en': 'Shared lists'},
+  'sl_create': {'ru': 'Совместный список', 'en': 'Shared list'},
+  'sl_create_hint': {
+    'ru': 'Список, который вы редактируете вместе с друзьями',
+    'en': 'A list you and your friends edit together'
+  },
+  'sl_none': {'ru': 'Пока нет совместных списков', 'en': 'No shared lists yet'},
+  'sl_members_n': {'ru': '{n} участн.', 'en': '{n} members'},
+  'sl_add_movie': {'ru': 'Добавить фильм', 'en': 'Add film'},
+  'sl_search_hint': {'ru': 'Поиск фильма…', 'en': 'Search a film…'},
+  'sl_empty': {'ru': 'В списке пока пусто', 'en': 'List is empty'},
+  'sl_invite': {'ru': 'Пригласить друга', 'en': 'Invite friend'},
+  'sl_rename': {'ru': 'Переименовать', 'en': 'Rename'},
+  'sl_delete': {'ru': 'Удалить список', 'en': 'Delete list'},
+  'sl_leave': {'ru': 'Выйти из списка', 'en': 'Leave list'},
+  'sl_delete_q': {
+    'ru': 'Удалить список у всех участников?',
+    'en': 'Delete the list for everyone?'
+  },
+  'sl_leave_q': {'ru': 'Выйти из этого списка?', 'en': 'Leave this list?'},
+  'sl_no_friends_to_invite': {
+    'ru': 'Все друзья уже в списке',
+    'en': 'All friends are already in'
+  },
+  'sl_add_to_watchlist': {'ru': 'В «Буду смотреть»', 'en': 'Add to watchlist'},
+  'sl_added_to_watchlist': {'ru': 'Добавлено в «Буду смотреть»', 'en': 'Added to watchlist'},
+  'sl_remove_item': {'ru': 'Убрать из списка', 'en': 'Remove from list'},
+  // ---------------------------- Активность друзей ----------------------------
+  'activity_title': {'ru': 'Активность друзей', 'en': 'Friends activity'},
+  'activity_recent': {'ru': 'Недавно у друзей', 'en': 'Recent from friends'},
+  'activity_recs': {'ru': 'Советуют друзья', 'en': 'Friends recommend'},
+  'activity_recs_sub': {
+    'ru': 'Высоко оценили то, что ты ещё не смотрел',
+    'en': 'Highly rated by friends, not watched by you'
+  },
+  'activity_empty': {
+    'ru': 'У друзей пока нет активности. Добавь друзей в профиле.',
+    'en': 'No friend activity yet. Add friends in your profile.'
+  },
+  'activity_login': {
+    'ru': 'Войди в профиль, чтобы видеть активность друзей',
+    'en': 'Sign in to see friends activity'
+  },
+  'activity_watched': {'ru': 'посмотрел', 'en': 'watched'},
+  'activity_wishlisted': {'ru': 'хочет посмотреть', 'en': 'wants to watch'},
+  'activity_series': {'ru': 'смотрит сериал', 'en': 'is watching'},
+  // --------------------------- Посмотреть вместе ---------------------------
+  'together_title': {'ru': 'Посмотреть вместе', 'en': 'Watch together'},
+  'together_n': {
+    'ru': 'Вы оба хотите посмотреть — {n}',
+    'en': 'You both want to watch — {n}'
+  },
   'select_all': {'ru': 'Выбрать все', 'en': 'Select all'},
   'n_selected': {'ru': 'Выбрано: {n}', 'en': '{n} selected'},
   'delete_selected_title': {'ru': 'Удалить выбранное?', 'en': 'Delete selected?'},

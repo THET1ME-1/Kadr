@@ -154,6 +154,9 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
         _header(),
         const SizedBox(height: 20),
         if (repo != null) ...[
+          WatchTogether(mine: MovieRepository.instance, friend: repo),
+          if (MovieRepository.instance.watchlist.isNotEmpty)
+            const SizedBox(height: 12),
           TasteMatch(mine: MovieRepository.instance, friend: repo),
           const SizedBox(height: 20),
           ProfileStats(repo: repo),

@@ -61,3 +61,27 @@ CREATE TABLE IF NOT EXISTS library (
   data       TEXT NOT NULL,               -- JSON-строка проекции
   updated_at INTEGER NOT NULL
 );
+
+-- Совместные списки: несколько участников редактируют один список фильмов.
+CREATE TABLE IF NOT EXISTS shared_lists (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  owner      TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS shared_list_members (
+  list_id    TEXT NOT NULL,
+  user_id    TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (list_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_slm_user ON shared_list_members(user_id);
+CREATE TABLE IF NOT EXISTS shared_list_items (
+  list_id  TEXT NOT NULL,
+  item_key TEXT NOT NULL,                 -- tmdb-<id> либо title|year
+  data     TEXT NOT NULL,                 -- JSON {title, year, posterUrl, tmdbId}
+  added_by TEXT NOT NULL,
+  added_at INTEGER NOT NULL,
+  PRIMARY KEY (list_id, item_key)
+);

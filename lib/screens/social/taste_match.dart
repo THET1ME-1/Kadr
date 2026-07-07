@@ -228,3 +228,92 @@ class TasteMatch extends StatelessWidget {
     );
   }
 }
+
+/// «Посмотреть вместе»: фильмы, которые ОБА добавили в «Буду смотреть».
+/// Прячется, если пересечения нет.
+class WatchTogether extends StatelessWidget {
+  final MovieRepository mine;
+  final MovieRepository friend;
+  const WatchTogether({super.key, required this.mine, required this.friend});
+
+  static String _key(LibraryMovie m) =>
+      '${(m.ruTitle ?? m.title).toLowerCase().trim()}|${m.year ?? 0}';
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final byKey = {for (final m in mine.watchlist) _key(m): m};
+    final common = <LibraryMovie>[];
+    for (final f in friend.watchlist) {
+      final me = byKey[_key(f)];
+      if (me != null) common.add(me);
+    }
+    if (common.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+          color: scheme.tertiaryContainer.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(22)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.favorite_rounded, size: 18, color: scheme.tertiary),
+              const SizedBox(width: 8),
+              Text(tr('together_title'),
+                  style: TextStyle(
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: scheme.onSurface)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(trf('together_n', {'n': common.length}),
+              style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontSize: 12.5,
+                  color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 150,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: common.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, i) {
+                final m = common[i];
+                return SizedBox(
+                  width: 84,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Poster(
+                          title: m.displayTitle,
+                          url: m.posterUrl,
+                          width: 84,
+                          radius: 12),
+                      const SizedBox(height: 5),
+                      Text(m.displayTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontFamily: AppTheme.bodyFont,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                              height: 1.1,
+                              color: scheme.onSurface)),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

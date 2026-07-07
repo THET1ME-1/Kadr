@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
+import '../models/social.dart';
 import '../services/movie_repository.dart';
+import '../services/social/social_api.dart';
+import '../services/social/social_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/poster.dart';
@@ -10,6 +13,7 @@ import '../widgets/reveal.dart';
 import 'delete_helpers.dart';
 import 'movie_sheet.dart';
 import 'series_screen.dart';
+import 'social/shared_list_screen.dart';
 
 /// Экран «Списки»: избранное, «Буду смотреть», «Просмотрено» + свои списки
 /// (импортированные из TV Time). Тап → содержимое списка.
@@ -57,6 +61,7 @@ class ListsScreen extends StatelessWidget {
                 Reveal(
                     delay: Duration(milliseconds: i * 50),
                     child: _listCard(context, special[i])),
+              const _SharedListsSection(),
               if (custom.isNotEmpty) ...[
                 const SizedBox(height: 18),
                 Padding(
@@ -251,6 +256,215 @@ class ListsScreen extends StatelessWidget {
                   radius: 8),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Секция «Совместные списки» на экране «Списки»: списки, которые редактируют
+/// несколько друзей. Живёт на бэкенде соц-слоя; показывается только если вошёл.
+class _SharedListsSection extends StatefulWidget {
+  const _SharedListsSection();
+
+  @override
+  State<_SharedListsSection> createState() => _SharedListsSectionState();
+}
+
+class _SharedListsSectionState extends State<_SharedListsSection> {
+  List<SharedListSummary> _lists = const [];
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final t = SocialController.instance.token;
+    if (t == null) {
+      setState(() => _loaded = true);
+      return;
+    }
+    try {
+      final lists = await SocialApi.instance.sharedLists(t);
+      if (mounted) {
+        setState(() {
+          _lists = lists;
+          _loaded = true;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loaded = true);
+    }
+  }
+
+  Future<void> _create() async {
+    final scheme = Theme.of(context).colorScheme;
+    final c = TextEditingController();
+    final name = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 16,
+            bottom: 20 + MediaQuery.of(ctx).viewInsets.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(tr('sl_create'),
+                style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: scheme.onSurface)),
+            const SizedBox(height: 6),
+            Text(tr('sl_create_hint'),
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontSize: 12.5,
+                    color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 14),
+            TextField(
+              controller: c,
+              autofocus: true,
+              onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+              decoration: InputDecoration(hintText: tr('list_name')),
+            ),
+            const SizedBox(height: 14),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx, c.text.trim()),
+                  child: Text(tr('create'))),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (name == null || name.isEmpty) return;
+    final t = SocialController.instance.token;
+    if (t == null) return;
+    try {
+      final id = await SocialApi.instance.createList(t, name);
+      if (!mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => SharedListScreen(listId: id, initialName: name)));
+      _load();
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // До входа в профиль — секцию не показываем (нечего синхронизировать).
+    return ListenableBuilder(
+      listenable: SocialController.instance,
+      builder: (context, _) {
+        if (!SocialController.instance.isLoggedIn) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 18),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+              child: Row(
+                children: [
+                  Text(tr('sl_section'),
+                      style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          color: scheme.onSurface)),
+                  const Spacer(),
+                  FilledButton.tonalIcon(
+                    onPressed: _create,
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: Text(tr('create')),
+                  ),
+                ],
+              ),
+            ),
+            if (_loaded && _lists.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                child: Text(tr('sl_none'),
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 13,
+                        color: scheme.onSurfaceVariant)),
+              ),
+            for (final l in _lists) _sharedCard(context, l),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _sharedCard(BuildContext context, SharedListSummary l) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(24),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () async {
+            await Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) =>
+                    SharedListScreen(listId: l.id, initialName: l.name)));
+            _load();
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                      color: scheme.tertiaryContainer,
+                      borderRadius: BorderRadius.circular(14)),
+                  child: Icon(Icons.groups_rounded,
+                      color: scheme.onTertiaryContainer),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(l.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 17,
+                              color: scheme.onSurface)),
+                      const SizedBox(height: 4),
+                      Text(
+                          '${trf('sl_members_n', {'n': l.members})} · ${trf('movies_count', {'n': l.items})}',
+                          style: TextStyle(
+                              fontFamily: AppTheme.bodyFont,
+                              fontSize: 13,
+                              color: scheme.onSurfaceVariant)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded,
+                    color: scheme.onSurfaceVariant),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

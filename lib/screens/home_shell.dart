@@ -22,6 +22,7 @@ import 'lists_screen.dart';
 import 'now_watching_screen.dart';
 import 'series_screen.dart';
 import 'settings_screen.dart';
+import 'social/activity_screen.dart';
 import 'social/my_profile_screen.dart';
 import 'statistics_screen.dart';
 
@@ -603,6 +604,12 @@ class _KadrDrawer extends StatelessWidget {
           Navigator.pop(context);
           Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const NowWatchingScreen()));
+        }),
+        _drawerTile(context, Icons.dynamic_feed_rounded, tr('activity_title'),
+            () {
+          Navigator.pop(context);
+          Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ActivityScreen()));
         }),
         _drawerTile(context, Icons.insights_rounded, tr('drawer_stats'), () {
           Navigator.pop(context);

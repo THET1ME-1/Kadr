@@ -26,6 +26,7 @@ class SocialController extends ChangeNotifier {
   bool _loading = false;
 
   SocialUser? get user => _user;
+  String? get token => _token; // для экранов совместных списков
   FriendsData get friends => _friends;
   bool get isLoggedIn => _token != null && _user != null;
   bool get loading => _loading;
@@ -314,6 +315,26 @@ class SocialController extends ChangeNotifier {
     final res = await SocialApi.instance.friendLibrary(t, userId);
     final repo = MovieRepository.detached(res.data ?? const {});
     return (repo: repo, updatedAt: res.updatedAt);
+  }
+
+  /// Библиотеки ВСЕХ принятых друзей (параллельно) — для ленты активности и
+  /// рекомендаций. Друзья без данных/с ошибкой просто пропускаются.
+  Future<List<({SocialUser user, MovieRepository repo})>>
+      allFriendLibraries() async {
+    final t = _token;
+    if (t == null) return const [];
+    final results = await Future.wait(_friends.friends.map((f) async {
+      try {
+        final res = await SocialApi.instance.friendLibrary(t, f.user.id);
+        return (
+          user: f.user,
+          repo: MovieRepository.detached(res.data ?? const {})
+        );
+      } catch (_) {
+        return null;
+      }
+    }));
+    return [for (final r in results) ?r];
   }
 
   void _setLoading(bool v) {

@@ -599,6 +599,194 @@ async function getFriendLibrary(env, me, friendId) {
   );
 }
 
+// --------------------------- совместные списки ---------------------------
+
+const isMember = async (env, listId, userId) =>
+  !!(await env.DB.prepare(
+    'SELECT 1 FROM shared_list_members WHERE list_id = ? AND user_id = ?',
+  )
+    .bind(listId, userId)
+    .first());
+
+async function createList(request, env, me) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err('bad_json');
+  }
+  const name = String(body.name || '').trim();
+  if (name.length < 1 || name.length > 60) return err('invalid_name');
+  const id = crypto.randomUUID();
+  const ts = now();
+  await env.DB.prepare(
+    'INSERT INTO shared_lists (id, name, owner, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+  )
+    .bind(id, name, me.id, ts, ts)
+    .run();
+  await env.DB.prepare(
+    'INSERT INTO shared_list_members (list_id, user_id, created_at) VALUES (?, ?, ?)',
+  )
+    .bind(id, me.id, ts)
+    .run();
+  return json({ id });
+}
+
+async function listSharedLists(env, me) {
+  const rows = (
+    await env.DB.prepare(
+      `SELECT l.id, l.name, l.owner, l.updated_at,
+              (SELECT COUNT(*) FROM shared_list_members m WHERE m.list_id = l.id) AS members,
+              (SELECT COUNT(*) FROM shared_list_items i WHERE i.list_id = l.id) AS items
+       FROM shared_lists l
+       JOIN shared_list_members mm ON mm.list_id = l.id AND mm.user_id = ?1
+       ORDER BY l.updated_at DESC`,
+    )
+      .bind(me.id)
+      .all()
+  ).results;
+  return json({
+    lists: rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      owner: r.owner,
+      members: r.members,
+      items: r.items,
+      updatedAt: r.updated_at,
+    })),
+  });
+}
+
+async function getList(env, me, listId) {
+  if (!(await isMember(env, listId, me.id))) return err('not_member', 403);
+  const list = await env.DB.prepare('SELECT * FROM shared_lists WHERE id = ?')
+    .bind(listId)
+    .first();
+  if (!list) return err('not_found', 404);
+  const members = (
+    await env.DB.prepare(
+      `SELECT u.id, u.display_name, u.avatar_updated, u.friend_code
+       FROM shared_list_members m JOIN users u ON u.id = m.user_id
+       WHERE m.list_id = ?`,
+    )
+      .bind(listId)
+      .all()
+  ).results.map((u) => ({
+    id: u.id,
+    displayName: u.display_name,
+    avatar: u.avatar_updated || 0,
+    friendCode: u.friend_code,
+  }));
+  const items = (
+    await env.DB.prepare(
+      'SELECT item_key, data, added_by, added_at FROM shared_list_items WHERE list_id = ? ORDER BY added_at DESC',
+    )
+      .bind(listId)
+      .all()
+  ).results.map((r) => ({
+    key: r.item_key,
+    addedBy: r.added_by,
+    addedAt: r.added_at,
+    ...JSON.parse(r.data),
+  }));
+  return json({
+    list: { id: list.id, name: list.name, owner: list.owner },
+    members,
+    items,
+  });
+}
+
+async function renameList(request, env, me, listId) {
+  if (!(await isMember(env, listId, me.id))) return err('not_member', 403);
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err('bad_json');
+  }
+  const name = String(body.name || '').trim();
+  if (name.length < 1 || name.length > 60) return err('invalid_name');
+  await env.DB.prepare('UPDATE shared_lists SET name = ?, updated_at = ? WHERE id = ?')
+    .bind(name, now(), listId)
+    .run();
+  return json({ ok: true });
+}
+
+// Владелец удаляет список целиком; остальные — выходят из него.
+async function deleteOrLeaveList(env, me, listId) {
+  const list = await env.DB.prepare('SELECT owner FROM shared_lists WHERE id = ?')
+    .bind(listId)
+    .first();
+  if (!list) return err('not_found', 404);
+  if (list.owner === me.id) {
+    await env.DB.prepare('DELETE FROM shared_list_items WHERE list_id = ?').bind(listId).run();
+    await env.DB.prepare('DELETE FROM shared_list_members WHERE list_id = ?').bind(listId).run();
+    await env.DB.prepare('DELETE FROM shared_lists WHERE id = ?').bind(listId).run();
+    return json({ ok: true, deleted: true });
+  }
+  await env.DB.prepare('DELETE FROM shared_list_members WHERE list_id = ? AND user_id = ?')
+    .bind(listId, me.id)
+    .run();
+  return json({ ok: true, left: true });
+}
+
+async function addListItem(request, env, me, listId) {
+  if (!(await isMember(env, listId, me.id))) return err('not_member', 403);
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err('bad_json');
+  }
+  const key = String(body.key || '').trim();
+  if (!key) return err('bad_item');
+  const data = JSON.stringify({
+    title: String(body.title || ''),
+    year: body.year ?? null,
+    posterUrl: body.posterUrl ?? null,
+    tmdbId: body.tmdbId ?? null,
+  });
+  const ts = now();
+  await env.DB.prepare(
+    `INSERT INTO shared_list_items (list_id, item_key, data, added_by, added_at) VALUES (?1, ?2, ?3, ?4, ?5)
+     ON CONFLICT(list_id, item_key) DO UPDATE SET data = ?3`,
+  )
+    .bind(listId, key, data, me.id, ts)
+    .run();
+  await env.DB.prepare('UPDATE shared_lists SET updated_at = ? WHERE id = ?').bind(ts, listId).run();
+  return json({ ok: true });
+}
+
+async function removeListItem(env, me, listId, key) {
+  if (!(await isMember(env, listId, me.id))) return err('not_member', 403);
+  await env.DB.prepare('DELETE FROM shared_list_items WHERE list_id = ? AND item_key = ?')
+    .bind(listId, key)
+    .run();
+  await env.DB.prepare('UPDATE shared_lists SET updated_at = ? WHERE id = ?').bind(now(), listId).run();
+  return json({ ok: true });
+}
+
+// Пригласить друга (по коду или id) в список — любой участник.
+async function addListMember(request, env, me, listId) {
+  if (!(await isMember(env, listId, me.id))) return err('not_member', 403);
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err('bad_json');
+  }
+  let target = null;
+  if (body.code) target = await getUserByCode(env, String(body.code).trim().toUpperCase());
+  else if (body.userId) target = await getUserById(env, String(body.userId));
+  if (!target) return err('user_not_found', 404);
+  await env.DB.prepare(
+    'INSERT OR IGNORE INTO shared_list_members (list_id, user_id, created_at) VALUES (?, ?, ?)',
+  )
+    .bind(listId, target.id, now())
+    .run();
+  return json({ ok: true, member: publicUser(target) });
+}
+
 // ------------------------------- роутинг -------------------------------
 
 export default {
@@ -642,6 +830,25 @@ export default {
 
       const delMatch = path.match(/^\/friends\/([^/]+)$/);
       if (delMatch && method === 'DELETE') return removeFriend(env, me, decodeURIComponent(delMatch[1]));
+
+      // --- совместные списки ---
+      if (path === '/lists' && method === 'POST') return createList(request, env, me);
+      if (path === '/lists' && method === 'GET') return listSharedLists(env, me);
+      const itemMatch = path.match(/^\/lists\/([^/]+)\/items\/([^/]+)$/);
+      if (itemMatch && method === 'DELETE') {
+        return removeListItem(env, me, decodeURIComponent(itemMatch[1]), decodeURIComponent(itemMatch[2]));
+      }
+      const itemsMatch = path.match(/^\/lists\/([^/]+)\/items$/);
+      if (itemsMatch && method === 'POST') return addListItem(request, env, me, decodeURIComponent(itemsMatch[1]));
+      const memMatch = path.match(/^\/lists\/([^/]+)\/members$/);
+      if (memMatch && method === 'POST') return addListMember(request, env, me, decodeURIComponent(memMatch[1]));
+      const listMatch = path.match(/^\/lists\/([^/]+)$/);
+      if (listMatch) {
+        const lid = decodeURIComponent(listMatch[1]);
+        if (method === 'GET') return getList(env, me, lid);
+        if (method === 'PATCH') return renameList(request, env, me, lid);
+        if (method === 'DELETE') return deleteOrLeaveList(env, me, lid);
+      }
 
       return err('not_found', 404);
     } catch (e) {

@@ -73,6 +73,96 @@ class FriendEntry {
       );
 }
 
+/// Краткая карточка совместного списка (для экрана «Списки»).
+class SharedListSummary {
+  final String id;
+  final String name;
+  final String owner;
+  final int members;
+  final int items;
+  final int updatedAt;
+
+  const SharedListSummary({
+    required this.id,
+    required this.name,
+    required this.owner,
+    required this.members,
+    required this.items,
+    required this.updatedAt,
+  });
+
+  factory SharedListSummary.fromJson(Map<String, dynamic> j) => SharedListSummary(
+        id: '${j['id']}',
+        name: j['name'] as String? ?? '',
+        owner: '${j['owner']}',
+        members: (j['members'] as num?)?.toInt() ?? 1,
+        items: (j['items'] as num?)?.toInt() ?? 0,
+        updatedAt: (j['updatedAt'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Фильм в совместном списке (данные для показа, без привязки к своей библиотеке).
+class SharedListItem {
+  final String key;
+  final String title;
+  final int? year;
+  final int? tmdbId;
+  final String? posterUrl;
+  final String addedBy;
+
+  const SharedListItem({
+    required this.key,
+    required this.title,
+    this.year,
+    this.tmdbId,
+    this.posterUrl,
+    required this.addedBy,
+  });
+
+  factory SharedListItem.fromJson(Map<String, dynamic> j) => SharedListItem(
+        key: '${j['key']}',
+        title: j['title'] as String? ?? '',
+        year: (j['year'] as num?)?.toInt(),
+        tmdbId: (j['tmdbId'] as num?)?.toInt(),
+        posterUrl: j['posterUrl'] as String?,
+        addedBy: '${j['addedBy']}',
+      );
+}
+
+/// Полное содержимое совместного списка: участники и элементы.
+class SharedListDetail {
+  final String id;
+  final String name;
+  final String owner;
+  final List<SocialUser> members;
+  final List<SharedListItem> items;
+
+  const SharedListDetail({
+    required this.id,
+    required this.name,
+    required this.owner,
+    this.members = const [],
+    this.items = const [],
+  });
+
+  factory SharedListDetail.fromJson(Map<String, dynamic> j) {
+    final l = j['list'] as Map<String, dynamic>;
+    return SharedListDetail(
+      id: '${l['id']}',
+      name: l['name'] as String? ?? '',
+      owner: '${l['owner']}',
+      members: [
+        for (final m in (j['members'] as List? ?? []))
+          SocialUser.fromJson(m as Map<String, dynamic>),
+      ],
+      items: [
+        for (final i in (j['items'] as List? ?? []))
+          SharedListItem.fromJson(i as Map<String, dynamic>),
+      ],
+    );
+  }
+}
+
 /// Ответ `GET /friends`: три корзины связей.
 class FriendsData {
   final List<FriendEntry> friends; // принятые

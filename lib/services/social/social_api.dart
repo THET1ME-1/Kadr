@@ -222,4 +222,59 @@ class SocialApi {
           updatedAt: (b['updatedAt'] as num?)?.toInt() ?? 0,
         );
       });
+
+  // -------------------------- совместные списки --------------------------
+
+  Future<String> createList(String token, String name) => _guard(() async {
+        final b = _decode(await _post('/lists', {'name': name}, token));
+        return b['id'] as String;
+      });
+
+  Future<List<SharedListSummary>> sharedLists(String token) => _guard(() async {
+        final b = _decode(await _get('/lists', token));
+        return [
+          for (final l in (b['lists'] as List? ?? []))
+            SharedListSummary.fromJson(l as Map<String, dynamic>),
+        ];
+      });
+
+  Future<SharedListDetail> getList(String token, String id) => _guard(() async {
+        return SharedListDetail.fromJson(_decode(await _get('/lists/$id', token)));
+      });
+
+  Future<void> renameList(String token, String id, String name) =>
+      _guard(() async {
+        final r = await http
+            .patch(_u('/lists/$id'),
+                headers: _headers(token), body: jsonEncode({'name': name}))
+            .timeout(_timeout);
+        _decode(r);
+      });
+
+  Future<void> deleteOrLeaveList(String token, String id) => _guard(() async {
+        final r = await http
+            .delete(_u('/lists/$id'), headers: _headers(token))
+            .timeout(_timeout);
+        _decode(r);
+      });
+
+  Future<void> addListItem(String token, String id, Map<String, dynamic> item) =>
+      _guard(() async {
+        _decode(await _post('/lists/$id/items', item, token));
+      });
+
+  Future<void> removeListItem(String token, String id, String key) =>
+      _guard(() async {
+        final r = await http
+            .delete(_u('/lists/$id/items/$key'), headers: _headers(token))
+            .timeout(_timeout);
+        _decode(r);
+      });
+
+  Future<void> addListMember(String token, String id,
+          {String? code, String? userId}) =>
+      _guard(() async {
+        _decode(await _post(
+            '/lists/$id/members', {'code': ?code, 'userId': ?userId}, token));
+      });
 }
