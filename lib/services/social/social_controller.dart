@@ -209,9 +209,34 @@ class SocialController extends ChangeNotifier {
       _friends = await SocialApi.instance.friends(t);
       notifyListeners();
       await _notifyNewRequests();
+      await _notifyNewRecommendations();
     } on SocialException catch (e) {
       if (e.status == 401) await _clearSession();
     }
+  }
+
+  /// Локальное уведомление о новых присланных рекомендациях («Тебе советуют»).
+  Future<void> _notifyNewRecommendations() async {
+    final t = _token;
+    if (t == null) return;
+    List<RecommendationItem> recs;
+    try {
+      recs = await SocialApi.instance.recommendations(t);
+    } catch (_) {
+      return;
+    }
+    final seen =
+        (await Store.instance.getStringList('socialSeenRecs')).toSet();
+    final fresh = recs.where((r) => !seen.contains(r.id)).toList();
+    if (fresh.isNotEmpty) {
+      final r = fresh.first;
+      final body = fresh.length > 1
+          ? trf('notif_rec_many', {'name': r.from.displayName, 'n': fresh.length - 1})
+          : trf('notif_rec_one', {'name': r.from.displayName, 'title': r.title});
+      await NotificationService.instance.showSocial(tr('notif_rec_title'), body);
+    }
+    await Store.instance
+        .setStringList('socialSeenRecs', recs.map((r) => r.id).toList());
   }
 
   /// Локальное уведомление о НОВЫХ входящих заявках (появившихся с прошлой
@@ -262,6 +287,43 @@ class SocialController extends ChangeNotifier {
     final t = _token;
     if (t == null) return const [];
     return SocialApi.instance.userFriends(t, userId);
+  }
+
+  /// Посоветовать фильм другу.
+  Future<void> recommend({
+    required String toUserId,
+    required String title,
+    int? year,
+    String? posterUrl,
+    int? tmdbId,
+    String? note,
+  }) async {
+    final t = _token;
+    if (t == null) throw const SocialException('unauthorized', status: 401);
+    await SocialApi.instance.sendRecommendation(t,
+        toUserId: toUserId,
+        title: title,
+        year: year,
+        posterUrl: posterUrl,
+        tmdbId: tmdbId,
+        note: note);
+  }
+
+  /// Рекомендации, присланные мне («Тебе советуют»).
+  Future<List<RecommendationItem>> receivedRecommendations() async {
+    final t = _token;
+    if (t == null) return const [];
+    try {
+      return await SocialApi.instance.recommendations(t);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> dismissRecommendation(String id) async {
+    final t = _token;
+    if (t == null) return;
+    await SocialApi.instance.dismissRecommendation(t, id);
   }
 
   /// true — [userId] уже мой принятый друг (для перехода к его профилю).

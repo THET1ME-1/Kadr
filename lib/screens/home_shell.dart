@@ -23,7 +23,9 @@ import 'now_watching_screen.dart';
 import 'series_screen.dart';
 import 'settings_screen.dart';
 import 'social/activity_screen.dart';
+import 'social/for_you_screen.dart';
 import 'social/my_profile_screen.dart';
+import 'social/roulette_screen.dart';
 import 'statistics_screen.dart';
 
 /// Наблюдатель маршрутов — чтобы гасить клавиатуру при возврате на главную с
@@ -610,6 +612,17 @@ class _KadrDrawer extends StatelessWidget {
           Navigator.pop(context);
           Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ActivityScreen()));
+        }),
+        _drawerTile(context, Icons.casino_rounded, tr('roulette_title'), () {
+          Navigator.pop(context);
+          Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const RouletteScreen()));
+        }),
+        _drawerTile(context, Icons.auto_awesome_rounded, tr('for_you_title'),
+            () {
+          Navigator.pop(context);
+          Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const ForYouScreen()));
         }),
         _drawerTile(context, Icons.insights_rounded, tr('drawer_stats'), () {
           Navigator.pop(context);

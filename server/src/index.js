@@ -787,6 +787,70 @@ async function addListMember(request, env, me, listId) {
   return json({ ok: true, member: publicUser(target) });
 }
 
+// ----------------------------- «Советую тебе» -----------------------------
+
+// Отправить рекомендацию фильма другу (только между друзьями).
+async function sendRecommendation(request, env, me) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err('bad_json');
+  }
+  const to = String(body.toUserId || '');
+  if (!to || to === me.id) return err('bad_target');
+  if (!(await areFriends(env, me.id, to))) return err('not_friends', 403);
+  const data = JSON.stringify({
+    title: String(body.title || ''),
+    year: body.year ?? null,
+    posterUrl: body.posterUrl ?? null,
+    tmdbId: body.tmdbId ?? null,
+  });
+  const note = body.note ? String(body.note).slice(0, 300) : null;
+  await env.DB.prepare(
+    'INSERT INTO recommendations (id, from_user, to_user, data, note, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+  )
+    .bind(crypto.randomUUID(), me.id, to, data, note, now())
+    .run();
+  return json({ ok: true });
+}
+
+// Рекомендации, присланные МНЕ (с профилем отправителя), новые сверху.
+async function listRecommendations(env, me) {
+  const rows = (
+    await env.DB.prepare(
+      `SELECT r.id, r.data, r.note, r.created_at,
+              u.id AS from_id, u.display_name, u.avatar_updated, u.friend_code
+       FROM recommendations r JOIN users u ON u.id = r.from_user
+       WHERE r.to_user = ? ORDER BY r.created_at DESC`,
+    )
+      .bind(me.id)
+      .all()
+  ).results;
+  return json({
+    recommendations: rows.map((r) => ({
+      id: r.id,
+      note: r.note,
+      createdAt: r.created_at,
+      from: {
+        id: r.from_id,
+        displayName: r.display_name,
+        avatar: r.avatar_updated || 0,
+        friendCode: r.friend_code,
+      },
+      ...JSON.parse(r.data),
+    })),
+  });
+}
+
+// Убрать рекомендацию (только получатель).
+async function dismissRecommendation(env, me, id) {
+  await env.DB.prepare('DELETE FROM recommendations WHERE id = ? AND to_user = ?')
+    .bind(id, me.id)
+    .run();
+  return json({ ok: true });
+}
+
 // ------------------------------- роутинг -------------------------------
 
 export default {
@@ -830,6 +894,12 @@ export default {
 
       const delMatch = path.match(/^\/friends\/([^/]+)$/);
       if (delMatch && method === 'DELETE') return removeFriend(env, me, decodeURIComponent(delMatch[1]));
+
+      // --- рекомендации «советую тебе» ---
+      if (path === '/recommend' && method === 'POST') return sendRecommendation(request, env, me);
+      if (path === '/recommendations' && method === 'GET') return listRecommendations(env, me);
+      const recMatch = path.match(/^\/recommendations\/([^/]+)$/);
+      if (recMatch && method === 'DELETE') return dismissRecommendation(env, me, decodeURIComponent(recMatch[1]));
 
       // --- совместные списки ---
       if (path === '/lists' && method === 'POST') return createList(request, env, me);

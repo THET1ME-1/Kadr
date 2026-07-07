@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/strings.dart';
+import '../../models/library_entry.dart';
 import '../../models/social.dart';
 import '../../services/movie_repository.dart';
 import '../../services/social/social_controller.dart';
+import '../../services/tmdb_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/score.dart';
@@ -51,6 +53,7 @@ class ActivityScreen extends StatefulWidget {
 class _ActivityScreenState extends State<ActivityScreen> {
   List<_Event> _events = const [];
   List<_Rec> _recs = const [];
+  List<RecommendationItem> _fromFriends = const [];
   bool _loading = true;
 
   @override
@@ -64,7 +67,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    // Явные рекомендации «Тебе советуют» + библиотеки друзей (параллельно).
+    final recsFuture = SocialController.instance.receivedRecommendations();
     final libs = await SocialController.instance.allFriendLibraries();
+    _fromFriends = await recsFuture;
 
     // Что я уже смотрел — чтобы не советовать это.
     final mineWatched = {
@@ -120,19 +126,39 @@ class _ActivityScreenState extends State<ActivityScreen> {
     });
   }
 
+  Future<void> _addToWatchlist(String title, int? year, String? poster,
+      int? tmdbId) async {
+    if (tmdbId == null) return;
+    final m = TmdbMovie(id: tmdbId, title: title, posterUrl: poster, year: year);
+    await MovieRepository.instance.addFromTmdb(m, LibraryStatus.watchlist);
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(tr('sl_added_to_watchlist'))));
+    }
+  }
+
+  Future<void> _dismissRec(RecommendationItem r) async {
+    setState(() =>
+        _fromFriends = _fromFriends.where((x) => x.id != r.id).toList());
+    try {
+      await SocialController.instance.dismissRecommendation(r.id);
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(tr('activity_title'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : (_events.isEmpty && _recs.isEmpty)
+          : (_events.isEmpty && _recs.isEmpty && _fromFriends.isEmpty)
               ? _empty()
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(0, 8, 0, 32),
                     children: [
+                      if (_fromFriends.isNotEmpty) _fromFriendsSection(context),
                       if (_recs.isNotEmpty) _recsRail(context),
                       if (_events.isNotEmpty) ...[
                         Padding(
@@ -174,6 +200,125 @@ class _ActivityScreenState extends State<ActivityScreen> {
           ),
         ),
       );
+
+  // ---------------------------- тебе советуют ----------------------------
+
+  Widget _fromFriendsSection(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Row(
+            children: [
+              Icon(Icons.mark_email_unread_rounded,
+                  size: 20, color: scheme.primary),
+              const SizedBox(width: 8),
+              Text(tr('rec_for_you'),
+                  style: TextStyle(
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      color: scheme.onSurface)),
+            ],
+          ),
+        ),
+        for (final r in _fromFriends) _fromFriendCard(context, r),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  Widget _fromFriendCard(BuildContext context, RecommendationItem r) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      child: Material(
+        color: scheme.primaryContainer.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Poster(title: r.title, url: r.posterUrl, width: 48, radius: 10),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            UserAvatar(user: r.from, size: 18),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                  trf('rec_from', {'name': r.from.displayName}),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontFamily: AppTheme.bodyFont,
+                                      fontSize: 12.5,
+                                      color: scheme.onSurfaceVariant)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(r.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontFamily: AppTheme.displayFont,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                                height: 1.1,
+                                color: scheme.onSurface)),
+                        if (r.note != null && r.note!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text('«${r.note!}»',
+                              style: TextStyle(
+                                  fontFamily: AppTheme.bodyFont,
+                                  fontSize: 13,
+                                  fontStyle: FontStyle.italic,
+                                  color: scheme.onSurface)),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      onPressed: () {
+                        _addToWatchlist(r.title, r.year, r.posterUrl, r.tmdbId);
+                        _dismissRec(r);
+                      },
+                      icon: const Icon(Icons.bookmark_add_rounded, size: 18),
+                      label: Text(tr('sl_add_to_watchlist')),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => _dismissRec(r),
+                    icon: const Icon(Icons.close_rounded),
+                    tooltip: tr('close'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   // ----------------------------- рекомендации -----------------------------
 

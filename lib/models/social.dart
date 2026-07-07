@@ -163,6 +163,41 @@ class SharedListDetail {
   }
 }
 
+/// Рекомендация фильма, присланная другом («Тебе советуют»).
+class RecommendationItem {
+  final String id;
+  final SocialUser from;
+  final String title;
+  final int? year;
+  final int? tmdbId;
+  final String? posterUrl;
+  final String? note;
+  final int createdAt;
+
+  const RecommendationItem({
+    required this.id,
+    required this.from,
+    required this.title,
+    this.year,
+    this.tmdbId,
+    this.posterUrl,
+    this.note,
+    this.createdAt = 0,
+  });
+
+  factory RecommendationItem.fromJson(Map<String, dynamic> j) =>
+      RecommendationItem(
+        id: '${j['id']}',
+        from: SocialUser.fromJson(j['from'] as Map<String, dynamic>),
+        title: j['title'] as String? ?? '',
+        year: (j['year'] as num?)?.toInt(),
+        tmdbId: (j['tmdbId'] as num?)?.toInt(),
+        posterUrl: j['posterUrl'] as String?,
+        note: j['note'] as String?,
+        createdAt: (j['createdAt'] as num?)?.toInt() ?? 0,
+      );
+}
+
 /// Ответ `GET /friends`: три корзины связей.
 class FriendsData {
   final List<FriendEntry> friends; // принятые

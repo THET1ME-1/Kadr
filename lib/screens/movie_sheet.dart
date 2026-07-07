@@ -6,7 +6,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
+import '../models/social.dart';
 import '../services/movie_repository.dart';
+import '../services/social/social_controller.dart';
 import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
@@ -17,7 +19,9 @@ import '../widgets/poster_viewer.dart';
 import '../widgets/rating_slider.dart';
 import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
+import '../widgets/user_avatar.dart';
 import 'browse_screens.dart';
+import 'social/auth_screen.dart';
 import 'when_watched_sheet.dart';
 
 /// Открывает полноэкранную карточку фильма (как экран сериала — отдельная
@@ -328,6 +332,18 @@ class _MovieScreenState extends State<MovieScreen> {
           label: Text(tr('manage_lists')),
         ),
       ),
+      // Советовать фильм другу (только если есть друзья в соц-слое).
+      if (SocialController.instance.friends.friends.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.tonalIcon(
+            onPressed: () => _recommendToFriend(m),
+            icon: const Icon(Icons.recommend_rounded),
+            label: Text(tr('recommend_to_friend')),
+          ),
+        ),
+      ],
       // «Брошено» — для незавершённых (не для уже просмотренных фильмов).
       if (m.status != LibraryStatus.watched) ...[
         const SizedBox(height: 12),
@@ -1179,6 +1195,106 @@ class _MovieScreenState extends State<MovieScreen> {
   }
 
   // ------------------ управление списками ------------------
+  /// Посоветовать фильм другу: выбрать друга + необязательная заметка.
+  void _recommendToFriend(LibraryMovie m) {
+    final scheme = Theme.of(context).colorScheme;
+    final noteCtl = TextEditingController();
+    final friends = SocialController.instance.friends.friends;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(trf('recommend_title', {'title': m.displayTitle}),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                        color: scheme.onSurface)),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtl,
+                  maxLength: 200,
+                  style: const TextStyle(fontFamily: AppTheme.bodyFont),
+                  decoration: InputDecoration(
+                    hintText: tr('recommend_note_hint'),
+                    filled: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(tr('recommend_pick_friend'),
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 12.5,
+                        color: scheme.onSurfaceVariant)),
+                const SizedBox(height: 8),
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final f in friends)
+                        ListTile(
+                          leading: UserAvatar(user: f.user, size: 40),
+                          title: Text(f.user.displayName,
+                              style: const TextStyle(
+                                  fontFamily: AppTheme.bodyFont,
+                                  fontWeight: FontWeight.w600)),
+                          trailing: const Icon(Icons.send_rounded),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _sendRecommendation(m, f.user, noteCtl.text.trim());
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendRecommendation(
+      LibraryMovie m, SocialUser to, String note) async {
+    try {
+      await SocialController.instance.recommend(
+        toUserId: to.id,
+        title: m.displayTitle,
+        year: m.year,
+        posterUrl: m.posterUrl,
+        tmdbId: m.tmdbId,
+        note: note.isEmpty ? null : note,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(trf('recommend_sent', {'name': to.displayName}))));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
+      }
+    }
+  }
+
   void _manageListsSheet(LibraryMovie m) {
     final scheme = Theme.of(context).colorScheme;
     final ctl = TextEditingController();

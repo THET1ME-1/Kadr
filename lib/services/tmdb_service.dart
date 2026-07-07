@@ -324,6 +324,11 @@ class TmdbService {
       '/movie/now_playing',
       {'language': 'ru-RU', 'region': 'RU', 'page': '$page'});
 
+  /// Рекомендации TMDB к конкретному фильму (основа ленты «Похоже на твой вкус»).
+  static Future<List<TmdbMovie>> recommendations(int tmdbId, {int page = 1}) =>
+      _list('/movie/$tmdbId/recommendations',
+          {'language': 'ru-RU', 'page': '$page'});
+
   /// Поиск фильмов по всей базе TMDB (для общего поиска в «Обзор»/«В кино»).
   /// Не отбрасываем результаты без постера — у поиска важна полнота
   /// (Poster рисует заглушку).

@@ -207,6 +207,52 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Вы оба хотите посмотреть — {n}',
     'en': 'You both want to watch — {n}'
   },
+  // ---------------------------- «Советую тебе» ----------------------------
+  'recommend_to_friend': {'ru': 'Советовать другу', 'en': 'Recommend to friend'},
+  'recommend_title': {'ru': 'Советую «{title}»', 'en': 'Recommend “{title}”'},
+  'recommend_note_hint': {
+    'ru': 'Заметка (необязательно)',
+    'en': 'Note (optional)'
+  },
+  'recommend_pick_friend': {'ru': 'Кому советуешь?', 'en': 'Recommend to whom?'},
+  'recommend_sent': {'ru': 'Отправлено {name}', 'en': 'Sent to {name}'},
+  'rec_for_you': {'ru': 'Тебе советуют', 'en': 'Recommended to you'},
+  'rec_from': {'ru': 'советует {name}', 'en': '{name} recommends'},
+  'notif_rec_title': {'ru': 'Тебе советуют фильм', 'en': 'A film for you'},
+  'notif_rec_one': {
+    'ru': '{name} советует «{title}»',
+    'en': '{name} recommends “{title}”'
+  },
+  'notif_rec_many': {
+    'ru': '{name} и ещё {n} советуют тебе фильмы',
+    'en': '{name} and {n} more recommend films'
+  },
+  // ------------------------------ Кинорулетка ------------------------------
+  'roulette_title': {'ru': 'Кинорулетка', 'en': 'Movie roulette'},
+  'roulette_spin': {'ru': 'Крутить!', 'en': 'Spin!'},
+  'roulette_spinning': {'ru': 'Крутим…', 'en': 'Spinning…'},
+  'roulette_open': {'ru': 'Открыть фильм', 'en': 'Open film'},
+  'roulette_src_watchlist': {'ru': 'Мой вишлист', 'en': 'My watchlist'},
+  'roulette_src_friends': {'ru': 'Советы друзей', 'en': 'Friends’ picks'},
+  'roulette_empty_watchlist': {
+    'ru': 'В «Буду смотреть» пусто — добавь фильмы',
+    'en': 'Your watchlist is empty — add some films'
+  },
+  'roulette_empty_friends': {
+    'ru': 'Друзья пока ничего не советуют',
+    'en': 'No picks from friends yet'
+  },
+  // -------------------------- Похоже на твой вкус --------------------------
+  'for_you_title': {'ru': 'Похоже на твой вкус', 'en': 'Your taste'},
+  'for_you_sub': {
+    'ru': 'Собрано из фильмов, которые ты оценил высоко',
+    'en': 'Built from films you rated highly'
+  },
+  'for_you_empty': {'ru': 'Нет рекомендаций', 'en': 'No recommendations'},
+  'for_you_no_seeds': {
+    'ru': 'Оцени несколько фильмов на 7+, и здесь появятся рекомендации',
+    'en': 'Rate a few films 7+ and recommendations will appear here'
+  },
   'select_all': {'ru': 'Выбрать все', 'en': 'Select all'},
   'n_selected': {'ru': 'Выбрано: {n}', 'en': '{n} selected'},
   'delete_selected_title': {'ru': 'Удалить выбранное?', 'en': 'Delete selected?'},

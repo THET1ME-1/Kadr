@@ -85,3 +85,14 @@ CREATE TABLE IF NOT EXISTS shared_list_items (
   added_at INTEGER NOT NULL,
   PRIMARY KEY (list_id, item_key)
 );
+
+-- «Советую тебе»: явные рекомендации фильма от друга к другу.
+CREATE TABLE IF NOT EXISTS recommendations (
+  id         TEXT PRIMARY KEY,
+  from_user  TEXT NOT NULL,
+  to_user    TEXT NOT NULL,
+  data       TEXT NOT NULL,               -- JSON {title, year, posterUrl, tmdbId}
+  note       TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rec_to ON recommendations(to_user);

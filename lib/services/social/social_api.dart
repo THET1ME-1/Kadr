@@ -223,6 +223,43 @@ class SocialApi {
         );
       });
 
+  // --------------------------- «Советую тебе» ---------------------------
+
+  Future<void> sendRecommendation(String token,
+          {required String toUserId,
+          required String title,
+          int? year,
+          String? posterUrl,
+          int? tmdbId,
+          String? note}) =>
+      _guard(() async {
+        _decode(await _post('/recommend', {
+          'toUserId': toUserId,
+          'title': title,
+          'year': ?year,
+          'posterUrl': ?posterUrl,
+          'tmdbId': ?tmdbId,
+          'note': ?note,
+        }, token));
+      });
+
+  Future<List<RecommendationItem>> recommendations(String token) =>
+      _guard(() async {
+        final b = _decode(await _get('/recommendations', token));
+        return [
+          for (final r in (b['recommendations'] as List? ?? []))
+            RecommendationItem.fromJson(r as Map<String, dynamic>),
+        ];
+      });
+
+  Future<void> dismissRecommendation(String token, String id) =>
+      _guard(() async {
+        final r = await http
+            .delete(_u('/recommendations/$id'), headers: _headers(token))
+            .timeout(_timeout);
+        _decode(r);
+      });
+
   // -------------------------- совместные списки --------------------------
 
   Future<String> createList(String token, String name) => _guard(() async {
