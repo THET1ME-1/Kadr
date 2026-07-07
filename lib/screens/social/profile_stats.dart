@@ -10,7 +10,10 @@ import '../../utils/format.dart';
 /// из переданного [repo] (для друга — его read-only MovieRepository.detached).
 class ProfileStats extends StatelessWidget {
   final MovieRepository repo;
-  const ProfileStats({super.key, required this.repo});
+
+  /// Тап по hero-блоку «У экрана» (в своём профиле — открыть полную статистику).
+  final VoidCallback? onHeroTap;
+  const ProfileStats({super.key, required this.repo, this.onHeroTap});
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +33,12 @@ class ProfileStats extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _hero(context, s),
+        onHeroTap != null
+            ? GestureDetector(
+                onTap: onHeroTap,
+                behavior: HitTestBehavior.opaque,
+                child: _hero(context, s, tappable: true))
+            : _hero(context, s),
         const SizedBox(height: 12),
         _tiles(context, s),
         if (s.genres.isNotEmpty) ...[
@@ -41,9 +49,10 @@ class ProfileStats extends StatelessWidget {
     );
   }
 
-  Widget _hero(BuildContext context, _Compact s) {
+  Widget _hero(BuildContext context, _Compact s, {bool tappable = false}) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -56,13 +65,22 @@ class ProfileStats extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(tr('stat_screen_time'),
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 11.5,
-                  letterSpacing: 2,
-                  color: Colors.white.withValues(alpha: 0.85))),
+          Row(
+            children: [
+              Text(tr('stat_screen_time'),
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11.5,
+                      letterSpacing: 2,
+                      color: Colors.white.withValues(alpha: 0.85))),
+              if (tappable) ...[
+                const Spacer(),
+                Icon(Icons.arrow_forward_rounded,
+                    size: 18, color: Colors.white.withValues(alpha: 0.85)),
+              ],
+            ],
+          ),
           const SizedBox(height: 4),
           FittedBox(
             fit: BoxFit.scaleDown,

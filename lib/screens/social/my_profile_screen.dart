@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/social.dart';
@@ -10,6 +11,7 @@ import '../../services/social/avatar_util.dart';
 import '../../services/social/social_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/user_avatar.dart';
+import '../statistics_screen.dart';
 import 'auth_screen.dart';
 import 'friend_profile_screen.dart';
 import 'profile_stats.dart';
@@ -126,7 +128,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   fontSize: 17,
                   color: Theme.of(context).colorScheme.onSurface)),
           const SizedBox(height: 12),
-          ProfileStats(repo: MovieRepository.instance),
+          ProfileStats(
+            repo: MovieRepository.instance,
+            onHeroTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const StatisticsScreen())),
+          ),
         ],
       ),
     );
@@ -207,32 +213,51 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   Widget _codeChip(BuildContext context, String code) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(14)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.tag_rounded, size: 15, color: scheme.primary),
-          const SizedBox(width: 4),
-          Text(code,
-              style: TextStyle(
-                  fontFamily: AppTheme.displayFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  letterSpacing: 1.5,
-                  color: scheme.onSurface)),
-          const SizedBox(width: 6),
-          Text(tr('profile_your_code'),
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontSize: 11.5,
-                  color: scheme.onSurfaceVariant)),
-        ],
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _copyCode(code),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.tag_rounded, size: 15, color: scheme.primary),
+              const SizedBox(width: 4),
+              Text(code,
+                  style: TextStyle(
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      letterSpacing: 1.5,
+                      color: scheme.onSurface)),
+              const SizedBox(width: 6),
+              Text(tr('profile_your_code'),
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 11.5,
+                      color: scheme.onSurfaceVariant)),
+              const SizedBox(width: 6),
+              Icon(Icons.copy_rounded, size: 14, color: scheme.onSurfaceVariant),
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  Future<void> _copyCode(String code) async {
+    await Clipboard.setData(ClipboardData(text: code));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        content: Text(tr('profile_code_copied')),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ));
   }
 
   // ------------------------------ заявки ------------------------------
@@ -399,39 +424,94 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     }
   }
 
-  Future<void> _editName() async {
+  void _editName() {
+    final scheme = Theme.of(context).colorScheme;
     final ctl = SocialController.instance;
     final c = TextEditingController(text: ctl.user?.displayName ?? '');
-    final name = await showDialog<String>(
+    bool busy = false;
+    showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('profile_edit_name')),
-        content: TextField(
-          controller: c,
-          autofocus: true,
-          maxLength: 40,
-          style: const TextStyle(fontFamily: AppTheme.bodyFont),
-          decoration: InputDecoration(labelText: tr('social_name')),
+      isScrollControlled: true,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: StatefulBuilder(
+          builder: (ctx, setSheet) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                            color: scheme.outlineVariant,
+                            borderRadius: BorderRadius.circular(2))),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(tr('profile_edit_name'),
+                      style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          color: scheme.onSurface)),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: c,
+                    autofocus: true,
+                    maxLength: 40,
+                    textCapitalization: TextCapitalization.words,
+                    style: const TextStyle(fontFamily: AppTheme.bodyFont),
+                    decoration: InputDecoration(
+                      labelText: tr('social_name'),
+                      prefixIcon: const Icon(Icons.badge_rounded),
+                      filled: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: busy
+                          ? null
+                          : () async {
+                              final name = c.text.trim();
+                              if (name.isEmpty) return;
+                              setSheet(() => busy = true);
+                              try {
+                                await ctl.updateProfile(displayName: name);
+                                if (ctx.mounted) Navigator.pop(ctx);
+                              } catch (e) {
+                                setSheet(() => busy = false);
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(socialErrorText(e))));
+                              }
+                            },
+                      child: busy
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2.2))
+                          : Text(tr('save')),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: Text(tr('cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, c.text.trim()),
-              child: Text(tr('save'))),
-        ],
       ),
     );
-    if (name != null && name.isNotEmpty) {
-      try {
-        await ctl.updateProfile(displayName: name);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
-        }
-      }
-    }
   }
 
   void _addFriendSheet() {

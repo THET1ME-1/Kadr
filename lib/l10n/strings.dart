@@ -47,6 +47,7 @@ const Map<String, Map<String, String>> _strings = {
   },
   'profile_login_cta': {'ru': 'Войти или создать профиль', 'en': 'Sign in or sign up'},
   'profile_your_code': {'ru': 'твой код', 'en': 'your code'},
+  'profile_code_copied': {'ru': 'Код скопирован', 'en': 'Code copied'},
   'profile_requests': {'ru': 'Заявки в друзья · {n}', 'en': 'Friend requests · {n}'},
   'profile_friends_n': {'ru': 'Друзья · {n}', 'en': 'Friends · {n}'},
   'profile_no_friends': {
