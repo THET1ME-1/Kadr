@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
@@ -17,6 +18,7 @@ class SocialController extends ChangeNotifier {
   static final SocialController instance = SocialController._();
 
   static const _kToken = 'socialToken';
+  static const _kUser = 'socialUser'; // кэш профиля для мгновенного входа
 
   String? _token;
   SocialUser? _user;
@@ -29,20 +31,38 @@ class SocialController extends ChangeNotifier {
   bool get loading => _loading;
   int get incomingCount => _friends.incoming.length;
 
-  /// Восстановление сессии при старте: валидируем токен, тянем свежий профиль.
+  /// Восстановление сессии при старте: мгновенно поднимаем профиль из кэша
+  /// (вход переживает перезапуск даже без сети), затем валидируем токен в фоне.
   Future<void> load() async {
     attachLibraryListener(); // публиковать витрину при изменениях библиотеки
     _token = await Store.instance.getString(_kToken);
     if (_token == null) return;
+    // Оптимистично — из кэша, чтобы не выкидывать на экран входа при заминке сети.
+    final cached = await Store.instance.getString(_kUser);
+    if (cached != null) {
+      try {
+        _user = SocialUser.fromJson(jsonDecode(cached) as Map<String, dynamic>);
+        notifyListeners();
+      } catch (_) {/* повреждённый кэш — обновит me() ниже */}
+    }
     try {
       _user = await SocialApi.instance.me(_token!);
+      await _cacheUser();
       notifyListeners();
       // Подтягиваем друзей и публикуем актуальную витрину в фоне.
       unawaited(refreshFriends());
       unawaited(publishSilently());
     } on SocialException catch (e) {
-      // Токен протух/отозван — чистим. Сетевую ошибку игнорируем (попробуем позже).
+      // Чистим ТОЛЬКО при явном «недействителен» (401). Сеть/прочее —
+      // остаёмся в сессии по кэшу и попробуем позже.
       if (e.status == 401) await _clearSession();
+    }
+  }
+
+  Future<void> _cacheUser() async {
+    final u = _user;
+    if (u != null) {
+      await Store.instance.setString(_kUser, jsonEncode(u.toJson()));
     }
   }
 
@@ -50,6 +70,7 @@ class SocialController extends ChangeNotifier {
     _token = token;
     _user = user;
     await Store.instance.setString(_kToken, token);
+    await _cacheUser();
     notifyListeners();
   }
 
@@ -58,6 +79,7 @@ class SocialController extends ChangeNotifier {
     _user = null;
     _friends = const FriendsData();
     await Store.instance.remove(_kToken);
+    await Store.instance.remove(_kUser);
     notifyListeners();
   }
 
@@ -135,6 +157,7 @@ class SocialController extends ChangeNotifier {
         email: u.email,
         hasRecovery: true,
       );
+      await _cacheUser();
       notifyListeners();
     }
     return code;
@@ -154,6 +177,7 @@ class SocialController extends ChangeNotifier {
     final t = _token;
     if (t == null) return;
     _user = await SocialApi.instance.updateMe(t, displayName: displayName);
+    await _cacheUser();
     notifyListeners();
   }
 
@@ -169,7 +193,9 @@ class SocialController extends ChangeNotifier {
       avatarVer: ver,
       friendCode: u.friendCode,
       email: u.email,
+      hasRecovery: u.hasRecovery,
     );
+    await _cacheUser();
     notifyListeners();
   }
 
