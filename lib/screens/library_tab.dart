@@ -18,6 +18,7 @@ import '../widgets/score_pad.dart';
 import '../widgets/series_progress.dart';
 import 'movie_sheet.dart';
 import 'series_screen.dart';
+import 'social/readonly_media.dart';
 
 enum LibraryMode { watched, watchlist }
 
@@ -36,6 +37,14 @@ class LibraryTab extends StatefulWidget {
   final String query;
   final LibraryViewMode viewMode;
 
+  /// Источник данных. null → своя библиотека (MovieRepository.instance).
+  /// Для профиля друга передаётся его read-only MovieRepository.detached.
+  final MovieRepository? repository;
+
+  /// Read-only режим (библиотека друга): без выделения/удаления/редактирования;
+  /// тап по карточке открывает просмотр без кнопок правки.
+  final bool readOnly;
+
   /// Вызывается по кнопке «Искать по всей базе» из пустого результата поиска.
   final VoidCallback? onSearchEverywhere;
   const LibraryTab({
@@ -43,6 +52,8 @@ class LibraryTab extends StatefulWidget {
     required this.mode,
     this.query = '',
     this.viewMode = LibraryViewMode.list,
+    this.repository,
+    this.readOnly = false,
     this.onSearchEverywhere,
   });
 
@@ -133,6 +144,7 @@ class _LibraryTabState extends State<LibraryTab> {
   }
 
   void _onSelect(String key) {
+    if (widget.readOnly) return; // в библиотеке друга выделения/удаления нет
     setState(() {
       if (_selected.remove(key)) {
         if (_selected.isEmpty) _selecting = false;
@@ -295,7 +307,7 @@ class _LibraryTabState extends State<LibraryTab> {
 
   @override
   Widget build(BuildContext context) {
-    final repo = MovieRepository.instance;
+    final repo = widget.repository ?? MovieRepository.instance;
     return PopScope(
       canPop: !_selecting,
       onPopInvokedWithResult: (didPop, _) {
@@ -833,6 +845,26 @@ class _LibraryTabState extends State<LibraryTab> {
     }
   }
 
+  /// Открыть фильм: своя библиотека — редактируемый лист; библиотека друга —
+  /// read-only просмотр (без кнопок правки).
+  void _openMovie(LibraryMovie m) {
+    if (widget.readOnly) {
+      showReadonlyMovieSheet(context, m);
+    } else {
+      showMovieSheet(context, m);
+    }
+  }
+
+  /// Открыть сериал: свой — экран сериала; друга — read-only просмотр.
+  void _openSeries(LibrarySeries s) {
+    if (widget.readOnly) {
+      showReadonlySeriesSheet(context, s);
+    } else {
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s)));
+    }
+  }
+
   Widget _rowFor(_LibEntry e) {
     final key = _keyOf(e);
     final sel = _selected.contains(key);
@@ -842,6 +874,8 @@ class _LibraryTabState extends State<LibraryTab> {
         selecting: _selecting,
         selected: sel,
         onSelect: () => _onSelect(key),
+        readOnly: widget.readOnly,
+        onOpen: () => _openSeries(e.session!.series),
         revealGroup: _revealed,
         revealId: key,
       );
@@ -852,6 +886,7 @@ class _LibraryTabState extends State<LibraryTab> {
         selecting: _selecting,
         selected: sel,
         onSelect: () => _onSelect(key),
+        onOpen: () => _openSeries(e.seriesItem!),
         revealGroup: _revealed,
         revealId: key,
       );
@@ -863,6 +898,7 @@ class _LibraryTabState extends State<LibraryTab> {
       selecting: _selecting,
       selected: sel,
       onSelect: () => _onSelect(key),
+      onOpen: () => _openMovie(e.movie!),
       revealGroup: _revealed,
       revealId: key,
     );
@@ -886,8 +922,7 @@ class _LibraryTabState extends State<LibraryTab> {
         episodesSeen: s.episodesSeen,
         totalEpisodes: s.totalEpisodes,
         onSelect: () => _onSelect(key),
-        onTap: () => Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
+        onTap: () => _openSeries(s),
       );
     }
     if (e.seriesItem != null) {
@@ -903,8 +938,7 @@ class _LibraryTabState extends State<LibraryTab> {
         selecting: _selecting,
         selected: sel,
         onSelect: () => _onSelect(key),
-        onTap: () => Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
+        onTap: () => _openSeries(s),
       );
     }
     final m = e.movie!;
@@ -917,7 +951,7 @@ class _LibraryTabState extends State<LibraryTab> {
       selecting: _selecting,
       selected: sel,
       onSelect: () => _onSelect(key),
-      onTap: () => showMovieSheet(context, m),
+      onTap: () => _openMovie(m),
     );
   }
 
@@ -937,8 +971,7 @@ class _LibraryTabState extends State<LibraryTab> {
         selecting: _selecting,
         selected: sel,
         onSelect: () => _onSelect(key),
-        onTap: () => Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
+        onTap: () => _openSeries(s),
       );
     }
     if (e.seriesItem != null) {
@@ -954,8 +987,7 @@ class _LibraryTabState extends State<LibraryTab> {
         selecting: _selecting,
         selected: sel,
         onSelect: () => _onSelect(key),
-        onTap: () => Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s))),
+        onTap: () => _openSeries(s),
       );
     }
     final m = e.movie!;
@@ -972,7 +1004,7 @@ class _LibraryTabState extends State<LibraryTab> {
       selecting: _selecting,
       selected: sel,
       onSelect: () => _onSelect(key),
-      onTap: () => showMovieSheet(context, m),
+      onTap: () => _openMovie(m),
     );
   }
 
@@ -1121,7 +1153,7 @@ class _LibraryTabState extends State<LibraryTab> {
 
   /// Нижний лист фильтров: жанры (мультивыбор) + диапазон года выхода.
   void _openFilterSheet() {
-    final repo = MovieRepository.instance;
+    final repo = widget.repository ?? MovieRepository.instance;
     final scheme = Theme.of(context).colorScheme;
     final counts = <String, int>{};
     int? minY, maxY;
@@ -1773,6 +1805,11 @@ class _SeriesSessionCard extends StatelessWidget {
   final bool selecting;
   final bool selected;
   final VoidCallback? onSelect;
+
+  /// Read-only (библиотека друга): серии не кликабельны для оценки, открытие —
+  /// через [onOpen] (read-only просмотр сериала).
+  final bool readOnly;
+  final VoidCallback? onOpen;
   final Set<Object>? revealGroup;
   final Object? revealId;
   const _SeriesSessionCard({
@@ -1780,6 +1817,8 @@ class _SeriesSessionCard extends StatelessWidget {
     this.selecting = false,
     this.selected = false,
     this.onSelect,
+    this.readOnly = false,
+    this.onOpen,
     this.revealGroup,
     this.revealId,
   });
@@ -1805,8 +1844,9 @@ class _SeriesSessionCard extends StatelessWidget {
               InkWell(
                 onTap: selecting
                     ? onSelect
-                    : () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => SeriesScreen(series: s))),
+                    : (onOpen ??
+                        () => Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => SeriesScreen(series: s)))),
                 onLongPress: onSelect,
                 child: Padding(
                   padding: const EdgeInsets.all(10),
@@ -1913,12 +1953,13 @@ class _SeriesSessionCard extends StatelessWidget {
                       children: [
                         // Серии от последней к первой (новые сверху).
                         for (final ep in session.episodes.reversed.take(12))
-                          _EpisodeRow(seriesId: s.tvShowId, ep: ep),
+                          _EpisodeRow(
+                              seriesId: s.tvShowId, ep: ep, readOnly: readOnly),
                     if (session.episodes.length > 12)
                       InkWell(
                         borderRadius: BorderRadius.circular(12),
-                        onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
+                        onTap: onOpen ??
+                            () => Navigator.of(context).push(MaterialPageRoute(
                                 builder: (_) => SeriesScreen(series: s))),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
@@ -1957,7 +1998,9 @@ class _SeriesSessionCard extends StatelessWidget {
 class _EpisodeRow extends StatelessWidget {
   final String seriesId;
   final Episode ep;
-  const _EpisodeRow({required this.seriesId, required this.ep});
+  final bool readOnly;
+  const _EpisodeRow(
+      {required this.seriesId, required this.ep, this.readOnly = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1965,7 +2008,7 @@ class _EpisodeRow extends StatelessWidget {
     final sc = ep.score;
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-      onTap: () => _rate(context),
+      onTap: readOnly ? null : () => _rate(context),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
         child: Row(
@@ -2183,6 +2226,9 @@ class _MovieRow extends StatelessWidget {
   final bool selecting;
   final bool selected;
   final VoidCallback? onSelect;
+
+  /// Открытие карточки (переопределяет дефолт). Для read-only библиотеки друга.
+  final VoidCallback? onOpen;
   final Set<Object>? revealGroup;
   final Object? revealId;
 
@@ -2193,6 +2239,7 @@ class _MovieRow extends StatelessWidget {
     this.selecting = false,
     this.selected = false,
     this.onSelect,
+    this.onOpen,
     this.revealGroup,
     this.revealId,
   });
@@ -2218,7 +2265,9 @@ class _MovieRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            onTap: selecting ? onSelect : () => showMovieSheet(context, movie),
+            onTap: selecting
+                ? onSelect
+                : (onOpen ?? () => showMovieSheet(context, movie)),
             onLongPress: onSelect,
             child: Padding(
               padding: const EdgeInsets.all(10),
@@ -2339,6 +2388,7 @@ class _WatchlistSeriesRow extends StatelessWidget {
   final bool selecting;
   final bool selected;
   final VoidCallback? onSelect;
+  final VoidCallback? onOpen;
   final Set<Object>? revealGroup;
   final Object? revealId;
   const _WatchlistSeriesRow({
@@ -2346,6 +2396,7 @@ class _WatchlistSeriesRow extends StatelessWidget {
     this.selecting = false,
     this.selected = false,
     this.onSelect,
+    this.onOpen,
     this.revealGroup,
     this.revealId,
   });
@@ -2366,8 +2417,9 @@ class _WatchlistSeriesRow extends StatelessWidget {
           child: InkWell(
             onTap: selecting
                 ? onSelect
-                : () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => SeriesScreen(series: series))),
+                : (onOpen ??
+                    () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => SeriesScreen(series: series)))),
             onLongPress: onSelect,
             child: Padding(
               padding: const EdgeInsets.all(10),

@@ -8,6 +8,7 @@ import '../services/app_prefs.dart';
 import '../services/movie_repository.dart';
 import '../services/movie_source.dart';
 import '../services/notification_service.dart';
+import '../services/social/social_controller.dart';
 import '../services/store.dart';
 import '../services/sync/webdav_service.dart';
 import '../services/update_service.dart';
@@ -21,6 +22,7 @@ import 'lists_screen.dart';
 import 'now_watching_screen.dart';
 import 'series_screen.dart';
 import 'settings_screen.dart';
+import 'social/my_profile_screen.dart';
 import 'statistics_screen.dart';
 
 /// Наблюдатель маршрутов — чтобы гасить клавиатуру при возврате на главную с
@@ -101,7 +103,7 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
       case StartScreen.discover:
         _index = 2;
       case StartScreen.cinema:
-        _index = 3;
+        _index = 2; // «В кино» теперь часть объединённого «Обзора»
       case StartScreen.nowWatching:
         _index = 1;
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -279,8 +281,8 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
             Icons.check_circle_rounded, Icons.visibility_rounded),
         _Tab(tr('nav_discover'), Icons.explore_outlined, Icons.explore_rounded,
             Icons.travel_explore_rounded),
-        _Tab(tr('nav_cinema'), Icons.local_movies_outlined,
-            Icons.local_movies_rounded, Icons.theaters_rounded),
+        _Tab(tr('nav_profile'), Icons.person_outline_rounded,
+            Icons.person_rounded, Icons.person_rounded),
       ];
 
   @override
@@ -302,7 +304,8 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
         children: [
           const _NewEpisodesBanner(),
           const _LimitBanner(),
-          _searchField(context),
+          // На вкладке «Профиль» поле поиска не нужно.
+          if (_index != 3) _searchField(context),
           Expanded(
             child: IndexedStack(
               index: _index,
@@ -317,8 +320,8 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
                     query: _query,
                     viewMode: _libMode,
                     onSearchEverywhere: _searchEverywhere),
-                DiscoverTab(mode: DiscoverMode.trending, query: _netQuery),
-                DiscoverTab(mode: DiscoverMode.nowPlaying, query: _netQuery),
+                DiscoverTab(query: _netQuery),
+                const MyProfileScreen(),
               ],
             ),
           ),
@@ -331,17 +334,30 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
               label: Text(tr('add')),
             )
           : null,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: _goTab,
-        destinations: [
-          for (final t in tabs)
-            NavigationDestination(
-              icon: Icon(t.icon),
-              selectedIcon: Icon(t.selectedIcon),
-              label: t.title,
-            ),
-        ],
+      bottomNavigationBar: ListenableBuilder(
+        listenable: SocialController.instance,
+        builder: (context, _) {
+          final incoming = SocialController.instance.incomingCount;
+          return NavigationBar(
+            selectedIndex: _index,
+            onDestinationSelected: _goTab,
+            destinations: [
+              for (var i = 0; i < tabs.length; i++)
+                NavigationDestination(
+                  // На иконке профиля — бейдж с числом входящих заявок.
+                  icon: (i == 3 && incoming > 0)
+                      ? Badge(label: Text('$incoming'), child: Icon(tabs[i].icon))
+                      : Icon(tabs[i].icon),
+                  selectedIcon: (i == 3 && incoming > 0)
+                      ? Badge(
+                          label: Text('$incoming'),
+                          child: Icon(tabs[i].selectedIcon))
+                      : Icon(tabs[i].selectedIcon),
+                  label: tabs[i].title,
+                ),
+            ],
+          );
+        },
       ),
     );
   }

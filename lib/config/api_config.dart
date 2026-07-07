@@ -23,4 +23,11 @@ class ApiConfig {
   static const String tmdbImageBase = 'https://image.tmdb.org/t/p/w342';
   static const String tmdbBackdropBase = 'https://image.tmdb.org/t/p/w780';
   static const String tmdbProfileBase = 'https://image.tmdb.org/t/p/w185';
+
+  /// Бэкенд соц-слоя (профили/друзья/публичная проекция) — Cloudflare Worker.
+  /// Переопределить: `--dart-define=SOCIAL_BASE=...`.
+  static const String socialBase = String.fromEnvironment(
+    'SOCIAL_BASE',
+    defaultValue: 'https://kadr-social.badzoff.workers.dev',
+  );
 }

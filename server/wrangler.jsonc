@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kadr-social",
+  "main": "src/index.js",
+  "compatibility_date": "2025-07-01",
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kadr-social",
+      "database_id": "e0eb29e5-053f-43dd-93a9-b52c0d1dffd4"
+    }
+  ]
+}

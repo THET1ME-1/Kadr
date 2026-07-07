@@ -23,6 +23,22 @@ class MovieRepository extends ChangeNotifier {
   MovieRepository._();
   static final MovieRepository instance = MovieRepository._();
 
+  /// Detached-экземпляр ТОЛЬКО для просмотра чужой (публичной) библиотеки друга:
+  /// наполняется его проекцией, НЕ читает и НЕ пишет диск, не обогащает и не
+  /// синкается. Позволяет отрисовать ленту «Просмотрено»/«Буду смотреть» и
+  /// статистику друга теми же экранами, что и свою (read-only).
+  factory MovieRepository.detached(Map<String, dynamic> data) {
+    final r = MovieRepository._();
+    r._detached = true;
+    r._ingest(data);
+    r._loaded = true;
+    return r;
+  }
+
+  /// true — это read-only копия чужой библиотеки: любые записи на диск заглушены.
+  bool _detached = false;
+  bool get isDetached => _detached;
+
   final List<LibraryMovie> _movies = [];
   final List<LibrarySeries> _series = [];
   final List<MovieList> _lists = [];
@@ -234,6 +250,7 @@ class MovieRepository extends ChangeNotifier {
   bool _allowEmptyPersist = false;
 
   Future<void> _persist() async {
+    if (_detached) return; // read-only копия чужой библиотеки — не пишем диск
     _persistDebounce?.cancel(); // объединяем с отложенной записью
     try {
       final f = await _file();
@@ -348,6 +365,27 @@ class MovieRepository extends ChangeNotifier {
         'version': kSyncVersion,
         ...toJson(),
       };
+
+  /// Публичная проекция библиотеки для друзей: полный снимок просмотров и
+  /// желаний (чтобы друг видел ленту «Просмотрено»/«Буду смотреть» и статистику
+  /// теми же экранами), но БЕЗ приватного — рецензий и личных списков. В облако
+  /// уезжает только это; настройки и device-local данные не входят.
+  Map<String, dynamic> buildPublicProfile() {
+    final movies = [
+      for (final m in _movies)
+        if (m.status == LibraryStatus.watched ||
+            m.status == LibraryStatus.watchlist ||
+            m.status == LibraryStatus.dropped ||
+            m.favorite)
+          (m.toJson()..remove('review')),
+    ];
+    final series = [
+      for (final s in _series)
+        if (s.episodes.isNotEmpty || s.watchlist || s.favorite || s.dropped)
+          (s.toJson()..remove('review')),
+    ];
+    return {'app': 'kadr', 'v': 1, 'movies': movies, 'series': series};
+  }
 
   /// Сливает удалённый снимок с локальным (объединение), применяет результат и
   /// сохраняет. Возвращает статистику изменений (для сообщения пользователю).
@@ -1551,6 +1589,7 @@ class MovieRepository extends ChangeNotifier {
       _movies.where((m) => m.posterUrl == null && !m.enrichTried).length;
 
   void _persistSoon() {
+    if (_detached) return; // read-only копия чужой библиотеки — не пишем диск
     _persistDebounce?.cancel();
     _persistDebounce = Timer(const Duration(seconds: 3), _persist);
   }

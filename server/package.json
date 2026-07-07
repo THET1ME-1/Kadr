@@ -1,0 +1,15 @@
+{
+  "name": "kadr-social",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kadr social backend — профили, друзья, публичная проекция библиотеки (Cloudflare Worker + D1)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "schema": "wrangler d1 execute kadr-social --remote --file=schema.sql",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.107.0"
+  }
+}

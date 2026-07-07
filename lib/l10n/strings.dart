@@ -34,6 +34,66 @@ const Map<String, Map<String, String>> _strings = {
   'apply': {'ru': 'Применить', 'en': 'Apply'},
   'done': {'ru': 'Готово', 'en': 'Done'},
   'add': {'ru': 'Добавить', 'en': 'Add'},
+  'accept': {'ru': 'Принять', 'en': 'Accept'},
+  'decline': {'ru': 'Отклонить', 'en': 'Decline'},
+  // ------------------------- Профиль и друзья -------------------------
+  'nav_profile': {'ru': 'Профиль', 'en': 'Profile'},
+  'profile_about': {'ru': 'О друге', 'en': 'About'},
+  'profile_friends': {'ru': 'Друзья', 'en': 'Friends'},
+  'profile_join_title': {'ru': 'Друзья в Kadr', 'en': 'Friends on Kadr'},
+  'profile_join_sub': {
+    'ru': 'Заведи профиль, добавляй друзей и смотри их просмотры, оценки и списки желаний.',
+    'en': 'Create a profile, add friends and see their watches, ratings and watchlists.'
+  },
+  'profile_login_cta': {'ru': 'Войти или создать профиль', 'en': 'Sign in or sign up'},
+  'profile_your_code': {'ru': 'твой код', 'en': 'your code'},
+  'profile_requests': {'ru': 'Заявки в друзья · {n}', 'en': 'Friend requests · {n}'},
+  'profile_friends_n': {'ru': 'Друзья · {n}', 'en': 'Friends · {n}'},
+  'profile_no_friends': {
+    'ru': 'Пока никого. Добавь друга по коду.',
+    'en': 'No friends yet. Add one by code.'
+  },
+  'profile_outgoing': {'ru': 'Отправленные заявки: {n}', 'en': 'Sent requests: {n}'},
+  'profile_edit_name': {'ru': 'Изменить имя', 'en': 'Edit name'},
+  'profile_add_hint': {
+    'ru': 'Введи код друга — он покажет его на своём профиле.',
+    'en': 'Enter your friend’s code — they can find it on their profile.'
+  },
+  'profile_friend_code': {'ru': 'Код друга', 'en': 'Friend code'},
+  'profile_remove_friend': {'ru': 'Удалить из друзей?', 'en': 'Remove friend?'},
+  'profile_remove_q': {
+    'ru': 'Убрать {name} из друзей?',
+    'en': 'Remove {name} from friends?'
+  },
+  'profile_logout_q': {
+    'ru': 'Выйти из профиля на этом устройстве?',
+    'en': 'Sign out on this device?'
+  },
+  'social_register': {'ru': 'Регистрация', 'en': 'Sign up'},
+  'social_login': {'ru': 'Вход', 'en': 'Sign in'},
+  'social_intro': {
+    'ru': 'Профиль нужен, чтобы добавлять друзей и видеть их фильмы. Твоя библиотека остаётся на телефоне.',
+    'en': 'A profile lets you add friends and see their films. Your library stays on your phone.'
+  },
+  'social_name': {'ru': 'Имя', 'en': 'Name'},
+  'social_password': {'ru': 'Пароль', 'en': 'Password'},
+  'social_logout': {'ru': 'Выйти', 'en': 'Sign out'},
+  'social_add_friend': {'ru': 'Добавить друга', 'en': 'Add friend'},
+  'social_send_request': {'ru': 'Отправить заявку', 'en': 'Send request'},
+  'social_request_sent': {'ru': 'Заявка отправлена', 'en': 'Request sent'},
+  'social_now_friends': {'ru': 'Теперь вы друзья!', 'en': 'You are now friends!'},
+  'social_err_email_taken': {'ru': 'Этот email уже занят', 'en': 'Email already in use'},
+  'social_err_credentials': {'ru': 'Неверный email или пароль', 'en': 'Wrong email or password'},
+  'social_err_weak': {'ru': 'Пароль не короче 8 символов', 'en': 'Password must be 8+ characters'},
+  'social_err_email': {'ru': 'Введите корректный email', 'en': 'Enter a valid email'},
+  'social_err_name': {'ru': 'Введите имя', 'en': 'Enter a name'},
+  'social_err_rate': {
+    'ru': 'Слишком много попыток. Попробуйте позже.',
+    'en': 'Too many attempts. Try again later.'
+  },
+  'social_err_user_not_found': {'ru': 'Друг по коду не найден', 'en': 'No user with that code'},
+  'social_err_network': {'ru': 'Нет связи с сервером', 'en': 'Can’t reach the server'},
+  'social_err_generic': {'ru': 'Что-то пошло не так', 'en': 'Something went wrong'},
   'select_all': {'ru': 'Выбрать все', 'en': 'Select all'},
   'n_selected': {'ru': 'Выбрано: {n}', 'en': '{n} selected'},
   'delete_selected_title': {'ru': 'Удалить выбранное?', 'en': 'Delete selected?'},

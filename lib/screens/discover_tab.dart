@@ -59,14 +59,14 @@ const List<_Genre> _tvGenres = [
   _Genre(37, 'Вестерн', 'Western'),
 ];
 
-/// Лента «Обзор» (популярное) / «В кино» (сейчас в прокате) из TMDB, с двумя
-/// подвкладками — Фильмы и Сериалы. Общий поиск по всей базе (когда задан
-/// [query]), фильтры по жанру/году и сортировка. Бесконечная ленивая
-/// подгрузка. Тап по фильму → карточка, по сериалу → экран серий.
+/// Лента «Обзор»: популярное и «В кино» (сейчас в прокате) из TMDB одним
+/// экраном — режим переключается сегментом вверху. Внутри — подвкладки Фильмы и
+/// Сериалы. Общий поиск по всей базе (когда задан [query]), фильтры по
+/// жанру/году и сортировка. Бесконечная ленивая подгрузка. Тап по фильму →
+/// карточка, по сериалу → экран серий.
 class DiscoverTab extends StatefulWidget {
-  final DiscoverMode mode;
   final String query;
-  const DiscoverTab({super.key, required this.mode, this.query = ''});
+  const DiscoverTab({super.key, this.query = ''});
 
   @override
   State<DiscoverTab> createState() => _DiscoverTabState();
@@ -75,6 +75,9 @@ class DiscoverTab extends StatefulWidget {
 class _DiscoverTabState extends State<DiscoverTab>
     with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late final TabController _tab = TabController(length: 2, vsync: this);
+
+  /// Режим ленты: популярное («Обзор») или сейчас в прокате («В кино»).
+  DiscoverMode _mode = DiscoverMode.trending;
 
   // Фильтры — свои у каждой подвкладки (жанры фильмов и сериалов различаются).
   _Genre? _mGenre, _tGenre;
@@ -116,10 +119,10 @@ class _DiscoverTabState extends State<DiscoverTab>
         genreId: _mGenre?.id,
         year: _mYear,
         sortBy: _mSortBy,
-        nowPlayingWindow: widget.mode == DiscoverMode.nowPlaying,
+        nowPlayingWindow: _mode == DiscoverMode.nowPlaying,
       );
     }
-    return widget.mode == DiscoverMode.trending
+    return _mode == DiscoverMode.trending
         ? TmdbService.trending(page: page)
         : TmdbService.nowPlaying(page: page);
   }
@@ -134,7 +137,7 @@ class _DiscoverTabState extends State<DiscoverTab>
         sortBy: _tSortBy,
       );
     }
-    return widget.mode == DiscoverMode.trending
+    return _mode == DiscoverMode.trending
         ? TmdbService.trendingTv(page: page)
         : TmdbService.onAirTv(page: page);
   }
@@ -143,12 +146,11 @@ class _DiscoverTabState extends State<DiscoverTab>
   Widget build(BuildContext context) {
     super.build(context);
     final scheme = Theme.of(context).colorScheme;
-    final mKey =
-        'm|${widget.mode}|$_q|${_mGenre?.id}|$_mYear|$_mSort';
-    final tKey =
-        's|${widget.mode}|$_q|${_tGenre?.id}|$_tYear|$_tSort';
+    final mKey = 'm|$_mode|$_q|${_mGenre?.id}|$_mYear|$_mSort';
+    final tKey = 's|$_mode|$_q|${_tGenre?.id}|$_tYear|$_tSort';
     return Column(
       children: [
+        if (_q.isEmpty) _modeToggle(scheme),
         TabBar(
           controller: _tab,
           labelColor: scheme.primary,
@@ -210,6 +212,62 @@ class _DiscoverTabState extends State<DiscoverTab>
           ),
         ),
       ],
+    );
+  }
+
+  /// Переключатель режима ленты: «Обзор» (популярное) ↔ «В кино» (в прокате).
+  Widget _modeToggle(ColorScheme scheme) {
+    Widget seg(DiscoverMode m, String label, IconData icon) {
+      final selected = _mode == m;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _mode = m),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: selected ? scheme.primaryContainer : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon,
+                    size: 18,
+                    color: selected
+                        ? scheme.onPrimaryContainer
+                        : scheme.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Text(label,
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        color: selected
+                            ? scheme.onPrimaryContainer
+                            : scheme.onSurfaceVariant)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          seg(DiscoverMode.trending, tr('nav_discover'), Icons.explore_rounded),
+          seg(DiscoverMode.nowPlaying, tr('nav_cinema'),
+              Icons.local_movies_rounded),
+        ],
+      ),
     );
   }
 

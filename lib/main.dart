@@ -7,6 +7,7 @@ import 'services/app_prefs.dart';
 import 'services/auto_backup_service.dart';
 import 'services/movie_repository.dart';
 import 'services/movie_source.dart';
+import 'services/social/social_controller.dart';
 import 'services/sync/webdav_service.dart';
 import 'services/store.dart';
 import 'theme/app_theme.dart';
@@ -22,6 +23,9 @@ Future<void> main() async {
   await AppPrefs.instance.load();
   await MovieRepository.instance.load();
   await AutoBackupService.instance.load();
+  // Соц-слой: восстановить сессию и синхронизировать профиль/друзей в фоне
+  // (не блокируем старт — экраны слушают контроллер и обновятся сами).
+  SocialController.instance.load();
   // Автобекап по расписанию — при запуске (и при возврате в приложение ниже).
   AutoBackupService.instance.maybePeriodic();
   // Сбрасываем отложенную запись библиотеки на диск при уходе в фон, чтобы не
@@ -39,12 +43,15 @@ class _LifecycleFlusher extends WidgetsBindingObserver {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       MovieRepository.instance.flush();
-      // При сворачивании — заливаем изменения сессии на WebDAV (если настроен).
+      // При сворачивании — заливаем изменения сессии на WebDAV (если настроен)
+      // и публикуем публичную проекцию для друзей (если вошёл).
       WebdavService.instance.syncSilently();
+      SocialController.instance.publishSilently();
     } else if (state == AppLifecycleState.resumed) {
       AutoBackupService.instance.maybePeriodic();
-      // При возврате — подтягиваем изменения с других устройств.
+      // При возврате — подтягиваем изменения с других устройств и друзей.
       WebdavService.instance.syncSilently();
+      SocialController.instance.refreshFriends();
     }
   }
 }
