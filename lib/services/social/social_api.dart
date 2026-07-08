@@ -156,6 +156,30 @@ class SocialApi {
         return (b['avatar'] as num?)?.toInt() ?? 0;
       });
 
+  /// Загрузить баннер профиля (байты сжатого PNG). Возвращает новую версию.
+  Future<int> uploadBanner(String token, List<int> pngBytes) =>
+      _guard(() async {
+        final r = await http
+            .put(_u('/me/banner'),
+                headers: {
+                  'Content-Type': 'image/png',
+                  'Authorization': 'Bearer $token',
+                },
+                body: pngBytes)
+            .timeout(_timeout);
+        final b = _decode(r);
+        return (b['banner'] as num?)?.toInt() ?? 0;
+      });
+
+  /// Убрать баннер профиля (возврат к дефолтному градиенту).
+  Future<int> removeBanner(String token) => _guard(() async {
+        final r = await http
+            .delete(_u('/me/banner'), headers: _headers(token))
+            .timeout(_timeout);
+        final b = _decode(r);
+        return (b['banner'] as num?)?.toInt() ?? 0;
+      });
+
   Future<void> logout(String token) => _guard(() async {
         await _post('/auth/logout', {}, token);
       });
@@ -256,6 +280,31 @@ class SocialApi {
       _guard(() async {
         final r = await http
             .delete(_u('/recommendations/$id'), headers: _headers(token))
+            .timeout(_timeout);
+        _decode(r);
+      });
+
+  // --------------------------- «Посмотрел с другом» ---------------------------
+
+  /// Отправить другу совместный просмотр. [data] — {kind,title,...,watchedAt,episodes?}.
+  Future<void> sendCoWatch(String token,
+          {required String toUserId, required Map<String, dynamic> data}) =>
+      _guard(() async {
+        _decode(await _post('/cowatch', {'toUserId': toUserId, ...data}, token));
+      });
+
+  /// Совместные просмотры, присланные мне (для приёма в библиотеку).
+  Future<List<CoWatchItem>> coWatches(String token) => _guard(() async {
+        final b = _decode(await _get('/cowatches', token));
+        return [
+          for (final c in (b['coWatches'] as List? ?? []))
+            CoWatchItem.fromJson(c as Map<String, dynamic>),
+        ];
+      });
+
+  Future<void> dismissCoWatch(String token, String id) => _guard(() async {
+        final r = await http
+            .delete(_u('/cowatches/$id'), headers: _headers(token))
             .timeout(_timeout);
         _decode(r);
       });

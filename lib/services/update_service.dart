@@ -27,7 +27,7 @@ class UpdateService {
   // ПУБЛИЧНЫЙ репозиторий только с релизами (исходники — в приватном Kadr).
   // Приватный репо давал бы 404 на API/скачивании без токена.
   static const String _owner = 'THET1ME-1';
-  static const String _repo = 'Kadr-releases';
+  static const String _repo = 'Kadr';
 
   static Uri get _latestReleaseUri =>
       Uri.parse('https://api.github.com/repos/$_owner/$_repo/releases/latest');

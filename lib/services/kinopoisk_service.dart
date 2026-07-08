@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
+import 'api_keys.dart';
 import 'movie_source.dart';
 
 /// Клиент kinopoisk.dev (ПоискКино API). Поиск фильма по названию+году →
@@ -11,9 +12,10 @@ import 'movie_source.dart';
 class KinopoiskService {
   KinopoiskService._();
 
-  static final Map<String, String> _headers = {
-    'X-API-KEY': ApiConfig.kinopoiskKey,
-    'accept': 'application/json',
+  // Геттер: ключ вводит пользователь (может смениться в настройках).
+  static Map<String, String> get _headers => {
+        'X-API-KEY': ApiKeys.kinopoiskKey,
+        'accept': 'application/json',
   };
 
   static Future<SourceMatch?> search(String title, {int? year}) async {

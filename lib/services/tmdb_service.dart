@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
+import 'api_keys.dart';
 import 'movie_source.dart';
 
 /// Краткая карточка фильма из TMDB (для лент «Обзор»/«В кино»).
@@ -12,6 +13,7 @@ class TmdbMovie {
   final String title; // русское (ru-RU)
   final String? originalTitle;
   final String? posterUrl;
+  final String? backdropUrl;
   final int? year;
   final double? rating;
   final String? overview;
@@ -21,6 +23,7 @@ class TmdbMovie {
     required this.title,
     this.originalTitle,
     this.posterUrl,
+    this.backdropUrl,
     this.year,
     this.rating,
     this.overview,
@@ -29,6 +32,7 @@ class TmdbMovie {
   factory TmdbMovie.fromJson(Map<String, dynamic> j) {
     final rel = j['release_date'] as String? ?? '';
     final poster = j['poster_path'] as String?;
+    final backdrop = j['backdrop_path'] as String?;
     return TmdbMovie(
       id: (j['id'] as num).toInt(),
       title: (j['title'] as String?)?.isNotEmpty == true
@@ -37,6 +41,8 @@ class TmdbMovie {
       originalTitle: j['original_title'] as String?,
       posterUrl:
           poster != null ? '${ApiConfig.tmdbImageBase}$poster' : null,
+      backdropUrl:
+          backdrop != null ? '${ApiConfig.tmdbBackdropBase}$backdrop' : null,
       year: rel.length >= 4 ? int.tryParse(rel.substring(0, 4)) : null,
       rating: (j['vote_average'] as num?)?.toDouble(),
       overview: j['overview'] as String?,
@@ -67,6 +73,7 @@ class TmdbSeries {
   final String title; // русское (ru-RU)
   final String? originalTitle;
   final String? posterUrl;
+  final String? backdropUrl;
   final int? year;
   final double? rating;
   final String? overview;
@@ -76,6 +83,7 @@ class TmdbSeries {
     required this.title,
     this.originalTitle,
     this.posterUrl,
+    this.backdropUrl,
     this.year,
     this.rating,
     this.overview,
@@ -84,6 +92,7 @@ class TmdbSeries {
   factory TmdbSeries.fromJson(Map<String, dynamic> j) {
     final rel = j['first_air_date'] as String? ?? '';
     final poster = j['poster_path'] as String?;
+    final backdrop = j['backdrop_path'] as String?;
     return TmdbSeries(
       id: (j['id'] as num).toInt(),
       title: (j['name'] as String?)?.isNotEmpty == true
@@ -91,6 +100,8 @@ class TmdbSeries {
           : (j['original_name'] as String? ?? ''),
       originalTitle: j['original_name'] as String?,
       posterUrl: poster != null ? '${ApiConfig.tmdbImageBase}$poster' : null,
+      backdropUrl:
+          backdrop != null ? '${ApiConfig.tmdbBackdropBase}$backdrop' : null,
       year: rel.length >= 4 ? int.tryParse(rel.substring(0, 4)) : null,
       rating: (j['vote_average'] as num?)?.toDouble(),
       overview: j['overview'] as String?,
@@ -203,10 +214,31 @@ class TmdbEpisode {
 class TmdbService {
   TmdbService._();
 
-  static final Map<String, String> _headers = {
-    'Authorization': 'Bearer ${ApiConfig.tmdbToken}',
-    'accept': 'application/json',
-  };
+  // Геттер, а не final: токен вводит пользователь и может поменяться в настройках
+  // — заголовки должны отражать текущее значение.
+  static Map<String, String> get _headers => {
+        'Authorization': 'Bearer ${ApiKeys.tmdbToken}',
+        'accept': 'application/json',
+      };
+
+  /// Проверяет TMDB-токен лёгким запросом. true — валиден; false — неверный
+  /// (401); null — не удалось проверить (нет сети) → не блокируем ввод офлайн.
+  static Future<bool?> tokenWorks(String token) async {
+    try {
+      final resp = await http.get(
+        Uri.parse('${ApiConfig.tmdbBase}/authentication'),
+        headers: {
+          'Authorization': 'Bearer ${token.trim()}',
+          'accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 12));
+      if (resp.statusCode == 200) return true;
+      if (resp.statusCode == 401) return false;
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Кэш подробностей в памяти (на сессию).
   static final Map<int, TmdbDetails> _detailsCache = {};

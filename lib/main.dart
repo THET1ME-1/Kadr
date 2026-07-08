@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'l10n/locale_controller.dart';
+import 'services/api_keys.dart';
 import 'services/app_prefs.dart';
 import 'services/auto_backup_service.dart';
 import 'services/movie_repository.dart';
@@ -14,12 +15,14 @@ import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 import 'screens/home_shell.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/tmdb_key_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeController.instance.load();
   await LocaleController.instance.load();
   await SourceController.instance.load();
+  await ApiKeys.load(); // персональные API-ключи (TMDB/kinopoisk)
   await AppPrefs.instance.load();
   await MovieRepository.instance.load();
   await AutoBackupService.instance.load();
@@ -100,7 +103,13 @@ class KadrApp extends StatelessWidget {
                 GlobalCupertinoLocalizations.delegate,
               ],
               navigatorObservers: [appRouteObserver],
-              home: onboarded ? const HomeShell() : const OnboardingScreen(),
+              // Без TMDB-токена приложение почти не работает → сначала экран
+              // ввода своего ключа (после онбординга).
+              home: !onboarded
+                  ? const OnboardingScreen()
+                  : (ApiKeys.hasTmdb
+                      ? const HomeShell()
+                      : const TmdbKeyScreen(gate: true)),
             );
           },
         );

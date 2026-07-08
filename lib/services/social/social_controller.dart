@@ -150,14 +150,7 @@ class SocialController extends ChangeNotifier {
     // Обновим hasRecovery в профиле.
     final u = _user;
     if (u != null) {
-      _user = SocialUser(
-        id: u.id,
-        displayName: u.displayName,
-        avatarVer: u.avatarVer,
-        friendCode: u.friendCode,
-        email: u.email,
-        hasRecovery: true,
-      );
+      _user = u.copyWith(hasRecovery: true);
       await _cacheUser();
       notifyListeners();
     }
@@ -188,14 +181,29 @@ class SocialController extends ChangeNotifier {
     final u = _user;
     if (t == null || u == null) return;
     final ver = await SocialApi.instance.uploadAvatar(t, pngBytes);
-    _user = SocialUser(
-      id: u.id,
-      displayName: u.displayName,
-      avatarVer: ver,
-      friendCode: u.friendCode,
-      email: u.email,
-      hasRecovery: u.hasRecovery,
-    );
+    _user = u.copyWith(avatarVer: ver);
+    await _cacheUser();
+    notifyListeners();
+  }
+
+  /// Загружает баннер профиля (сжатые PNG-байты) и обновляет профиль в памяти.
+  Future<void> setBanner(List<int> pngBytes) async {
+    final t = _token;
+    final u = _user;
+    if (t == null || u == null) return;
+    final ver = await SocialApi.instance.uploadBanner(t, pngBytes);
+    _user = u.copyWith(bannerVer: ver);
+    await _cacheUser();
+    notifyListeners();
+  }
+
+  /// Убирает баннер профиля (возврат к дефолтному градиенту).
+  Future<void> removeBanner() async {
+    final t = _token;
+    final u = _user;
+    if (t == null || u == null) return;
+    await SocialApi.instance.removeBanner(t);
+    _user = u.copyWith(bannerVer: 0);
     await _cacheUser();
     notifyListeners();
   }
@@ -210,6 +218,7 @@ class SocialController extends ChangeNotifier {
       notifyListeners();
       await _notifyNewRequests();
       await _notifyNewRecommendations();
+      await _ingestCoWatches();
     } on SocialException catch (e) {
       if (e.status == 401) await _clearSession();
     }
@@ -324,6 +333,123 @@ class SocialController extends ChangeNotifier {
     final t = _token;
     if (t == null) return;
     await SocialApi.instance.dismissRecommendation(t, id);
+  }
+
+  // ------------------------ «Посмотрел с другом» ------------------------
+
+  /// Отправляет другу совместный просмотр ФИЛЬМА (засчитается и ему).
+  Future<void> sendMovieCoWatch({
+    required String toUserId,
+    required String title,
+    String? origTitle,
+    int? year,
+    int? tmdbId,
+    String? posterUrl,
+    DateTime? watchedAt,
+  }) async {
+    final t = _token;
+    if (t == null) return;
+    await SocialApi.instance.sendCoWatch(t, toUserId: toUserId, data: {
+      'kind': 'movie',
+      'title': title,
+      'origTitle': origTitle,
+      'year': year,
+      'tmdbId': tmdbId,
+      'posterUrl': posterUrl,
+      'watchedAt': watchedAt?.millisecondsSinceEpoch,
+    });
+  }
+
+  /// Отправляет другу совместный просмотр СЕРИАЛА (список серий [сезон, номер]).
+  Future<void> sendSeriesCoWatch({
+    required String toUserId,
+    required String title,
+    String? origTitle,
+    int? year,
+    int? tmdbId,
+    String? posterUrl,
+    DateTime? watchedAt,
+    required List<List<int>> episodes,
+  }) async {
+    final t = _token;
+    if (t == null) return;
+    await SocialApi.instance.sendCoWatch(t, toUserId: toUserId, data: {
+      'kind': 'series',
+      'title': title,
+      'origTitle': origTitle,
+      'year': year,
+      'tmdbId': tmdbId,
+      'posterUrl': posterUrl,
+      'watchedAt': watchedAt?.millisecondsSinceEpoch,
+      'episodes': episodes,
+    });
+  }
+
+  /// Забирает присланные совместные просмотры, добавляет их в мою библиотеку и
+  /// удаляет с сервера. Идемпотентно (id уже принятых помним в Store — на случай,
+  /// если удаление не прошло). После добавления — локальное уведомление.
+  Future<void> _ingestCoWatches() async {
+    final t = _token;
+    if (t == null) return;
+    List<CoWatchItem> items;
+    try {
+      items = await SocialApi.instance.coWatches(t);
+    } catch (_) {
+      return;
+    }
+    if (items.isEmpty) return;
+    final done = (await Store.instance.getStringList('coWatchIngested')).toSet();
+    var added = 0;
+    CoWatchItem? last;
+    for (final c in items) {
+      if (!done.contains(c.id)) {
+        try {
+          if (c.isSeries) {
+            await MovieRepository.instance.ingestCoWatchSeries(
+              title: c.title,
+              origTitle: c.origTitle,
+              year: c.year,
+              tmdbId: c.tmdbId,
+              posterUrl: c.posterUrl,
+              episodes: c.episodes,
+              date: c.watchedDate,
+            );
+          } else {
+            await MovieRepository.instance.ingestCoWatchMovie(
+              title: c.title,
+              origTitle: c.origTitle,
+              year: c.year,
+              tmdbId: c.tmdbId,
+              posterUrl: c.posterUrl,
+              date: c.watchedDate,
+            );
+          }
+          done.add(c.id);
+          added++;
+          last = c;
+        } catch (_) {
+          continue; // оставим на следующий раз
+        }
+      }
+      // Убираем с сервера (в т.ч. если приняли ранее, но удаление не прошло).
+      try {
+        await SocialApi.instance.dismissCoWatch(t, c.id);
+      } catch (_) {/* удалим в следующий раз */}
+    }
+    // Храним только те id, что ещё висят на сервере (принято, но не удалено).
+    final serverIds = items.map((c) => c.id).toSet();
+    await Store.instance
+        .setStringList('coWatchIngested', done.where(serverIds.contains).toList());
+    if (added > 0 && last != null) {
+      final body = added > 1
+          ? trf('notif_cowatch_many',
+              {'name': last.from.displayName, 'n': added - 1})
+          : trf('notif_cowatch_one',
+              {'name': last.from.displayName, 'title': last.title});
+      await NotificationService.instance
+          .showSocial(tr('notif_cowatch_title'), body);
+      unawaited(publishSilently()); // друг увидит совместный просмотр у себя
+    }
   }
 
   /// true — [userId] уже мой принятый друг (для перехода к его профилю).

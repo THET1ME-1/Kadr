@@ -6,10 +6,12 @@ import '../config/api_config.dart';
 
 /// Профиль пользователя. [email] заполнен только для СВОЕГО профиля.
 /// [avatarVer] — версия загруженного фото (0 = фото нет); URL строится из неё.
+/// [bannerVer] — версия баннера-обложки (0 = нет); URL строится из неё.
 class SocialUser {
   final String id;
   final String displayName;
   final int avatarVer;
+  final int bannerVer;
   final String friendCode;
   final String? email;
 
@@ -20,6 +22,7 @@ class SocialUser {
     required this.id,
     required this.displayName,
     required this.avatarVer,
+    this.bannerVer = 0,
     required this.friendCode,
     this.email,
     this.hasRecovery = false,
@@ -30,16 +33,40 @@ class SocialUser {
       ? '${ApiConfig.socialBase}/avatars/$id?v=$avatarVer'
       : null;
 
+  /// URL баннера-обложки (null — не загружен). Версия в query сбрасывает кэш.
+  String? get bannerUrl => bannerVer > 0
+      ? '${ApiConfig.socialBase}/banners/$id?v=$bannerVer'
+      : null;
+
   /// Первая буква ника для заглушки-аватара, когда фото нет.
   String get initial {
     final t = displayName.trim();
     return t.isEmpty ? '?' : t.substring(0, 1).toUpperCase();
   }
 
+  /// Копия с изменёнными полями (безопасно сохраняет остальные, в т.ч. версии
+  /// аватара/баннера — чтобы одна правка не обнуляла другую).
+  SocialUser copyWith({
+    String? displayName,
+    int? avatarVer,
+    int? bannerVer,
+    bool? hasRecovery,
+  }) =>
+      SocialUser(
+        id: id,
+        displayName: displayName ?? this.displayName,
+        avatarVer: avatarVer ?? this.avatarVer,
+        bannerVer: bannerVer ?? this.bannerVer,
+        friendCode: friendCode,
+        email: email,
+        hasRecovery: hasRecovery ?? this.hasRecovery,
+      );
+
   factory SocialUser.fromJson(Map<String, dynamic> j) => SocialUser(
         id: '${j['id']}',
         displayName: j['displayName'] as String? ?? '',
         avatarVer: (j['avatar'] as num?)?.toInt() ?? 0,
+        bannerVer: (j['banner'] as num?)?.toInt() ?? 0,
         friendCode: j['friendCode'] as String? ?? '',
         email: j['email'] as String?,
         hasRecovery: j['hasRecovery'] == true,
@@ -49,6 +76,7 @@ class SocialUser {
         'id': id,
         'displayName': displayName,
         'avatar': avatarVer,
+        'banner': bannerVer,
         'friendCode': friendCode,
         if (email != null) 'email': email,
       };
@@ -195,6 +223,59 @@ class RecommendationItem {
         posterUrl: j['posterUrl'] as String?,
         note: j['note'] as String?,
         createdAt: (j['createdAt'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Совместный просмотр («Посмотрел с другом»), присланный мне: устройство
+/// добавляет его в мою библиотеку и удаляет с сервера. [kind] = movie|series.
+class CoWatchItem {
+  final String id;
+  final SocialUser from;
+  final String kind;
+  final String title;
+  final String? origTitle;
+  final int? year;
+  final int? tmdbId;
+  final String? posterUrl;
+
+  /// Когда посмотрели (ms epoch) или null («неизвестная дата»).
+  final int? watchedAt;
+
+  /// Для сериалов — список [сезон, номер] отмеченных серий.
+  final List<List<int>> episodes;
+
+  const CoWatchItem({
+    required this.id,
+    required this.from,
+    required this.kind,
+    required this.title,
+    this.origTitle,
+    this.year,
+    this.tmdbId,
+    this.posterUrl,
+    this.watchedAt,
+    this.episodes = const [],
+  });
+
+  bool get isSeries => kind == 'series';
+  DateTime? get watchedDate =>
+      watchedAt != null ? DateTime.fromMillisecondsSinceEpoch(watchedAt!) : null;
+
+  factory CoWatchItem.fromJson(Map<String, dynamic> j) => CoWatchItem(
+        id: '${j['id']}',
+        from: SocialUser.fromJson(j['from'] as Map<String, dynamic>),
+        kind: j['kind'] as String? ?? 'movie',
+        title: j['title'] as String? ?? '',
+        origTitle: j['origTitle'] as String?,
+        year: (j['year'] as num?)?.toInt(),
+        tmdbId: (j['tmdbId'] as num?)?.toInt(),
+        posterUrl: j['posterUrl'] as String?,
+        watchedAt: (j['watchedAt'] as num?)?.toInt(),
+        episodes: [
+          for (final e in (j['episodes'] as List? ?? []))
+            if (e is List && e.length >= 2)
+              [(e[0] as num).toInt(), (e[1] as num).toInt()]
+        ],
       );
 }
 

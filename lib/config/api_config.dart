@@ -1,22 +1,21 @@
-/// Ключи внешних API.
+/// Адреса внешних API и КОМПИЛЯЦИОННЫЙ fallback ключей.
 ///
-/// Токен kinopoisk.dev (ПоискКино API). Демо-тариф: 200 запросов/сутки.
-/// Можно переопределить при сборке: `--dart-define=KINOPOISK_KEY=...`.
-/// Ключ можно перевыпустить в личном кабинете при необходимости.
+/// ВАЖНО: в публичной сборке ключи ПУСТЫЕ — их вводит сам пользователь (см.
+/// [ApiKeys]/`TmdbKeyScreen`), потому что API-ключи персональные. Для своей
+/// сборки можно вшить: `--dart-define=TMDB_TOKEN=... --dart-define=KINOPOISK_KEY=...`.
 class ApiConfig {
-  static const String kinopoiskKey = String.fromEnvironment(
+  /// Ключ kinopoisk.dev из окружения сборки (пусто → берётся введённый в приложении).
+  static const String kinopoiskKeyEnv = String.fromEnvironment(
     'KINOPOISK_KEY',
-    defaultValue: 'REMOVED_KINOPOISK_KEY',
+    defaultValue: '',
   );
 
   static const String kinopoiskBase = 'https://api.poiskkino.dev';
 
-  /// TMDB v4 read-access token (Bearer). Бесплатно, без суточного лимита
-  /// (~50 запросов/сек). Переопределить: `--dart-define=TMDB_TOKEN=...`.
-  static const String tmdbToken = String.fromEnvironment(
+  /// TMDB v4 read-access token из окружения сборки (пусто → вводит пользователь).
+  static const String tmdbTokenEnv = String.fromEnvironment(
     'TMDB_TOKEN',
-    defaultValue:
-        'REMOVED_TMDB_TOKEN',
+    defaultValue: '',
   );
 
   static const String tmdbBase = 'https://api.themoviedb.org/3';

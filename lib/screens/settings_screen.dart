@@ -19,6 +19,7 @@ import '../widgets/color_picker_sheet.dart';
 import 'about_screen.dart';
 import 'auto_backup_screen.dart';
 import 'sync_screen.dart';
+import 'tmdb_key_screen.dart';
 
 /// Экран настроек в духе Material 3 Expressive (перенос из ScoreMaster):
 /// внешний вид (тема, цвет, палитры, Material You, AMOLED), язык (7 языков),
@@ -156,6 +157,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: tr('movie_source'),
                   subtitle: '${_source.source.label} · ${_source.source.note}',
                   onTap: _pickSource,
+                ),
+                _divider(),
+                _tile(
+                  icon: Icons.vpn_key_rounded,
+                  title: tr('api_keys_title'),
+                  subtitle: tr('api_keys_sub'),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const TmdbKeyScreen())),
                 ),
               ]),
               _section(tr('nav_series')),

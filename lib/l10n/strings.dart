@@ -56,6 +56,109 @@ const Map<String, Map<String, String>> _strings = {
   },
   'profile_outgoing': {'ru': 'Отправленные заявки: {n}', 'en': 'Sent requests: {n}'},
   'profile_edit_name': {'ru': 'Изменить имя', 'en': 'Edit name'},
+  'avatar_edit': {'ru': 'Фото профиля', 'en': 'Profile photo'},
+  'banner_edit': {'ru': 'Баннер профиля', 'en': 'Profile banner'},
+  'banner_change': {'ru': 'Сменить баннер', 'en': 'Change banner'},
+  'banner_choose': {'ru': 'Выбрать из галереи', 'en': 'Choose from gallery'},
+  'banner_remove': {'ru': 'Убрать баннер', 'en': 'Remove banner'},
+  'pick_from_poster': {'ru': 'Из постера фильма', 'en': 'From a movie poster'},
+  'pick_from_backdrop': {'ru': 'Из кадра фильма', 'en': 'From a movie still'},
+  'pick_media_title_poster': {'ru': 'Постер как фото', 'en': 'Poster as photo'},
+  'pick_media_title_backdrop': {'ru': 'Кадр как баннер', 'en': 'Still as banner'},
+  'pick_media_search': {
+    'ru': 'Поиск фильма или сериала',
+    'en': 'Search a movie or show'
+  },
+  'pick_media_hint': {
+    'ru': 'Найди фильм или сериал — возьмём его картинку.',
+    'en': 'Find a movie or show — we\'ll use its image.'
+  },
+  'pick_media_empty': {'ru': 'Ничего не нашлось', 'en': 'Nothing found'},
+  'cowatch_with_friend': {
+    'ru': 'Посмотрел с другом',
+    'en': 'Watched with a friend'
+  },
+  'cowatch_pick_title': {'ru': 'С кем смотрели?', 'en': 'Who did you watch with?'},
+  'cowatch_with': {'ru': 'С: {names}', 'en': 'With: {names}'},
+  'cowatch_change': {'ru': 'Изменить', 'en': 'Change'},
+  'cowatch_marked': {
+    'ru': 'Отмечено совместно · +{n} друг(а/ей)',
+    'en': 'Marked together · +{n} friend(s)'
+  },
+  'notif_cowatch_title': {
+    'ru': 'Совместный просмотр',
+    'en': 'Watched together'
+  },
+  'notif_cowatch_one': {
+    'ru': '{name}: вы вместе посмотрели «{title}»',
+    'en': '{name}: you watched "{title}" together'
+  },
+  'notif_cowatch_many': {
+    'ru': '{name} и ещё +{n} совместных просмотра',
+    'en': '{name} and +{n} more shared views'
+  },
+  'paste': {'ru': 'Вставить', 'en': 'Paste'},
+  'open_link_fail': {
+    'ru': 'Не удалось открыть {url}',
+    'en': 'Could not open {url}'
+  },
+  'tmdb_key_title': {'ru': 'Ключ TMDB', 'en': 'TMDB key'},
+  'tmdb_key_intro_title': {
+    'ru': 'Нужен свой ключ TMDB',
+    'en': 'Your own TMDB key is needed'
+  },
+  'tmdb_key_intro': {
+    'ru': 'Kadr берёт данные о фильмах из TMDB. Ключ бесплатный и личный — '
+        'получи свой за пару минут и вставь ниже. Он хранится только на этом устройстве.',
+    'en': 'Kadr gets movie data from TMDB. The key is free and personal — '
+        'grab yours in a couple of minutes and paste it below. It stays only on this device.'
+  },
+  'tmdb_key_step1': {
+    'ru': 'Зарегистрируйся на themoviedb.org (бесплатно).',
+    'en': 'Sign up at themoviedb.org (free).'
+  },
+  'tmdb_key_step2': {
+    'ru': 'Настройки → API → создай ключ (тип Developer).',
+    'en': 'Settings → API → create a key (Developer type).'
+  },
+  'tmdb_key_step3': {
+    'ru': 'Скопируй «API Read Access Token» (длинный, начинается с eyJ…).',
+    'en': 'Copy the "API Read Access Token" (long, starts with eyJ…).'
+  },
+  'tmdb_key_step4': {
+    'ru': 'Вставь его в поле ниже и сохрани.',
+    'en': 'Paste it into the field below and save.'
+  },
+  'tmdb_key_open': {
+    'ru': 'Открыть настройки API TMDB',
+    'en': 'Open TMDB API settings'
+  },
+  'tmdb_key_field': {'ru': 'TMDB Read Access Token', 'en': 'TMDB Read Access Token'},
+  'tmdb_key_hint': {'ru': 'eyJ…', 'en': 'eyJ…'},
+  'kinopoisk_key_field': {
+    'ru': 'Ключ kinopoisk.dev (необязательно)',
+    'en': 'kinopoisk.dev key (optional)'
+  },
+  'kinopoisk_key_hint': {
+    'ru': 'Только если хочешь источник «Кинопоиск»',
+    'en': 'Only if you want the "Kinopoisk" source'
+  },
+  'tmdb_key_save_go': {'ru': 'Сохранить и продолжить', 'en': 'Save and continue'},
+  'tmdb_key_empty': {'ru': 'Вставь токен', 'en': 'Paste a token'},
+  'tmdb_key_invalid': {
+    'ru': 'Токен не подошёл — проверь и вставь снова',
+    'en': "Token didn't work — check and paste again"
+  },
+  'tmdb_key_saved': {'ru': 'Ключ сохранён', 'en': 'Key saved'},
+  'tmdb_key_offline': {
+    'ru': 'Не удалось проверить (нет сети) — сохранил, поправишь позже',
+    'en': "Couldn't verify (offline) — saved, fix later if needed"
+  },
+  'api_keys_title': {'ru': 'API-ключи (TMDB)', 'en': 'API keys (TMDB)'},
+  'api_keys_sub': {
+    'ru': 'Свой токен TMDB / kinopoisk',
+    'en': 'Your TMDB / kinopoisk key'
+  },
   'profile_add_hint': {
     'ru': 'Введи код друга — он покажет его на своём профиле.',
     'en': 'Enter your friend’s code — they can find it on their profile.'
@@ -629,6 +732,19 @@ const Map<String, Map<String, String>> _strings = {
   'season_dated': {
     'ru': 'Дата задана для {n} серий',
     'en': 'Date set for {n} episodes'
+  },
+  'season_dates_replace_title': {
+    'ru': 'Заменить даты серий?',
+    'en': 'Replace episode dates?'
+  },
+  'season_dates_replace_body': {
+    'ru': 'У серий сезона проставлены разные даты ({n} дней просмотра). Они будут заменены одной. Продолжить?',
+    'en': 'Season episodes have different dates ({n} watch days). They will be collapsed into one. Continue?'
+  },
+  'replace': {'ru': 'Заменить', 'en': 'Replace'},
+  'season_done_undated': {
+    'ru': 'Сезон {n} отмечен без даты — не попадает в ленту «Просмотрено»',
+    'en': "Season {n} marked without a date — won't appear in the Watched feed"
   },
   'restrict_unaired': {'ru': 'Запрет невышедших серий', 'en': 'Block unaired episodes'},
   'restrict_unaired_sub': {

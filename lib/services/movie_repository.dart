@@ -1414,6 +1414,114 @@ class MovieRepository extends ChangeNotifier {
     return wasWatched;
   }
 
+  /// Приём совместного просмотра ФИЛЬМА от друга: находит/создаёт фильм и
+  /// добавляет просмотр с датой ([date] = null → «неизвестная дата»).
+  Future<void> ingestCoWatchMovie({
+    required String title,
+    String? origTitle,
+    int? year,
+    int? tmdbId,
+    String? posterUrl,
+    DateTime? date,
+  }) async {
+    LibraryMovie m;
+    if (tmdbId != null) {
+      m = ensureFromTmdb(TmdbMovie(
+          id: tmdbId,
+          title: title,
+          originalTitle: origTitle,
+          year: year,
+          posterUrl: posterUrl));
+    } else {
+      final key = (origTitle ?? title).toLowerCase().trim();
+      LibraryMovie? found;
+      for (final x in _movies) {
+        final names = {
+          x.title.toLowerCase().trim(),
+          (x.ruTitle ?? '').toLowerCase().trim(),
+        };
+        if (names.contains(key) &&
+            (year == null || x.year == null || x.year == year)) {
+          found = x;
+          break;
+        }
+      }
+      if (found == null) {
+        found = LibraryMovie(
+          uuid: 'cw-${key.hashCode}-${year ?? 0}',
+          title: origTitle ?? title,
+          ruTitle: title,
+          year: year,
+          posterUrl: posterUrl,
+        );
+        _movies.add(found);
+      }
+      m = found;
+    }
+    await addViewing(m.uuid, date);
+  }
+
+  /// Приём совместного просмотра СЕРИАЛА от друга: находит/создаёт сериал и
+  /// отмечает переданные серии ([episodes] = список [сезон, номер]).
+  Future<void> ingestCoWatchSeries({
+    required String title,
+    String? origTitle,
+    int? year,
+    int? tmdbId,
+    String? posterUrl,
+    required List<List<int>> episodes,
+    DateTime? date,
+  }) async {
+    LibrarySeries s;
+    if (tmdbId != null) {
+      s = ensureSeriesFromTmdb(TmdbSeries(
+          id: tmdbId,
+          title: title,
+          originalTitle: origTitle,
+          year: year,
+          posterUrl: posterUrl));
+    } else {
+      final key = (origTitle ?? title).toLowerCase().trim();
+      LibrarySeries? found;
+      for (final x in _series) {
+        final names = {
+          x.title.toLowerCase().trim(),
+          (x.ruTitle ?? '').toLowerCase().trim(),
+        };
+        if (names.contains(key)) {
+          found = x;
+          break;
+        }
+      }
+      if (found == null) {
+        found = LibrarySeries(
+          tvShowId: 'cw-tv-${key.hashCode}',
+          title: origTitle ?? title,
+          ruTitle: title,
+          year: year,
+          posterUrl: posterUrl,
+        );
+        _series.add(found);
+      }
+      s = found;
+    }
+    var i = 0;
+    for (final ep in episodes) {
+      if (ep.length < 2) continue;
+      if (!s.isEpisodeWatched(ep[0], ep[1])) {
+        // Небольшой сдвиг по секундам держит серии одной сессией по порядку.
+        s.episodes.add(Episode(
+            season: ep[0],
+            number: ep[1],
+            watchedAt: date?.add(Duration(seconds: i))));
+        i++;
+      }
+    }
+    s.finished = false;
+    notifyListeners();
+    await _persist();
+  }
+
   /// Устанавливает оценку конкретного просмотра.
   Future<void> setViewingScore(String uuid, Viewing v, double? score) async {
     final m = byUuid(uuid);

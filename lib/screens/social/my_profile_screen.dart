@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 import '../../l10n/strings.dart';
 import '../../models/social.dart';
@@ -12,10 +13,12 @@ import '../../services/social/avatar_util.dart';
 import '../../services/social/social_controller.dart';
 import '../../services/store.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/profile_banner.dart';
 import '../../widgets/user_avatar.dart';
 import '../statistics_screen.dart';
 import 'auth_screen.dart';
 import 'friend_profile_screen.dart';
+import 'media_image_picker.dart';
 import 'profile_stats.dart';
 import 'recovery.dart';
 
@@ -30,6 +33,7 @@ class MyProfileScreen extends StatefulWidget {
 
 class _MyProfileScreenState extends State<MyProfileScreen> {
   bool _uploading = false;
+  bool _uploadingBanner = false;
   bool _hideRatings = false;
   bool _hideDates = false;
 
@@ -137,32 +141,46 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   // ------------------------------- профиль -------------------------------
 
   Widget _profile(BuildContext context, SocialUser me, SocialController ctl) {
+    final scheme = Theme.of(context).colorScheme;
     return RefreshIndicator(
       onRefresh: () => ctl.refreshFriends(),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
+        padding: const EdgeInsets.only(bottom: 40),
         children: [
           _header(context, me),
-          if (ctl.friends.incoming.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            _incomingSection(context, ctl),
-          ],
-          const SizedBox(height: 24),
-          _friendsSection(context, ctl),
-          const SizedBox(height: 24),
-          _accountSection(context, me),
-          const SizedBox(height: 24),
-          Text(tr('drawer_stats'),
-              style: TextStyle(
-                  fontFamily: AppTheme.displayFont,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 17,
-                  color: Theme.of(context).colorScheme.onSurface)),
-          const SizedBox(height: 12),
-          ProfileStats(
-            repo: MovieRepository.instance,
-            onHeroTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const StatisticsScreen())),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (ctl.friends.incoming.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  _incomingSection(context, ctl),
+                ],
+                const SizedBox(height: 24),
+                _friendsSection(context, ctl),
+                const SizedBox(height: 24),
+                _accountSection(context, me),
+                const SizedBox(height: 24),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(tr('drawer_stats'),
+                      style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                          color: scheme.onSurface)),
+                ),
+                const SizedBox(height: 12),
+                ProfileStats(
+                  repo: MovieRepository.instance,
+                  onHeroTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const StatisticsScreen())),
+                ),
+                const SizedBox(height: 32),
+                _logoutButton(context),
+              ],
+            ),
           ),
         ],
       ),
@@ -171,38 +189,31 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   Widget _header(BuildContext context, SocialUser me) {
     final scheme = Theme.of(context).colorScheme;
-    return Row(
+    const avatarSize = 88.0;
+    const overlap = 42.0; // насколько аватар свисает ниже баннера
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        GestureDetector(
-          onTap: _uploading ? null : _pickAvatar,
-          child: Stack(
-            children: [
-              UserAvatar(user: me, size: 76),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: scheme.primary,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: scheme.surface, width: 2),
-                  ),
-                  child: _uploading
-                      ? SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: scheme.onPrimary))
-                      : Icon(Icons.photo_camera_rounded,
-                          size: 14, color: scheme.onPrimary),
-                ),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            GestureDetector(
+              onTap: _uploadingBanner ? null : _bannerMenu,
+              child: ProfileBanner(user: me, height: 178),
+            ),
+            Positioned(top: 12, right: 12, child: _bannerEditButton(scheme)),
+            Positioned(
+              left: 20,
+              bottom: -overlap,
+              child: GestureDetector(
+                onTap: _uploading ? null : _avatarMenu,
+                child: _avatarWithBadge(scheme, me, avatarSize),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        const SizedBox(width: 16),
-        Expanded(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(122, 10, 16, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -225,20 +236,91 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   ),
                 ],
               ),
-              _codeChip(context, me.friendCode),
-              const SizedBox(height: 6),
-              TextButton.icon(
-                onPressed: _confirmLogout,
-                style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact),
-                icon: const Icon(Icons.logout_rounded, size: 16),
-                label: Text(tr('social_logout')),
-              ),
+              const SizedBox(height: 2),
+              Align(
+                  alignment: Alignment.centerLeft,
+                  child: _codeChip(context, me.friendCode)),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  /// Аватар со значком «сменить фото» (перекрывает низ баннера, в кольце фона).
+  Widget _avatarWithBadge(ColorScheme scheme, SocialUser me, double size) {
+    return Stack(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(color: scheme.surface, shape: BoxShape.circle),
+          child: UserAvatar(user: me, size: size),
+        ),
+        Positioned(
+          right: 2,
+          bottom: 2,
+          child: Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: scheme.primary,
+              shape: BoxShape.circle,
+              border: Border.all(color: scheme.surface, width: 2),
+            ),
+            child: _uploading
+                ? SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: scheme.onPrimary))
+                : Icon(Icons.photo_camera_rounded,
+                    size: 14, color: scheme.onPrimary),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Круглая кнопка «сменить баннер» поверх обложки (правый верхний угол).
+  Widget _bannerEditButton(ColorScheme scheme) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.38),
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _uploadingBanner ? null : _bannerMenu,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: _uploadingBanner
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.edit_rounded, size: 18, color: Colors.white),
+        ),
+      ),
+    );
+  }
+
+  /// Широкая закрашенная кнопка «Выйти» — в самом низу профиля.
+  Widget _logoutButton(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: _confirmLogout,
+        style: FilledButton.styleFrom(
+          backgroundColor: scheme.errorContainer,
+          foregroundColor: scheme.onErrorContainer,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+        ),
+        icon: const Icon(Icons.logout_rounded),
+        label: Text(tr('social_logout'),
+            style: const TextStyle(
+                fontFamily: AppTheme.displayFont,
+                fontWeight: FontWeight.w700,
+                fontSize: 15)),
+      ),
     );
   }
 
@@ -521,6 +603,56 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   // ------------------------------ действия ------------------------------
 
+  /// Меню аватара: из галереи / из постера фильма.
+  void _avatarMenu() {
+    final scheme = Theme.of(context).colorScheme;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: scheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 10),
+            ListTile(
+              leading: Icon(Icons.image_rounded, color: scheme.primary),
+              title: Text(tr('banner_choose'),
+                  style: const TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAvatar();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.movie_filter_rounded, color: scheme.primary),
+              title: Text(tr('pick_from_poster'),
+                  style: const TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontWeight: FontWeight.w600)),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final url = await showMediaImagePicker(context, backdrop: false);
+                if (url != null) await _applyAvatarFromUrl(url);
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _pickAvatar() async {
     try {
       final res = await FilePicker.platform
@@ -540,6 +672,150 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       }
     } finally {
       if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  /// Скачивает картинку по URL (постер/кадр TMDB). Возвращает байты или null.
+  Future<Uint8List?> _downloadImage(String url) async {
+    final resp =
+        await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+    if (resp.statusCode != 200 || resp.bodyBytes.isEmpty) return null;
+    return resp.bodyBytes;
+  }
+
+  /// Ставит аватар из постера фильма (квадратный кроп).
+  Future<void> _applyAvatarFromUrl(String url) async {
+    setState(() => _uploading = true);
+    try {
+      final raw = await _downloadImage(url);
+      if (raw == null) return;
+      final png = await resizeAvatarPng(raw);
+      await SocialController.instance.setAvatar(png);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  /// Ставит баннер из кадра фильма (широкий кроп).
+  Future<void> _applyBannerFromUrl(String url) async {
+    setState(() => _uploadingBanner = true);
+    try {
+      final raw = await _downloadImage(url);
+      if (raw == null) return;
+      final png = await resizeBannerPng(raw);
+      await SocialController.instance.setBanner(png);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingBanner = false);
+    }
+  }
+
+  /// Меню баннера: выбрать картинку / убрать (если задан).
+  void _bannerMenu() {
+    final scheme = Theme.of(context).colorScheme;
+    final hasBanner = (SocialController.instance.user?.bannerVer ?? 0) > 0;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: scheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 10),
+            ListTile(
+              leading: Icon(Icons.image_rounded, color: scheme.primary),
+              title: Text(tr('banner_choose'),
+                  style: const TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickBanner();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.movie_filter_rounded, color: scheme.primary),
+              title: Text(tr('pick_from_backdrop'),
+                  style: const TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontWeight: FontWeight.w600)),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final url = await showMediaImagePicker(context, backdrop: true);
+                if (url != null) await _applyBannerFromUrl(url);
+              },
+            ),
+            if (hasBanner)
+              ListTile(
+                leading: Icon(Icons.hide_image_rounded, color: scheme.error),
+                title: Text(tr('banner_remove'),
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.error)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _removeBanner();
+                },
+              ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickBanner() async {
+    try {
+      final res = await FilePicker.platform
+          .pickFiles(type: FileType.image, withData: true);
+      if (res == null || res.files.isEmpty) return;
+      final file = res.files.single;
+      final raw = file.bytes ??
+          (file.path != null ? await File(file.path!).readAsBytes() : null);
+      if (raw == null) return;
+      setState(() => _uploadingBanner = true);
+      final png = await resizeBannerPng(raw);
+      await SocialController.instance.setBanner(png);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingBanner = false);
+    }
+  }
+
+  Future<void> _removeBanner() async {
+    setState(() => _uploadingBanner = true);
+    try {
+      await SocialController.instance.removeBanner();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingBanner = false);
     }
   }
 

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   pass_hash      TEXT NOT NULL,           -- pbkdf2: saltHex:hashHex:iterations
   display_name   TEXT NOT NULL,
   avatar_updated INTEGER NOT NULL DEFAULT 0, -- 0 = фото нет; иначе ver (cache-bust)
+  banner_updated INTEGER NOT NULL DEFAULT 0, -- 0 = баннера нет; иначе ver (cache-bust)
   friend_code    TEXT UNIQUE NOT NULL,    -- короткий код для добавления в друзья
   recovery_hash  TEXT,                    -- PBKDF2-хэш кода восстановления (nullable)
   created_at     INTEGER NOT NULL,
@@ -18,6 +19,15 @@ CREATE INDEX IF NOT EXISTS idx_users_name ON users(display_name);
 -- Аватарки (сжатые на телефоне до ~256px). Храним в D1 как base64 —
 -- у токена нет прав на R2, а фото после ресайза весит десятки КБ.
 CREATE TABLE IF NOT EXISTS avatars (
+  user_id      TEXT PRIMARY KEY,
+  data_b64     TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  updated_at   INTEGER NOT NULL
+);
+
+-- Баннеры профиля (широкая картинка-обложка, ~1080×480). Как и аватары —
+-- сжаты на телефоне и хранятся в D1 как base64.
+CREATE TABLE IF NOT EXISTS banners (
   user_id      TEXT PRIMARY KEY,
   data_b64     TEXT NOT NULL,
   content_type TEXT NOT NULL,
@@ -96,3 +106,14 @@ CREATE TABLE IF NOT EXISTS recommendations (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_rec_to ON recommendations(to_user);
+
+-- «Посмотрел с другом»: совместный просмотр — засчитывается и получателю.
+-- Устройство друга забирает записи, добавляет к себе в библиотеку и удаляет их.
+CREATE TABLE IF NOT EXISTS co_watches (
+  id         TEXT PRIMARY KEY,
+  from_user  TEXT NOT NULL,
+  to_user    TEXT NOT NULL,
+  data       TEXT NOT NULL,               -- JSON {kind, title, year, tmdbId, posterUrl, watchedAt, episodes?}
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cowatch_to ON co_watches(to_user);

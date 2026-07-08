@@ -172,6 +172,7 @@ const publicUser = (u) => ({
   id: u.id,
   displayName: u.display_name,
   avatar: u.avatar_updated || 0,
+  banner: u.banner_updated || 0,
   friendCode: u.friend_code,
 });
 
@@ -421,13 +422,63 @@ async function getAvatar(env, userId) {
   });
 }
 
+// Загрузка баннера профиля: тело = байты картинки (клиент сжал до ~1080px по
+// ширине). Кладём в D1 как base64, поднимаем версию в users.banner_updated.
+async function uploadBanner(request, env, me) {
+  const ct = request.headers.get('Content-Type') || '';
+  if (!/^image\/(png|jpeg|jpg|webp)$/i.test(ct)) return err('bad_type');
+  const buf = await request.arrayBuffer();
+  if (buf.byteLength === 0) return err('empty');
+  if (buf.byteLength > 700 * 1024) return err('too_large', 413); // ≤ 700 КБ
+  const ver = now();
+  await env.DB.prepare(
+    `INSERT INTO banners (user_id, data_b64, content_type, updated_at) VALUES (?1, ?2, ?3, ?4)
+     ON CONFLICT(user_id) DO UPDATE SET data_b64 = ?2, content_type = ?3, updated_at = ?4`,
+  )
+    .bind(me.id, base64FromArrayBuffer(buf), ct, ver)
+    .run();
+  await env.DB.prepare('UPDATE users SET banner_updated = ? WHERE id = ?')
+    .bind(ver, me.id)
+    .run();
+  return json({ banner: ver });
+}
+
+// Удаление баннера профиля (сброс к дефолтному градиенту).
+async function deleteBanner(env, me) {
+  await env.DB.prepare('DELETE FROM banners WHERE user_id = ?').bind(me.id).run();
+  await env.DB.prepare('UPDATE users SET banner_updated = 0 WHERE id = ?')
+    .bind(me.id)
+    .run();
+  return json({ banner: 0 });
+}
+
+// Отдача баннера (публично; URL содержит ?v=ver, поэтому кэшируем навсегда).
+async function getBanner(env, userId) {
+  const row = await env.DB.prepare(
+    'SELECT data_b64, content_type FROM banners WHERE user_id = ?',
+  )
+    .bind(userId)
+    .first();
+  if (!row) return new Response('not found', { status: 404, headers: CORS });
+  const bin = atob(row.data_b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Response(bytes, {
+    headers: {
+      'Content-Type': row.content_type,
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      ...CORS,
+    },
+  });
+}
+
 // Списки друзей: принятые + входящие/исходящие заявки. Для каждого — публичный
 // профиль и время последнего обновления его библиотеки (для сортировки/значка).
 async function listFriends(env, me) {
   const rows = (
     await env.DB.prepare(
       `SELECT f.requester, f.addressee, f.status, f.updated_at AS f_updated,
-              u.id, u.display_name, u.emoji, u.friend_code,
+              u.id, u.display_name, u.avatar_updated, u.banner_updated, u.friend_code,
               (SELECT updated_at FROM library WHERE user_id = u.id) AS lib_updated
        FROM friendships f
        JOIN users u ON u.id = (CASE WHEN f.requester = ?1 THEN f.addressee ELSE f.requester END)
@@ -445,7 +496,8 @@ async function listFriends(env, me) {
       user: {
         id: r.id,
         displayName: r.display_name,
-        emoji: r.emoji,
+        avatar: r.avatar_updated || 0,
+        banner: r.banner_updated || 0,
         friendCode: r.friend_code,
       },
       libraryUpdatedAt: r.lib_updated || 0,
@@ -568,7 +620,7 @@ async function getUserFriends(env, me, userId) {
   }
   const rows = (
     await env.DB.prepare(
-      `SELECT u.id, u.display_name, u.emoji, u.friend_code
+      `SELECT u.id, u.display_name, u.avatar_updated, u.banner_updated, u.friend_code
        FROM friendships f
        JOIN users u ON u.id = (CASE WHEN f.requester = ?1 THEN f.addressee ELSE f.requester END)
        WHERE (f.requester = ?1 OR f.addressee = ?1) AND f.status = 'accepted'`,
@@ -580,7 +632,8 @@ async function getUserFriends(env, me, userId) {
     friends: rows.map((r) => ({
       id: r.id,
       displayName: r.display_name,
-      emoji: r.emoji,
+      avatar: r.avatar_updated || 0,
+      banner: r.banner_updated || 0,
       friendCode: r.friend_code,
     })),
   });
@@ -851,6 +904,74 @@ async function dismissRecommendation(env, me, id) {
   return json({ ok: true });
 }
 
+// «Посмотрел с другом»: отправитель шлёт совместный просмотр другу. Устройство
+// друга заберёт его (GET /cowatches), добавит к себе и удалит (DELETE).
+async function sendCoWatch(request, env, me) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err('bad_json');
+  }
+  const to = String(body.toUserId || '');
+  if (!to || to === me.id) return err('bad_target');
+  if (!(await areFriends(env, me.id, to))) return err('not_friends', 403);
+  const kind = body.kind === 'series' ? 'series' : 'movie';
+  const data = JSON.stringify({
+    kind,
+    title: String(body.title || ''),
+    origTitle: body.origTitle ?? null,
+    year: body.year ?? null,
+    tmdbId: body.tmdbId ?? null,
+    posterUrl: body.posterUrl ?? null,
+    watchedAt: body.watchedAt ?? null, // ms epoch или null («неизвестно»)
+    episodes: Array.isArray(body.episodes) ? body.episodes.slice(0, 500) : null,
+  });
+  await env.DB.prepare(
+    'INSERT INTO co_watches (id, from_user, to_user, data, created_at) VALUES (?, ?, ?, ?, ?)',
+  )
+    .bind(crypto.randomUUID(), me.id, to, data, now())
+    .run();
+  return json({ ok: true });
+}
+
+// Совместные просмотры, присланные МНЕ (с профилем отправителя), старые сверху
+// (обрабатываются по порядку).
+async function listCoWatches(env, me) {
+  const rows = (
+    await env.DB.prepare(
+      `SELECT c.id, c.data, c.created_at,
+              u.id AS from_id, u.display_name, u.avatar_updated, u.banner_updated, u.friend_code
+       FROM co_watches c JOIN users u ON u.id = c.from_user
+       WHERE c.to_user = ? ORDER BY c.created_at ASC`,
+    )
+      .bind(me.id)
+      .all()
+  ).results;
+  return json({
+    coWatches: rows.map((r) => ({
+      id: r.id,
+      createdAt: r.created_at,
+      from: {
+        id: r.from_id,
+        displayName: r.display_name,
+        avatar: r.avatar_updated || 0,
+        banner: r.banner_updated || 0,
+        friendCode: r.friend_code,
+      },
+      ...JSON.parse(r.data),
+    })),
+  });
+}
+
+// Убрать совместный просмотр (после того как получатель добавил его к себе).
+async function dismissCoWatch(env, me, id) {
+  await env.DB.prepare('DELETE FROM co_watches WHERE id = ? AND to_user = ?')
+    .bind(id, me.id)
+    .run();
+  return json({ ok: true });
+}
+
 // ------------------------------- роутинг -------------------------------
 
 export default {
@@ -870,6 +991,10 @@ export default {
       const avaMatch = path.match(/^\/avatars\/([^/?]+)$/);
       if (avaMatch && method === 'GET') return getAvatar(env, decodeURIComponent(avaMatch[1]));
 
+      // Публичная отдача баннера профиля (без токена).
+      const banMatch = path.match(/^\/banners\/([^/?]+)$/);
+      if (banMatch && method === 'GET') return getBanner(env, decodeURIComponent(banMatch[1]));
+
       // Дальше — только с валидным токеном.
       const me = await authenticate(request, env);
       if (!me) return err('unauthorized', 401);
@@ -878,6 +1003,8 @@ export default {
       if (path === '/me' && method === 'GET') return json({ user: selfUser(me) });
       if (path === '/me' && method === 'PATCH') return updateMe(request, env, me);
       if (path === '/me/avatar' && method === 'PUT') return uploadAvatar(request, env, me);
+      if (path === '/me/banner' && method === 'PUT') return uploadBanner(request, env, me);
+      if (path === '/me/banner' && method === 'DELETE') return deleteBanner(env, me);
       if (path === '/me/recovery' && method === 'POST') return regenerateRecovery(env, me);
 
       if (path === '/friends' && method === 'GET') return listFriends(env, me);
@@ -900,6 +1027,12 @@ export default {
       if (path === '/recommendations' && method === 'GET') return listRecommendations(env, me);
       const recMatch = path.match(/^\/recommendations\/([^/]+)$/);
       if (recMatch && method === 'DELETE') return dismissRecommendation(env, me, decodeURIComponent(recMatch[1]));
+
+      // --- «посмотрел с другом» (совместные просмотры) ---
+      if (path === '/cowatch' && method === 'POST') return sendCoWatch(request, env, me);
+      if (path === '/cowatches' && method === 'GET') return listCoWatches(env, me);
+      const cwMatch = path.match(/^\/cowatches\/([^/]+)$/);
+      if (cwMatch && method === 'DELETE') return dismissCoWatch(env, me, decodeURIComponent(cwMatch[1]));
 
       // --- совместные списки ---
       if (path === '/lists' && method === 'POST') return createList(request, env, me);

@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
+import '../models/social.dart';
 import '../services/movie_repository.dart';
+import '../services/social/social_controller.dart';
 import '../services/store.dart';
 import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
@@ -16,6 +18,7 @@ import '../widgets/rating_slider.dart';
 import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
 import 'delete_helpers.dart';
+import 'social/friend_pick_sheet.dart';
 
 /// Экран сериала (M3 Expressive): крупная шапка с бэкдропом, оценка всего
 /// сериала, выбор сезона, отметка «весь сезон разом», а у каждой серии —
@@ -1194,10 +1197,13 @@ class _SeriesScreenState extends State<SeriesScreen> {
   }
 
   /// Массово задаёт дату/время просмотра всем просмотренным сериям сезона.
+  /// Если серии смотрели в РАЗНЫЕ дни — спрашивает подтверждение перед тем как
+  /// схлопнуть их даты в одну (иначе точная история терялась молча); снимок для
+  /// «Отмены» кладём всегда.
   Future<void> _seasonDate() async {
     if (_season == null) return;
-    final watched = s.episodes.where((e) => e.season == _season).length;
-    if (watched == 0) {
+    final inSeason = s.episodes.where((e) => e.season == _season).toList();
+    if (inSeason.isEmpty) {
       _snack(tr('season_no_watched'));
       return;
     }
@@ -1216,8 +1222,58 @@ class _SeriesScreenState extends State<SeriesScreen> {
     final dt = time == null
         ? DateTime(picked.year, picked.month, picked.day)
         : DateTime(picked.year, picked.month, picked.day, time.hour, time.minute);
+    if (!mounted) return;
+    // Потеря данных: если серии смотрели в разные дни, схлопывание в одну дату
+    // сотрёт историю — предупреждаем.
+    final distinctDays = inSeason
+        .map((e) => e.watchedAt)
+        .whereType<DateTime>()
+        .map((d) => DateTime(d.year, d.month, d.day))
+        .toSet();
+    if (distinctDays.length >= 2) {
+      final ok = await _confirmDialog(
+        tr('season_dates_replace_title'),
+        trf('season_dates_replace_body', {'n': distinctDays.length}),
+        tr('replace'),
+      );
+      if (ok != true || !mounted) return;
+    }
+    final snap = s.toJson(); // снимок до перезаписи — для «Отмены»
     final n = await _repo.setSeasonWatchedAt(s.tvShowId, _season!, dt);
-    if (mounted) _snack(trf('season_dated', {'n': n}));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(trf('season_dated', {'n': n})),
+        action: SnackBarAction(
+          label: tr('undo'),
+          onPressed: () => _repo.restoreFromSnapshot(const [], [snap]),
+        ),
+      ));
+  }
+
+  /// Диалог подтверждения (destructive-акцент на кнопке).
+  Future<bool?> _confirmDialog(String title, String body, String confirmLabel) {
+    final scheme = Theme.of(context).colorScheme;
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('cancel'))),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+                backgroundColor: scheme.error, foregroundColor: scheme.onError),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Тап по «Отметить весь сезон»: меню выбора даты ПЕРВОГО просмотра (как
@@ -1237,14 +1293,46 @@ class _SeriesScreenState extends State<SeriesScreen> {
     _showSeasonWhenSheet(
       title: trf('season_mark_when', {'n': _season!}),
       subtitle: trf('season_mark_sub', {'n': aired.length}),
+      coWatchEnabled: _hasFriends,
       onDate: (date) {
         final runtimes = {for (final e in aired) e.number: e.runtime};
         _repo.markSeason(s.tvShowId, _season!, [for (final e in aired) e.number],
             runtimes: runtimes, date: date);
-        _snack(trf('season_done', {'n': _season!}));
+        // Честно предупреждаем: без даты сезон не попадёт в ленту «Просмотрено»
+        // (записи без даты туда намеренно не идут).
+        _snack(date == null
+            ? trf('season_done_undated', {'n': _season!})
+            : trf('season_done', {'n': _season!}));
+      },
+      onCoWatch: (date, friends) async {
+        final runtimes = {for (final e in aired) e.number: e.runtime};
+        await _repo.markSeason(
+            s.tvShowId, _season!, [for (final e in aired) e.number],
+            runtimes: runtimes, date: date);
+        final eps = [
+          for (final e in aired) [_season!, e.number]
+        ];
+        for (final f in friends) {
+          try {
+            await SocialController.instance.sendSeriesCoWatch(
+              toUserId: f.id,
+              title: s.displayTitle,
+              origTitle: s.title,
+              year: s.year,
+              tmdbId: s.tmdbId,
+              posterUrl: s.posterUrl,
+              watchedAt: date,
+              episodes: eps,
+            );
+          } catch (_) {/* пропускаем этого друга */}
+        }
+        if (mounted) _snack(trf('cowatch_marked', {'n': friends.length}));
       },
     );
   }
+
+  bool get _hasFriends =>
+      SocialController.instance.friends.friends.isNotEmpty;
 
   /// Меню по удержанию кнопки сезона: отметить ВЕСЬ сезон просмотренным ещё раз
   /// с выбором даты + снять все просмотры.
@@ -1279,34 +1367,19 @@ class _SeriesScreenState extends State<SeriesScreen> {
 
   /// Общий лист «когда» для сезона (в стиле «Когда вы посмотрели?»). [onDate]
   /// получает выбранную дату (null = «Неизвестная дата»); [extra] — доп. плитка
-  /// внизу (напр. «Снять все просмотры»).
+  /// внизу (напр. «Снять все просмотры»). Если [coWatchEnabled] и есть друзья —
+  /// показывается «Посмотрел с другом»: после выбора друзей дата уходит в
+  /// [onCoWatch] вместо [onDate].
   void _showSeasonWhenSheet({
     required String title,
     required String subtitle,
     required void Function(DateTime?) onDate,
     Widget Function(BuildContext sheetCtx)? extra,
+    bool coWatchEnabled = false,
+    void Function(DateTime? date, List<SocialUser> friends)? onCoWatch,
   }) {
     final scheme = Theme.of(context).colorScheme;
     final now = DateTime.now();
-
-    Future<void> pickDate(BuildContext sheetCtx) async {
-      final date = await showDatePicker(
-        context: sheetCtx,
-        initialDate: now,
-        firstDate: DateTime(1900),
-        lastDate: now,
-      );
-      if (date == null || !sheetCtx.mounted) return;
-      final time = await showTimePicker(
-        context: sheetCtx,
-        initialTime: TimeOfDay.now(),
-      );
-      final dt = time == null
-          ? DateTime(date.year, date.month, date.day)
-          : DateTime(date.year, date.month, date.day, time.hour, time.minute);
-      if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-      onDate(dt);
-    }
 
     showModalBottomSheet<void>(
       context: context,
@@ -1318,73 +1391,147 @@ class _SeriesScreenState extends State<SeriesScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (sheetCtx) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                      color: scheme.outlineVariant,
-                      borderRadius: BorderRadius.circular(2))),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 18, 24, 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(title,
-                    style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 20,
-                        color: scheme.primary)),
+      builder: (sheetCtx) {
+        List<SocialUser>? picked; // с кем смотрели (co-watch)
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheet) {
+            void choose(DateTime? d) {
+              Navigator.pop(sheetCtx);
+              if (picked != null && onCoWatch != null) {
+                onCoWatch(d, picked!);
+              } else {
+                onDate(d);
+              }
+            }
+
+            Future<void> pickDate() async {
+              final date = await showDatePicker(
+                context: sheetCtx,
+                initialDate: now,
+                firstDate: DateTime(1900),
+                lastDate: now,
+              );
+              if (date == null || !sheetCtx.mounted) return;
+              final time = await showTimePicker(
+                context: sheetCtx,
+                initialTime: TimeOfDay.now(),
+              );
+              final dt = time == null
+                  ? DateTime(date.year, date.month, date.day)
+                  : DateTime(
+                      date.year, date.month, date.day, time.hour, time.minute);
+              if (sheetCtx.mounted) choose(dt);
+            }
+
+            Future<void> pickFriends() async {
+              final fr = await pickCoWatchFriends(sheetCtx);
+              if (fr != null && fr.isNotEmpty) setSheet(() => picked = fr);
+            }
+
+            return SafeArea(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 12),
+                    Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                            color: scheme.outlineVariant,
+                            borderRadius: BorderRadius.circular(2))),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 18, 24, 4),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(title,
+                            style: TextStyle(
+                                fontFamily: AppTheme.displayFont,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 20,
+                                color: scheme.primary)),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(subtitle,
+                            style: TextStyle(
+                                fontFamily: AppTheme.bodyFont,
+                                fontSize: 13,
+                                color: scheme.onSurfaceVariant)),
+                      ),
+                    ),
+                    if (picked != null)
+                      _seasonCoWatchBanner(scheme, picked!, pickFriends),
+                    _seasonMenuTile(scheme, Icons.help_outline_rounded,
+                        tr('when_unknown'), () => choose(null)),
+                    _seasonMenuTile(scheme, Icons.flag_rounded,
+                        tr('when_just_finished'), () => choose(now)),
+                    _seasonMenuTile(scheme, Icons.today_rounded,
+                        tr('when_today'), () => choose(now)),
+                    _seasonMenuTile(scheme, Icons.history_rounded,
+                        tr('when_yesterday'),
+                        () => choose(now.subtract(const Duration(days: 1)))),
+                    _seasonMenuTile(scheme, Icons.event_rounded,
+                        tr('when_pick_date'), pickDate),
+                    if (coWatchEnabled && picked == null && _hasFriends) ...[
+                      Divider(
+                          height: 18,
+                          indent: 24,
+                          endIndent: 24,
+                          color: scheme.outlineVariant),
+                      _seasonMenuTile(scheme, Icons.group_rounded,
+                          tr('cowatch_with_friend'), pickFriends),
+                    ],
+                    if (extra != null) ...[
+                      Divider(
+                          height: 20,
+                          indent: 24,
+                          endIndent: 24,
+                          color: scheme.outlineVariant),
+                      extra(sheetCtx),
+                    ],
+                    const SizedBox(height: 12),
+                  ],
+                ),
               ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Плашка «С: имена» + «Изменить» на листе сезона (co-watch выбран).
+  Widget _seasonCoWatchBanner(
+      ColorScheme scheme, List<SocialUser> friends, VoidCallback onChange) {
+    final names = friends.map((f) => f.displayName).join(', ');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+        decoration: BoxDecoration(
+            color: scheme.primaryContainer,
+            borderRadius: BorderRadius.circular(16)),
+        child: Row(
+          children: [
+            Icon(Icons.group_rounded,
+                size: 20, color: scheme.onPrimaryContainer),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(trf('cowatch_with', {'names': names}),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13.5,
+                      color: scheme.onPrimaryContainer)),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(subtitle,
-                    style: TextStyle(
-                        fontFamily: AppTheme.bodyFont,
-                        fontSize: 13,
-                        color: scheme.onSurfaceVariant)),
-              ),
-            ),
-            _seasonMenuTile(scheme, Icons.help_outline_rounded,
-                tr('when_unknown'), () {
-              Navigator.pop(sheetCtx);
-              onDate(null);
-            }),
-            _seasonMenuTile(scheme, Icons.flag_rounded, tr('when_just_finished'),
-                () {
-              Navigator.pop(sheetCtx);
-              onDate(now);
-            }),
-            _seasonMenuTile(scheme, Icons.today_rounded, tr('when_today'), () {
-              Navigator.pop(sheetCtx);
-              onDate(now);
-            }),
-            _seasonMenuTile(scheme, Icons.history_rounded, tr('when_yesterday'),
-                () {
-              Navigator.pop(sheetCtx);
-              onDate(now.subtract(const Duration(days: 1)));
-            }),
-            _seasonMenuTile(scheme, Icons.event_rounded, tr('when_pick_date'),
-                () => pickDate(sheetCtx)),
-            if (extra != null) ...[
-              Divider(
-                  height: 20,
-                  indent: 24,
-                  endIndent: 24,
-                  color: scheme.outlineVariant),
-              extra(sheetCtx),
-            ],
-            const SizedBox(height: 12),
-            ],
-          ),
+            TextButton(onPressed: onChange, child: Text(tr('cowatch_change'))),
+          ],
         ),
       ),
     );

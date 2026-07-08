@@ -5,6 +5,7 @@ import '../../models/social.dart';
 import '../../services/movie_repository.dart';
 import '../../services/social/social_controller.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/profile_banner.dart';
 import '../../widgets/user_avatar.dart';
 import '../library_tab.dart';
 import 'auth_screen.dart';
@@ -171,15 +172,39 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
 
   Widget _header() {
     final scheme = Theme.of(context).colorScheme;
-    return Row(
+    final me = widget.user;
+    const avatarSize = 84.0;
+    const overlap = 40.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        UserAvatar(user: widget.user, size: 72),
-        const SizedBox(width: 16),
-        Expanded(
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            ProfileBanner(
+                user: me,
+                height: 150,
+                borderRadius: BorderRadius.circular(24)),
+            Positioned(
+              left: 16,
+              bottom: -overlap,
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration:
+                    BoxDecoration(color: scheme.surface, shape: BoxShape.circle),
+                child: UserAvatar(user: me, size: avatarSize),
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(112, 8, 0, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(widget.user.displayName,
+              Text(me.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                       fontFamily: AppTheme.displayFont,
                       fontWeight: FontWeight.w800,
@@ -198,7 +223,7 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
                     Icon(Icons.tag_rounded,
                         size: 15, color: scheme.onSurfaceVariant),
                     const SizedBox(width: 4),
-                    Text(widget.user.friendCode,
+                    Text(me.friendCode,
                         style: TextStyle(
                             fontFamily: AppTheme.displayFont,
                             fontWeight: FontWeight.w700,

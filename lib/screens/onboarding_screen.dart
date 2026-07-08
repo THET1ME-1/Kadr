@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
+import '../services/api_keys.dart';
 import '../services/store.dart';
 import '../theme/app_theme.dart';
 import 'home_shell.dart';
+import 'tmdb_key_screen.dart';
 
 /// Онбординг первого запуска (Material 3 Expressive): страницы с крупными
 /// иконками, пружинные переходы, живой индикатор.
@@ -35,7 +37,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await Store.instance.setBool('onboardingDone', true);
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeShell()),
+      MaterialPageRoute(
+          builder: (_) => ApiKeys.hasTmdb
+              ? const HomeShell()
+              : const TmdbKeyScreen(gate: true)),
     );
   }
 
