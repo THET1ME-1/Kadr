@@ -165,6 +165,7 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Boosty — help the app grow'
   },
   'contact_support': {'ru': 'Связаться с поддержкой', 'en': 'Contact support'},
+  'source_code': {'ru': 'Исходный код (GitHub)', 'en': 'Source code (GitHub)'},
   'profile_add_hint': {
     'ru': 'Введи код друга — он покажет его на своём профиле.',
     'en': 'Enter your friend’s code — they can find it on their profile.'

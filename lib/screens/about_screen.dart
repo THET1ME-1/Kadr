@@ -12,6 +12,13 @@ final Uri kBoostyUrl = Uri.parse('https://boosty.to/sntcompany');
 /// Почта поддержки — куда писать пользователям.
 const String kSupportEmail = 'stgroup.dev@gmail.com';
 
+/// Публичный репозиторий приложения.
+final Uri kRepoUrl = Uri.parse('https://github.com/THET1ME-1/Kadr');
+
+Future<void> openRepo() async {
+  await launchUrl(kRepoUrl, mode: LaunchMode.externalApplication);
+}
+
 Future<void> openSupportAuthors() async {
   await launchUrl(kBoostyUrl, mode: LaunchMode.externalApplication);
 }

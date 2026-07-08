@@ -276,6 +276,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       MaterialPageRoute(builder: (_) => const AboutScreen())),
                 ),
                 _divider(),
+                _tile(
+                  icon: Icons.code_rounded,
+                  title: tr('source_code'),
+                  subtitle: 'github.com/THET1ME-1/Kadr',
+                  onTap: openRepo,
+                ),
+                _divider(),
                 ListTile(
                   leading: Icon(Icons.favorite_rounded,
                       color: Theme.of(context).colorScheme.primary),
