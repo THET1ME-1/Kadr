@@ -334,18 +334,20 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
       floatingActionButton: onLibrary
           ? FloatingActionButton(
               onPressed: () => _goTab(2),
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              shape: const CircleBorder(), // именно круг, а не M3-квадрат
+              backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+              foregroundColor:
+                  Theme.of(context).colorScheme.onSecondaryContainer,
               tooltip: tr('add'),
               child: const Icon(Icons.add_rounded),
             )
           : null,
-      // Кнопка «+» докнута к нижней навигации (наполовину над ней); позицию
-      // (центр/слева/справа) выбирает пользователь в настройках.
+      // Круглая «+» ПЛАВАЕТ над нижней навигацией (не перекрывает кнопки);
+      // позицию (центр/слева/справа) выбирает пользователь в настройках.
       floatingActionButtonLocation: switch (AppPrefs.instance.fabPosition) {
-        FabPosition.center => FloatingActionButtonLocation.centerDocked,
-        FabPosition.left => FloatingActionButtonLocation.startDocked,
-        FabPosition.right => FloatingActionButtonLocation.endDocked,
+        FabPosition.center => FloatingActionButtonLocation.centerFloat,
+        FabPosition.left => FloatingActionButtonLocation.startFloat,
+        FabPosition.right => FloatingActionButtonLocation.endFloat,
       },
       bottomNavigationBar: ListenableBuilder(
         listenable: SocialController.instance,
