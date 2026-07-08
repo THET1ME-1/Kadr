@@ -160,6 +160,50 @@ class AutoBackupService extends ChangeNotifier {
     }
   }
 
+  /// Список автобекапов в текущей папке (самые свежие — сверху). Пусто, если
+  /// папка не выбрана/недоступна.
+  Future<List<BackupFile>> listBackups() async {
+    final folder = _folder;
+    if (folder == null) return const [];
+    try {
+      final dir = Directory(folder);
+      if (!await dir.exists()) return const [];
+      final out = <BackupFile>[];
+      for (final e in await dir.list().toList()) {
+        if (e is! File) continue;
+        final name = e.uri.pathSegments.last;
+        if (!name.startsWith('kadr_auto_') || !name.endsWith('.json')) continue;
+        final st = await e.stat();
+        out.add(BackupFile(e, _parseStamp(name) ?? st.modified, st.size));
+      }
+      out.sort((a, b) => b.date.compareTo(a.date));
+      return out;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Восстанавливает библиотеку из файла копии (мерж в текущую библиотеку —
+  /// на свежей установке это просто загрузка всех данных).
+  Future<bool> restore(File f) async {
+    try {
+      final raw = await f.readAsString();
+      return MovieRepository.instance.importJson(raw);
+    } catch (e) {
+      debugPrint('AutoBackup restore error: $e');
+      return false;
+    }
+  }
+
+  /// Разбирает дату из имени `kadr_auto_YYYYMMDD_HHMMSS.json`.
+  static DateTime? _parseStamp(String name) {
+    final m = RegExp(r'kadr_auto_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})')
+        .firstMatch(name);
+    if (m == null) return null;
+    return DateTime(int.parse(m[1]!), int.parse(m[2]!), int.parse(m[3]!),
+        int.parse(m[4]!), int.parse(m[5]!), int.parse(m[6]!));
+  }
+
   Future<void> _rotate(Directory dir) async {
     try {
       final files = (await dir.list().toList())
@@ -180,4 +224,12 @@ class AutoBackupService extends ChangeNotifier {
     String two(int v) => v.toString().padLeft(2, '0');
     return '${d.year}${two(d.month)}${two(d.day)}_${two(d.hour)}${two(d.minute)}${two(d.second)}';
   }
+}
+
+/// Найденный файл автобекапа: путь, дата (из имени/времени) и размер.
+class BackupFile {
+  final File file;
+  final DateTime date;
+  final int size;
+  const BackupFile(this.file, this.date, this.size);
 }

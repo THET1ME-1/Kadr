@@ -954,6 +954,28 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Последняя копия: {when}',
     'en': 'Last backup: {when}'
   },
+  'restore_title': {'ru': 'Восстановить из копии', 'en': 'Restore from a backup'},
+  'restore_hint': {
+    'ru': 'Выбери копию из папки — данные вернутся в приложение.',
+    'en': 'Pick a backup from the folder to bring your data back.'
+  },
+  'restore_none': {'ru': 'В папке нет копий', 'en': 'No backups in this folder'},
+  'restore_btn': {'ru': 'Восстановить', 'en': 'Restore'},
+  'restore_confirm_title': {'ru': 'Восстановить?', 'en': 'Restore?'},
+  'restore_confirm_body': {
+    'ru': 'Данные из копии от {when} будут добавлены в библиотеку.',
+    'en': 'Data from the {when} backup will be added to your library.'
+  },
+  'restore_done': {'ru': 'Восстановлено из копии', 'en': 'Restored from backup'},
+  'restore_failed': {
+    'ru': 'Не удалось восстановить копию',
+    'en': "Couldn't restore the backup"
+  },
+  'restore_found_title': {'ru': 'Найдены копии', 'en': 'Backups found'},
+  'restore_found_body': {
+    'ru': 'В папке {n} копий. Восстановить последнюю (от {when})?',
+    'en': 'This folder has {n} backups. Restore the latest ({when})?'
+  },
   'choose': {'ru': 'Выбрать', 'en': 'Choose'},
   'mark_finished': {'ru': 'Досмотрел сериал', 'en': 'Finished the series'},
   'finished_removed': {
