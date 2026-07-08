@@ -26,9 +26,11 @@ import 'when_watched_sheet.dart';
 
 /// Открывает полноэкранную карточку фильма (как экран сериала — отдельная
 /// страница, а не выезжающая панель).
-Future<void> showMovieSheet(BuildContext context, LibraryMovie movie) {
+Future<void> showMovieSheet(BuildContext context, LibraryMovie movie,
+    {String? heroTag}) {
   return Navigator.of(context).push(
-    MaterialPageRoute(builder: (_) => MovieScreen(movie: movie)),
+    MaterialPageRoute(
+        builder: (_) => MovieScreen(movie: movie, heroTag: heroTag)),
   );
 }
 
@@ -37,7 +39,8 @@ Future<void> showMovieSheet(BuildContext context, LibraryMovie movie) {
 /// актёры, факты, ссылки). Обновляется на лету.
 class MovieScreen extends StatefulWidget {
   final LibraryMovie movie;
-  const MovieScreen({super.key, required this.movie});
+  final String? heroTag;
+  const MovieScreen({super.key, required this.movie, this.heroTag});
 
   @override
   State<MovieScreen> createState() => _MovieScreenState();
@@ -77,6 +80,11 @@ class _MovieScreenState extends State<MovieScreen> {
     }
     if (id == null) return;
     final d = await TmdbService.details(id);
+    // Постер берём из ТЕХ ЖЕ деталей, что и бэкдроп (по верному tmdbId) — иначе
+    // закэшированный ранее постер мог быть от другого фильма («чужой постер»).
+    if (d?.posterUrl != null && d!.posterUrl != m.posterUrl) {
+      _repo.setPoster(m.uuid, posterUrl: d.posterUrl);
+    }
     if (mounted && d != null) setState(() => _details = d);
     // Кэшируем жанры/страны/длительность в фильм (для фильтров и статистики).
     if (d != null) {
@@ -197,9 +205,9 @@ class _MovieScreenState extends State<MovieScreen> {
                   onTap: () => openPosterViewer(context,
                       title: m.displayTitle,
                       url: m.posterUrl,
-                      heroTag: 'poster-${m.uuid}'),
+                      heroTag: widget.heroTag ?? 'poster-${m.uuid}'),
                   child: Hero(
-                    tag: 'poster-${m.uuid}',
+                    tag: widget.heroTag ?? 'poster-${m.uuid}',
                     child: Material(
                       elevation: 8,
                       borderRadius: BorderRadius.circular(16),

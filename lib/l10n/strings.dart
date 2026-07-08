@@ -159,6 +159,12 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Свой токен TMDB / kinopoisk',
     'en': 'Your TMDB / kinopoisk key'
   },
+  'support_authors': {'ru': 'Поддержать авторов', 'en': 'Support the authors'},
+  'support_authors_sub': {
+    'ru': 'Boosty — помочь развитию приложения',
+    'en': 'Boosty — help the app grow'
+  },
+  'contact_support': {'ru': 'Связаться с поддержкой', 'en': 'Contact support'},
   'profile_add_hint': {
     'ru': 'Введи код друга — он покажет его на своём профиле.',
     'en': 'Enter your friend’s code — they can find it on their profile.'
@@ -560,6 +566,15 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Удалить все просмотры, списки, оценки и сериалы',
     'en': 'Delete all watches, lists, ratings and series'
   },
+  'clear_image_cache': {
+    'ru': 'Очистить кэш изображений',
+    'en': 'Clear image cache'
+  },
+  'clear_image_cache_sub': {
+    'ru': 'Постеры и картинки перекачаются заново',
+    'en': 'Posters and images will re-download'
+  },
+  'cache_cleared': {'ru': 'Кэш изображений очищен', 'en': 'Image cache cleared'},
   'clear_all_title': {'ru': 'Очистить все данные?', 'en': 'Clear all data?'},
   'clear_all_body': {
     'ru': 'Все просмотры, оценки, списки, избранное и сериалы будут удалены безвозвратно. Останутся только ленты «Обзор» и «В кино». Сделайте бэкап заранее, если нужно сохранить.',

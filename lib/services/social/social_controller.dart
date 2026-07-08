@@ -175,23 +175,27 @@ class SocialController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Загружает новый аватар (сжатые PNG-байты) и обновляет профиль в памяти.
-  Future<void> setAvatar(List<int> pngBytes) async {
+  /// Загружает новый аватар (сжатые байты png|webp) и обновляет профиль в памяти.
+  Future<void> setAvatar(List<int> bytes,
+      {String contentType = 'image/png'}) async {
     final t = _token;
     final u = _user;
     if (t == null || u == null) return;
-    final ver = await SocialApi.instance.uploadAvatar(t, pngBytes);
+    final ver =
+        await SocialApi.instance.uploadAvatar(t, bytes, contentType: contentType);
     _user = u.copyWith(avatarVer: ver);
     await _cacheUser();
     notifyListeners();
   }
 
-  /// Загружает баннер профиля (сжатые PNG-байты) и обновляет профиль в памяти.
-  Future<void> setBanner(List<int> pngBytes) async {
+  /// Загружает баннер профиля (сжатые байты png|webp) и обновляет профиль.
+  Future<void> setBanner(List<int> bytes,
+      {String contentType = 'image/png'}) async {
     final t = _token;
     final u = _user;
     if (t == null || u == null) return;
-    final ver = await SocialApi.instance.uploadBanner(t, pngBytes);
+    final ver =
+        await SocialApi.instance.uploadBanner(t, bytes, contentType: contentType);
     _user = u.copyWith(bannerVer: ver);
     await _cacheUser();
     notifyListeners();

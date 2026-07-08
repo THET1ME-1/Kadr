@@ -1961,4 +1961,13 @@ class MovieRepository extends ChangeNotifier {
     notifyListeners();
     await _persist();
   }
+
+  /// Обновляет постер сериала (из TMDB tv-деталей) — фикс «чужого постера».
+  Future<void> setSeriesPoster(String id, String posterUrl) async {
+    final s = seriesById(id);
+    if (s == null || s.posterUrl == posterUrl) return;
+    s.posterUrl = posterUrl;
+    notifyListeners();
+    await _persist();
+  }
 }

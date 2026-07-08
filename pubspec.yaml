@@ -23,6 +23,8 @@ dependencies:
   # База фильмов (TMDB) и изображения
   http: ^1.2.2
   cached_network_image: ^3.4.1
+  flutter_cache_manager: ^3.4.1
+  flutter_image_compress: ^2.4.0
 
   # Данные, бэкап, синхронизация
   path_provider: ^2.1.4

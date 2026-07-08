@@ -847,26 +847,27 @@ class _LibraryTabState extends State<LibraryTab> {
 
   /// Открыть фильм: своя библиотека — редактируемый лист; библиотека друга —
   /// read-only просмотр (без кнопок правки).
-  void _openMovie(LibraryMovie m) {
+  void _openMovie(LibraryMovie m, {String? heroTag}) {
     if (widget.readOnly) {
       showReadonlyMovieSheet(context, m);
     } else {
-      showMovieSheet(context, m);
+      showMovieSheet(context, m, heroTag: heroTag);
     }
   }
 
   /// Открыть сериал: свой — экран сериала; друга — read-only просмотр.
-  void _openSeries(LibrarySeries s) {
+  void _openSeries(LibrarySeries s, {String? heroTag}) {
     if (widget.readOnly) {
       showReadonlySeriesSheet(context, s);
     } else {
-      Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s)));
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => SeriesScreen(series: s, heroTag: heroTag)));
     }
   }
 
   Widget _rowFor(_LibEntry e) {
     final key = _keyOf(e);
+    final tag = 'poster-$key'; // уникальный тег shared-element (Hero)
     final sel = _selected.contains(key);
     if (e.session != null) {
       return _SeriesSessionCard(
@@ -875,9 +876,10 @@ class _LibraryTabState extends State<LibraryTab> {
         selected: sel,
         onSelect: () => _onSelect(key),
         readOnly: widget.readOnly,
-        onOpen: () => _openSeries(e.session!.series),
+        onOpen: () => _openSeries(e.session!.series, heroTag: tag),
         revealGroup: _revealed,
         revealId: key,
+        heroTag: tag,
       );
     }
     if (e.seriesItem != null) {
@@ -886,9 +888,10 @@ class _LibraryTabState extends State<LibraryTab> {
         selecting: _selecting,
         selected: sel,
         onSelect: () => _onSelect(key),
-        onOpen: () => _openSeries(e.seriesItem!),
+        onOpen: () => _openSeries(e.seriesItem!, heroTag: tag),
         revealGroup: _revealed,
         revealId: key,
+        heroTag: tag,
       );
     }
     return _MovieRow(
@@ -898,14 +901,16 @@ class _LibraryTabState extends State<LibraryTab> {
       selecting: _selecting,
       selected: sel,
       onSelect: () => _onSelect(key),
-      onOpen: () => _openMovie(e.movie!),
+      onOpen: () => _openMovie(e.movie!, heroTag: tag),
       revealGroup: _revealed,
       revealId: key,
+      heroTag: tag,
     );
   }
 
   Widget _posterFor(_LibEntry e, double w) {
     final key = _keyOf(e);
+    final tag = 'poster-$key';
     final sel = _selected.contains(key);
     if (e.session != null) {
       final s = e.session!.series;
@@ -922,7 +927,8 @@ class _LibraryTabState extends State<LibraryTab> {
         episodesSeen: s.episodesSeen,
         totalEpisodes: s.totalEpisodes,
         onSelect: () => _onSelect(key),
-        onTap: () => _openSeries(s),
+        onTap: () => _openSeries(s, heroTag: tag),
+        heroTag: tag,
       );
     }
     if (e.seriesItem != null) {
@@ -938,7 +944,8 @@ class _LibraryTabState extends State<LibraryTab> {
         selecting: _selecting,
         selected: sel,
         onSelect: () => _onSelect(key),
-        onTap: () => _openSeries(s),
+        onTap: () => _openSeries(s, heroTag: tag),
+        heroTag: tag,
       );
     }
     final m = e.movie!;
@@ -951,7 +958,8 @@ class _LibraryTabState extends State<LibraryTab> {
       selecting: _selecting,
       selected: sel,
       onSelect: () => _onSelect(key),
-      onTap: () => _openMovie(m),
+      onTap: () => _openMovie(m, heroTag: tag),
+      heroTag: tag,
     );
   }
 
@@ -1490,6 +1498,7 @@ class _PosterCell extends StatelessWidget {
   /// Прогресс сериала (для кольца на постере). null — не сериал / не показывать.
   final int? episodesSeen;
   final int? totalEpisodes;
+  final String? heroTag;
   const _PosterCell({
     required this.title,
     required this.posterUrl,
@@ -1504,6 +1513,7 @@ class _PosterCell extends StatelessWidget {
     this.onSelect,
     this.episodesSeen,
     this.totalEpisodes,
+    this.heroTag,
   });
 
   @override
@@ -1518,7 +1528,12 @@ class _PosterCell extends StatelessWidget {
         children: [
           Stack(
             children: [
-              Poster(title: title, url: posterUrl, width: width, radius: 16),
+              Poster(
+                  title: title,
+                  url: posterUrl,
+                  width: width,
+                  radius: 16,
+                  heroTag: heroTag),
               if (favorite || dropped)
                 Positioned(
                   top: 6,
@@ -1812,6 +1827,7 @@ class _SeriesSessionCard extends StatelessWidget {
   final VoidCallback? onOpen;
   final Set<Object>? revealGroup;
   final Object? revealId;
+  final String? heroTag;
   const _SeriesSessionCard({
     required this.session,
     this.selecting = false,
@@ -1821,6 +1837,7 @@ class _SeriesSessionCard extends StatelessWidget {
     this.onOpen,
     this.revealGroup,
     this.revealId,
+    this.heroTag,
   });
 
   LibrarySeries get s => session.series;
@@ -1857,7 +1874,8 @@ class _SeriesSessionCard extends StatelessWidget {
                           Poster(
                               title: s.displayTitle,
                               url: s.posterUrl,
-                              width: 58),
+                              width: 58,
+                              heroTag: heroTag),
                           Positioned(
                             left: 4,
                             top: 4,
@@ -2231,6 +2249,7 @@ class _MovieRow extends StatelessWidget {
   final VoidCallback? onOpen;
   final Set<Object>? revealGroup;
   final Object? revealId;
+  final String? heroTag;
 
   const _MovieRow({
     required this.movie,
@@ -2242,6 +2261,7 @@ class _MovieRow extends StatelessWidget {
     this.onOpen,
     this.revealGroup,
     this.revealId,
+    this.heroTag,
   });
 
   @override
@@ -2279,7 +2299,8 @@ class _MovieRow extends StatelessWidget {
                       Poster(
                           title: movie.displayTitle,
                           url: movie.posterUrl,
-                          width: 58),
+                          width: 58,
+                          heroTag: heroTag),
                       if (selecting) _selectOverlay(scheme, selected, 12),
                     ],
                   ),
@@ -2391,6 +2412,7 @@ class _WatchlistSeriesRow extends StatelessWidget {
   final VoidCallback? onOpen;
   final Set<Object>? revealGroup;
   final Object? revealId;
+  final String? heroTag;
   const _WatchlistSeriesRow({
     required this.series,
     this.selecting = false,
@@ -2399,6 +2421,7 @@ class _WatchlistSeriesRow extends StatelessWidget {
     this.onOpen,
     this.revealGroup,
     this.revealId,
+    this.heroTag,
   });
 
   @override
@@ -2419,7 +2442,8 @@ class _WatchlistSeriesRow extends StatelessWidget {
                 ? onSelect
                 : (onOpen ??
                     () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => SeriesScreen(series: series)))),
+                        builder: (_) =>
+                            SeriesScreen(series: series, heroTag: heroTag)))),
             onLongPress: onSelect,
             child: Padding(
               padding: const EdgeInsets.all(10),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../l10n/locale_controller.dart';
@@ -239,6 +240,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: _backupSheet,
                 ),
                 _divider(),
+                _tile(
+                  icon: Icons.cleaning_services_rounded,
+                  title: tr('clear_image_cache'),
+                  subtitle: tr('clear_image_cache_sub'),
+                  onTap: _clearImageCache,
+                ),
+                _divider(),
                 ListTile(
                   leading: Icon(Icons.delete_forever_rounded,
                       color: Theme.of(context).colorScheme.error),
@@ -266,6 +274,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: tr('about_sub'),
                   onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const AboutScreen())),
+                ),
+                _divider(),
+                ListTile(
+                  leading: Icon(Icons.favorite_rounded,
+                      color: Theme.of(context).colorScheme.primary),
+                  title: Text(tr('support_authors'),
+                      style: TextStyle(
+                          fontFamily: AppTheme.bodyFont,
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.primary)),
+                  subtitle: Text(tr('support_authors_sub')),
+                  trailing: Icon(Icons.open_in_new_rounded,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  onTap: openSupportAuthors,
+                ),
+                _divider(),
+                _tile(
+                  icon: Icons.mail_outline_rounded,
+                  title: tr('contact_support'),
+                  subtitle: kSupportEmail,
+                  onTap: openSupportEmail,
                 ),
               ]),
             ],
@@ -534,6 +564,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// Подтверждение полной очистки личных данных (необратимо).
+  /// Очищает кэш скачанных картинок (постеры/бэкдропы/аватары) — освобождает
+  /// память телефона; при следующем показе перекачаются с TMDB/сервера.
+  Future<void> _clearImageCache() async {
+    await DefaultCacheManager().emptyCache();
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(tr('cache_cleared')),
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
   void _confirmClearAll() {
     final scheme = Theme.of(context).colorScheme;
     showDialog<void>(

@@ -11,16 +11,26 @@ class Poster extends StatelessWidget {
   final double width;
   final double radius;
 
+  /// Тег для shared-element анимации (Hero): постер «летит» и меняет размер из
+  /// списка в карточку фильма/сериала. null — без анимации.
+  final String? heroTag;
+
   const Poster({
     super.key,
     required this.title,
     this.url,
     this.width = 64,
     this.radius = 16,
+    this.heroTag,
   });
 
   @override
   Widget build(BuildContext context) {
+    final content = _content(context);
+    return heroTag != null ? Hero(tag: heroTag!, child: content) : content;
+  }
+
+  Widget _content(BuildContext context) {
     final height = width * 3 / 2;
     final border = BorderRadius.circular(radius);
     if (url != null && url!.isNotEmpty) {

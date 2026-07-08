@@ -141,31 +141,34 @@ class SocialApi {
         return SocialUser.fromJson(b['user'] as Map<String, dynamic>);
       });
 
-  /// Загрузить аватар (байты уже сжатого PNG). Возвращает новую версию фото.
-  Future<int> uploadAvatar(String token, List<int> pngBytes) =>
+  /// Загрузить аватар (сжатые байты, [contentType] = image/png|image/webp).
+  /// Возвращает новую версию фото.
+  Future<int> uploadAvatar(String token, List<int> bytes,
+          {String contentType = 'image/png'}) =>
       _guard(() async {
         final r = await http
             .put(_u('/me/avatar'),
                 headers: {
-                  'Content-Type': 'image/png',
+                  'Content-Type': contentType,
                   'Authorization': 'Bearer $token',
                 },
-                body: pngBytes)
+                body: bytes)
             .timeout(_timeout);
         final b = _decode(r);
         return (b['avatar'] as num?)?.toInt() ?? 0;
       });
 
-  /// Загрузить баннер профиля (байты сжатого PNG). Возвращает новую версию.
-  Future<int> uploadBanner(String token, List<int> pngBytes) =>
+  /// Загрузить баннер профиля (сжатые байты, png|webp). Возвращает новую версию.
+  Future<int> uploadBanner(String token, List<int> bytes,
+          {String contentType = 'image/png'}) =>
       _guard(() async {
         final r = await http
             .put(_u('/me/banner'),
                 headers: {
-                  'Content-Type': 'image/png',
+                  'Content-Type': contentType,
                   'Authorization': 'Bearer $token',
                 },
-                body: pngBytes)
+                body: bytes)
             .timeout(_timeout);
         final b = _decode(r);
         return (b['banner'] as num?)?.toInt() ?? 0;

@@ -381,31 +381,32 @@ async function updateMe(request, env, me) {
   return json({ user: selfUser(await getUserById(env, me.id)) });
 }
 
-// Загрузка аватара: тело = байты картинки (клиент уже сжал до ~256px).
-// Кладём в D1 как base64, поднимаем версию (cache-bust) в users.avatar_updated.
-async function uploadAvatar(request, env, me) {
-  const ct = request.headers.get('Content-Type') || '';
-  if (!/^image\/(png|jpeg|jpg|webp)$/i.test(ct)) return err('bad_type');
-  const buf = await request.arrayBuffer();
-  if (buf.byteLength === 0) return err('empty');
-  if (buf.byteLength > 400 * 1024) return err('too_large', 413); // ≤ 400 КБ
-  const ver = now();
-  await env.DB.prepare(
-    `INSERT INTO avatars (user_id, data_b64, content_type, updated_at) VALUES (?1, ?2, ?3, ?4)
-     ON CONFLICT(user_id) DO UPDATE SET data_b64 = ?2, content_type = ?3, updated_at = ?4`,
-  )
-    .bind(me.id, base64FromArrayBuffer(buf), ct, ver)
-    .run();
-  await env.DB.prepare('UPDATE users SET avatar_updated = ? WHERE id = ?')
-    .bind(ver, me.id)
-    .run();
-  return json({ avatar: ver });
+// ------------------------------- медиа (R2) -------------------------------
+// Аватары/баннеры лежат в R2 (env.MEDIA), ключ = `<kind>/<userId>` (kind =
+// 'avatars'|'banners' — фиксированные строки, не пользовательский ввод).
+// Версия (cache-bust) — в users.avatar_updated/banner_updated. Старые данные из
+// D1 (base64) переносятся в R2 ЛЕНИВО при первом показе — без простоя.
+
+async function putMedia(env, kind, userId, ct, buf) {
+  await env.MEDIA.put(`${kind}/${userId}`, buf, {
+    httpMetadata: { contentType: ct },
+  });
 }
 
-// Отдача аватара (публично; URL содержит ?v=ver, поэтому кэшируем навсегда).
-async function getAvatar(env, userId) {
+async function serveMedia(env, kind, userId) {
+  const obj = await env.MEDIA.get(`${kind}/${userId}`);
+  if (obj) {
+    return new Response(obj.body, {
+      headers: {
+        'Content-Type': obj.httpMetadata?.contentType || 'image/*',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        ...CORS,
+      },
+    });
+  }
+  // Ленивая миграция из D1 (старые base64-аватары/баннеры).
   const row = await env.DB.prepare(
-    'SELECT data_b64, content_type FROM avatars WHERE user_id = ?',
+    `SELECT data_b64, content_type FROM ${kind} WHERE user_id = ?`,
   )
     .bind(userId)
     .first();
@@ -413,6 +414,8 @@ async function getAvatar(env, userId) {
   const bin = atob(row.data_b64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  await putMedia(env, kind, userId, row.content_type, bytes);
+  await env.DB.prepare(`DELETE FROM ${kind} WHERE user_id = ?`).bind(userId).run();
   return new Response(bytes, {
     headers: {
       'Content-Type': row.content_type,
@@ -422,21 +425,38 @@ async function getAvatar(env, userId) {
   });
 }
 
-// Загрузка баннера профиля: тело = байты картинки (клиент сжал до ~1080px по
-// ширине). Кладём в D1 как base64, поднимаем версию в users.banner_updated.
+// Загрузка аватара (клиент уже сжал ~256px, PNG/WebP). Кладём в R2.
+async function uploadAvatar(request, env, me) {
+  if (!(await rateLimit(env, `media:${me.id}`, 40, 60 * 60 * 1000))) return err('rate_limited', 429);
+  const ct = request.headers.get('Content-Type') || '';
+  if (!/^image\/(png|jpeg|jpg|webp)$/i.test(ct)) return err('bad_type');
+  const buf = await request.arrayBuffer();
+  if (buf.byteLength === 0) return err('empty');
+  if (buf.byteLength > 400 * 1024) return err('too_large', 413); // ≤ 400 КБ
+  const ver = now();
+  await putMedia(env, 'avatars', me.id, ct, buf);
+  await env.DB.prepare('DELETE FROM avatars WHERE user_id = ?').bind(me.id).run();
+  await env.DB.prepare('UPDATE users SET avatar_updated = ? WHERE id = ?')
+    .bind(ver, me.id)
+    .run();
+  return json({ avatar: ver });
+}
+
+async function getAvatar(env, userId) {
+  return serveMedia(env, 'avatars', userId);
+}
+
+// Загрузка баннера профиля (клиент сжал ~1080px, PNG/WebP). Кладём в R2.
 async function uploadBanner(request, env, me) {
+  if (!(await rateLimit(env, `media:${me.id}`, 40, 60 * 60 * 1000))) return err('rate_limited', 429);
   const ct = request.headers.get('Content-Type') || '';
   if (!/^image\/(png|jpeg|jpg|webp)$/i.test(ct)) return err('bad_type');
   const buf = await request.arrayBuffer();
   if (buf.byteLength === 0) return err('empty');
   if (buf.byteLength > 700 * 1024) return err('too_large', 413); // ≤ 700 КБ
   const ver = now();
-  await env.DB.prepare(
-    `INSERT INTO banners (user_id, data_b64, content_type, updated_at) VALUES (?1, ?2, ?3, ?4)
-     ON CONFLICT(user_id) DO UPDATE SET data_b64 = ?2, content_type = ?3, updated_at = ?4`,
-  )
-    .bind(me.id, base64FromArrayBuffer(buf), ct, ver)
-    .run();
+  await putMedia(env, 'banners', me.id, ct, buf);
+  await env.DB.prepare('DELETE FROM banners WHERE user_id = ?').bind(me.id).run();
   await env.DB.prepare('UPDATE users SET banner_updated = ? WHERE id = ?')
     .bind(ver, me.id)
     .run();
@@ -445,6 +465,7 @@ async function uploadBanner(request, env, me) {
 
 // Удаление баннера профиля (сброс к дефолтному градиенту).
 async function deleteBanner(env, me) {
+  await env.MEDIA.delete(`banners/${me.id}`);
   await env.DB.prepare('DELETE FROM banners WHERE user_id = ?').bind(me.id).run();
   await env.DB.prepare('UPDATE users SET banner_updated = 0 WHERE id = ?')
     .bind(me.id)
@@ -452,24 +473,8 @@ async function deleteBanner(env, me) {
   return json({ banner: 0 });
 }
 
-// Отдача баннера (публично; URL содержит ?v=ver, поэтому кэшируем навсегда).
 async function getBanner(env, userId) {
-  const row = await env.DB.prepare(
-    'SELECT data_b64, content_type FROM banners WHERE user_id = ?',
-  )
-    .bind(userId)
-    .first();
-  if (!row) return new Response('not found', { status: 404, headers: CORS });
-  const bin = atob(row.data_b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new Response(bytes, {
-    headers: {
-      'Content-Type': row.content_type,
-      'Cache-Control': 'public, max-age=31536000, immutable',
-      ...CORS,
-    },
-  });
+  return serveMedia(env, 'banners', userId);
 }
 
 // Списки друзей: принятые + входящие/исходящие заявки. Для каждого — публичный
@@ -513,6 +518,7 @@ async function listFriends(env, me) {
 // Отправить заявку в друзья по коду или по id. Если встречная заявка уже есть —
 // сразу дружим (accept). Возвращает итоговый статус.
 async function requestFriend(request, env, me) {
+  if (!(await rateLimit(env, `fr:${me.id}`, 60, 60 * 60 * 1000))) return err('rate_limited', 429);
   let body;
   try {
     body = await request.json();
@@ -596,6 +602,7 @@ async function removeFriend(env, me, otherId) {
 
 // Сохранить свою публичную проекцию библиотеки (перезаписью).
 async function putLibrary(request, env, me) {
+  if (!(await rateLimit(env, `pub:${me.id}`, 300, 60 * 60 * 1000))) return err('rate_limited', 429);
   const raw = await request.text();
   if (raw.length > 1024 * 1024) return err('too_large', 413); // ≤ 1 МБ
   try {
@@ -662,6 +669,7 @@ const isMember = async (env, listId, userId) =>
     .first());
 
 async function createList(request, env, me) {
+  if (!(await rateLimit(env, `mklist:${me.id}`, 60, 60 * 60 * 1000))) return err('rate_limited', 429);
   let body;
   try {
     body = await request.json();
@@ -784,6 +792,7 @@ async function deleteOrLeaveList(env, me, listId) {
 }
 
 async function addListItem(request, env, me, listId) {
+  if (!(await rateLimit(env, `additem:${me.id}`, 300, 60 * 60 * 1000))) return err('rate_limited', 429);
   if (!(await isMember(env, listId, me.id))) return err('not_member', 403);
   let body;
   try {
@@ -844,6 +853,7 @@ async function addListMember(request, env, me, listId) {
 
 // Отправить рекомендацию фильма другу (только между друзьями).
 async function sendRecommendation(request, env, me) {
+  if (!(await rateLimit(env, `rec:${me.id}`, 120, 60 * 60 * 1000))) return err('rate_limited', 429);
   let body;
   try {
     body = await request.json();
@@ -907,6 +917,7 @@ async function dismissRecommendation(env, me, id) {
 // «Посмотрел с другом»: отправитель шлёт совместный просмотр другу. Устройство
 // друга заберёт его (GET /cowatches), добавит к себе и удалит (DELETE).
 async function sendCoWatch(request, env, me) {
+  if (!(await rateLimit(env, `cw:${me.id}`, 120, 60 * 60 * 1000))) return err('rate_limited', 429);
   let body;
   try {
     body = await request.json();

@@ -26,7 +26,8 @@ import 'social/friend_pick_sheet.dart';
 /// поэтому можно отмечать даже те, которых ещё нет в библиотеке.
 class SeriesScreen extends StatefulWidget {
   final LibrarySeries series;
-  const SeriesScreen({super.key, required this.series});
+  final String? heroTag;
+  const SeriesScreen({super.key, required this.series, this.heroTag});
 
   @override
   State<SeriesScreen> createState() => _SeriesScreenState();
@@ -214,6 +215,10 @@ class _SeriesScreenState extends State<SeriesScreen> {
     }
     final tmdbSeasons = await TmdbService.seasons(id);
     _extra = await TmdbService.tvExtra(id);
+    // Постер сериала — из тех же tv-деталей, что и бэкдроп (фикс «чужого постера»).
+    if (_extra?.posterUrl != null && _extra!.posterUrl != s.posterUrl) {
+      await _repo.setSeriesPoster(s.tvShowId, _extra!.posterUrl!);
+    }
     // TMDB — источник истины структуры. Библиотечные сезоны берём лишь когда
     // TMDB ничего не отдал (сериал не найден).
     _seasons = _mergeLibrarySeasons(tmdbSeasons);
@@ -481,9 +486,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
                   onTap: () => openPosterViewer(context,
                       title: s.displayTitle,
                       url: s.posterUrl,
-                      heroTag: 'sposter-${s.tvShowId}'),
+                      heroTag: widget.heroTag ?? 'sposter-${s.tvShowId}'),
                   child: Hero(
-                    tag: 'sposter-${s.tvShowId}',
+                    tag: widget.heroTag ?? 'sposter-${s.tvShowId}',
                     child: Material(
                       elevation: 8,
                       borderRadius: BorderRadius.circular(16),
@@ -512,31 +517,47 @@ class _SeriesScreenState extends State<SeriesScreen> {
                               height: 1.05,
                               color: Colors.white)),
                       const SizedBox(height: 8),
-                      Text(
-                          total > 0
-                              ? trf('seen_of', {'n': seen, 'm': total})
-                              : trf('episodes_n', {'n': seen}),
-                          style: TextStyle(
-                              fontFamily: AppTheme.bodyFont,
-                              fontSize: 13,
-                              color: Colors.white.withValues(alpha: 0.85))),
-                      if (total > 0) ...[
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: TweenAnimationBuilder<double>(
-                            duration: const Duration(milliseconds: 500),
-                            curve: Curves.easeOutCubic,
-                            tween: Tween<double>(end: progress),
-                            builder: (context, v, _) => LinearProgressIndicator(
-                              value: v,
-                              minHeight: 8,
-                              backgroundColor: Colors.white24,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
+                      // Счётчик «Просмотрено N из M» и полоса заполняются с
+                      // анимацией при открытии: число быстро тикает 0→N, полоса
+                      // едет слева направо. Ключ по «данные загружены» → анимация
+                      // играет раз (когда появляются реальные числа) и не
+                      // переигрывает при отметке серий.
+                      TweenAnimationBuilder<double>(
+                        key: ValueKey(total > 0),
+                        duration: const Duration(milliseconds: 900),
+                        curve: Curves.easeOutCubic,
+                        tween: Tween<double>(begin: 0, end: 1),
+                        builder: (context, t, _) {
+                          final shown = (seen * t).round();
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                  total > 0
+                                      ? trf('seen_of', {'n': shown, 'm': total})
+                                      : trf('episodes_n', {'n': shown}),
+                                  style: TextStyle(
+                                      fontFamily: AppTheme.bodyFont,
+                                      fontSize: 13,
+                                      color:
+                                          Colors.white.withValues(alpha: 0.85))),
+                              if (total > 0) ...[
+                                const SizedBox(height: 8),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(
+                                    value: progress * t,
+                                    minHeight: 8,
+                                    backgroundColor: Colors.white24,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),

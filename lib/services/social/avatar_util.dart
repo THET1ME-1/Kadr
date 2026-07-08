@@ -2,6 +2,38 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+
+/// Готовое к загрузке изображение: байты + MIME (image/png или image/webp).
+typedef EncodedImage = ({Uint8List bytes, String contentType});
+
+/// Из готового PNG делает WebP и возвращает МЕНЬШИЙ по размеру (для кастомных
+/// фото аватара/баннера). WebP обычно ощутимо легче; если вдруг больше или не
+/// собрался — оставляем PNG.
+Future<EncodedImage> _smaller(Uint8List png) async {
+  try {
+    final webp = await FlutterImageCompress.compressWithList(
+      png,
+      format: CompressFormat.webp,
+      quality: 90,
+      minWidth: 4096, // не даём доп. ресайз — картинка уже нужного размера
+      minHeight: 4096,
+    );
+    if (webp.isNotEmpty && webp.length < png.length) {
+      return (bytes: Uint8List.fromList(webp), contentType: 'image/webp');
+    }
+  } catch (_) {/* нет WebP-кодера — оставляем PNG */}
+  return (bytes: png, contentType: 'image/png');
+}
+
+/// Готовит аватар к загрузке: квадрат 256px, меньший из PNG/WebP.
+Future<EncodedImage> encodeAvatar(Uint8List raw) async =>
+    _smaller(await resizeAvatarPng(raw));
+
+/// Готовит баннер к загрузке: широкий кроп, меньший из PNG/WebP.
+Future<EncodedImage> encodeBanner(Uint8List raw) async =>
+    _smaller(await resizeBannerPng(raw));
+
 /// Готовит аватар к загрузке: центр-кроп до квадрата и ресайз до [size]px в PNG.
 /// Использует только dart:ui (без доп. пакетов). Так фото с телефона (несколько
 /// МБ) ужимается до десятков КБ перед отправкой на сервер.

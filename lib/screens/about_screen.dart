@@ -1,9 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/strings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/reveal.dart';
+
+/// Ссылка «Поддержать авторов» (Boosty).
+final Uri kBoostyUrl = Uri.parse('https://boosty.to/sntcompany');
+
+/// Почта поддержки — куда писать пользователям.
+const String kSupportEmail = 'stgroup.dev@gmail.com';
+
+Future<void> openSupportAuthors() async {
+  await launchUrl(kBoostyUrl, mode: LaunchMode.externalApplication);
+}
+
+Future<void> openSupportEmail() async {
+  await launchUrl(Uri.parse('mailto:$kSupportEmail?subject=Kadr'));
+}
 
 /// Экран «О приложении»: иконка, название, версия, атрибуция источников.
 class AboutScreen extends StatelessWidget {
@@ -55,7 +70,33 @@ class AboutScreen extends StatelessWidget {
                           color: scheme.onSurfaceVariant));
                 },
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: openSupportAuthors,
+                  style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14)),
+                  icon: const Icon(Icons.favorite_rounded),
+                  label: Text(tr('support_authors'),
+                      style: const TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: openSupportEmail,
+                  style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13)),
+                  icon: const Icon(Icons.mail_outline_rounded, size: 18),
+                  label: Text(tr('contact_support')),
+                ),
+              ),
+              const SizedBox(height: 24),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(

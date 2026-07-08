@@ -663,8 +663,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           (file.path != null ? await File(file.path!).readAsBytes() : null);
       if (raw == null) return;
       setState(() => _uploading = true);
-      final png = await resizeAvatarPng(raw);
-      await SocialController.instance.setAvatar(png);
+      final enc = await encodeAvatar(raw);
+      await SocialController.instance
+          .setAvatar(enc.bytes, contentType: enc.contentType);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -689,8 +690,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     try {
       final raw = await _downloadImage(url);
       if (raw == null) return;
-      final png = await resizeAvatarPng(raw);
-      await SocialController.instance.setAvatar(png);
+      final enc = await encodeAvatar(raw);
+      await SocialController.instance
+          .setAvatar(enc.bytes, contentType: enc.contentType);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -707,8 +709,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     try {
       final raw = await _downloadImage(url);
       if (raw == null) return;
-      final png = await resizeBannerPng(raw);
-      await SocialController.instance.setBanner(png);
+      final enc = await encodeBanner(raw);
+      await SocialController.instance
+          .setBanner(enc.bytes, contentType: enc.contentType);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -793,8 +796,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           (file.path != null ? await File(file.path!).readAsBytes() : null);
       if (raw == null) return;
       setState(() => _uploadingBanner = true);
-      final png = await resizeBannerPng(raw);
-      await SocialController.instance.setBanner(png);
+      final enc = await encodeBanner(raw);
+      await SocialController.instance
+          .setBanner(enc.bytes, contentType: enc.contentType);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)

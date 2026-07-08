@@ -45,6 +45,30 @@ class LocaleController extends ChangeNotifier {
   Locale get locale => Locale(_code);
   bool get isLoaded => _loaded;
 
+  /// Тег языка для TMDB (`language=`) — контент (названия/описания) на языке
+  /// интерфейса, а не всегда на русском. Для загранрынка это ключевое.
+  String get tmdbLanguage => switch (_code) {
+        'ru' => 'ru-RU',
+        'en' => 'en-US',
+        'de' => 'de-DE',
+        'fr' => 'fr-FR',
+        'es' => 'es-ES',
+        'it' => 'it-IT',
+        'pt' => 'pt-BR',
+        _ => 'en-US',
+      };
+
+  /// Регион для TMDB (`region=`, релизы/«в кино») — по языку интерфейса.
+  String get tmdbRegion => switch (_code) {
+        'ru' => 'RU',
+        'de' => 'DE',
+        'fr' => 'FR',
+        'es' => 'ES',
+        'it' => 'IT',
+        'pt' => 'BR',
+        _ => 'US',
+      };
+
   /// Сопоставление страны → вероятный язык (если язык телефона не поддержан).
   static const Map<String, String> _langByCountry = {
     'RU': 'ru', 'BY': 'ru', 'KZ': 'ru', 'KG': 'ru',

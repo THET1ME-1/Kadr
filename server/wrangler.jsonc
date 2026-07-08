@@ -15,5 +15,11 @@
       "database_name": "kadr-social",
       "database_id": "e0eb29e5-053f-43dd-93a9-b52c0d1dffd4"
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "kadr-media"
+    }
   ]
 }

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
+import '../l10n/locale_controller.dart';
 import 'api_keys.dart';
 import 'movie_source.dart';
 
@@ -115,6 +116,10 @@ class TmdbDetails {
   final String? overview;
   final String? tagline;
   final String? backdropUrl;
+
+  /// Постер ИЗ ЭТИХ ЖЕ деталей (по правильному tmdbId) — чтобы постер и бэкдроп
+  /// были из одной сущности TMDB и не разъезжались (фикс «чужого постера»).
+  final String? posterUrl;
   final String? director;
   final int? directorId;
   final String? imdbId;
@@ -135,6 +140,7 @@ class TmdbDetails {
     this.overview,
     this.tagline,
     this.backdropUrl,
+    this.posterUrl,
     this.director,
     this.directorId,
     this.imdbId,
@@ -166,11 +172,16 @@ const Map<String, String> kCountryRu = {
 /// Доп. данные сериала для шапки экрана: бэкдроп, описание, жанры.
 class TmdbTvExtra {
   final String? backdropUrl;
+  final String? posterUrl; // из тех же tv-деталей — фикс «чужого постера»
   final String? overview;
   final List<TmdbGenre> genres;
   final int? year;
   const TmdbTvExtra(
-      {this.backdropUrl, this.overview, this.genres = const [], this.year});
+      {this.backdropUrl,
+      this.posterUrl,
+      this.overview,
+      this.genres = const [],
+      this.year});
 }
 
 /// Сезон сериала (для навигации по сериям).
@@ -249,7 +260,7 @@ class TmdbService {
     try {
       final uri = Uri.parse('${ApiConfig.tmdbBase}/movie/$tmdbId').replace(
           queryParameters: {
-            'language': 'ru-RU',
+            'language': LocaleController.instance.tmdbLanguage,
             'append_to_response': 'credits'
           });
       final resp = await http
@@ -280,6 +291,7 @@ class TmdbService {
         }
       }
       final backdrop = j['backdrop_path'] as String?;
+      final poster = j['poster_path'] as String?;
       final coll = j['belongs_to_collection'] as Map<String, dynamic>?;
       final countries = [
         for (final c in (j['production_countries'] as List? ?? []))
@@ -297,6 +309,8 @@ class TmdbService {
             : null,
         backdropUrl:
             backdrop != null ? '${ApiConfig.tmdbBackdropBase}$backdrop' : null,
+        posterUrl:
+            poster != null ? '${ApiConfig.tmdbImageBase}$poster' : null,
         director: director,
         directorId: directorId,
         genres: [
@@ -329,7 +343,7 @@ class TmdbService {
     }
     try {
       final uri = Uri.parse('${ApiConfig.tmdbBase}/collection/$collectionId')
-          .replace(queryParameters: {'language': 'ru-RU'});
+          .replace(queryParameters: {'language': LocaleController.instance.tmdbLanguage});
       final resp = await http
           .get(uri, headers: _headers)
           .timeout(const Duration(seconds: 12));
@@ -349,17 +363,17 @@ class TmdbService {
 
   /// Популярное сейчас (лента «Обзор»). Пагинируется для бесконечной ленты.
   static Future<List<TmdbMovie>> trending({int page = 1}) =>
-      _list('/trending/movie/week', {'language': 'ru-RU', 'page': '$page'});
+      _list('/trending/movie/week', {'language': LocaleController.instance.tmdbLanguage, 'page': '$page'});
 
   /// Сейчас в кино (лента «В кино»).
   static Future<List<TmdbMovie>> nowPlaying({int page = 1}) => _list(
       '/movie/now_playing',
-      {'language': 'ru-RU', 'region': 'RU', 'page': '$page'});
+      {'language': LocaleController.instance.tmdbLanguage, 'region': LocaleController.instance.tmdbRegion, 'page': '$page'});
 
   /// Рекомендации TMDB к конкретному фильму (основа ленты «Похоже на твой вкус»).
   static Future<List<TmdbMovie>> recommendations(int tmdbId, {int page = 1}) =>
       _list('/movie/$tmdbId/recommendations',
-          {'language': 'ru-RU', 'page': '$page'});
+          {'language': LocaleController.instance.tmdbLanguage, 'page': '$page'});
 
   /// Поиск фильмов по всей базе TMDB (для общего поиска в «Обзор»/«В кино»).
   /// Не отбрасываем результаты без постера — у поиска важна полнота
@@ -369,7 +383,7 @@ class TmdbService {
     final q = query.trim();
     if (q.isEmpty) return Future.value([]);
     return _list('/search/movie', {
-      'language': 'ru-RU',
+      'language': LocaleController.instance.tmdbLanguage,
       'include_adult': 'true',
       'query': q,
       'page': '$page',
@@ -394,7 +408,7 @@ class TmdbService {
     final window = nowPlayingWindow && year == null;
     final from = DateTime.now().subtract(const Duration(days: 45));
     return _list('/discover/movie', {
-      'language': 'ru-RU',
+      'language': LocaleController.instance.tmdbLanguage,
       'sort_by': sortBy,
       'page': '$page',
       if (genreId != null) 'with_genres': '$genreId',
@@ -423,7 +437,7 @@ class TmdbService {
     final byRating = sortBy.startsWith('vote_average');
     final byDate = sortBy.startsWith('first_air_date');
     return _listTv('/discover/tv', {
-      'language': 'ru-RU',
+      'language': LocaleController.instance.tmdbLanguage,
       'sort_by': sortBy,
       'page': '$page',
       if (genreId != null) 'with_genres': '$genreId',
@@ -437,7 +451,7 @@ class TmdbService {
   static Future<List<TmdbMovie>> personMovieCredits(int personId) async {
     try {
       final uri = Uri.parse('${ApiConfig.tmdbBase}/person/$personId/movie_credits')
-          .replace(queryParameters: {'language': 'ru-RU'});
+          .replace(queryParameters: {'language': LocaleController.instance.tmdbLanguage});
       final resp = await http
           .get(uri, headers: _headers)
           .timeout(const Duration(seconds: 12));
@@ -495,18 +509,18 @@ class TmdbService {
 
   /// Популярные сериалы (лента «Сериалы» в «Обзоре»).
   static Future<List<TmdbSeries>> trendingTv({int page = 1}) =>
-      _listTv('/trending/tv/week', {'language': 'ru-RU', 'page': '$page'});
+      _listTv('/trending/tv/week', {'language': LocaleController.instance.tmdbLanguage, 'page': '$page'});
 
   /// Сериалы в эфире (лента «Сериалы» в «В кино»).
   static Future<List<TmdbSeries>> onAirTv({int page = 1}) =>
-      _listTv('/tv/on_the_air', {'language': 'ru-RU', 'page': '$page'});
+      _listTv('/tv/on_the_air', {'language': LocaleController.instance.tmdbLanguage, 'page': '$page'});
 
   /// Поиск сериалов по всей базе TMDB (без фильтра постеров — важна полнота).
   static Future<List<TmdbSeries>> searchTvShows(String query, {int page = 1}) {
     final q = query.trim();
     if (q.isEmpty) return Future.value([]);
     return _listTv('/search/tv', {
-      'language': 'ru-RU',
+      'language': LocaleController.instance.tmdbLanguage,
       'include_adult': 'true',
       'query': q,
       'page': '$page',
@@ -542,7 +556,7 @@ class TmdbService {
     final uri = Uri.parse('${ApiConfig.tmdbBase}/search/movie')
         .replace(queryParameters: {
       'query': title,
-      'language': 'ru-RU',
+      'language': LocaleController.instance.tmdbLanguage,
       'include_adult': 'true',
       if (year != null) 'year': '$year',
     });
@@ -589,16 +603,19 @@ class TmdbService {
     if (_seasonsCache.containsKey(tvId)) return _seasonsCache[tvId]!;
     try {
       final uri = Uri.parse('${ApiConfig.tmdbBase}/tv/$tvId')
-          .replace(queryParameters: {'language': 'ru-RU'});
+          .replace(queryParameters: {'language': LocaleController.instance.tmdbLanguage});
       final resp = await http
           .get(uri, headers: _headers)
           .timeout(const Duration(seconds: 12));
       if (resp.statusCode != 200) return [];
       final j = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
       final backdrop = j['backdrop_path'] as String?;
+      final poster = j['poster_path'] as String?;
       _tvExtraCache[tvId] = TmdbTvExtra(
         backdropUrl:
             backdrop != null ? '${ApiConfig.tmdbBackdropBase}$backdrop' : null,
+        posterUrl:
+            poster != null ? '${ApiConfig.tmdbImageBase}$poster' : null,
         overview: (j['overview'] as String?)?.isNotEmpty == true
             ? j['overview'] as String
             : null,
@@ -653,7 +670,7 @@ class TmdbService {
     if (_episodesCache.containsKey(key)) return _episodesCache[key]!;
     try {
       final uri = Uri.parse('${ApiConfig.tmdbBase}/tv/$tvId/season/$season')
-          .replace(queryParameters: {'language': 'ru-RU'});
+          .replace(queryParameters: {'language': LocaleController.instance.tmdbLanguage});
       final resp = await http
           .get(uri, headers: _headers)
           .timeout(const Duration(seconds: 12));
@@ -685,7 +702,7 @@ class TmdbService {
     final uri = Uri.parse('${ApiConfig.tmdbBase}/search/tv')
         .replace(queryParameters: {
       'query': title,
-      'language': 'ru-RU',
+      'language': LocaleController.instance.tmdbLanguage,
       'include_adult': 'true',
       if (year != null) 'first_air_date_year': '$year',
     });
