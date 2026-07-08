@@ -967,6 +967,10 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Data from the {when} backup will be added to your library.'
   },
   'restore_done': {'ru': 'Восстановлено из копии', 'en': 'Restored from backup'},
+  'restore_done_n': {
+    'ru': 'Восстановлено • {n} фильмов',
+    'en': 'Restored • {n} movies'
+  },
   'restore_failed': {
     'ru': 'Не удалось восстановить копию',
     'en': "Couldn't restore the backup"

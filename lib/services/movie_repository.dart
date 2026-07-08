@@ -67,6 +67,10 @@ class MovieRepository extends ChangeNotifier {
 
   bool get isLoaded => _loaded;
   List<LibraryMovie> get movies => List.unmodifiable(_movies);
+
+  /// Есть ли что бэкапить/показывать (не пустая ли библиотека).
+  bool get hasData =>
+      _movies.isNotEmpty || _series.isNotEmpty || _lists.isNotEmpty;
   List<LibrarySeries> get series => List.unmodifiable(_series);
   List<MovieList> get lists => List.unmodifiable(_lists);
 

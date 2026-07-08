@@ -104,7 +104,13 @@ class _AutoBackupScreenState extends State<AutoBackupScreen> {
   Future<void> _doRestore(BackupFile b) async {
     final done = await _svc.restore(b.file);
     if (!mounted) return;
-    _snack(done ? tr('restore_done') : tr('restore_failed'));
+    if (done) {
+      _snack(trf(
+          'restore_done_n', {'n': MovieRepository.instance.movies.length}));
+      _loadBackups();
+    } else {
+      _snack(tr('restore_failed'));
+    }
   }
 
   @override

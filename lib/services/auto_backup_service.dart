@@ -142,6 +142,12 @@ class AutoBackupService extends ChangeNotifier {
         _lastError = 'folder_missing';
         return false;
       }
+      // НЕ пишем ПУСТУЮ копию: иначе на свежей установке она станет «последней»
+      // и восстановление вернёт пустоту (а ротация со временем сотрёт реальные).
+      if (!MovieRepository.instance.hasData) {
+        _lastError = 'empty';
+        return false;
+      }
       final json = MovieRepository.instance.exportJson();
       final f = File('${dir.path}/kadr_auto_${_stamp()}.json');
       await f.writeAsString(json);
@@ -174,6 +180,9 @@ class AutoBackupService extends ChangeNotifier {
         final name = e.uri.pathSegments.last;
         if (!name.startsWith('kadr_auto_') || !name.endsWith('.json')) continue;
         final st = await e.stat();
+        // Пропускаем ПУСТЫЕ копии (пустой экспорт ~75 байт) — они бесполезны и
+        // раньше могли попасть в «восстановить последнюю».
+        if (st.size < 120) continue;
         out.add(BackupFile(e, _parseStamp(name) ?? st.modified, st.size));
       }
       out.sort((a, b) => b.date.compareTo(a.date));
