@@ -97,6 +97,12 @@ class AboutScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
+              GestureDetector(
+                onTap: () => launchUrl(Uri.parse('https://www.themoviedb.org'),
+                    mode: LaunchMode.externalApplication),
+                child: Image.asset('assets/tmdb_logo.png', height: 18),
+              ),
+              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
