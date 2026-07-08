@@ -66,7 +66,8 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       MovieRepository.instance.startEnrichSweep();
       await NotificationService.instance.init();
-      await NotificationService.instance.requestPermission();
+      // Разрешение на пуши больше не просим на старте — пуши по умолчанию
+      // выключены, разрешение запрашивается при включении в настройках.
       // Не блокируем первый кадр — проверяем серии чуть позже.
       await Future<void>.delayed(const Duration(seconds: 2));
       await NotificationService.instance.checkNewEpisodes();
@@ -331,12 +332,21 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
         ],
       ),
       floatingActionButton: onLibrary
-          ? FloatingActionButton.extended(
+          ? FloatingActionButton(
               onPressed: () => _goTab(2),
-              icon: const Icon(Icons.add_rounded),
-              label: Text(tr('add')),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              tooltip: tr('add'),
+              child: const Icon(Icons.add_rounded),
             )
           : null,
+      // Кнопка «+» докнута к нижней навигации (наполовину над ней); позицию
+      // (центр/слева/справа) выбирает пользователь в настройках.
+      floatingActionButtonLocation: switch (AppPrefs.instance.fabPosition) {
+        FabPosition.center => FloatingActionButtonLocation.centerDocked,
+        FabPosition.left => FloatingActionButtonLocation.startDocked,
+        FabPosition.right => FloatingActionButtonLocation.endDocked,
+      },
       bottomNavigationBar: ListenableBuilder(
         listenable: SocialController.instance,
         builder: (context, _) {

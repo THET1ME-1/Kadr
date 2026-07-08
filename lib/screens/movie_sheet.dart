@@ -22,6 +22,7 @@ import '../widgets/score_pad.dart';
 import '../widgets/user_avatar.dart';
 import 'browse_screens.dart';
 import 'social/auth_screen.dart';
+import 'share_card_sheet.dart';
 import 'when_watched_sheet.dart';
 
 /// Открывает полноэкранную карточку фильма (как экран сериала — отдельная
@@ -135,6 +136,22 @@ class _MovieScreenState extends State<MovieScreen> {
             ),
           ),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Material(
+              color: Colors.black.withValues(alpha: 0.35),
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: IconButton(
+                icon: const Icon(Icons.ios_share_rounded, color: Colors.white),
+                tooltip: tr('share'),
+                onPressed: () => showShareCardSheet(
+                    context, _repo.byUuid(widget.movie.uuid) ?? widget.movie),
+              ),
+            ),
+          ),
+        ],
       ),
       body: ListenableBuilder(
         listenable: _repo,

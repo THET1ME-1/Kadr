@@ -37,15 +37,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _locale = LocaleController.instance;
   final _source = SourceController.instance;
   final _prefs = AppPrefs.instance;
-  bool _notify = true;
+  bool _notifyInApp = true;
+  bool _notifyPush = false;
   bool _sequential = true;
   bool _restrictUnaired = true;
 
   @override
   void initState() {
     super.initState();
-    Store.instance.getBool('notifyNewEpisodes', def: true).then((v) {
-      if (mounted) setState(() => _notify = v);
+    Store.instance.getBool('notifyInApp', def: true).then((v) {
+      if (mounted) setState(() => _notifyInApp = v);
+    });
+    Store.instance.getBool('notifyPush', def: false).then((v) {
+      if (mounted) setState(() => _notifyPush = v);
     });
     Store.instance.getBool('sequentialEpisodes', def: true).then((v) {
       if (mounted) setState(() => _sequential = v);
@@ -150,6 +154,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: _dateFormatExample(_prefs.numericDates),
                   onTap: _pickDateFormat,
                 ),
+                _divider(),
+                _tile(
+                  icon: Icons.add_circle_outline_rounded,
+                  title: tr('fab_position'),
+                  subtitle: _fabPositionLabel(_prefs.fabPosition),
+                  onTap: _pickFabPosition,
+                ),
               ]),
               _section(tr('movies_section')),
               _card([
@@ -195,17 +206,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _section(tr('notif_new_episodes')),
               _card([
                 SwitchListTile(
-                  secondary: const Icon(Icons.notifications_active_rounded),
-                  title: Text(tr('notif_new_episodes')),
-                  subtitle: Text(tr('notif_new_episodes_sub')),
-                  value: _notify,
+                  secondary: const Icon(Icons.dashboard_customize_rounded),
+                  title: Text(tr('notif_inapp')),
+                  subtitle: Text(tr('notif_inapp_sub')),
+                  value: _notifyInApp,
                   onChanged: (v) async {
-                    setState(() => _notify = v);
-                    await NotificationService.instance.setEnabled(v);
+                    setState(() => _notifyInApp = v);
+                    await NotificationService.instance.setInAppEnabled(v);
                     if (v) await NotificationService.instance.checkNewEpisodes();
                   },
                 ),
-                if (_notify) ...[
+                _divider(),
+                SwitchListTile(
+                  secondary: const Icon(Icons.notifications_active_rounded),
+                  title: Text(tr('notif_push')),
+                  subtitle: Text(tr('notif_push_sub')),
+                  value: _notifyPush,
+                  onChanged: (v) async {
+                    setState(() => _notifyPush = v);
+                    await NotificationService.instance.setPushEnabled(v);
+                    if (v) await NotificationService.instance.checkNewEpisodes();
+                  },
+                ),
+                if (_notifyInApp || _notifyPush) ...[
                   _divider(),
                   _tile(
                     icon: Icons.notifications_none_rounded,
@@ -512,6 +535,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _pickFabPosition() {
+    _bottomSheet(
+      title: tr('fab_position'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final p in FabPosition.values)
+            ListTile(
+              leading: Icon(_fabPositionIcon(p)),
+              title: Text(_fabPositionLabel(p),
+                  style: const TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontWeight: FontWeight.w600)),
+              trailing: _prefs.fabPosition == p
+                  ? Icon(Icons.check_circle_rounded,
+                      color: Theme.of(context).colorScheme.primary)
+                  : null,
+              onTap: () {
+                _prefs.setFabPosition(p);
+                Navigator.pop(context);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
   void _pickStartScreen() {
     _bottomSheet(
       title: tr('start_screen'),
@@ -746,6 +796,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     return _locale.code;
   }
+
+  String _fabPositionLabel(FabPosition p) => switch (p) {
+        FabPosition.center => tr('fab_center'),
+        FabPosition.left => tr('fab_left'),
+        FabPosition.right => tr('fab_right'),
+      };
+
+  IconData _fabPositionIcon(FabPosition p) => switch (p) {
+        FabPosition.center => Icons.vertical_align_bottom_rounded,
+        FabPosition.left => Icons.align_horizontal_left_rounded,
+        FabPosition.right => Icons.align_horizontal_right_rounded,
+      };
 
   String _startScreenLabel(StartScreen s) => switch (s) {
         StartScreen.watchlist => tr('nav_watchlist'),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
@@ -40,6 +41,7 @@ class _WhenWatchedSheetState extends State<_WhenWatchedSheet> {
   Future<void> _log(BuildContext context, DateTime? date) async {
     final messenger = ScaffoldMessenger.of(context);
     final withFriends = _with;
+    HapticFeedback.mediumImpact(); // тактильный отклик на отметку просмотра
     Navigator.pop(context);
     final wasRewatch =
         await MovieRepository.instance.addViewing(widget.movie.uuid, date);

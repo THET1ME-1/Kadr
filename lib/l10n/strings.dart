@@ -74,6 +74,10 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Find a movie or show — we\'ll use its image.'
   },
   'pick_media_empty': {'ru': 'Ничего не нашлось', 'en': 'Nothing found'},
+  'pick_media_no_images': {
+    'ru': 'Нет доступных кадров',
+    'en': 'No images available'
+  },
   'cowatch_with_friend': {
     'ru': 'Посмотрел с другом',
     'en': 'Watched with a friend'
@@ -410,6 +414,7 @@ const Map<String, Map<String, String>> _strings = {
   'nav_watchlist': {'ru': 'Буду смотреть', 'en': 'Watchlist'},
   'nav_watched': {'ru': 'Просмотрено', 'en': 'Watched'},
   'nav_discover': {'ru': 'Обзор', 'en': 'Discover'},
+  'disc_for_you': {'ru': 'Для вас', 'en': 'For you'},
   'nav_cinema': {'ru': 'В кино', 'en': 'In theaters'},
   'discover_error': {'ru': 'Не удалось загрузить', 'en': 'Failed to load'},
   'retry': {'ru': 'Повторить', 'en': 'Retry'},
@@ -512,6 +517,10 @@ const Map<String, Map<String, String>> _strings = {
   'appearance': {'ru': 'Внешний вид', 'en': 'Appearance'},
   'general': {'ru': 'Общее', 'en': 'General'},
   'start_screen': {'ru': 'Экран при запуске', 'en': 'Start screen'},
+  'fab_position': {'ru': 'Кнопка «+»', 'en': 'The + button'},
+  'fab_center': {'ru': 'По центру', 'en': 'Center'},
+  'fab_left': {'ru': 'Слева', 'en': 'Left'},
+  'fab_right': {'ru': 'Справа', 'en': 'Right'},
   'date_format': {'ru': 'Формат даты', 'en': 'Date format'},
   'date_format_long': {'ru': 'Как «24 июня 2026»', 'en': 'Like “June 24, 2026”'},
   'date_format_numeric': {'ru': 'Как «24.06.2026»', 'en': 'Like “24.06.2026”'},
@@ -809,6 +818,7 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'When did you watch this episode?'
   },
   'share': {'ru': 'Поделиться', 'en': 'Share'},
+  'share_want_to_watch': {'ru': 'Хочу посмотреть', 'en': 'Want to watch'},
   'delete_from_base': {'ru': 'Удалить из базы', 'en': 'Delete from library'},
   'delete_from_base_confirm': {
     'ru': '«{title}» будет полностью удалён из базы. Можно отменить сразу после удаления.',
@@ -1135,8 +1145,25 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Уведомлять о выходе новых серий сериалов, которые смотрю',
     'en': 'Notify when new episodes of series I watch are released'
   },
+  'notif_inapp': {
+    'ru': 'Блок в приложении',
+    'en': 'In-app banner'
+  },
+  'notif_inapp_sub': {
+    'ru': 'Показывать новые серии баннером внутри приложения',
+    'en': 'Show new episodes as a banner inside the app'
+  },
+  'notif_push': {
+    'ru': 'Пуш-уведомления',
+    'en': 'Push notifications'
+  },
+  'notif_push_sub': {
+    'ru': 'Системные уведомления о новых сериях (по умолчанию выкл.)',
+    'en': 'System notifications for new episodes (off by default)'
+  },
   'notif_channel_name': {'ru': 'Новые серии', 'en': 'New episodes'},
   'notif_new_ep_title': {'ru': 'Вышла новая серия', 'en': 'New episode out'},
+  'notif_mark_watched': {'ru': 'Отметить просмотренной', 'en': 'Mark watched'},
   'notif_new_ep_body': {
     'ru': '{title}: серия {ep} уже вышла',
     'en': '{title}: episode {ep} is out'

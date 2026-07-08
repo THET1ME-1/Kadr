@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../l10n/locale_controller.dart';
 import '../l10n/strings.dart';
+import '../models/library_entry.dart';
 import '../services/movie_repository.dart';
 import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/infinite_grid.dart';
 import '../widgets/movie_cards.dart';
 
-enum DiscoverMode { trending, nowPlaying }
+enum DiscoverMode { forYou, trending, nowPlaying }
 
 enum _DiscSort { popular, topRated, newest }
 
@@ -88,12 +89,58 @@ class _DiscoverTabState extends State<DiscoverTab>
   bool get wantKeepAlive => true;
 
   @override
+  void initState() {
+    super.initState();
+    // По умолчанию — «Для вас», если есть по чему персонализировать (просмотрено
+    // хотя бы что-то с известным жанром).
+    if (_topMovieGenreId() != null) _mode = DiscoverMode.forYou;
+  }
+
+  @override
   void dispose() {
     _tab.dispose();
     super.dispose();
   }
 
   String get _q => widget.query.trim();
+
+  /// Топ-жанр пользователя (id TMDB) по ПРОСМОТРЕННЫМ фильмам (любимые весомее),
+  /// или null, если данных нет. Жанры хранятся именами → маппим на id.
+  int? _topMovieGenreId() {
+    final counts = <String, double>{};
+    for (final m in MovieRepository.instance.movies) {
+      if (m.status != LibraryStatus.watched) continue;
+      final w = (m.currentScore ?? 6) >= 7 ? 2.0 : 1.0;
+      for (final g in m.genres) {
+        final k = g.toLowerCase().trim();
+        if (k.isEmpty) continue;
+        counts[k] = (counts[k] ?? 0) + w;
+      }
+    }
+    if (counts.isEmpty) return null;
+    final top = counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    for (final g in _movieGenres) {
+      if (g.ru.toLowerCase() == top || g.en.toLowerCase() == top) return g.id;
+    }
+    return null;
+  }
+
+  /// Прячет из ленты уже просмотренное (фильмы — watched; сериалы — начатые).
+  List<TmdbMovie> _hideWatchedM(List<TmdbMovie> list) {
+    final repo = MovieRepository.instance;
+    return [
+      for (final m in list)
+        if (repo.movieByTmdb(m.id)?.status != LibraryStatus.watched) m
+    ];
+  }
+
+  List<TmdbSeries> _hideWatchedS(List<TmdbSeries> list) {
+    final repo = MovieRepository.instance;
+    return [
+      for (final s in list)
+        if (repo.seriesByTmdb(s.id)?.episodes.isEmpty ?? true) s
+    ];
+  }
 
   bool get _mActive =>
       _mGenre != null || _mYear != null || _mSort != _DiscSort.popular;
@@ -111,42 +158,56 @@ class _DiscoverTabState extends State<DiscoverTab>
         _DiscSort.newest => 'first_air_date.desc',
       };
 
-  Future<List<TmdbMovie>> _movieLoader(int page) {
+  Future<List<TmdbMovie>> _movieLoader(int page) async {
     if (_q.isNotEmpty) return TmdbService.searchMovies(_q, page: page);
+    List<TmdbMovie> list;
     if (_mActive) {
-      return TmdbService.discoverMovies(
+      list = await TmdbService.discoverMovies(
         page: page,
         genreId: _mGenre?.id,
         year: _mYear,
         sortBy: _mSortBy,
         nowPlayingWindow: _mode == DiscoverMode.nowPlaying,
       );
+    } else if (_mode == DiscoverMode.forYou) {
+      final g = _topMovieGenreId();
+      list = g != null
+          ? await TmdbService.discoverMovies(
+              page: page, genreId: g, sortBy: 'popularity.desc')
+          : await TmdbService.trending(page: page);
+    } else if (_mode == DiscoverMode.nowPlaying) {
+      list = await TmdbService.nowPlaying(page: page);
+    } else {
+      list = await TmdbService.trending(page: page);
     }
-    return _mode == DiscoverMode.trending
-        ? TmdbService.trending(page: page)
-        : TmdbService.nowPlaying(page: page);
+    return _hideWatchedM(list);
   }
 
-  Future<List<TmdbSeries>> _seriesLoader(int page) {
+  Future<List<TmdbSeries>> _seriesLoader(int page) async {
     if (_q.isNotEmpty) return TmdbService.searchTvShows(_q, page: page);
+    List<TmdbSeries> list;
     if (_tActive) {
-      return TmdbService.discoverTv(
+      list = await TmdbService.discoverTv(
         page: page,
         genreId: _tGenre?.id,
         year: _tYear,
         sortBy: _tSortBy,
       );
+    } else if (_mode == DiscoverMode.nowPlaying) {
+      list = await TmdbService.onAirTv(page: page);
+    } else {
+      // «Для вас» и «Обзор» → популярные сериалы (жанров сериалов в библиотеке нет)
+      list = await TmdbService.trendingTv(page: page);
     }
-    return _mode == DiscoverMode.trending
-        ? TmdbService.trendingTv(page: page)
-        : TmdbService.onAirTv(page: page);
+    return _hideWatchedS(list);
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
     final scheme = Theme.of(context).colorScheme;
-    final mKey = 'm|$_mode|$_q|${_mGenre?.id}|$_mYear|$_mSort';
+    final mKey =
+        'm|$_mode|$_q|${_mGenre?.id}|$_mYear|$_mSort|${_topMovieGenreId()}';
     final tKey = 's|$_mode|$_q|${_tGenre?.id}|$_tYear|$_tSort';
     return Column(
       children: [
@@ -263,6 +324,8 @@ class _DiscoverTabState extends State<DiscoverTab>
       ),
       child: Row(
         children: [
+          seg(DiscoverMode.forYou, tr('disc_for_you'),
+              Icons.auto_awesome_rounded),
           seg(DiscoverMode.trending, tr('nav_discover'), Icons.explore_rounded),
           seg(DiscoverMode.nowPlaying, tr('nav_cinema'),
               Icons.local_movies_rounded),

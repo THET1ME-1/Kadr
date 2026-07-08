@@ -251,6 +251,39 @@ class TmdbService {
     }
   }
 
+  /// Все изображения фильма/сериала (кадры-бэкдропы и постеры) из TMDB — для
+  /// выбора баннера/аватара из нескольких вариантов. Берём свой язык + англ. +
+  /// без языка (нейтральные кадры без текста часто лучше для баннера).
+  static Future<({List<String> backdrops, List<String> posters})> imagesOf(
+      int id,
+      {bool tv = false}) async {
+    try {
+      final uri = Uri.parse('${ApiConfig.tmdbBase}/${tv ? 'tv' : 'movie'}/$id/images')
+          .replace(queryParameters: {
+        'include_image_language':
+            '${LocaleController.instance.code},en,null',
+      });
+      final resp = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 12));
+      if (resp.statusCode != 200) {
+        return (backdrops: <String>[], posters: <String>[]);
+      }
+      final j = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      List<String> urls(String key, String base) => [
+            for (final e in (j[key] as List? ?? []))
+              if ((e as Map)['file_path'] != null) '$base${e['file_path']}'
+          ];
+      return (
+        backdrops: urls('backdrops', ApiConfig.tmdbBackdropBase),
+        posters: urls('posters', ApiConfig.tmdbImageBase),
+      );
+    } catch (e) {
+      debugPrint('tmdb imagesOf $id: $e');
+      return (backdrops: <String>[], posters: <String>[]);
+    }
+  }
+
   /// Кэш подробностей в памяти (на сессию).
   static final Map<int, TmdbDetails> _detailsCache = {};
 
