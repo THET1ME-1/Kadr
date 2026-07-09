@@ -222,6 +222,15 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
             ? prev.watchedAt
             : e.watchedAt;
       }
+      // Повторы серии: берём БОЛЕЕ ПОЛНЫЙ список (без склейки — чтобы не
+      // задвоить одни и те же просмотры), число просмотров — максимум. Раньше
+      // rewatchViews здесь ТЕРЯЛИСЬ (оставался только счётчик) → ×N расходился
+      // со списком «Оценки по просмотрам».
+      final rv = prev.rewatchViews.length >= e.rewatchViews.length
+          ? prev.rewatchViews
+          : e.rewatchViews;
+      final rc = [prev.rewatchCount, e.rewatchCount, rv.length]
+          .reduce((x, y) => x > y ? x : y);
       emap[k] = Episode(
         season: prev.season ?? e.season,
         number: prev.number ?? e.number,
@@ -229,9 +238,8 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
         runtimeMin: prev.runtimeMin ?? e.runtimeMin,
         score: prev.score ?? e.score,
         epId: prev.epId ?? e.epId,
-        rewatchCount: prev.rewatchCount > e.rewatchCount
-            ? prev.rewatchCount
-            : e.rewatchCount,
+        rewatchCount: rc,
+        rewatchViews: List<Viewing>.from(rv),
       );
     }
   }

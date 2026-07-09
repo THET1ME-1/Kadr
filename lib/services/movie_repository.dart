@@ -173,11 +173,18 @@ class MovieRepository extends ChangeNotifier {
             e.watchedAt!.isBefore(prev.watchedAt!)) {
           prev.watchedAt = e.watchedAt;
         }
+        // Повторы дублей: берём БОЛЕЕ ПОЛНЫЙ список (без склейки — дубли обычно
+        // повторяют одни и те же просмотры, склейка бы задвоила ×N) и держим
+        // счётчик в лад с ним.
+        if (e.rewatchViews.length > prev.rewatchViews.length) {
+          prev.rewatchViews = e.rewatchViews;
+        }
         if (e.rewatchCount > prev.rewatchCount) {
           prev.rewatchCount = e.rewatchCount;
         }
-        // Объединяем повторы дублей (не теряем историю пересмотров).
-        prev.rewatchViews.addAll(e.rewatchViews);
+        if (prev.rewatchCount < prev.rewatchViews.length) {
+          prev.rewatchCount = prev.rewatchViews.length;
+        }
         prev.runtimeMin ??= e.runtimeMin;
         prev.epId ??= e.epId;
         removed++;
@@ -924,11 +931,10 @@ class MovieRepository extends ChangeNotifier {
     var i = 0;
     for (final e in eps) {
       e.rewatchCount += 1;
-      // Пересмотр = новый просмотр (дата+оценка). Первый (watchedAt) НЕ затираем.
-      // null = «неизвестно»: считаем повтор, но датированную запись не создаём.
-      if (date != null) {
-        e.rewatchViews.add(Viewing(date: date.add(Duration(seconds: i))));
-      }
+      // Пересмотр = новый просмотр. Запись создаём ВСЕГДА (в т.ч. без даты) —
+      // иначе rewatchCount обгонит rewatchViews и ×N разойдётся со списком
+      // просмотров. Недатированные повторы в ленту не попадают (см. sessions()).
+      e.rewatchViews.add(Viewing(date: date?.add(Duration(seconds: i))));
       i++;
     }
     if (eps.isNotEmpty) {

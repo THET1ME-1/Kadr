@@ -289,8 +289,18 @@ class Episode {
 
   /// Все просмотры серии как список (первый = watchedAt+score, затем повторы) —
   /// для карточки «Оценки по просмотрам» и ленты. Порядок добавления сохранён.
-  List<Viewing> get views =>
-      [Viewing(date: watchedAt, score: score), ...rewatchViews];
+  /// Если легаси-счётчик [rewatchCount] обогнал [rewatchViews] (пересмотр сезона
+  /// без даты; потеря повторов при старом слиянии) — достраиваем недостающие
+  /// повторы как «без даты», чтобы число записей всегда совпадало с [watchCount]
+  /// (иначе ×N расходится со списком просмотров). Недатированные в ленту не
+  /// попадают (см. [LibrarySeries.sessions]).
+  List<Viewing> get views {
+    final list = [Viewing(date: watchedAt, score: score), ...rewatchViews];
+    for (var i = list.length; i < watchCount; i++) {
+      list.add(Viewing());
+    }
+    return list;
+  }
 
   /// Эффективная оценка конкретного просмотра (своя, иначе — общая первого).
   double? scoreOfView(Viewing v) => v.score ?? score;
@@ -324,16 +334,27 @@ class Episode {
     return d;
   }
 
-  factory Episode.fromJson(Map<String, dynamic> j) => Episode(
-        season: (j['season'] as num?)?.toInt(),
-        number: (j['number'] as num?)?.toInt(),
-        watchedAt: _parse(j['watchedAt']),
-        runtimeMin: (j['runtimeMin'] as num?)?.toInt(),
-        score: (j['score'] as num?)?.toDouble(),
-        epId: j['epId'] as String?,
-        rewatchCount: (j['rewatchCount'] as num?)?.toInt() ?? 0,
-        rewatchViews: _parseViews(j),
-      );
+  factory Episode.fromJson(Map<String, dynamic> j) {
+    final rc = (j['rewatchCount'] as num?)?.toInt() ?? 0;
+    final rv = _parseViews(j);
+    // Легаси-рассинхрон: [rewatchCount] мог обогнать [rewatchViews] (пересмотр
+    // сезона без даты; потеря повторов при старом слиянии/дедупе). Достраиваем
+    // недостающие повторы как «без даты» — чтобы ×N и список «Оценки по
+    // просмотрам» совпадали, а сами повторы можно было редактировать/удалять.
+    for (var i = rv.length; i < rc; i++) {
+      rv.add(Viewing());
+    }
+    return Episode(
+      season: (j['season'] as num?)?.toInt(),
+      number: (j['number'] as num?)?.toInt(),
+      watchedAt: _parse(j['watchedAt']),
+      runtimeMin: (j['runtimeMin'] as num?)?.toInt(),
+      score: (j['score'] as num?)?.toDouble(),
+      epId: j['epId'] as String?,
+      rewatchCount: rc,
+      rewatchViews: rv,
+    );
+  }
 
   /// Читает повторы: новый формат rewatchViews (дата+оценка) или старый
   /// rewatchDates (только даты v0.6.4 → оценка null).

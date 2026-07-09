@@ -61,15 +61,60 @@ void main() {
     expect(byDay[6], 9.0, reason: 'пересмотр — своя оценка 9');
   });
 
-  test('старые данные без rewatchDates не ломаются', () {
+  test('легаси-повторы без дат материализуются, ×N = список просмотров', () {
     final e = Episode.fromJson({
       'season': 1,
       'number': 1,
       'watchedAt': '2026-07-05T20:00:00.000',
       'rewatchCount': 2, // старые повторы без дат
     });
-    expect(e.rewatchViews, isEmpty);
-    expect(e.views.length, 1); // только первый просмотр в ленте
-    expect(e.watchCount, 3); // ×N по-прежнему считается
+    // Раньше расходилось: rewatchViews было пусто, views.length=1, а watchCount=3
+    // (это и есть баг — ×N в карточке ≠ список «Оценки по просмотрам»). Теперь
+    // недостающие повторы достраиваются как «без даты» → список = ×N, повторы
+    // можно редактировать/удалять.
+    expect(e.rewatchViews.length, 2);
+    expect(e.rewatchViews.every((v) => v.date == null), true);
+    expect(e.views.length, e.watchCount); // список записей = ×N
+    expect(e.watchCount, 3);
+  });
+
+  test('недатированные повторы НЕ засоряют ленту «Просмотрено»', () {
+    final e = Episode.fromJson({
+      'season': 1,
+      'number': 1,
+      'watchedAt': '2026-07-05T20:00:00.000',
+      'rewatchCount': 2,
+    });
+    final s = LibrarySeries(tvShowId: 't', title: 'T')..episodes.add(e);
+    // В ленту (сессии с датой) попадает только датированный первый просмотр.
+    final datedEvents = s
+        .sessions()
+        .where((x) => x.start != null)
+        .fold<int>(0, (n, x) => n + x.count);
+    expect(datedEvents, 1);
+  });
+
+  test('регрессия: watchedAt без даты + rewatchCount 5 + 1 датированный повтор', () {
+    // Точный кейс из бага: ×6 в карточке, но в ленте/списке только 2 записи.
+    final e = Episode.fromJson({
+      'season': 1,
+      'number': 11,
+      'watchedAt': null, // «Неизвестная дата»
+      'rewatchCount': 5, // счётчик обогнал реальные записи (пересмотр сезона/синк)
+      'rewatchViews': [
+        {'date': '2026-07-09T17:36:00.000', 'score': 10.0},
+      ],
+    });
+    // Теперь всё сходится: 6 просмотров в списке = ×6 в карточке.
+    expect(e.watchCount, 6);
+    expect(e.views.length, 6);
+    expect(e.views.length, e.watchCount);
+    // Из шести только один датирован → в ленте одна запись.
+    final s = LibrarySeries(tvShowId: 't', title: 'T')..episodes.add(e);
+    final datedEvents = s
+        .sessions()
+        .where((x) => x.start != null)
+        .fold<int>(0, (n, x) => n + x.count);
+    expect(datedEvents, 1);
   });
 }
