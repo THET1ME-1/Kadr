@@ -139,6 +139,10 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Trakt error. Check your connection.'
   },
   'trakt_powered': {'ru': 'Работает на Trakt', 'en': 'Powered by Trakt'},
+  'about_tvdb': {
+    'ru': 'Данные о фильмах и сериалах — также TheTVDB (thetvdb.com)',
+    'en': 'Movie & TV data also by TheTVDB (thetvdb.com)'
+  },
   'undo': {'ru': 'Отменить', 'en': 'Undo'},
   'save': {'ru': 'Сохранить', 'en': 'Save'},
   'delete': {'ru': 'Удалить', 'en': 'Delete'},

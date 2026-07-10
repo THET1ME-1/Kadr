@@ -13,6 +13,7 @@ import 'poster_store.dart';
 import 'store.dart';
 import 'sync/sync_merge.dart';
 import 'tmdb_service.dart';
+import 'tvdb_service.dart';
 
 /// Единое хранилище библиотеки фильмов/сериалов Kadr.
 ///
@@ -1771,13 +1772,18 @@ class MovieRepository extends ChangeNotifier {
     if (m.posterUrl != null || m.enrichTried) return true;
     try {
       final source = SourceController.instance.source;
-      final match = source == MovieSource.tmdb
-          ? await TmdbService.search(m.title, year: m.year)
-          : await KinopoiskService.search(m.title, year: m.year);
+      final match = switch (source) {
+        MovieSource.tmdb => await TmdbService.search(m.title, year: m.year),
+        MovieSource.kinopoisk =>
+          await KinopoiskService.search(m.title, year: m.year),
+        MovieSource.tvdb => await TvdbService.search(m.title, year: m.year),
+      };
       m.enrichTried = true;
       if (match != null) {
         m.kinopoiskId ??= match.kinopoiskId;
         m.tmdbId ??= match.tmdbId;
+        m.tvdbId ??= match.tvdbId;
+        m.imdbId ??= match.imdbId;
         m.posterUrl = match.posterUrl;
         m.kpRating ??= match.rating;
         if (match.ruName != null && match.ruName!.isNotEmpty) {
@@ -1879,6 +1885,8 @@ class MovieRepository extends ChangeNotifier {
         used++;
         m.detailsTried = true;
         if (d != null) {
+          // IMDb id — универсальный ключ между источниками (миграция без потерь).
+          if (m.imdbId == null && d.imdbId != null) m.imdbId = d.imdbId;
           if (m.genres.isEmpty) m.genres = d.genres.map((g) => g.name).toList();
           if (m.countries.isEmpty) m.countries = d.countries;
           final cur = m.runtimeMin;

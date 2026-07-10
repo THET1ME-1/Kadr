@@ -1077,6 +1077,20 @@ async function traktRefresh(request, env) {
   return traktPass(r, await r.text());
 }
 
+// TheTVDB: обмен API-ключа на токен (~1 мес). apikey живёт ТОЛЬКО в секрете
+// воркера (не в репо/APK). Приложение дальше ходит по API с этим токеном.
+async function tvdbToken(request, env) {
+  const r = await fetch('https://api4.thetvdb.com/v4/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'Kadr (github.com/THET1ME-1/Kadr)',
+    },
+    body: JSON.stringify({ apikey: env.TVDB_API_KEY }),
+  });
+  return traktPass(r, await r.text());
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
@@ -1094,6 +1108,7 @@ export default {
       // client_secret жил ТОЛЬКО на сервере (не в приложении и не в репозитории).
       if (path === '/trakt/token' && method === 'POST') return traktDeviceToken(request, env);
       if (path === '/trakt/refresh' && method === 'POST') return traktRefresh(request, env);
+      if (path === '/tvdb/token' && method === 'POST') return tvdbToken(request, env);
 
       // Публичная отдача аватара (без токена — картинка не секрет).
       const avaMatch = path.match(/^\/avatars\/([^/?]+)$/);

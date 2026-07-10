@@ -132,6 +132,18 @@ class AboutScreen extends StatelessWidget {
                     mode: LaunchMode.externalApplication),
                 child: Image.asset('assets/tmdb_logo.png', height: 18),
               ),
+              const SizedBox(height: 10),
+              // Атрибуция TheTVDB (обязательна по их правилам — прямая ссылка).
+              GestureDetector(
+                onTap: () => launchUrl(Uri.parse('https://www.thetvdb.com'),
+                    mode: LaunchMode.externalApplication),
+                child: Text(tr('about_tvdb'),
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 12.5,
+                        decoration: TextDecoration.underline,
+                        color: scheme.onSurfaceVariant)),
+              ),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(16),

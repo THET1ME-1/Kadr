@@ -464,9 +464,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           for (final s in MovieSource.values)
             ListTile(
-              leading: Icon(s == MovieSource.tmdb
-                  ? Icons.public_rounded
-                  : Icons.movie_rounded),
+              leading: Icon(switch (s) {
+                MovieSource.tmdb => Icons.public_rounded,
+                MovieSource.kinopoisk => Icons.movie_rounded,
+                MovieSource.tvdb => Icons.live_tv_rounded,
+              }),
               title: Text(s.label,
                   style: const TextStyle(
                       fontFamily: AppTheme.bodyFont,

@@ -3,33 +3,41 @@ import 'package:flutter/foundation.dart';
 import 'store.dart';
 
 /// Источник данных о фильмах (поиск + обогащение).
-enum MovieSource { tmdb, kinopoisk }
+enum MovieSource { tmdb, kinopoisk, tvdb }
 
 extension MovieSourceX on MovieSource {
   String get id => name;
   String get label => switch (this) {
         MovieSource.tmdb => 'TMDB',
         MovieSource.kinopoisk => 'kinopoisk.dev',
+        MovieSource.tvdb => 'TheTVDB',
       };
   String get note => switch (this) {
         MovieSource.tmdb => 'Без лимита · русский + постеры',
         MovieSource.kinopoisk => '200 запросов/сутки · русский',
+        MovieSource.tvdb => 'Фильмы + сериалы · англ/лок',
       };
 }
 
-/// Унифицированный результат поиска фильма из любого источника.
+/// Унифицированный результат поиска фильма из любого источника. Кроме постера и
+/// названия несёт ВСЕ известные ID (перекрёстные) — по ним запись сопоставляется
+/// в любой базе, поэтому смена источника не создаёт дублей и не теряет данные.
 class SourceMatch {
   final String? ruName;
   final String? posterUrl;
   final double? rating;
   final int? kinopoiskId;
   final int? tmdbId;
+  final int? tvdbId;
+  final String? imdbId;
   const SourceMatch(
       {this.ruName,
       this.posterUrl,
       this.rating,
       this.kinopoiskId,
-      this.tmdbId});
+      this.tmdbId,
+      this.tvdbId,
+      this.imdbId});
 }
 
 /// Исчерпан лимит/блокировка источника — останавливаем фоновую дозагрузку.

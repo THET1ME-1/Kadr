@@ -98,6 +98,11 @@ class LibraryMovie {
   /// Кэш идентификаторов/постера от источников (kinopoisk.dev / KinoBD / TMDB).
   int? kinopoiskId;
   int? tmdbId;
+  int? tvdbId;
+
+  /// IMDb id (tt…) — универсальный мост между источниками: по нему запись
+  /// находится в любой базе, поэтому смена источника не теряет данные.
+  String? imdbId;
   String? posterUrl;
 
   /// Имя файла локального пользовательского постера (замена своим изображением).
@@ -132,6 +137,8 @@ class LibraryMovie {
     List<String>? lists,
     this.review,
     this.kinopoiskId,
+    this.tvdbId,
+    this.imdbId,
     this.posterUrl,
     this.posterFile,
     List<String>? genres,
@@ -233,6 +240,8 @@ class LibraryMovie {
         review: j['review'] as String?,
         kinopoiskId: (j['kinopoiskId'] as num?)?.toInt(),
         tmdbId: (j['tmdbId'] as num?)?.toInt(),
+        tvdbId: (j['tvdbId'] as num?)?.toInt(),
+        imdbId: j['imdbId'] as String?,
         posterUrl: j['posterUrl'] as String?,
         posterFile: j['posterFile'] as String?,
         genres: (j['genres'] as List? ?? []).map((e) => '$e').toList(),
@@ -259,6 +268,8 @@ class LibraryMovie {
         'review': review,
         'kinopoiskId': kinopoiskId,
         'tmdbId': tmdbId,
+        if (tvdbId != null) 'tvdbId': tvdbId,
+        if (imdbId != null) 'imdbId': imdbId,
         'posterUrl': posterUrl,
         if (posterFile != null) 'posterFile': posterFile,
         if (genres.isNotEmpty) 'genres': genres,
@@ -475,6 +486,8 @@ class LibrarySeries {
   String? review;
   int? kinopoiskId;
   int? tmdbId;
+  int? tvdbId;
+  String? imdbId;
   double? kpRating;
   bool enrichTried;
   String? posterUrl;
@@ -497,6 +510,8 @@ class LibrarySeries {
     this.review,
     this.kinopoiskId,
     this.tmdbId,
+    this.tvdbId,
+    this.imdbId,
     this.kpRating,
     this.enrichTried = false,
     this.posterUrl,
@@ -615,6 +630,8 @@ class LibrarySeries {
       review: j['review'] as String?,
       kinopoiskId: (j['kinopoiskId'] as num?)?.toInt(),
       tmdbId: (j['tmdbId'] as num?)?.toInt(),
+      tvdbId: (j['tvdbId'] as num?)?.toInt(),
+      imdbId: j['imdbId'] as String?,
       kpRating: (j['kpRating'] as num?)?.toDouble(),
       enrichTried: j['enrichTried'] == true,
       posterUrl: j['posterUrl'] as String?,
@@ -637,6 +654,8 @@ class LibrarySeries {
         'review': review,
         'kinopoiskId': kinopoiskId,
         'tmdbId': tmdbId,
+        if (tvdbId != null) 'tvdbId': tvdbId,
+        if (imdbId != null) 'imdbId': imdbId,
         'kpRating': kpRating,
         'enrichTried': enrichTried,
         'posterUrl': posterUrl,

@@ -1,8 +1,10 @@
 <div align="center">
 
-<img src="docs/branding/readme-banner.png" alt="Kadr — Movie &amp; TV tracker" width="100%">
+<img src="docs/branding/readme-banner.png" alt="Kadr — Movie &amp; TV Tracker" width="100%">
 
-<br><br>
+# Kadr — Movie &amp; TV Tracker
+
+<br>
 
 [![Release](https://img.shields.io/github/v/release/THET1ME-1/Kadr?style=for-the-badge&label=release&color=00B5C7)](https://github.com/THET1ME-1/Kadr/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/THET1ME-1/Kadr/total?style=for-the-badge&color=334B4F)](https://github.com/THET1ME-1/Kadr/releases)
@@ -29,7 +31,7 @@
 
 ### Stack
 - **Flutter** (Material 3 Expressive, dynamic color / Material You)
-- **Movie database**: [TMDB](https://www.themoviedb.org/) — localized titles, posters, ratings, series
+- **Content sources** (selectable in Settings): [TMDB](https://www.themoviedb.org/) · [Kinopoisk](https://kinopoisk.dev/) · [TheTVDB](https://www.thetvdb.com/). Each user brings their **own key** — except **TheTVDB**, which uses one project key (free for projects under **$50k/yr**, attribution required). The library stores cross-source IDs (imdb / tmdb / tvdb), so switching or dropping a source never loses your data.
 - **Data**: local-first + JSON backup + sync (WebDAV / P2P)
 - **Backend** (social / friends): Cloudflare Workers + D1 + R2 — entirely on the **free tier**
   (10 GB R2 with zero egress, $0). No secrets are stored in this repo.
@@ -79,6 +81,7 @@ flutter run --dart-define=TMDB_TOKEN=<your_token> [--dart-define=KINOPOISK_KEY=<
 must stay open under the same license.
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
+Metadata may also be provided by [TheTVDB](https://www.thetvdb.com/).
 
 Roadmap & status — see [PLAN.md](PLAN.md).
 
@@ -91,7 +94,7 @@ Roadmap & status — see [PLAN.md](PLAN.md).
 
 ### Стек
 - **Flutter** (Material 3 Expressive, dynamic color / Material You)
-- **База фильмов**: [TMDB](https://www.themoviedb.org/) — названия на языке юзера, постеры, рейтинги, сериалы
+- **Источники данных** (на выбор в настройках): [TMDB](https://www.themoviedb.org/) · [Кинопоиск](https://kinopoisk.dev/) · [TheTVDB](https://www.thetvdb.com/). Каждый вводит **свой ключ** — кроме **TheTVDB** (один ключ проекта: бесплатно для проектов до **$50k/год**, с атрибуцией). Библиотека хранит перекрёстные ID (imdb / tmdb / tvdb), поэтому смена или отключение источника не теряет данные.
 - **Данные**: локально-первично + JSON-бэкап + синхронизация (WebDAV / P2P)
 - **Бэкенд** (соц-слой / друзья): Cloudflare Workers + D1 + R2 — целиком на **бесплатном тарифе**
   (10 ГБ R2, нулевой исходящий трафик, $0). Секретов в репозитории нет.
