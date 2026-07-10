@@ -15,7 +15,9 @@ import '../../services/social/social_controller.dart';
 import '../../services/store.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_controller.dart';
+import '../../widgets/color_picker_sheet.dart';
 import '../../widgets/profile_banner.dart';
+import '../../widgets/seed_swatch.dart';
 import '../../widgets/user_avatar.dart';
 import '../auto_backup_screen.dart';
 import '../statistics_screen.dart';
@@ -703,34 +705,20 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           if (!theme.useDynamicColor) ...[
             const SizedBox(height: 14),
             Wrap(
-              spacing: 10,
-              runSpacing: 10,
+              spacing: 12,
+              runSpacing: 12,
               children: [
                 for (final c in _kAccentPalette)
-                  GestureDetector(
+                  SeedSwatch(
+                    seed: c,
+                    selected: theme.seedColor.toARGB32() == c.toARGB32(),
                     onTap: () {
                       HapticFeedback.selectionClick();
                       theme.setSeedColor(c);
                     },
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: c,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: theme.seedColor.toARGB32() == c.toARGB32()
-                              ? scheme.onSurface
-                              : Colors.transparent,
-                          width: 3,
-                        ),
-                      ),
-                      child: theme.seedColor.toARGB32() == c.toARGB32()
-                          ? const Icon(Icons.check_rounded,
-                              color: Colors.white, size: 18)
-                          : null,
-                    ),
                   ),
+                // Свой цвет — живой колор-пикер (HSV-колесо + HEX).
+                _customColorButton(scheme, theme),
               ],
             ),
           ],
@@ -745,6 +733,42 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         AppThemeMode.system => tr('theme_system'),
         AppThemeMode.autoTime => tr('theme_auto'),
       };
+
+  /// Кнопка «свой цвет» — открывает живой колор-пикер (HSV-колесо + HEX).
+  /// Подсвечена, если текущий цвет не из пресетов.
+  Widget _customColorButton(ColorScheme scheme, ThemeController theme) {
+    final custom = !_kAccentPalette
+        .any((c) => c.toARGB32() == theme.seedColor.toARGB32());
+    return GestureDetector(
+      onTap: _pickCustomColor,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: scheme.surfaceContainerHighest,
+          border: Border.all(
+            color: custom ? scheme.onSurface : scheme.outlineVariant,
+            width: custom ? 3 : 1,
+          ),
+        ),
+        child: Icon(Icons.colorize_rounded,
+            size: 20,
+            color: custom ? theme.seedColor : scheme.onSurfaceVariant),
+      ),
+    );
+  }
+
+  Future<void> _pickCustomColor() async {
+    HapticFeedback.selectionClick();
+    final picked = await showColorPickerSheet(
+      context,
+      initial: ThemeController.instance.seedColor,
+      title: tr('theme_color'),
+      resetTo: AppTheme.defaultSeed,
+    );
+    if (picked != null) ThemeController.instance.setSeedColor(picked);
+  }
 
   /// Резервная копия и синхронизация — вынесены из глубины «Настроек», т.к.
   /// для офлайн-базы это самое важное.

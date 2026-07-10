@@ -17,6 +17,7 @@ import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/color_picker_sheet.dart';
+import '../widgets/seed_swatch.dart';
 import 'about_screen.dart';
 import 'auto_backup_screen.dart';
 import 'sync_screen.dart';
@@ -96,17 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: _theme.isDefaultSeed
                       ? tr('theme_color_custom')
                       : colorToHex(_theme.seedColor),
-                  trailing: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: _theme.seedColor,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                          width: 2),
-                    ),
-                  ),
+                  trailing: SeedSwatch(seed: _theme.seedColor, size: 30),
                   enabled: !_theme.useDynamicColor,
                   onTap: _pickColor,
                 ),
@@ -407,7 +398,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _paletteRow() {
-    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
       child: Wrap(
@@ -415,26 +405,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         runSpacing: 12,
         children: [
           for (final c in _palettes)
-            GestureDetector(
+            SeedSwatch(
+              seed: c,
+              selected: _theme.seedColor.toARGB32() == c.toARGB32(),
               onTap: () => _theme.setSeedColor(c),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: c,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: _theme.seedColor.toARGB32() == c.toARGB32()
-                        ? scheme.onSurface
-                        : Colors.transparent,
-                    width: 3,
-                  ),
-                ),
-                child: _theme.seedColor.toARGB32() == c.toARGB32()
-                    ? const Icon(Icons.check_rounded,
-                        color: Colors.white, size: 22)
-                    : null,
-              ),
             ),
         ],
       ),
