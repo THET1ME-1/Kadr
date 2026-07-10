@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
+import '../services/app_prefs.dart';
 import '../services/movie_repository.dart';
 import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
@@ -37,8 +38,14 @@ class GenreScreen extends StatelessWidget {
 class PersonScreen extends StatefulWidget {
   final int personId;
   final String personName;
+
+  /// Фото актёра (если открыт из каста) — сохраняется в «любимых актёрах».
+  final String? personPhoto;
   const PersonScreen(
-      {super.key, required this.personId, required this.personName});
+      {super.key,
+      required this.personId,
+      required this.personName,
+      this.personPhoto});
 
   @override
   State<PersonScreen> createState() => _PersonScreenState();
@@ -71,7 +78,30 @@ class _PersonScreenState extends State<PersonScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.personName)),
+      appBar: AppBar(
+        title: Text(widget.personName),
+        actions: [
+          ListenableBuilder(
+            listenable: AppPrefs.instance,
+            builder: (context, _) {
+              final fav = AppPrefs.instance.isFavoriteActor(widget.personId);
+              return IconButton(
+                tooltip: fav ? tr('fav_actor_remove') : tr('fav_actor_add'),
+                icon: Icon(
+                    fav
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    color: fav ? scheme.primary : null),
+                onPressed: () => AppPrefs.instance.toggleFavoriteActor(
+                    FavoriteActor(
+                        id: widget.personId,
+                        name: widget.personName,
+                        photoUrl: widget.personPhoto)),
+              );
+            },
+          ),
+        ],
+      ),
       body: Builder(builder: (context) {
         if (_movies == null) {
           return const Center(child: CircularProgressIndicator());

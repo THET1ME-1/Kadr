@@ -27,6 +27,20 @@ class FavoriteCharacter {
       );
 }
 
+/// Любимый актёр (со страницы актёра). Список показывается в статистике.
+class FavoriteActor {
+  final int id; // TMDB person id
+  final String name;
+  final String? photoUrl;
+  const FavoriteActor({required this.id, required this.name, this.photoUrl});
+  Map<String, dynamic> toJson() => {'id': id, 'n': name, 'p': photoUrl};
+  factory FavoriteActor.fromJson(Map<String, dynamic> j) => FavoriteActor(
+        id: (j['id'] as num).toInt(),
+        name: j['n'] as String? ?? '',
+        photoUrl: j['p'] as String?,
+      );
+}
+
 /// Экран, открываемый при запуске приложения.
 enum StartScreen { watchlist, watched, nowWatching, discover, cinema }
 
@@ -69,6 +83,11 @@ class AppPrefs extends ChangeNotifier {
   /// Любимый персонаж (для статистики). null — не выбран.
   FavoriteCharacter? favoriteCharacter;
 
+  /// Любимые актёры (отмечаются на странице актёра).
+  List<FavoriteActor> favoriteActors = [];
+
+  bool isFavoriteActor(int id) => favoriteActors.any((a) => a.id == id);
+
   Future<void> load() async {
     numericDates = await Store.instance.getBool('numericDates');
     final raw = await Store.instance.getString('startScreen');
@@ -83,12 +102,29 @@ class AppPrefs extends ChangeNotifier {
     favoriteCharacter = (favRaw == null || favRaw.isEmpty)
         ? null
         : FavoriteCharacter.fromJson(jsonDecode(favRaw) as Map<String, dynamic>);
+    final faRaw = await Store.instance.getString('favActors');
+    favoriteActors = (faRaw == null || faRaw.isEmpty)
+        ? []
+        : (jsonDecode(faRaw) as List)
+            .map((e) => FavoriteActor.fromJson(e as Map<String, dynamic>))
+            .toList();
   }
 
   Future<void> setFavoriteCharacter(FavoriteCharacter? c) async {
     favoriteCharacter = c;
     await Store.instance
         .setString('favChar', c == null ? '' : jsonEncode(c.toJson()));
+    notifyListeners();
+  }
+
+  Future<void> toggleFavoriteActor(FavoriteActor a) async {
+    if (isFavoriteActor(a.id)) {
+      favoriteActors = favoriteActors.where((x) => x.id != a.id).toList();
+    } else {
+      favoriteActors = [...favoriteActors, a];
+    }
+    await Store.instance.setString(
+        'favActors', jsonEncode([for (final x in favoriteActors) x.toJson()]));
     notifyListeners();
   }
 

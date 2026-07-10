@@ -10,6 +10,7 @@ import '../utils/format.dart';
 import '../utils/score.dart';
 import '../widgets/poster.dart';
 import '../widgets/reveal.dart';
+import 'browse_screens.dart';
 import 'movie_sheet.dart';
 import 'series_screen.dart';
 import 'wrapped_screen.dart';
@@ -43,6 +44,7 @@ class StatisticsScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     _tiles(context, s),
                     _favoriteCard(context),
+                    _favoriteActorsCard(context),
                     if (s.records.isNotEmpty) ...[
                       const SizedBox(height: 20),
                       _records(context, s),
@@ -413,6 +415,80 @@ class StatisticsScreen extends StatelessWidget {
           onPressed: () => AppPrefs.instance.setFavoriteCharacter(null),
         ),
       ],
+    );
+  }
+
+  /// Список любимых актёров (отмечаются на странице актёра). Пусто, если нет.
+  Widget _favoriteActorsCard(BuildContext context) {
+    return ListenableBuilder(
+      listenable: AppPrefs.instance,
+      builder: (context, _) {
+        final actors = AppPrefs.instance.favoriteActors;
+        if (actors.isEmpty) return const SizedBox.shrink();
+        final scheme = Theme.of(context).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.only(top: 20),
+          child: _card(
+            context,
+            tr('fav_actors_title'),
+            SizedBox(
+              height: 120,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: actors.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (c, i) {
+                  final a = actors[i];
+                  return GestureDetector(
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => PersonScreen(
+                            personId: a.id,
+                            personName: a.name,
+                            personPhoto: a.photoUrl))),
+                    child: SizedBox(
+                      width: 76,
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 68,
+                            height: 68,
+                            decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: scheme.surfaceContainerHighest),
+                            clipBehavior: Clip.antiAlias,
+                            child: a.photoUrl != null
+                                ? CachedNetworkImage(
+                                    imageUrl: a.photoUrl!,
+                                    fit: BoxFit.cover,
+                                    errorWidget: (c, u, e) => Icon(
+                                        Icons.person_rounded,
+                                        color: scheme.onSurfaceVariant,
+                                        size: 30),
+                                  )
+                                : Icon(Icons.person_rounded,
+                                    color: scheme.onSurfaceVariant, size: 30),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(a.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  fontFamily: AppTheme.bodyFont,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 11.5,
+                                  height: 1.1,
+                                  color: scheme.onSurface)),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

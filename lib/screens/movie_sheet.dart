@@ -609,7 +609,9 @@ class _MovieScreenState extends State<MovieScreen> {
                 onTap: d.cast[i].id > 0
                     ? () => Navigator.of(context).push(MaterialPageRoute(
                         builder: (_) => PersonScreen(
-                            personId: d.cast[i].id, personName: d.cast[i].name)))
+                            personId: d.cast[i].id,
+                            personName: d.cast[i].name,
+                            personPhoto: d.cast[i].photoUrl)))
                     : null,
                 onLongPress: () =>
                     promptFavoriteCharacter(context, d.cast[i], m.displayTitle),

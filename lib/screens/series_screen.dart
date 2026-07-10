@@ -478,7 +478,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 onTap: cast[i].id > 0
                     ? () => Navigator.of(context).push(MaterialPageRoute(
                         builder: (_) => PersonScreen(
-                            personId: cast[i].id, personName: cast[i].name)))
+                            personId: cast[i].id,
+                            personName: cast[i].name,
+                            personPhoto: cast[i].photoUrl)))
                     : null,
                 onLongPress: () =>
                     promptFavoriteCharacter(context, cast[i], s.displayTitle),
