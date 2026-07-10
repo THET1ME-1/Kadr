@@ -218,6 +218,20 @@ class DiscoverSeriesCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                // «Буду смотреть»: сериал в списке, но ещё не начат — как у фильмов.
+                if (seen == 0 && (lib?.watchlist ?? false))
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                          color: scheme.secondaryContainer,
+                          shape: BoxShape.circle),
+                      child: Icon(Icons.bookmark_rounded,
+                          size: 14, color: scheme.onSecondaryContainer),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 6),
