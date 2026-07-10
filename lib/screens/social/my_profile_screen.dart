@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
+import '../../l10n/locale_controller.dart';
 import '../../l10n/strings.dart';
 import '../../models/social.dart';
 import '../../services/movie_repository.dart';
@@ -92,8 +93,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge(
-          [SocialController.instance, ThemeController.instance]),
+      listenable: Listenable.merge([
+        SocialController.instance,
+        ThemeController.instance,
+      ]),
       builder: (context, _) {
         final ctl = SocialController.instance;
         if (!ctl.isLoggedIn) return _loggedOut(context);
@@ -122,37 +125,51 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.group_rounded,
-                  color: Colors.white.withValues(alpha: 0.95), size: 40),
+              Icon(
+                Icons.group_rounded,
+                color: Colors.white.withValues(alpha: 0.95),
+                size: 40,
+              ),
               const SizedBox(height: 14),
-              Text(tr('profile_join_title'),
-                  style: const TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 22,
-                      color: Colors.white)),
+              Text(
+                tr('profile_join_title'),
+                style: const TextStyle(
+                  fontFamily: AppTheme.displayFont,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 22,
+                  color: Colors.white,
+                ),
+              ),
               const SizedBox(height: 8),
-              Text(tr('profile_join_sub'),
-                  style: TextStyle(
-                      fontFamily: AppTheme.bodyFont,
-                      fontSize: 13.5,
-                      height: 1.35,
-                      color: Colors.white.withValues(alpha: 0.9))),
+              Text(
+                tr('profile_join_sub'),
+                style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontSize: 13.5,
+                  height: 1.35,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
+              ),
             ],
           ),
         ),
         const SizedBox(height: 20),
         FilledButton.icon(
-          onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AuthScreen())),
+          onPressed: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const AuthScreen())),
           style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 15)),
+            padding: const EdgeInsets.symmetric(vertical: 15),
+          ),
           icon: const Icon(Icons.login_rounded),
-          label: Text(tr('profile_login_cta'),
-              style: const TextStyle(
-                  fontFamily: AppTheme.displayFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15)),
+          label: Text(
+            tr('profile_login_cta'),
+            style: const TextStyle(
+              fontFamily: AppTheme.displayFont,
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+            ),
+          ),
         ),
         // Оформление, бэкап и статистика доступны и без входа — аккаунт нужен
         // только для друзей и ленты.
@@ -160,6 +177,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         _sectionLabel(tr('appearance')),
         const SizedBox(height: 12),
         _appearanceCard(context),
+        const SizedBox(height: 24),
+        _sectionLabel(tr('language')),
+        const SizedBox(height: 12),
+        _languageCard(context),
         const SizedBox(height: 24),
         _sectionLabel(tr('sync_backup')),
         const SizedBox(height: 12),
@@ -169,8 +190,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         const SizedBox(height: 12),
         ProfileStats(
           repo: MovieRepository.instance,
-          onHeroTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const StatisticsScreen())),
+          onHeroTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const StatisticsScreen())),
         ),
       ],
     );
@@ -203,6 +225,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 const SizedBox(height: 12),
                 _appearanceCard(context),
                 const SizedBox(height: 24),
+                _sectionLabel(tr('language')),
+                const SizedBox(height: 12),
+                _languageCard(context),
+                const SizedBox(height: 24),
                 _sectionLabel(tr('sync_backup')),
                 const SizedBox(height: 12),
                 _dataCard(context),
@@ -211,8 +237,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 const SizedBox(height: 12),
                 ProfileStats(
                   repo: MovieRepository.instance,
-                  onHeroTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const StatisticsScreen())),
+                  onHeroTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const StatisticsScreen()),
+                  ),
                 ),
                 const SizedBox(height: 32),
                 _logoutButton(context),
@@ -257,14 +284,17 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               Row(
                 children: [
                   Flexible(
-                    child: Text(me.displayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontFamily: AppTheme.displayFont,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 22,
-                            color: scheme.onSurface)),
+                    child: Text(
+                      me.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 22,
+                        color: scheme.onSurface,
+                      ),
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.edit_rounded, size: 18),
@@ -275,8 +305,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               ),
               const SizedBox(height: 2),
               Align(
-                  alignment: Alignment.centerLeft,
-                  child: _codeChip(context, me.friendCode)),
+                alignment: Alignment.centerLeft,
+                child: _codeChip(context, me.friendCode),
+              ),
             ],
           ),
         ),
@@ -290,7 +321,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       children: [
         Container(
           padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(color: scheme.surface, shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            shape: BoxShape.circle,
+          ),
           child: UserAvatar(user: me, size: size),
         ),
         Positioned(
@@ -308,9 +342,15 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     width: 14,
                     height: 14,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: scheme.onPrimary))
-                : Icon(Icons.photo_camera_rounded,
-                    size: 14, color: scheme.onPrimary),
+                      strokeWidth: 2,
+                      color: scheme.onPrimary,
+                    ),
+                  )
+                : Icon(
+                    Icons.photo_camera_rounded,
+                    size: 14,
+                    color: scheme.onPrimary,
+                  ),
           ),
         ),
       ],
@@ -332,7 +372,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white))
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
               : const Icon(Icons.edit_rounded, size: 18, color: Colors.white),
         ),
       ),
@@ -352,11 +395,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           padding: const EdgeInsets.symmetric(vertical: 16),
         ),
         icon: const Icon(Icons.logout_rounded),
-        label: Text(tr('social_logout'),
-            style: const TextStyle(
-                fontFamily: AppTheme.displayFont,
-                fontWeight: FontWeight.w700,
-                fontSize: 15)),
+        label: Text(
+          tr('social_logout'),
+          style: const TextStyle(
+            fontFamily: AppTheme.displayFont,
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+          ),
+        ),
       ),
     );
   }
@@ -376,21 +422,31 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             children: [
               Icon(Icons.tag_rounded, size: 15, color: scheme.primary),
               const SizedBox(width: 4),
-              Text(code,
-                  style: TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      letterSpacing: 1.5,
-                      color: scheme.onSurface)),
+              Text(
+                code,
+                style: TextStyle(
+                  fontFamily: AppTheme.displayFont,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  letterSpacing: 1.5,
+                  color: scheme.onSurface,
+                ),
+              ),
               const SizedBox(width: 6),
-              Text(tr('profile_your_code'),
-                  style: TextStyle(
-                      fontFamily: AppTheme.bodyFont,
-                      fontSize: 11.5,
-                      color: scheme.onSurfaceVariant)),
+              Text(
+                tr('profile_your_code'),
+                style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontSize: 11.5,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
               const SizedBox(width: 6),
-              Icon(Icons.copy_rounded, size: 14, color: scheme.onSurfaceVariant),
+              Icon(
+                Icons.copy_rounded,
+                size: 14,
+                color: scheme.onSurfaceVariant,
+              ),
             ],
           ),
         ),
@@ -403,11 +459,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        content: Text(tr('profile_code_copied')),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(tr('profile_code_copied')),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
   }
 
   // ------------------------------ заявки ------------------------------
@@ -417,12 +475,15 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(trf('profile_requests', {'n': ctl.friends.incoming.length}),
-            style: TextStyle(
-                fontFamily: AppTheme.displayFont,
-                fontWeight: FontWeight.w800,
-                fontSize: 17,
-                color: scheme.onSurface)),
+        Text(
+          trf('profile_requests', {'n': ctl.friends.incoming.length}),
+          style: TextStyle(
+            fontFamily: AppTheme.displayFont,
+            fontWeight: FontWeight.w800,
+            fontSize: 17,
+            color: scheme.onSurface,
+          ),
+        ),
         const SizedBox(height: 12),
         for (final f in ctl.friends.incoming) _incomingCard(context, ctl, f),
       ],
@@ -430,7 +491,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   }
 
   Widget _incomingCard(
-      BuildContext context, SocialController ctl, FriendEntry f) {
+    BuildContext context,
+    SocialController ctl,
+    FriendEntry f,
+  ) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -444,14 +508,17 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               UserAvatar(user: f.user, size: 46),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(f.user.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        color: scheme.onSurface)),
+                child: Text(
+                  f.user.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: scheme.onSurface,
+                  ),
+                ),
               ),
               IconButton.filledTonal(
                 icon: const Icon(Icons.check_rounded),
@@ -481,12 +548,15 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       children: [
         Row(
           children: [
-            Text(trf('profile_friends_n', {'n': friends.length}),
-                style: TextStyle(
-                    fontFamily: AppTheme.displayFont,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 17,
-                    color: scheme.onSurface)),
+            Text(
+              trf('profile_friends_n', {'n': friends.length}),
+              style: TextStyle(
+                fontFamily: AppTheme.displayFont,
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
+                color: scheme.onSurface,
+              ),
+            ),
             const Spacer(),
             FilledButton.tonalIcon(
               onPressed: _addFriendSheet,
@@ -499,11 +569,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         if (friends.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(tr('profile_no_friends'),
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontSize: 13.5,
-                    color: scheme.onSurfaceVariant)),
+            child: Text(
+              tr('profile_no_friends'),
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontSize: 13.5,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
           )
         else
           Wrap(
@@ -513,11 +586,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           ),
         if (ctl.friends.outgoing.isNotEmpty) ...[
           const SizedBox(height: 14),
-          Text(trf('profile_outgoing', {'n': ctl.friends.outgoing.length}),
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontSize: 12.5,
-                  color: scheme.onSurfaceVariant)),
+          Text(
+            trf('profile_outgoing', {'n': ctl.friends.outgoing.length}),
+            style: TextStyle(
+              fontFamily: AppTheme.bodyFont,
+              fontSize: 12.5,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ],
     );
@@ -526,8 +602,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   Widget _friendTile(BuildContext context, FriendEntry f) {
     final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => FriendProfileScreen(user: f.user))),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => FriendProfileScreen(user: f.user)),
+      ),
       onLongPress: () => _confirmRemove(f),
       child: SizedBox(
         width: 72,
@@ -535,15 +612,18 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           children: [
             UserAvatar(user: f.user, size: 62),
             const SizedBox(height: 6),
-            Text(f.user.displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    color: scheme.onSurface)),
+            Text(
+              f.user.displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                color: scheme.onSurface,
+              ),
+            ),
           ],
         ),
       ),
@@ -556,53 +636,79 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(22)),
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(22),
+      ),
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
         children: [
           // Код восстановления. Если не задан — подсвечиваем как призыв к действию.
           ListTile(
-            leading: Icon(Icons.vpn_key_rounded,
-                color: me.hasRecovery ? scheme.onSurfaceVariant : scheme.primary),
-            title: Text(tr('recovery_title'),
-                style: const TextStyle(
-                    fontFamily: AppTheme.bodyFont, fontWeight: FontWeight.w600)),
+            leading: Icon(
+              Icons.vpn_key_rounded,
+              color: me.hasRecovery ? scheme.onSurfaceVariant : scheme.primary,
+            ),
+            title: Text(
+              tr('recovery_title'),
+              style: const TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             subtitle: Text(
-                me.hasRecovery ? tr('recovery_sub') : tr('recovery_missing'),
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontSize: 12,
-                    color: me.hasRecovery
-                        ? scheme.onSurfaceVariant
-                        : scheme.primary)),
-            trailing: Icon(Icons.chevron_right_rounded,
-                color: scheme.onSurfaceVariant),
+              me.hasRecovery ? tr('recovery_sub') : tr('recovery_missing'),
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontSize: 12,
+                color: me.hasRecovery
+                    ? scheme.onSurfaceVariant
+                    : scheme.primary,
+              ),
+            ),
+            trailing: Icon(
+              Icons.chevron_right_rounded,
+              color: scheme.onSurfaceVariant,
+            ),
             onTap: _regenerateRecovery,
           ),
           const Divider(height: 1, indent: 16, endIndent: 16),
           SwitchListTile(
             value: _hideRatings,
             onChanged: _setHideRatings,
-            secondary:
-                Icon(Icons.star_border_rounded, color: scheme.onSurfaceVariant),
-            title: Text(tr('privacy_hide_ratings'),
-                style: const TextStyle(
-                    fontFamily: AppTheme.bodyFont, fontWeight: FontWeight.w600)),
+            secondary: Icon(
+              Icons.star_border_rounded,
+              color: scheme.onSurfaceVariant,
+            ),
+            title: Text(
+              tr('privacy_hide_ratings'),
+              style: const TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           SwitchListTile(
             value: _hideDates,
             onChanged: _setHideDates,
-            secondary: Icon(Icons.event_busy_rounded,
-                color: scheme.onSurfaceVariant),
-            title: Text(tr('privacy_hide_dates'),
-                style: const TextStyle(
-                    fontFamily: AppTheme.bodyFont, fontWeight: FontWeight.w600)),
-            subtitle: Text(tr('privacy_hide_dates_sub'),
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontSize: 11.5,
-                    color: scheme.onSurfaceVariant)),
+            secondary: Icon(
+              Icons.event_busy_rounded,
+              color: scheme.onSurfaceVariant,
+            ),
+            title: Text(
+              tr('privacy_hide_dates'),
+              style: const TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            subtitle: Text(
+              tr('privacy_hide_dates_sub'),
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontSize: 11.5,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
           ),
         ],
       ),
@@ -618,11 +724,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         content: Text(tr('recovery_regen_q')),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(tr('cancel'))),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(tr('cancel')),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(tr('recovery_regen'))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(tr('recovery_regen')),
+          ),
         ],
       ),
     );
@@ -632,8 +740,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       if (mounted) await showRecoveryCodeSheet(context, code, isNew: true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(socialErrorText(e))));
       }
     }
   }
@@ -645,12 +754,15 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final scheme = Theme.of(context).colorScheme;
     return Align(
       alignment: Alignment.centerLeft,
-      child: Text(text,
-          style: TextStyle(
-              fontFamily: AppTheme.displayFont,
-              fontWeight: FontWeight.w800,
-              fontSize: 17,
-              color: scheme.onSurface)),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontFamily: AppTheme.displayFont,
+          fontWeight: FontWeight.w800,
+          fontSize: 17,
+          color: scheme.onSurface,
+        ),
+      ),
     );
   }
 
@@ -661,8 +773,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final theme = ThemeController.instance;
     return Container(
       decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(22)),
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(22),
+      ),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -673,17 +786,21 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               showSelectedIcon: false,
               segments: const [
                 ButtonSegment(
-                    value: AppThemeMode.light,
-                    icon: Icon(Icons.light_mode_rounded)),
+                  value: AppThemeMode.light,
+                  icon: Icon(Icons.light_mode_rounded),
+                ),
                 ButtonSegment(
-                    value: AppThemeMode.dark,
-                    icon: Icon(Icons.dark_mode_rounded)),
+                  value: AppThemeMode.dark,
+                  icon: Icon(Icons.dark_mode_rounded),
+                ),
                 ButtonSegment(
-                    value: AppThemeMode.system,
-                    icon: Icon(Icons.brightness_auto_rounded)),
+                  value: AppThemeMode.system,
+                  icon: Icon(Icons.brightness_auto_rounded),
+                ),
                 ButtonSegment(
-                    value: AppThemeMode.autoTime,
-                    icon: Icon(Icons.schedule_rounded)),
+                  value: AppThemeMode.autoTime,
+                  icon: Icon(Icons.schedule_rounded),
+                ),
               ],
               selected: {theme.mode},
               onSelectionChanged: (s) {
@@ -695,11 +812,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           const SizedBox(height: 6),
           Align(
             alignment: Alignment.centerLeft,
-            child: Text(_themeModeLabel(theme.mode),
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontSize: 12,
-                    color: scheme.onSurfaceVariant)),
+            child: Text(
+              _themeModeLabel(theme.mode),
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontSize: 12,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
           ),
           // Акцентный цвет прячем в режиме Material You — там цвет из обоев.
           if (!theme.useDynamicColor) ...[
@@ -728,17 +848,135 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   }
 
   String _themeModeLabel(AppThemeMode m) => switch (m) {
-        AppThemeMode.light => tr('theme_light'),
-        AppThemeMode.dark => tr('theme_dark'),
-        AppThemeMode.system => tr('theme_system'),
-        AppThemeMode.autoTime => tr('theme_auto'),
-      };
+    AppThemeMode.light => tr('theme_light'),
+    AppThemeMode.dark => tr('theme_dark'),
+    AppThemeMode.system => tr('theme_system'),
+    AppThemeMode.autoTime => tr('theme_auto'),
+  };
+
+  /// Быстрая смена языка интерфейса прямо в профиле (как в «Настройках»).
+  Widget _languageCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(22),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _pickLanguage(context),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Row(
+            children: [
+              Icon(Icons.translate_rounded, color: scheme.onSurfaceVariant),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('language'),
+                      style: const TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _currentLanguageName(),
+                      style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 12.5,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: scheme.onSurfaceVariant,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _currentLanguageName() {
+    for (final l in LocaleController.languages) {
+      if (l.code == LocaleController.instance.code) return l.nativeName;
+    }
+    return LocaleController.instance.code;
+  }
+
+  Future<void> _pickLanguage(BuildContext context) async {
+    final locale = LocaleController.instance;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  tr('language'),
+                  style: const TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final l in LocaleController.languages)
+                    ListTile(
+                      title: Text(
+                        l.nativeName,
+                        style: const TextStyle(
+                          fontFamily: AppTheme.bodyFont,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      trailing: locale.code == l.code
+                          ? Icon(
+                              Icons.check_circle_rounded,
+                              color: Theme.of(ctx).colorScheme.primary,
+                            )
+                          : null,
+                      onTap: () {
+                        locale.setCode(l.code);
+                        // Пере-локализуем названия библиотеки под новый язык.
+                        MovieRepository.instance.relocalizeTitlesSweep();
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   /// Кнопка «свой цвет» — открывает живой колор-пикер (HSV-колесо + HEX).
   /// Подсвечена, если текущий цвет не из пресетов.
   Widget _customColorButton(ColorScheme scheme, ThemeController theme) {
-    final custom = !_kAccentPalette
-        .any((c) => c.toARGB32() == theme.seedColor.toARGB32());
+    final custom = !_kAccentPalette.any(
+      (c) => c.toARGB32() == theme.seedColor.toARGB32(),
+    );
     return GestureDetector(
       onTap: _pickCustomColor,
       child: Container(
@@ -752,9 +990,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             width: custom ? 3 : 1,
           ),
         ),
-        child: Icon(Icons.colorize_rounded,
-            size: 20,
-            color: custom ? theme.seedColor : scheme.onSurfaceVariant),
+        child: Icon(
+          Icons.colorize_rounded,
+          size: 20,
+          color: custom ? theme.seedColor : scheme.onSurfaceVariant,
+        ),
       ),
     );
   }
@@ -776,51 +1016,80 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(22)),
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(22),
+      ),
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
         children: [
-          _dataTile(scheme, Icons.ios_share_rounded, tr('create_backup'),
-              tr('create_backup_sub'), () => BackupService.exportAndShare()),
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          _dataTile(scheme, Icons.file_open_rounded, tr('restore_backup'),
-              tr('restore_backup_sub'), _restoreBackup),
+          _dataTile(
+            scheme,
+            Icons.ios_share_rounded,
+            tr('create_backup'),
+            tr('create_backup_sub'),
+            () => BackupService.exportAndShare(),
+          ),
           const Divider(height: 1, indent: 16, endIndent: 16),
           _dataTile(
-              scheme,
-              Icons.cloud_sync_rounded,
-              tr('sync_webdav'),
-              tr('sync_webdav_sub'),
-              () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SyncScreen()))),
+            scheme,
+            Icons.file_open_rounded,
+            tr('restore_backup'),
+            tr('restore_backup_sub'),
+            _restoreBackup,
+          ),
           const Divider(height: 1, indent: 16, endIndent: 16),
           _dataTile(
-              scheme,
-              Icons.folder_zip_rounded,
-              tr('auto_backup'),
-              tr('auto_backup_sub'),
-              () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AutoBackupScreen()))),
+            scheme,
+            Icons.cloud_sync_rounded,
+            tr('sync_webdav'),
+            tr('sync_webdav_sub'),
+            () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const SyncScreen())),
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          _dataTile(
+            scheme,
+            Icons.folder_zip_rounded,
+            tr('auto_backup'),
+            tr('auto_backup_sub'),
+            () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const AutoBackupScreen())),
+          ),
         ],
       ),
     );
   }
 
-  Widget _dataTile(ColorScheme scheme, IconData icon, String title,
-      String subtitle, VoidCallback onTap) {
+  Widget _dataTile(
+    ColorScheme scheme,
+    IconData icon,
+    String title,
+    String subtitle,
+    VoidCallback onTap,
+  ) {
     return ListTile(
       leading: Icon(icon, color: scheme.onSurfaceVariant),
-      title: Text(title,
-          style: const TextStyle(
-              fontFamily: AppTheme.bodyFont, fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle,
-          style: TextStyle(
-              fontFamily: AppTheme.bodyFont,
-              fontSize: 12,
-              color: scheme.onSurfaceVariant)),
-      trailing:
-          Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontFamily: AppTheme.bodyFont,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          fontFamily: AppTheme.bodyFont,
+          fontSize: 12,
+          color: scheme.onSurfaceVariant,
+        ),
+      ),
+      trailing: Icon(
+        Icons.chevron_right_rounded,
+        color: scheme.onSurfaceVariant,
+      ),
       onTap: onTap,
     );
   }
@@ -829,8 +1098,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await BackupService.importFromFile();
     if (!mounted) return;
-    messenger.showSnackBar(SnackBar(
-        content: Text(tr(ok ? 'backup_import_ok' : 'backup_import_fail'))));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(tr(ok ? 'backup_import_ok' : 'backup_import_fail')),
+      ),
+    );
   }
 
   // ------------------------------ действия ------------------------------
@@ -842,25 +1114,31 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       context: context,
       backgroundColor: scheme.surfaceContainer,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 12),
             Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: scheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(2))),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: scheme.outlineVariant,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             const SizedBox(height: 10),
             ListTile(
               leading: Icon(Icons.image_rounded, color: scheme.primary),
-              title: Text(tr('banner_choose'),
-                  style: const TextStyle(
-                      fontFamily: AppTheme.bodyFont,
-                      fontWeight: FontWeight.w600)),
+              title: Text(
+                tr('banner_choose'),
+                style: const TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               onTap: () {
                 Navigator.pop(ctx);
                 _pickAvatar();
@@ -868,13 +1146,19 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             ),
             ListTile(
               leading: Icon(Icons.movie_filter_rounded, color: scheme.primary),
-              title: Text(tr('pick_from_poster'),
-                  style: const TextStyle(
-                      fontFamily: AppTheme.bodyFont,
-                      fontWeight: FontWeight.w600)),
+              title: Text(
+                tr('pick_from_poster'),
+                style: const TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               onTap: () async {
                 Navigator.pop(ctx);
-                final url = await showMediaImagePicker(context, backdrop: false);
+                final url = await showMediaImagePicker(
+                  context,
+                  backdrop: false,
+                );
                 if (url != null) await _applyAvatarFromUrl(url);
               },
             ),
@@ -887,21 +1171,27 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   Future<void> _pickAvatar() async {
     try {
-      final res = await FilePicker.platform
-          .pickFiles(type: FileType.image, withData: true);
+      final res = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
       if (res == null || res.files.isEmpty) return;
       final file = res.files.single;
-      final raw = file.bytes ??
+      final raw =
+          file.bytes ??
           (file.path != null ? await File(file.path!).readAsBytes() : null);
       if (raw == null) return;
       setState(() => _uploading = true);
       final enc = await encodeAvatar(raw);
-      await SocialController.instance
-          .setAvatar(enc.bytes, contentType: enc.contentType);
+      await SocialController.instance.setAvatar(
+        enc.bytes,
+        contentType: enc.contentType,
+      );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(socialErrorText(e))));
       }
     } finally {
       if (mounted) setState(() => _uploading = false);
@@ -910,8 +1200,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   /// Скачивает картинку по URL (постер/кадр TMDB). Возвращает байты или null.
   Future<Uint8List?> _downloadImage(String url) async {
-    final resp =
-        await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+    final resp = await http
+        .get(Uri.parse(url))
+        .timeout(const Duration(seconds: 15));
     if (resp.statusCode != 200 || resp.bodyBytes.isEmpty) return null;
     return resp.bodyBytes;
   }
@@ -923,12 +1214,15 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       final raw = await _downloadImage(url);
       if (raw == null) return;
       final enc = await encodeAvatar(raw);
-      await SocialController.instance
-          .setAvatar(enc.bytes, contentType: enc.contentType);
+      await SocialController.instance.setAvatar(
+        enc.bytes,
+        contentType: enc.contentType,
+      );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(socialErrorText(e))));
       }
     } finally {
       if (mounted) setState(() => _uploading = false);
@@ -942,12 +1236,15 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       final raw = await _downloadImage(url);
       if (raw == null) return;
       final enc = await encodeBanner(raw);
-      await SocialController.instance
-          .setBanner(enc.bytes, contentType: enc.contentType);
+      await SocialController.instance.setBanner(
+        enc.bytes,
+        contentType: enc.contentType,
+      );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(socialErrorText(e))));
       }
     } finally {
       if (mounted) setState(() => _uploadingBanner = false);
@@ -962,25 +1259,31 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       context: context,
       backgroundColor: scheme.surfaceContainer,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 12),
             Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: scheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(2))),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: scheme.outlineVariant,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             const SizedBox(height: 10),
             ListTile(
               leading: Icon(Icons.image_rounded, color: scheme.primary),
-              title: Text(tr('banner_choose'),
-                  style: const TextStyle(
-                      fontFamily: AppTheme.bodyFont,
-                      fontWeight: FontWeight.w600)),
+              title: Text(
+                tr('banner_choose'),
+                style: const TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               onTap: () {
                 Navigator.pop(ctx);
                 _pickBanner();
@@ -988,10 +1291,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             ),
             ListTile(
               leading: Icon(Icons.movie_filter_rounded, color: scheme.primary),
-              title: Text(tr('pick_from_backdrop'),
-                  style: const TextStyle(
-                      fontFamily: AppTheme.bodyFont,
-                      fontWeight: FontWeight.w600)),
+              title: Text(
+                tr('pick_from_backdrop'),
+                style: const TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               onTap: () async {
                 Navigator.pop(ctx);
                 final url = await showMediaImagePicker(context, backdrop: true);
@@ -1001,11 +1307,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             if (hasBanner)
               ListTile(
                 leading: Icon(Icons.hide_image_rounded, color: scheme.error),
-                title: Text(tr('banner_remove'),
-                    style: TextStyle(
-                        fontFamily: AppTheme.bodyFont,
-                        fontWeight: FontWeight.w600,
-                        color: scheme.error)),
+                title: Text(
+                  tr('banner_remove'),
+                  style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontWeight: FontWeight.w600,
+                    color: scheme.error,
+                  ),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _removeBanner();
@@ -1020,21 +1329,27 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   Future<void> _pickBanner() async {
     try {
-      final res = await FilePicker.platform
-          .pickFiles(type: FileType.image, withData: true);
+      final res = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
       if (res == null || res.files.isEmpty) return;
       final file = res.files.single;
-      final raw = file.bytes ??
+      final raw =
+          file.bytes ??
           (file.path != null ? await File(file.path!).readAsBytes() : null);
       if (raw == null) return;
       setState(() => _uploadingBanner = true);
       final enc = await encodeBanner(raw);
-      await SocialController.instance
-          .setBanner(enc.bytes, contentType: enc.contentType);
+      await SocialController.instance.setBanner(
+        enc.bytes,
+        contentType: enc.contentType,
+      );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(socialErrorText(e))));
       }
     } finally {
       if (mounted) setState(() => _uploadingBanner = false);
@@ -1047,8 +1362,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       await SocialController.instance.removeBanner();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(socialErrorText(e))));
       }
     } finally {
       if (mounted) setState(() => _uploadingBanner = false);
@@ -1065,7 +1381,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       isScrollControlled: true,
       backgroundColor: scheme.surfaceContainer,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: StatefulBuilder(
@@ -1078,19 +1395,24 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 children: [
                   Center(
                     child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                            color: scheme.outlineVariant,
-                            borderRadius: BorderRadius.circular(2))),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: scheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  Text(tr('profile_edit_name'),
-                      style: TextStyle(
-                          fontFamily: AppTheme.displayFont,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                          color: scheme.onSurface)),
+                  Text(
+                    tr('profile_edit_name'),
+                    style: TextStyle(
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      color: scheme.onSurface,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: c,
@@ -1125,14 +1447,18 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                 setSheet(() => busy = false);
                                 if (!mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(socialErrorText(e))));
+                                  SnackBar(content: Text(socialErrorText(e))),
+                                );
                               }
                             },
                       child: busy
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2.2))
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                              ),
+                            )
                           : Text(tr('save')),
                     ),
                   ),
@@ -1154,10 +1480,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       isScrollControlled: true,
       backgroundColor: scheme.surfaceContainer,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: StatefulBuilder(
           builder: (ctx, setSheet) => SafeArea(
             child: Padding(
@@ -1168,34 +1494,43 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 children: [
                   Center(
                     child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                            color: scheme.outlineVariant,
-                            borderRadius: BorderRadius.circular(2))),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: scheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  Text(tr('social_add_friend'),
-                      style: TextStyle(
-                          fontFamily: AppTheme.displayFont,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                          color: scheme.onSurface)),
+                  Text(
+                    tr('social_add_friend'),
+                    style: TextStyle(
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      color: scheme.onSurface,
+                    ),
+                  ),
                   const SizedBox(height: 6),
-                  Text(tr('profile_add_hint'),
-                      style: TextStyle(
-                          fontFamily: AppTheme.bodyFont,
-                          fontSize: 13,
-                          color: scheme.onSurfaceVariant)),
+                  Text(
+                    tr('profile_add_hint'),
+                    style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 13,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: c,
                     autofocus: true,
                     textCapitalization: TextCapitalization.characters,
                     style: const TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 2),
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2,
+                    ),
                     decoration: InputDecoration(
                       labelText: tr('profile_friend_code'),
                       prefixIcon: const Icon(Icons.tag_rounded),
@@ -1222,24 +1557,31 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                 if (ctx.mounted) Navigator.pop(ctx);
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                          content: Text(status == 'accepted'
-                                              ? tr('social_now_friends')
-                                              : tr('social_request_sent'))));
+                                    SnackBar(
+                                      content: Text(
+                                        status == 'accepted'
+                                            ? tr('social_now_friends')
+                                            : tr('social_request_sent'),
+                                      ),
+                                    ),
+                                  );
                                 }
                               } catch (e) {
                                 setSheet(() => busy = false);
                                 if (!mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(socialErrorText(e))));
+                                  SnackBar(content: Text(socialErrorText(e))),
+                                );
                               }
                             },
                       child: busy
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2.2))
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                              ),
+                            )
                           : Text(tr('social_send_request')),
                     ),
                   ),
@@ -1260,11 +1602,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         content: Text(trf('profile_remove_q', {'name': f.user.displayName})),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(tr('cancel'))),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(tr('cancel')),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(tr('delete'))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(tr('delete')),
+          ),
         ],
       ),
     );
@@ -1279,11 +1623,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         content: Text(tr('profile_logout_q')),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(tr('cancel'))),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(tr('cancel')),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(tr('social_logout'))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(tr('social_logout')),
+          ),
         ],
       ),
     );
