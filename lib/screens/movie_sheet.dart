@@ -21,6 +21,7 @@ import '../widgets/pop_icon.dart';
 import '../widgets/favorite_character.dart';
 import '../widgets/poster.dart';
 import '../widgets/poster_viewer.dart';
+import '../widgets/pressable.dart';
 import '../widgets/rating_slider.dart';
 import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
@@ -223,7 +224,9 @@ class _MovieScreenState extends State<MovieScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                GestureDetector(
+                Pressable(
+                  scale: 1,
+                  haptic: false,
                   onTap: () => openPosterViewer(context,
                       title: m.displayTitle,
                       url: m.displayPoster,
@@ -605,7 +608,9 @@ class _MovieScreenState extends State<MovieScreen> {
               id: 'cast:$i',
               delay: Duration(milliseconds: i * 45),
               beginOffset: const Offset(0.15, 0),
-              child: GestureDetector(
+              child: Pressable(
+                scale: 1,
+                haptic: false,
                 onTap: d.cast[i].id > 0
                     ? () => Navigator.of(context).push(MaterialPageRoute(
                         builder: (_) => PersonScreen(

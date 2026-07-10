@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/score.dart';
 import '../widgets/poster.dart';
+import '../widgets/pressable.dart';
 import '../widgets/reveal.dart';
 import 'browse_screens.dart';
 import 'movie_sheet.dart';
@@ -439,7 +440,9 @@ class StatisticsScreen extends StatelessWidget {
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (c, i) {
                   final a = actors[i];
-                  return GestureDetector(
+                  return Pressable(
+                    scale: 1,
+                    haptic: false,
                     onTap: () => Navigator.of(context).push(MaterialPageRoute(
                         builder: (_) => PersonScreen(
                             personId: a.id,
