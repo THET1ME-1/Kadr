@@ -16,8 +16,7 @@ import '../services/store.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../theme/theme_controller.dart';
-import '../widgets/color_picker_sheet.dart';
-import '../widgets/seed_swatch.dart';
+import '../widgets/appearance_card.dart';
 import 'about_screen.dart';
 import 'auto_backup_screen.dart';
 import 'trakt_screen.dart';
@@ -61,18 +60,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  /// Фирменные палитры (кинематографичные), включая бирюзовую по умолчанию.
-  static const List<Color> _palettes = [
-    Color(0xFF00B5C7), // бирюзовый (по умолчанию)
-    Color(0xFF7C4DFF), // фиолетовый
-    Color(0xFFE53935), // красный (кинозал)
-    Color(0xFFFF7043), // коралловый
-    Color(0xFFFFB300), // янтарный
-    Color(0xFF43A047), // зелёный
-    Color(0xFF1E88E5), // синий
-    Color(0xFFEC407A), // розовый
-  ];
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -84,26 +71,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             children: [
               _section(tr('appearance')),
+              const AppearanceCard(),
+              const SizedBox(height: 10),
               _card([
-                _tile(
-                  icon: Icons.brightness_6_rounded,
-                  title: tr('theme_mode'),
-                  subtitle: _themeModeLabel(_theme.mode),
-                  onTap: _pickThemeMode,
-                ),
-                _divider(),
-                _tile(
-                  icon: Icons.palette_rounded,
-                  title: tr('theme_color'),
-                  subtitle: _theme.isDefaultSeed
-                      ? tr('theme_color_custom')
-                      : colorToHex(_theme.seedColor),
-                  trailing: SeedSwatch(seed: _theme.seedColor, size: 30),
-                  enabled: !_theme.useDynamicColor,
-                  onTap: _pickColor,
-                ),
-                if (!_theme.useDynamicColor) _paletteRow(),
-                _divider(),
                 SwitchListTile(
                   secondary: const Icon(Icons.auto_awesome_rounded),
                   title: Text(tr('dynamic_color')),
@@ -449,59 +419,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _paletteRow() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: [
-          for (final c in _palettes)
-            SeedSwatch(
-              seed: c,
-              selected: _theme.seedColor.toARGB32() == c.toARGB32(),
-              onTap: () => _theme.setSeedColor(c),
-            ),
-        ],
-      ),
-    );
-  }
-
   // ------------------------------- действия -------------------------------
-
-  Future<void> _pickColor() async {
-    final picked = await showColorPickerSheet(
-      context,
-      initial: _theme.seedColor,
-      title: tr('theme_color'),
-      resetTo: AppTheme.defaultSeed,
-    );
-    if (picked != null) _theme.setSeedColor(picked);
-  }
-
-  void _pickThemeMode() {
-    _bottomSheet(
-      title: tr('theme_mode'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final m in AppThemeMode.values)
-            RadioListTile<AppThemeMode>(
-              value: m,
-              // ignore: deprecated_member_use
-              groupValue: _theme.mode,
-              // ignore: deprecated_member_use
-              onChanged: (v) {
-                if (v != null) _theme.setMode(v);
-                Navigator.pop(context);
-              },
-              title: Text(_themeModeLabel(m)),
-              secondary: Icon(_themeModeIcon(m)),
-            ),
-        ],
-      ),
-    );
-  }
 
   void _pickLanguage() {
     _bottomSheet(
@@ -801,20 +719,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // ------------------------------- подписи -------------------------------
-
-  String _themeModeLabel(AppThemeMode m) => switch (m) {
-        AppThemeMode.light => tr('theme_light'),
-        AppThemeMode.dark => tr('theme_dark'),
-        AppThemeMode.system => tr('theme_system'),
-        AppThemeMode.autoTime => tr('theme_auto'),
-      };
-
-  IconData _themeModeIcon(AppThemeMode m) => switch (m) {
-        AppThemeMode.light => Icons.light_mode_rounded,
-        AppThemeMode.dark => Icons.dark_mode_rounded,
-        AppThemeMode.system => Icons.brightness_auto_rounded,
-        AppThemeMode.autoTime => Icons.schedule_rounded,
-      };
 
   String _currentLanguageName() {
     for (final l in LocaleController.languages) {
