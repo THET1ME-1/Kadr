@@ -1,9 +1,27 @@
-# 🎬 Kadr
+<div align="center">
 
-**Kadr** — a movie & TV series tracker in **Material 3 Expressive** style: bold design,
-rich statistics, deep customization, 7 UI languages. Local-first, open source.
+<img src="docs/branding/readme-banner.png" alt="Kadr — Movie &amp; TV tracker" width="100%">
 
-*Русская версия — [ниже](#-kadr-русский).*
+<br><br>
+
+[![Release](https://img.shields.io/github/v/release/THET1ME-1/Kadr?style=for-the-badge&label=release&color=00B5C7)](https://github.com/THET1ME-1/Kadr/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/THET1ME-1/Kadr/total?style=for-the-badge&color=334B4F)](https://github.com/THET1ME-1/Kadr/releases)
+[![License](https://img.shields.io/github/license/THET1ME-1/Kadr?style=for-the-badge&color=334B4F)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/THET1ME-1/Kadr?style=for-the-badge&color=00B5C7)](https://github.com/THET1ME-1/Kadr/stargazers)
+
+![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
+![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)
+![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)
+![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)
+![Material 3](https://img.shields.io/badge/Material_3-Expressive-00B5C7?style=for-the-badge)
+
+**A movie &amp; TV series tracker in Material 3 Expressive style** — bold design, rich statistics, deep customization, Trakt sync, Android TV. Local-first, open source.
+
+🇬🇧 🇷🇺 🇩🇪 🇫🇷 🇪🇸 🇮🇹 🇵🇹 · 7 languages
+
+[**⬇ Download**](https://github.com/THET1ME-1/Kadr/releases/latest) · [English](#english) · [Русский](#-kadr-русский)
+
+</div>
 
 ---
 
@@ -21,6 +39,9 @@ rich statistics, deep customization, 7 UI languages. Local-first, open source.
 - Bottom-sheet dialogs everywhere, big pill-shaped buttons
 - Mood ratings (Awful → Amazing), viewings grouped by month
 - Social: friends, profiles with custom banners, "watched together", recommendations, shared lists
+- **Trakt sync** — two-way sync of watched, watchlist & ratings (Kadr stays the source of truth)
+- **Android TV** — installs on TV, remote (D-pad) navigation
+- Release schedule, movie news, favorite actors & characters, custom local posters
 - 7 languages: 🇬🇧 🇷🇺 🇩🇪 🇫🇷 🇪🇸 🇮🇹 🇵🇹 (auto-detected from the phone)
 
 ### Install (Android)
@@ -80,6 +101,9 @@ Roadmap & status — see [PLAN.md](PLAN.md).
 - Все попапы — нижними панелями, крупные «таблеточные» кнопки
 - Оценки-настроения (Ужасно → Восхитительно), группировка просмотров по месяцам
 - Соц: друзья, профили с баннерами, «посмотрел с другом», рекомендации, совместные списки
+- **Синхронизация с Trakt** — двусторонний синк просмотренного, вишлиста и оценок (Kadr — источник правды)
+- **Android TV** — ставится на ТВ, навигация пультом (D-pad)
+- Расписание выхода серий, кино-новости, любимые актёры и персонажи, свои постеры
 - 7 языков: 🇷🇺 🇬🇧 🇩🇪 🇫🇷 🇪🇸 🇮🇹 🇵🇹 (определяются по телефону)
 
 ### Установка (Android)
@@ -117,3 +141,20 @@ flutter run --dart-define=TMDB_TOKEN=<ваш_токен> [--dart-define=KINOPOIS
 должны оставаться открытыми под той же лицензией.
 
 *Инфраструктура (тема, i18n, настройки, синхронизация) — ДНК проекта ScoreMaster.*
+
+---
+
+<div align="center">
+
+## 👥 Team · S&amp;T Company
+
+Kadr is built by **S&amp;T Company**
+
+| | |
+|:--|:--|
+| [**THET1ME-1**](https://github.com/THET1ME-1) | founder · lead dev |
+| [**JbSharan2**](https://github.com/JbSharan2) | co-founder |
+
+<sub>App signing identity: <code>CN=Kadr, O=STGroup</code> · This product uses the TMDB API but is not endorsed or certified by TMDB.</sub>
+
+</div>
