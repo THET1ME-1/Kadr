@@ -23,6 +23,10 @@
 
 [**⬇ Download**](https://github.com/THET1ME-1/Kadr/releases/latest) · [English](#english) · [Русский](#-kadr-русский)
 
+<br>
+
+<img src="docs/branding/screenshots.png" alt="Kadr — Watched, Discover, Profile, Settings" width="100%">
+
 </div>
 
 ---
