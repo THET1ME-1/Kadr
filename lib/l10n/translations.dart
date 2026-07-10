@@ -20,7 +20,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'profile_about': 'Über',
     'profile_friends': 'Freunde',
     'profile_join_title': 'Freunde bei Kadr',
-    'profile_join_sub': 'Erstelle ein Profil, füge Freunde hinzu und sieh, was sie schauen, bewerten und auf ihrer Merkliste haben.',
+    'profile_join_sub':
+        'Erstelle ein Profil, füge Freunde hinzu und sieh, was sie schauen, bewerten und auf ihrer Merkliste haben.',
     'profile_login_cta': 'Anmelden oder registrieren',
     'profile_your_code': 'dein Code',
     'profile_code_copied': 'Code kopiert',
@@ -39,7 +40,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'pick_media_title_poster': 'Poster als Foto',
     'pick_media_title_backdrop': 'Still als Banner',
     'pick_media_search': 'Film oder Serie suchen',
-    'pick_media_hint': 'Finde einen Film oder eine Serie – wir verwenden das Bild.',
+    'pick_media_hint':
+        'Finde einen Film oder eine Serie – wir verwenden das Bild.',
     'pick_media_empty': 'Nichts gefunden',
     'cowatch_with_friend': 'Mit Freund gesehen',
     'cowatch_pick_title': 'Mit wem hast du geschaut?',
@@ -53,12 +55,16 @@ const Map<String, Map<String, String>> kTranslations = {
     'open_link_fail': '{url} konnte nicht geöffnet werden',
     'tmdb_key_title': 'TMDB-Schlüssel',
     'tmdb_key_intro_title': 'Ein eigener TMDB-Schlüssel wird benötigt',
-    'tmdb_key_intro': 'Kadr bezieht Filmdaten von TMDB. Der Schlüssel ist kostenlos und persönlich – hol dir deinen in ein paar Minuten und füge ihn unten ein. Er bleibt nur auf diesem Gerät.',
+    'tmdb_key_intro':
+        'Kadr bezieht Filmdaten von TMDB. Der Schlüssel ist kostenlos und persönlich – hol dir deinen in ein paar Minuten und füge ihn unten ein. Er bleibt nur auf diesem Gerät.',
     'tmdb_key_step1': 'Registriere dich auf themoviedb.org (kostenlos).',
-    'tmdb_key_step2': 'Einstellungen → API → einen Schlüssel erstellen (Typ „Developer“).',
-    'tmdb_key_step3': 'Kopiere das „API Read Access Token“ (lang, beginnt mit eyJ…).',
+    'tmdb_key_step2':
+        'Einstellungen → API → einen Schlüssel erstellen (Typ „Developer“).',
+    'tmdb_key_step3':
+        'Kopiere das „API Read Access Token“ (lang, beginnt mit eyJ…).',
     'tmdb_key_step4': 'Füge es unten in das Feld ein und speichere.',
-    'tmdb_key_form_note': 'Beim Erstellen des Schlüssels bittet TMDB dich, ein '
+    'tmdb_key_form_note':
+        'Beim Erstellen des Schlüssels bittet TMDB dich, ein '
         'kurzes Formular auszufüllen — App-Name, Website-Link, Beschreibung. '
         'Schreib irgendetwas hinein: TMDB prüft es nicht und es hat keine '
         'Auswirkungen. Keine Sorge.',
@@ -69,22 +75,29 @@ const Map<String, Map<String, String>> kTranslations = {
     'kinopoisk_key_hint': 'Nur wenn du die Quelle „PoiskKino“ nutzen möchtest',
     'tmdb_key_save_go': 'Speichern und fortfahren',
     'tmdb_key_empty': 'Füge ein Token ein',
-    'tmdb_key_invalid': 'Token hat nicht funktioniert – prüfe es und füge es erneut ein',
+    'tmdb_key_invalid':
+        'Token hat nicht funktioniert – prüfe es und füge es erneut ein',
     'tmdb_key_saved': 'Schlüssel gespeichert',
-    'tmdb_key_offline': 'Konnte nicht überprüft werden (offline) – gespeichert, ggf. später korrigieren',
+    'tmdb_key_offline':
+        'Konnte nicht überprüft werden (offline) – gespeichert, ggf. später korrigieren',
     'api_keys_title': 'API-Schlüssel (TMDB)',
     'api_keys_sub': 'Dein TMDB-/PoiskKino-Schlüssel',
     'support_authors': 'Autoren unterstützen',
+    'support_section': 'Unterstützen',
+    'support_intro':
+        'Kadr ist eine kostenlose Open-Source-App. Jede Spende hilft dem Projekt zu wachsen.',
     'support_authors_sub': 'Boosty – hilf der App zu wachsen',
     'contact_support': 'Support kontaktieren',
-    'profile_add_hint': 'Gib den Code deines Freundes ein – er findet ihn in seinem Profil.',
+    'profile_add_hint':
+        'Gib den Code deines Freundes ein – er findet ihn in seinem Profil.',
     'profile_friend_code': 'Freundescode',
     'profile_remove_friend': 'Freund entfernen?',
     'profile_remove_q': '{name} aus den Freunden entfernen?',
     'profile_logout_q': 'Auf diesem Gerät abmelden?',
     'social_register': 'Registrieren',
     'social_login': 'Anmelden',
-    'social_intro': 'Mit einem Profil kannst du Freunde hinzufügen und ihre Filme sehen. Deine Bibliothek bleibt auf deinem Handy.',
+    'social_intro':
+        'Mit einem Profil kannst du Freunde hinzufügen und ihre Filme sehen. Deine Bibliothek bleibt auf deinem Handy.',
     'social_name': 'Name',
     'social_password': 'Passwort',
     'social_logout': 'Abmelden',
@@ -103,14 +116,18 @@ const Map<String, Map<String, String>> kTranslations = {
     'social_err_generic': 'Etwas ist schiefgelaufen',
     'recovery_title': 'Wiederherstellungscode',
     'recovery_sub': 'Neuen Code generieren',
-    'recovery_missing': 'Nicht festgelegt – erstelle einen, damit du den Zugang nicht verlierst',
-    'recovery_save_hint': 'Speichere diesen Code. Du brauchst ihn, um den Zugang wiederherzustellen, falls du dein Passwort vergisst. Wird nur einmal angezeigt.',
+    'recovery_missing':
+        'Nicht festgelegt – erstelle einen, damit du den Zugang nicht verlierst',
+    'recovery_save_hint':
+        'Speichere diesen Code. Du brauchst ihn, um den Zugang wiederherzustellen, falls du dein Passwort vergisst. Wird nur einmal angezeigt.',
     'recovery_copied': 'Code kopiert',
     'recovery_saved': 'Ich habe ihn gespeichert',
-    'recovery_regen_q': 'Neuen Code generieren? Der alte funktioniert dann nicht mehr.',
+    'recovery_regen_q':
+        'Neuen Code generieren? Der alte funktioniert dann nicht mehr.',
     'recovery_regen': 'Generieren',
     'reset_title': 'Passwort zurücksetzen',
-    'reset_hint': 'Gib deine E-Mail, den Wiederherstellungscode und ein neues Passwort ein.',
+    'reset_hint':
+        'Gib deine E-Mail, den Wiederherstellungscode und ein neues Passwort ein.',
     'reset_code': 'Wiederherstellungscode',
     'reset_new_password': 'Neues Passwort',
     'reset_submit': 'Passwort zurücksetzen',
@@ -131,7 +148,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'notif_friend_req_many': '{name} und {n} weitere möchten dich hinzufügen',
     'sl_section': 'Gemeinsame Listen',
     'sl_create': 'Gemeinsame Liste',
-    'sl_create_hint': 'Eine Liste, die du und deine Freunde gemeinsam bearbeitet',
+    'sl_create_hint':
+        'Eine Liste, die du und deine Freunde gemeinsam bearbeitet',
     'sl_none': 'Noch keine gemeinsamen Listen',
     'sl_members_n': '{n} Mitglieder',
     'sl_add_movie': 'Film hinzufügen',
@@ -150,8 +168,10 @@ const Map<String, Map<String, String>> kTranslations = {
     'activity_title': 'Aktivität der Freunde',
     'activity_recent': 'Neues von Freunden',
     'activity_recs': 'Freunde empfehlen',
-    'activity_recs_sub': 'Von Freunden hoch bewertet, von dir noch nicht gesehen',
-    'activity_empty': 'Noch keine Freundesaktivität. Füge Freunde in deinem Profil hinzu.',
+    'activity_recs_sub':
+        'Von Freunden hoch bewertet, von dir noch nicht gesehen',
+    'activity_empty':
+        'Noch keine Freundesaktivität. Füge Freunde in deinem Profil hinzu.',
     'activity_login': 'Melde dich an, um die Aktivität der Freunde zu sehen',
     'activity_watched': 'gesehen',
     'activity_wishlisted': 'möchte sehen',
@@ -174,17 +194,21 @@ const Map<String, Map<String, String>> kTranslations = {
     'roulette_open': 'Film öffnen',
     'roulette_src_watchlist': 'Meine Merkliste',
     'roulette_src_friends': 'Auswahl der Freunde',
-    'roulette_empty_watchlist': 'Deine Merkliste ist leer – füge ein paar Filme hinzu',
+    'roulette_empty_watchlist':
+        'Deine Merkliste ist leer – füge ein paar Filme hinzu',
     'roulette_empty_friends': 'Noch keine Auswahl von Freunden',
     'for_you_title': 'Dein Geschmack',
     'for_you_sub': 'Basierend auf Filmen, die du hoch bewertet hast',
     'for_you_empty': 'Keine Empfehlungen',
-    'for_you_no_seeds': 'Bewerte ein paar Filme mit 7+ und hier erscheinen Empfehlungen',
+    'for_you_no_seeds':
+        'Bewerte ein paar Filme mit 7+ und hier erscheinen Empfehlungen',
     'select_all': 'Alle auswählen',
     'n_selected': '{n} ausgewählt',
     'delete_selected_title': 'Ausgewählte löschen?',
-    'delete_selected_watched': 'Gesehen-Einträge ({n}) werden entfernt. Die Titel bleiben in der Datenbank.',
-    'delete_selected_watchlist': 'Ausgewählte ({n}) werden von der Merkliste entfernt. Die Titel bleiben in der Datenbank.',
+    'delete_selected_watched':
+        'Gesehen-Einträge ({n}) werden entfernt. Die Titel bleiben in der Datenbank.',
+    'delete_selected_watchlist':
+        'Ausgewählte ({n}) werden von der Merkliste entfernt. Die Titel bleiben in der Datenbank.',
     'removed_n': 'Entfernt: {n}',
     'on': 'An',
     'off': 'Aus',
@@ -193,9 +217,11 @@ const Map<String, Map<String, String>> kTranslations = {
     'start': 'Los geht\'s',
     'skip': 'Überspringen',
     'ob1_title': 'Dein Kino',
-    'ob1_sub': 'Verfolge die Filme und Serien, die du gesehen hast – wunderschön.',
+    'ob1_sub':
+        'Verfolge die Filme und Serien, die du gesehen hast – wunderschön.',
     'ob2_title': 'Jedes Ansehen bewerten',
-    'ob2_sub': 'Jedes Ansehen hat seine eigene Bewertung von 1,0 bis 10,0 – Meinungen ändern sich beim erneuten Sehen.',
+    'ob2_sub':
+        'Jedes Ansehen hat seine eigene Bewertung von 1,0 bis 10,0 – Meinungen ändern sich beim erneuten Sehen.',
     'ob3_title': 'Russisch & Poster',
     'ob3_sub': 'Titel und Poster werden automatisch von TMDB abgerufen.',
     'ob4_title': 'Statistiken & Listen',
@@ -276,7 +302,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'drawer_settings': 'Einstellungen',
     'drawer_about': 'Über',
     'version': 'Version',
-    'about_attribution': 'Filmdaten von TMDB und PoiskKino. Dieses Produkt verwendet die TMDB-API, wird aber nicht von TMDB unterstützt oder zertifiziert.',
+    'about_attribution':
+        'Filmdaten von TMDB und PoiskKino. Dieses Produkt verwendet die TMDB-API, wird aber nicht von TMDB unterstützt oder zertifiziert.',
     'search_hint': 'Filme und Serien…',
     'search_all_hint': 'Die gesamte Filmdatenbank durchsuchen…',
     'settings_title': 'Einstellungen',
@@ -309,13 +336,16 @@ const Map<String, Map<String, String>> kTranslations = {
     'create_backup_sub': 'Eine Datei teilen (Telegram, Drive, …)',
     'restore_backup': 'Sicherung wiederherstellen',
     'restore_backup_sub': 'Eine JSON-Sicherungsdatei auswählen',
-    'backup_hint': 'Umzug auf ein neues Handy: Erstelle hier eine Sicherung und stelle sie auf dem neuen Gerät wieder her.',
+    'backup_hint':
+        'Umzug auf ein neues Handy: Erstelle hier eine Sicherung und stelle sie auf dem neuen Gerät wieder her.',
     'backup_import_ok': 'Bibliothek wiederhergestellt',
     'backup_import_fail': 'Datei konnte nicht gelesen werden',
     'clear_all_data': 'Alle Daten löschen',
-    'clear_all_data_sub': 'Alle Aufrufe, Listen, Bewertungen und Serien löschen',
+    'clear_all_data_sub':
+        'Alle Aufrufe, Listen, Bewertungen und Serien löschen',
     'clear_all_title': 'Alle Daten löschen?',
-    'clear_all_body': 'Alle Aufrufe, Bewertungen, Listen, Favoriten und Serien werden dauerhaft gelöscht. Nur die Feeds „Entdecken“ und „Im Kino“ bleiben erhalten. Erstelle zuerst eine Sicherung, wenn du die Daten behalten möchtest.',
+    'clear_all_body':
+        'Alle Aufrufe, Bewertungen, Listen, Favoriten und Serien werden dauerhaft gelöscht. Nur die Feeds „Entdecken“ und „Im Kino“ bleiben erhalten. Erstelle zuerst eine Sicherung, wenn du die Daten behalten möchtest.',
     'clear_all_done': 'Alle Daten gelöscht',
     'clear': 'Löschen',
     'about': 'Über',
@@ -362,7 +392,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'mark_upto': 'Bis hierhin markieren',
     'network_error': 'Netzwerkfehler',
     'no_episodes': 'Episoden konnten nicht geladen werden',
-    'link_hint': 'Die Serie ist möglicherweise unter einem anderen Titel gespeichert. Finde sie manuell – deine Episodenmarkierungen bleiben erhalten.',
+    'link_hint':
+        'Die Serie ist möglicherweise unter einem anderen Titel gespeichert. Finde sie manuell – deine Episodenmarkierungen bleiben erhalten.',
     'link_find': 'Auf TMDB finden',
     'link_hint_field': 'Serienname',
     'now_watching': 'Aktuell am Schauen',
@@ -431,34 +462,42 @@ const Map<String, Map<String, String>> kTranslations = {
     'avg_of_episodes': 'Episodendurchschnitt',
     'rate_season': 'Staffel bewerten',
     'season_rated': '{n} Episoden bewertet · {v}',
-    'season_no_watched': 'Keine gesehenen Episoden in dieser Staffel zum Bewerten',
+    'season_no_watched':
+        'Keine gesehenen Episoden in dieser Staffel zum Bewerten',
     'season_date': 'Ansehdatum der Staffel',
     'season_dated': 'Datum für {n} Episoden festgelegt',
     'season_dates_replace_title': 'Episodendaten ersetzen?',
-    'season_dates_replace_body': 'Die Staffelepisoden haben unterschiedliche Daten ({n} Ansehtage). Sie werden zu einem zusammengefasst. Fortfahren?',
+    'season_dates_replace_body':
+        'Die Staffelepisoden haben unterschiedliche Daten ({n} Ansehtage). Sie werden zu einem zusammengefasst. Fortfahren?',
     'replace': 'Ersetzen',
-    'season_done_undated': 'Staffel {n} ohne Datum markiert – erscheint nicht im Gesehen-Feed',
+    'season_done_undated':
+        'Staffel {n} ohne Datum markiert – erscheint nicht im Gesehen-Feed',
     'restrict_unaired': 'Nicht ausgestrahlte Episoden sperren',
-    'restrict_unaired_sub': 'Eine noch nicht ausgestrahlte Episode kann nicht markiert oder bewertet werden',
+    'restrict_unaired_sub':
+        'Eine noch nicht ausgestrahlte Episode kann nicht markiert oder bewertet werden',
     'episode_not_aired': 'Episode wurde noch nicht ausgestrahlt',
     'not_aired_badge': 'bald',
-    'series_avg_locked': 'Die Bewertung ist der Episodendurchschnitt. Lösche die Episodenbewertungen, um sie manuell festzulegen.',
+    'series_avg_locked':
+        'Die Bewertung ist der Episodendurchschnitt. Lösche die Episodenbewertungen, um sie manuell festzulegen.',
     'mark_season': 'Ganze Staffel markieren',
     'unmark_season': 'Ganze Staffel abwählen',
     'season_done': 'Staffel {n} markiert',
     'watch_again': 'Erneut gesehen',
     'season_mark_when': 'Wann hast du Staffel {n} gesehen?',
     'season_mark_sub': 'Alle {n} Episoden der Staffel markieren',
-    'season_all_watched': 'Alle ausgestrahlten Episoden der Staffel sind bereits markiert',
+    'season_all_watched':
+        'Alle ausgestrahlten Episoden der Staffel sind bereits markiert',
     'season_rewatch_title': 'Ganze Staffel {n} erneut als gesehen markieren?',
     'season_rewatch_sub': 'Alle {n} Episoden der Staffel erneut sehen',
     'season_rewatched': 'Staffel erneut markiert ({c} Episoden)',
     'episode_mark_when': 'Wann hast du diese Episode gesehen?',
     'share': 'Teilen',
     'delete_from_base': 'Aus Bibliothek löschen',
-    'delete_from_base_confirm': '„{title}“ wird dauerhaft entfernt. Du kannst es gleich danach rückgängig machen.',
+    'delete_from_base_confirm':
+        '„{title}“ wird dauerhaft entfernt. Du kannst es gleich danach rückgängig machen.',
     'deleted_from_base': 'Aus Bibliothek gelöscht',
-    'delete_from_base_n': 'Ausgewählte ({n}) werden dauerhaft entfernt. Du kannst es gleich danach rückgängig machen.',
+    'delete_from_base_n':
+        'Ausgewählte ({n}) werden dauerhaft entfernt. Du kannst es gleich danach rückgängig machen.',
     'deleted_n_from_base': 'Aus Bibliothek gelöscht: {n}',
     'import_tracker': 'Aus Tracker importieren (CSV)',
     'import_tracker_sub': 'Letterboxd, IMDb und andere – .csv-Datei',
@@ -482,27 +521,36 @@ const Map<String, Map<String, String>> kTranslations = {
     'stat_my_ratings_by_year': 'Meine Bewertungen nach Ansehjahr',
     'stat_wy_best': 'Am großzügigsten in {y} ({s})',
     'stat_wy_worst': 'Am strengsten in {y} ({s})',
-    'stat_wy_trend_up': 'Mit der Zeit bewertest du Filme wohlwollender – dein Durchschnitt steigt.',
-    'stat_wy_trend_down': 'Mit der Zeit bewertest du strenger – dein Durchschnitt sinkt.',
-    'stat_wy_trend_flat': 'Deine Bewertungen sind von Jahr zu Jahr konstant – ein gefestigter Geschmack.',
+    'stat_wy_trend_up':
+        'Mit der Zeit bewertest du Filme wohlwollender – dein Durchschnitt steigt.',
+    'stat_wy_trend_down':
+        'Mit der Zeit bewertest du strenger – dein Durchschnitt sinkt.',
+    'stat_wy_trend_flat':
+        'Deine Bewertungen sind von Jahr zu Jahr konstant – ein gefestigter Geschmack.',
     'stat_ry_best': 'Am höchsten – {y}-Filme ({s})',
     'stat_ry_worst': 'Am niedrigsten – {y} ({s})',
-    'stat_ry_trend_up': 'Je neuer der Film, desto höher deine Bewertung – modernes Kino gewinnt bei dir gegen Klassiker.',
-    'stat_ry_trend_down': 'Je neuer der Film, desto niedriger die Bewertung – du schätzt die Klassiker mehr als moderne Filme.',
-    'stat_ry_trend_flat': 'Du bewertest alte und neue Filme etwa gleich – das Erscheinungsjahr beeinflusst deine Bewertung kaum.',
+    'stat_ry_trend_up':
+        'Je neuer der Film, desto höher deine Bewertung – modernes Kino gewinnt bei dir gegen Klassiker.',
+    'stat_ry_trend_down':
+        'Je neuer der Film, desto niedriger die Bewertung – du schätzt die Klassiker mehr als moderne Filme.',
+    'stat_ry_trend_flat':
+        'Du bewertest alte und neue Filme etwa gleich – das Erscheinungsjahr beeinflusst deine Bewertung kaum.',
     'watched_movies': 'Gesehene Filme',
     'watched_series': 'Gesehene Serien',
     'auto_backup': 'Automatische Sicherung',
     'auto_backup_sub': 'Lokale Kopien in einen gewählten Ordner',
-    'auto_backup_hint': 'Die App speichert eine Kopie deiner Bibliothek im gewählten Ordner. Die Kopien überleben eine Deinstallation – ein Sicherheitsnetz. Die letzten 20 Kopien werden aufbewahrt.',
+    'auto_backup_hint':
+        'Die App speichert eine Kopie deiner Bibliothek im gewählten Ordner. Die Kopien überleben eine Deinstallation – ein Sicherheitsnetz. Die letzten 20 Kopien werden aufbewahrt.',
     'auto_backup_enable': 'Automatische Sicherung aktivieren',
     'auto_backup_folder': 'Ordner',
     'auto_backup_no_folder': 'Nicht ausgewählt',
     'auto_backup_need_folder': 'Wähle zuerst einen Ordner und erteile Zugriff',
-    'auto_backup_not_writable': 'In diesen Ordner kann nicht geschrieben werden – wähle einen anderen',
+    'auto_backup_not_writable':
+        'In diesen Ordner kann nicht geschrieben werden – wähle einen anderen',
     'auto_backup_when': 'Wann sichern',
     'auto_backup_on_change': 'Bei Änderungen',
-    'auto_backup_on_change_sub': 'Eine halbe Minute nach Änderungen, höchstens einmal alle 10 Minuten',
+    'auto_backup_on_change_sub':
+        'Eine halbe Minute nach Änderungen, höchstens einmal alle 10 Minuten',
     'auto_backup_daily': 'Einmal täglich',
     'auto_backup_daily_sub': 'Wird beim App-Start geprüft',
     'auto_backup_now': 'Jetzt sichern',
@@ -512,12 +560,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'auto_backup_last': 'Letzte Sicherung: {when}',
     'choose': 'Wählen',
     'trakt_sub': 'Gesehenes und Listen synchronisieren',
-    'trakt_intro': 'Synchronisiere Gesehenes, Merkliste und Bewertungen mit Trakt. Kadr bleibt die Quelle der Wahrheit — die Synchronisierung fügt nur hinzu und füllt Lücken, löscht oder überschreibt nichts.',
-    'trakt_limits_note': 'Kostenloses Trakt-Konto: Merkliste bis 250, Verlauf bis 100.000, Bewertungen bis 10.000. Mehr — Trakt VIP (kostenpflichtig, bei Trakt).',
+    'trakt_intro':
+        'Synchronisiere Gesehenes, Merkliste und Bewertungen mit Trakt. Kadr bleibt die Quelle der Wahrheit — die Synchronisierung fügt nur hinzu und füllt Lücken, löscht oder überschreibt nichts.',
+    'trakt_limits_note':
+        'Kostenloses Trakt-Konto: Merkliste bis 250, Verlauf bis 100.000, Bewertungen bis 10.000. Mehr — Trakt VIP (kostenpflichtig, bei Trakt).',
     'trakt_connect': 'Trakt verbinden',
     'trakt_disconnect': 'Trakt trennen',
     'trakt_connected': 'Trakt verbunden',
-    'trakt_activate': 'Öffne trakt.tv/activate und gib diesen Code ein (zum Kopieren tippen):',
+    'trakt_activate':
+        'Öffne trakt.tv/activate und gib diesen Code ein (zum Kopieren tippen):',
     'trakt_open_activate': 'trakt.tv/activate öffnen',
     'trakt_push': 'Zu Trakt senden',
     'trakt_pull': 'Von Trakt laden',
@@ -525,7 +576,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'trakt_pulling': 'Lade von Trakt…',
     'trakt_done': 'Fertig',
     'trakt_sync_ratings': 'Bewertungen synchronisieren',
-    'trakt_ratings_note': 'Kadr gewinnt: deine Bewertungen werden nie von Trakt überschrieben',
+    'trakt_ratings_note':
+        'Kadr gewinnt: deine Bewertungen werden nie von Trakt überschrieben',
     'trakt_login_failed': 'Anmeldung fehlgeschlagen. Bitte erneut versuchen.',
     'trakt_error': 'Trakt-Fehler. Prüfe deine Verbindung.',
     'trakt_powered': 'Powered by Trakt',
@@ -544,7 +596,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'episode': 'Episode',
     'rate_short': 'Bewerten',
     'episode_score': 'Episodenbewertung',
-    'rate_after_watch_ep': 'Markiere die Episode als gesehen, um sie zu bewerten',
+    'rate_after_watch_ep':
+        'Markiere die Episode als gesehen, um sie zu bewerten',
     'clear_all_checks': 'Als gesehen abwählen',
     'reset_to_one': 'Nur ein Ansehen behalten',
     'remove_one_watch': 'Ein Ansehen entfernen',
@@ -561,7 +614,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'review_hint': 'Wie fandest du es? Deine Eindrücke, Gedanken…',
     'filters': 'Filter',
     'filter_genres': 'Genres',
-    'filter_genres_loading': 'Genres werden im Hintergrund geladen – öffne ein paar Karten oder komm später wieder.',
+    'filter_genres_loading':
+        'Genres werden im Hintergrund geladen – öffne ein paar Karten oder komm später wieder.',
     'update_available': 'Update verfügbar',
     'update_new_version': 'Neue Version {v}',
     'update_current_version': 'Du hast {v}',
@@ -580,14 +634,16 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_title': 'Synchronisierung',
     'sync_webdav': 'Synchronisierung (WebDAV)',
     'sync_webdav_sub': 'Zwischen Geräten über deinen Cloud-Speicher',
-    'sync_intro': 'Zwei-Wege-Synchronisierung über WebDAV (Nextcloud, Yandex.Disk, ownCloud). Die Daten bleiben auf deinem Server; nichts Hinzugefügtes geht verloren.',
+    'sync_intro':
+        'Zwei-Wege-Synchronisierung über WebDAV (Nextcloud, Yandex.Disk, ownCloud). Die Daten bleiben auf deinem Server; nichts Hinzugefügtes geht verloren.',
     'sync_url': 'WebDAV-URL',
     'sync_url_hint': 'https://cloud.example/remote.php/dav/files/user/',
     'sync_user': 'Benutzername',
     'sync_pass': 'Passwort (oder App-Passwort)',
     'sync_connect': 'Verbinden',
     'sync_connected': 'Verbunden',
-    'sync_connect_failed': 'Verbindung fehlgeschlagen. Prüfe URL und Zugangsdaten.',
+    'sync_connect_failed':
+        'Verbindung fehlgeschlagen. Prüfe URL und Zugangsdaten.',
     'sync_now': 'Jetzt synchronisieren',
     'sync_done': 'Synchronisiert (+{a}, zusammengeführt {m})',
     'sync_no_changes': 'Bereits auf dem neuesten Stand',
@@ -598,17 +654,20 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_last': 'Letzte Synchronisierung: {t}',
     'sync_never': 'Noch nicht synchronisiert',
     'seq_mode': 'Episoden der Reihe nach markieren',
-    'seq_mode_sub': 'Das Markieren einer Episode markiert alle davor; das Abwählen löscht alle danach',
+    'seq_mode_sub':
+        'Das Markieren einer Episode markiert alle davor; das Abwählen löscht alle danach',
     'dropped': 'Abgebrochen',
     'mark_dropped': 'Abbrechen',
     'in_dropped': 'Abgebrochen',
     'drawer_dropped': 'Abgebrochen',
-    'dropped_empty': 'Filme und Serien, die du abgebrochen hast, erscheinen hier',
+    'dropped_empty':
+        'Filme und Serien, die du abgebrochen hast, erscheinen hier',
     'dropped_movies': 'Filme',
     'dropped_series': 'Serien',
     'dropped_count': 'Abgebrochen: {n}',
     'notif_new_episodes': 'Neue Episoden',
-    'notif_new_episodes_sub': 'Benachrichtigen, wenn neue Episoden von Serien erscheinen, die ich schaue',
+    'notif_new_episodes_sub':
+        'Benachrichtigen, wenn neue Episoden von Serien erscheinen, die ich schaue',
     'notif_channel_name': 'Neue Episoden',
     'notif_new_ep_title': 'Neue Episode verfügbar',
     'notif_new_ep_body': '{title}: Episode {ep} ist verfügbar',
@@ -616,7 +675,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'notif_test': 'Beispiel anzeigen',
     'notif_test_sub': 'Vorschau, wie die Benachrichtigung aussieht',
     'close': 'Schließen',
-    'kp_limit_hit': 'Tageslimit von PoiskKino erreicht (200 Anfragen/Tag). Poster und Suche werden später fortgesetzt.',
+    'kp_limit_hit':
+        'Tageslimit von PoiskKino erreicht (200 Anfragen/Tag). Poster und Suche werden später fortgesetzt.',
     'kp_limit_switch': 'TMDB verwenden',
   },
   'fr': {
@@ -635,7 +695,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'profile_about': 'À propos',
     'profile_friends': 'Amis',
     'profile_join_title': 'Vos amis sur Kadr',
-    'profile_join_sub': 'Créez un profil, ajoutez des amis et découvrez leurs visionnages, notes et listes À voir.',
+    'profile_join_sub':
+        'Créez un profil, ajoutez des amis et découvrez leurs visionnages, notes et listes À voir.',
     'profile_login_cta': 'Se connecter ou s\'inscrire',
     'profile_your_code': 'votre code',
     'profile_code_copied': 'Code copié',
@@ -654,7 +715,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'pick_media_title_poster': 'Affiche comme photo',
     'pick_media_title_backdrop': 'Image comme bannière',
     'pick_media_search': 'Rechercher un film ou une série',
-    'pick_media_hint': 'Trouvez un film ou une série — nous utiliserons son image.',
+    'pick_media_hint':
+        'Trouvez un film ou une série — nous utiliserons son image.',
     'pick_media_empty': 'Aucun résultat',
     'cowatch_with_friend': 'Vu avec un ami',
     'cowatch_pick_title': 'Avec qui l\'avez-vous regardé ?',
@@ -668,12 +730,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'open_link_fail': 'Impossible d\'ouvrir {url}',
     'tmdb_key_title': 'Clé TMDB',
     'tmdb_key_intro_title': 'Votre propre clé TMDB est requise',
-    'tmdb_key_intro': 'Kadr récupère les données des films sur TMDB. La clé est gratuite et personnelle — obtenez la vôtre en quelques minutes et collez-la ci-dessous. Elle reste uniquement sur cet appareil.',
+    'tmdb_key_intro':
+        'Kadr récupère les données des films sur TMDB. La clé est gratuite et personnelle — obtenez la vôtre en quelques minutes et collez-la ci-dessous. Elle reste uniquement sur cet appareil.',
     'tmdb_key_step1': 'Inscrivez-vous sur themoviedb.org (gratuit).',
     'tmdb_key_step2': 'Paramètres → API → créez une clé (type Developer).',
-    'tmdb_key_step3': 'Copiez l\'« API Read Access Token » (long, commence par eyJ…).',
+    'tmdb_key_step3':
+        'Copiez l\'« API Read Access Token » (long, commence par eyJ…).',
     'tmdb_key_step4': 'Collez-le dans le champ ci-dessous et enregistrez.',
-    'tmdb_key_form_note': 'Lors de la création de la clé, TMDB vous demande de '
+    'tmdb_key_form_note':
+        'Lors de la création de la clé, TMDB vous demande de '
         'remplir un court formulaire — nom de l\'app, lien du site, description. '
         'Mettez ce que vous voulez : TMDB ne le vérifie pas et cela n\'a aucun '
         'effet. Pas d\'inquiétude.',
@@ -684,22 +749,29 @@ const Map<String, Map<String, String>> kTranslations = {
     'kinopoisk_key_hint': 'Uniquement si vous voulez la source « PoiskKino »',
     'tmdb_key_save_go': 'Enregistrer et continuer',
     'tmdb_key_empty': 'Collez un token',
-    'tmdb_key_invalid': 'Le token n\'a pas fonctionné — vérifiez et recollez-le',
+    'tmdb_key_invalid':
+        'Le token n\'a pas fonctionné — vérifiez et recollez-le',
     'tmdb_key_saved': 'Clé enregistrée',
-    'tmdb_key_offline': 'Impossible de vérifier (hors ligne) — enregistrée, à corriger plus tard si besoin',
+    'tmdb_key_offline':
+        'Impossible de vérifier (hors ligne) — enregistrée, à corriger plus tard si besoin',
     'api_keys_title': 'Clés API (TMDB)',
     'api_keys_sub': 'Votre clé TMDB / PoiskKino',
     'support_authors': 'Soutenir les auteurs',
+    'support_section': 'Soutenir',
+    'support_intro':
+        'Kadr est une application libre et open-source. Chaque don aide le projet à grandir.',
     'support_authors_sub': 'Boosty — aidez l\'application à grandir',
     'contact_support': 'Contacter le support',
-    'profile_add_hint': 'Saisissez le code de votre ami — il le trouve sur son profil.',
+    'profile_add_hint':
+        'Saisissez le code de votre ami — il le trouve sur son profil.',
     'profile_friend_code': 'Code ami',
     'profile_remove_friend': 'Retirer l\'ami ?',
     'profile_remove_q': 'Retirer {name} de vos amis ?',
     'profile_logout_q': 'Se déconnecter sur cet appareil ?',
     'social_register': 'S\'inscrire',
     'social_login': 'Se connecter',
-    'social_intro': 'Un profil vous permet d\'ajouter des amis et de voir leurs films. Votre bibliothèque reste sur votre téléphone.',
+    'social_intro':
+        'Un profil vous permet d\'ajouter des amis et de voir leurs films. Votre bibliothèque reste sur votre téléphone.',
     'social_name': 'Nom',
     'social_password': 'Mot de passe',
     'social_logout': 'Se déconnecter',
@@ -719,13 +791,16 @@ const Map<String, Map<String, String>> kTranslations = {
     'recovery_title': 'Code de récupération',
     'recovery_sub': 'Générer un nouveau code',
     'recovery_missing': 'Non défini — créez-en un pour ne pas perdre l\'accès',
-    'recovery_save_hint': 'Conservez ce code. Il vous permettra de récupérer l\'accès si vous oubliez votre mot de passe. Affiché une seule fois.',
+    'recovery_save_hint':
+        'Conservez ce code. Il vous permettra de récupérer l\'accès si vous oubliez votre mot de passe. Affiché une seule fois.',
     'recovery_copied': 'Code copié',
     'recovery_saved': 'Je l\'ai enregistré',
-    'recovery_regen_q': 'Générer un nouveau code ? L\'ancien cessera de fonctionner.',
+    'recovery_regen_q':
+        'Générer un nouveau code ? L\'ancien cessera de fonctionner.',
     'recovery_regen': 'Générer',
     'reset_title': 'Réinitialiser le mot de passe',
-    'reset_hint': 'Saisissez votre e-mail, votre code de récupération et un nouveau mot de passe.',
+    'reset_hint':
+        'Saisissez votre e-mail, votre code de récupération et un nouveau mot de passe.',
     'reset_code': 'Code de récupération',
     'reset_new_password': 'Nouveau mot de passe',
     'reset_submit': 'Réinitialiser le mot de passe',
@@ -765,8 +840,10 @@ const Map<String, Map<String, String>> kTranslations = {
     'activity_title': 'Activité des amis',
     'activity_recent': 'Dernières activités des amis',
     'activity_recs': 'Vos amis recommandent',
-    'activity_recs_sub': 'Très bien notés par vos amis, pas encore vus par vous',
-    'activity_empty': 'Aucune activité d\'ami pour l\'instant. Ajoutez des amis dans votre profil.',
+    'activity_recs_sub':
+        'Très bien notés par vos amis, pas encore vus par vous',
+    'activity_empty':
+        'Aucune activité d\'ami pour l\'instant. Ajoutez des amis dans votre profil.',
     'activity_login': 'Connectez-vous pour voir l\'activité de vos amis',
     'activity_watched': 'a vu',
     'activity_wishlisted': 'veut voir',
@@ -789,17 +866,21 @@ const Map<String, Map<String, String>> kTranslations = {
     'roulette_open': 'Ouvrir le film',
     'roulette_src_watchlist': 'Ma liste À voir',
     'roulette_src_friends': 'Choix des amis',
-    'roulette_empty_watchlist': 'Votre liste À voir est vide — ajoutez des films',
+    'roulette_empty_watchlist':
+        'Votre liste À voir est vide — ajoutez des films',
     'roulette_empty_friends': 'Aucun choix d\'ami pour l\'instant',
     'for_you_title': 'Vos goûts',
     'for_you_sub': 'Établis à partir des films que vous avez bien notés',
     'for_you_empty': 'Aucune recommandation',
-    'for_you_no_seeds': 'Notez quelques films 7+ et des recommandations apparaîtront ici',
+    'for_you_no_seeds':
+        'Notez quelques films 7+ et des recommandations apparaîtront ici',
     'select_all': 'Tout sélectionner',
     'n_selected': '{n} sélectionné(s)',
     'delete_selected_title': 'Supprimer la sélection ?',
-    'delete_selected_watched': 'Les visionnages ({n}) seront retirés. Les titres restent dans la base de données.',
-    'delete_selected_watchlist': 'La sélection ({n}) sera retirée de la liste À voir. Les titres restent dans la base de données.',
+    'delete_selected_watched':
+        'Les visionnages ({n}) seront retirés. Les titres restent dans la base de données.',
+    'delete_selected_watchlist':
+        'La sélection ({n}) sera retirée de la liste À voir. Les titres restent dans la base de données.',
     'removed_n': 'Retirés : {n}',
     'on': 'Activé',
     'off': 'Désactivé',
@@ -810,11 +891,14 @@ const Map<String, Map<String, String>> kTranslations = {
     'ob1_title': 'Votre cinéma',
     'ob1_sub': 'Suivez les films et séries que vous avez vus — avec élégance.',
     'ob2_title': 'Notez chaque visionnage',
-    'ob2_sub': 'Chaque visionnage a sa propre note de 1,0 à 10,0 — les avis changent au revisionnage.',
+    'ob2_sub':
+        'Chaque visionnage a sa propre note de 1,0 à 10,0 — les avis changent au revisionnage.',
     'ob3_title': 'Français et affiches',
-    'ob3_sub': 'Les titres et affiches sont récupérés automatiquement depuis TMDB.',
+    'ob3_sub':
+        'Les titres et affiches sont récupérés automatiquement depuis TMDB.',
     'ob4_title': 'Stats et listes',
-    'ob4_sub': 'Consultez vos statistiques, créez des listes et sauvegardez tout.',
+    'ob4_sub':
+        'Consultez vos statistiques, créez des listes et sauvegardez tout.',
     'soon_sub': 'Cette section est en construction',
     'nav_watchlist': 'À voir',
     'nav_watched': 'Vus',
@@ -891,7 +975,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'drawer_settings': 'Paramètres',
     'drawer_about': 'À propos',
     'version': 'Version',
-    'about_attribution': 'Données des films par TMDB et PoiskKino. Ce produit utilise l\'API TMDB mais n\'est ni approuvé ni certifié par TMDB.',
+    'about_attribution':
+        'Données des films par TMDB et PoiskKino. Ce produit utilise l\'API TMDB mais n\'est ni approuvé ni certifié par TMDB.',
     'search_hint': 'Films et séries…',
     'search_all_hint': 'Rechercher dans toute la base de films…',
     'settings_title': 'Paramètres',
@@ -908,7 +993,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'theme_system': 'Système',
     'theme_auto': 'Auto (selon l\'heure)',
     'dynamic_color': 'Material You',
-    'dynamic_color_sub': 'Couleur d\'après le fond d\'écran système (Android 12+)',
+    'dynamic_color_sub':
+        'Couleur d\'après le fond d\'écran système (Android 12+)',
     'amoled': 'Noir AMOLED',
     'amoled_sub': 'Fond noir pur en thème sombre',
     'theme_presets': 'Palettes',
@@ -924,13 +1010,16 @@ const Map<String, Map<String, String>> kTranslations = {
     'create_backup_sub': 'Partager un fichier (Telegram, Drive, …)',
     'restore_backup': 'Restaurer une sauvegarde',
     'restore_backup_sub': 'Choisir un fichier de sauvegarde JSON',
-    'backup_hint': 'Vous changez de téléphone : créez une sauvegarde ici et restaurez-la sur le nouvel appareil.',
+    'backup_hint':
+        'Vous changez de téléphone : créez une sauvegarde ici et restaurez-la sur le nouvel appareil.',
     'backup_import_ok': 'Bibliothèque restaurée',
     'backup_import_fail': 'Impossible de lire le fichier',
     'clear_all_data': 'Effacer toutes les données',
-    'clear_all_data_sub': 'Supprimer tous les visionnages, listes, notes et séries',
+    'clear_all_data_sub':
+        'Supprimer tous les visionnages, listes, notes et séries',
     'clear_all_title': 'Effacer toutes les données ?',
-    'clear_all_body': 'Tous les visionnages, notes, listes, favoris et séries seront supprimés définitivement. Seuls les fils Découvrir et Au cinéma sont conservés. Faites d\'abord une sauvegarde si vous voulez garder les données.',
+    'clear_all_body':
+        'Tous les visionnages, notes, listes, favoris et séries seront supprimés définitivement. Seuls les fils Découvrir et Au cinéma sont conservés. Faites d\'abord une sauvegarde si vous voulez garder les données.',
     'clear_all_done': 'Toutes les données ont été effacées',
     'clear': 'Effacer',
     'about': 'À propos',
@@ -977,7 +1066,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'mark_upto': 'Marquer jusqu\'ici',
     'network_error': 'Erreur réseau',
     'no_episodes': 'Impossible de charger les épisodes',
-    'link_hint': 'La série est peut-être enregistrée sous un autre titre. Trouvez-la manuellement — vos épisodes marqués sont conservés.',
+    'link_hint':
+        'La série est peut-être enregistrée sous un autre titre. Trouvez-la manuellement — vos épisodes marqués sont conservés.',
     'link_find': 'Rechercher sur TMDB',
     'link_hint_field': 'Nom de la série',
     'now_watching': 'En cours de visionnage',
@@ -1050,30 +1140,37 @@ const Map<String, Map<String, String>> kTranslations = {
     'season_date': 'Date de visionnage de la saison',
     'season_dated': 'Date définie pour {n} épisodes',
     'season_dates_replace_title': 'Remplacer les dates des épisodes ?',
-    'season_dates_replace_body': 'Les épisodes de la saison ont des dates différentes ({n} jours de visionnage). Elles seront regroupées en une seule. Continuer ?',
+    'season_dates_replace_body':
+        'Les épisodes de la saison ont des dates différentes ({n} jours de visionnage). Elles seront regroupées en une seule. Continuer ?',
     'replace': 'Remplacer',
-    'season_done_undated': 'Saison {n} marquée sans date — n\'apparaîtra pas dans le fil Vus',
+    'season_done_undated':
+        'Saison {n} marquée sans date — n\'apparaîtra pas dans le fil Vus',
     'restrict_unaired': 'Bloquer les épisodes non diffusés',
-    'restrict_unaired_sub': 'Impossible de marquer ou noter un épisode pas encore diffusé',
+    'restrict_unaired_sub':
+        'Impossible de marquer ou noter un épisode pas encore diffusé',
     'episode_not_aired': 'L\'épisode n\'est pas encore diffusé',
     'not_aired_badge': 'bientôt',
-    'series_avg_locked': 'La note est la moyenne des épisodes. Effacez les notes des épisodes pour la définir manuellement.',
+    'series_avg_locked':
+        'La note est la moyenne des épisodes. Effacez les notes des épisodes pour la définir manuellement.',
     'mark_season': 'Marquer toute la saison',
     'unmark_season': 'Démarquer toute la saison',
     'season_done': 'Saison {n} marquée',
     'watch_again': 'Revu',
     'season_mark_when': 'Quand avez-vous regardé la saison {n} ?',
     'season_mark_sub': 'Marquer les {n} épisodes de la saison',
-    'season_all_watched': 'Tous les épisodes diffusés de la saison sont déjà marqués',
+    'season_all_watched':
+        'Tous les épisodes diffusés de la saison sont déjà marqués',
     'season_rewatch_title': 'Marquer toute la saison {n} comme revue ?',
     'season_rewatch_sub': 'Revoir les {n} épisodes de la saison',
     'season_rewatched': 'Saison marquée à nouveau ({c} épisodes)',
     'episode_mark_when': 'Quand avez-vous regardé cet épisode ?',
     'share': 'Partager',
     'delete_from_base': 'Supprimer de la bibliothèque',
-    'delete_from_base_confirm': '« {title} » sera supprimé définitivement. Vous pourrez annuler juste après.',
+    'delete_from_base_confirm':
+        '« {title} » sera supprimé définitivement. Vous pourrez annuler juste après.',
     'deleted_from_base': 'Supprimé de la bibliothèque',
-    'delete_from_base_n': 'La sélection ({n}) sera supprimée définitivement. Vous pourrez annuler juste après.',
+    'delete_from_base_n':
+        'La sélection ({n}) sera supprimée définitivement. Vous pourrez annuler juste après.',
     'deleted_n_from_base': 'Supprimés de la bibliothèque : {n}',
     'import_tracker': 'Importer depuis un tracker (CSV)',
     'import_tracker_sub': 'Letterboxd, IMDb et autres — fichier .csv',
@@ -1097,27 +1194,37 @@ const Map<String, Map<String, String>> kTranslations = {
     'stat_my_ratings_by_year': 'Mes notes par année de visionnage',
     'stat_wy_best': 'Le plus généreux en {y} ({s})',
     'stat_wy_worst': 'Le plus sévère en {y} ({s})',
-    'stat_wy_trend_up': 'Avec le temps, vous notez les films plus généreusement — votre moyenne augmente.',
-    'stat_wy_trend_down': 'Avec le temps, vous notez plus sévèrement — votre moyenne baisse.',
-    'stat_wy_trend_flat': 'Vos notes sont stables d\'année en année — un goût bien établi.',
+    'stat_wy_trend_up':
+        'Avec le temps, vous notez les films plus généreusement — votre moyenne augmente.',
+    'stat_wy_trend_down':
+        'Avec le temps, vous notez plus sévèrement — votre moyenne baisse.',
+    'stat_wy_trend_flat':
+        'Vos notes sont stables d\'année en année — un goût bien établi.',
     'stat_ry_best': 'Les plus hautes — films de {y} ({s})',
     'stat_ry_worst': 'Les plus basses — {y} ({s})',
-    'stat_ry_trend_up': 'Plus le film est récent, mieux vous le notez — le cinéma moderne l\'emporte sur les classiques pour vous.',
-    'stat_ry_trend_down': 'Plus le film est récent, plus la note est basse — vous préférez les classiques aux films modernes.',
-    'stat_ry_trend_flat': 'Vous notez les films anciens et récents de façon similaire — l\'année de sortie influe à peine sur votre note.',
+    'stat_ry_trend_up':
+        'Plus le film est récent, mieux vous le notez — le cinéma moderne l\'emporte sur les classiques pour vous.',
+    'stat_ry_trend_down':
+        'Plus le film est récent, plus la note est basse — vous préférez les classiques aux films modernes.',
+    'stat_ry_trend_flat':
+        'Vous notez les films anciens et récents de façon similaire — l\'année de sortie influe à peine sur votre note.',
     'watched_movies': 'Films vus',
     'watched_series': 'Séries vues',
     'auto_backup': 'Sauvegarde automatique',
     'auto_backup_sub': 'Copies locales dans un dossier choisi',
-    'auto_backup_hint': 'L\'application enregistre une copie de votre bibliothèque dans le dossier choisi. Les copies survivent à une désinstallation — un filet de sécurité. Les 20 dernières copies sont conservées.',
+    'auto_backup_hint':
+        'L\'application enregistre une copie de votre bibliothèque dans le dossier choisi. Les copies survivent à une désinstallation — un filet de sécurité. Les 20 dernières copies sont conservées.',
     'auto_backup_enable': 'Activer la sauvegarde automatique',
     'auto_backup_folder': 'Dossier',
     'auto_backup_no_folder': 'Non sélectionné',
-    'auto_backup_need_folder': 'Choisissez d\'abord un dossier et accordez l\'accès',
-    'auto_backup_not_writable': 'Ce dossier n\'est pas accessible en écriture — choisissez-en un autre',
+    'auto_backup_need_folder':
+        'Choisissez d\'abord un dossier et accordez l\'accès',
+    'auto_backup_not_writable':
+        'Ce dossier n\'est pas accessible en écriture — choisissez-en un autre',
     'auto_backup_when': 'Quand sauvegarder',
     'auto_backup_on_change': 'À chaque changement',
-    'auto_backup_on_change_sub': 'Une demi-minute après les modifications, au plus une fois toutes les 10 minutes',
+    'auto_backup_on_change_sub':
+        'Une demi-minute après les modifications, au plus une fois toutes les 10 minutes',
     'auto_backup_daily': 'Une fois par jour',
     'auto_backup_daily_sub': 'Vérifié au lancement de l\'application',
     'auto_backup_now': 'Sauvegarder maintenant',
@@ -1127,12 +1234,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'auto_backup_last': 'Dernière sauvegarde : {when}',
     'choose': 'Choisir',
     'trakt_sub': 'Synchroniser vus et listes',
-    'trakt_intro': 'Synchronise tes films vus, ta liste et tes notes avec Trakt. Kadr reste la source de vérité — la synchro ne fait qu\'ajouter et compléter, sans rien supprimer ni écraser.',
-    'trakt_limits_note': 'Compte Trakt gratuit : liste jusqu\'à 250, historique jusqu\'à 100 000, notes jusqu\'à 10 000. Plus — Trakt VIP (payant, côté Trakt).',
+    'trakt_intro':
+        'Synchronise tes films vus, ta liste et tes notes avec Trakt. Kadr reste la source de vérité — la synchro ne fait qu\'ajouter et compléter, sans rien supprimer ni écraser.',
+    'trakt_limits_note':
+        'Compte Trakt gratuit : liste jusqu\'à 250, historique jusqu\'à 100 000, notes jusqu\'à 10 000. Plus — Trakt VIP (payant, côté Trakt).',
     'trakt_connect': 'Connecter Trakt',
     'trakt_disconnect': 'Déconnecter Trakt',
     'trakt_connected': 'Trakt connecté',
-    'trakt_activate': 'Ouvre trakt.tv/activate et saisis ce code (appuie pour copier) :',
+    'trakt_activate':
+        'Ouvre trakt.tv/activate et saisis ce code (appuie pour copier) :',
     'trakt_open_activate': 'Ouvrir trakt.tv/activate',
     'trakt_push': 'Envoyer vers Trakt',
     'trakt_pull': 'Charger depuis Trakt',
@@ -1140,7 +1250,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'trakt_pulling': 'Chargement depuis Trakt…',
     'trakt_done': 'Terminé',
     'trakt_sync_ratings': 'Synchroniser les notes',
-    'trakt_ratings_note': 'Kadr prime : tes notes ne sont jamais écrasées par Trakt',
+    'trakt_ratings_note':
+        'Kadr prime : tes notes ne sont jamais écrasées par Trakt',
     'trakt_login_failed': 'Échec de la connexion. Réessaie.',
     'trakt_error': 'Erreur Trakt. Vérifie ta connexion.',
     'trakt_powered': 'Powered by Trakt',
@@ -1176,7 +1287,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'review_hint': 'Qu\'en avez-vous pensé ? Vos impressions, vos réflexions…',
     'filters': 'Filtres',
     'filter_genres': 'Genres',
-    'filter_genres_loading': 'Les genres se chargent en arrière-plan — ouvrez quelques fiches ou revenez plus tard.',
+    'filter_genres_loading':
+        'Les genres se chargent en arrière-plan — ouvrez quelques fiches ou revenez plus tard.',
     'update_available': 'Mise à jour disponible',
     'update_new_version': 'Nouvelle version {v}',
     'update_current_version': 'Vous avez la {v}',
@@ -1195,14 +1307,16 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_title': 'Synchronisation',
     'sync_webdav': 'Synchronisation (WebDAV)',
     'sync_webdav_sub': 'Entre appareils via votre espace cloud',
-    'sync_intro': 'Synchronisation bidirectionnelle via WebDAV (Nextcloud, Yandex.Disk, ownCloud). Les données restent sur votre serveur ; rien de ce qui est ajouté n\'est perdu.',
+    'sync_intro':
+        'Synchronisation bidirectionnelle via WebDAV (Nextcloud, Yandex.Disk, ownCloud). Les données restent sur votre serveur ; rien de ce qui est ajouté n\'est perdu.',
     'sync_url': 'URL WebDAV',
     'sync_url_hint': 'https://cloud.exemple/remote.php/dav/files/user/',
     'sync_user': 'Nom d\'utilisateur',
     'sync_pass': 'Mot de passe (ou mot de passe d\'application)',
     'sync_connect': 'Connecter',
     'sync_connected': 'Connecté',
-    'sync_connect_failed': 'Échec de la connexion. Vérifiez l\'URL et les identifiants.',
+    'sync_connect_failed':
+        'Échec de la connexion. Vérifiez l\'URL et les identifiants.',
     'sync_now': 'Synchroniser maintenant',
     'sync_done': 'Synchronisé (+{a}, fusionnés {m})',
     'sync_no_changes': 'Déjà à jour',
@@ -1213,17 +1327,20 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_last': 'Dernière synchro : {t}',
     'sync_never': 'Pas encore synchronisé',
     'seq_mode': 'Marquer les épisodes dans l\'ordre',
-    'seq_mode_sub': 'Marquer un épisode marque tous ceux qui précèdent ; le démarquer efface tous ceux qui suivent',
+    'seq_mode_sub':
+        'Marquer un épisode marque tous ceux qui précèdent ; le démarquer efface tous ceux qui suivent',
     'dropped': 'Abandonnés',
     'mark_dropped': 'Abandonner',
     'in_dropped': 'Abandonné',
     'drawer_dropped': 'Abandonnés',
-    'dropped_empty': 'Les films et séries que vous avez abandonnés apparaîtront ici',
+    'dropped_empty':
+        'Les films et séries que vous avez abandonnés apparaîtront ici',
     'dropped_movies': 'Films',
     'dropped_series': 'Séries',
     'dropped_count': 'Abandonnés : {n}',
     'notif_new_episodes': 'Nouveaux épisodes',
-    'notif_new_episodes_sub': 'Me notifier quand de nouveaux épisodes des séries que je regarde sortent',
+    'notif_new_episodes_sub':
+        'Me notifier quand de nouveaux épisodes des séries que je regarde sortent',
     'notif_channel_name': 'Nouveaux épisodes',
     'notif_new_ep_title': 'Nouvel épisode sorti',
     'notif_new_ep_body': '{title} : l\'épisode {ep} est sorti',
@@ -1231,7 +1348,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'notif_test': 'Afficher un exemple',
     'notif_test_sub': 'Aperçu de l\'apparence de la notification',
     'close': 'Fermer',
-    'kp_limit_hit': 'Limite quotidienne de PoiskKino atteinte (200 requêtes/jour). Les affiches et la recherche reprendront plus tard.',
+    'kp_limit_hit':
+        'Limite quotidienne de PoiskKino atteinte (200 requêtes/jour). Les affiches et la recherche reprendront plus tard.',
     'kp_limit_switch': 'Utiliser TMDB',
   },
   'es': {
@@ -1250,7 +1368,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'profile_about': 'Acerca de',
     'profile_friends': 'Amigos',
     'profile_join_title': 'Amigos en Kadr',
-    'profile_join_sub': 'Crea un perfil, añade amigos y ve lo que ven, sus valoraciones y sus listas Por ver.',
+    'profile_join_sub':
+        'Crea un perfil, añade amigos y ve lo que ven, sus valoraciones y sus listas Por ver.',
     'profile_login_cta': 'Inicia sesión o regístrate',
     'profile_your_code': 'tu código',
     'profile_code_copied': 'Código copiado',
@@ -1283,12 +1402,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'open_link_fail': 'No se pudo abrir {url}',
     'tmdb_key_title': 'Clave de TMDB',
     'tmdb_key_intro_title': 'Necesitas tu propia clave de TMDB',
-    'tmdb_key_intro': 'Kadr obtiene los datos de las películas de TMDB. La clave es gratuita y personal: consigue la tuya en un par de minutos y pégala abajo. Se queda solo en este dispositivo.',
+    'tmdb_key_intro':
+        'Kadr obtiene los datos de las películas de TMDB. La clave es gratuita y personal: consigue la tuya en un par de minutos y pégala abajo. Se queda solo en este dispositivo.',
     'tmdb_key_step1': 'Regístrate en themoviedb.org (gratis).',
     'tmdb_key_step2': 'Ajustes → API → crea una clave (tipo Developer).',
-    'tmdb_key_step3': 'Copia el "API Read Access Token" (largo, empieza por eyJ…).',
+    'tmdb_key_step3':
+        'Copia el "API Read Access Token" (largo, empieza por eyJ…).',
     'tmdb_key_step4': 'Pégalo en el campo de abajo y guarda.',
-    'tmdb_key_form_note': 'Al crear la clave, TMDB te pide rellenar un breve '
+    'tmdb_key_form_note':
+        'Al crear la clave, TMDB te pide rellenar un breve '
         'formulario: nombre de la app, enlace del sitio, descripción. Pon lo que '
         'quieras: TMDB no lo verifica y no afecta a nada. Sin preocupaciones.',
     'tmdb_key_open': 'Abrir los ajustes de la API de TMDB',
@@ -1300,20 +1422,26 @@ const Map<String, Map<String, String>> kTranslations = {
     'tmdb_key_empty': 'Pega un token',
     'tmdb_key_invalid': 'El token no funcionó: revísalo y pégalo de nuevo',
     'tmdb_key_saved': 'Clave guardada',
-    'tmdb_key_offline': 'No se pudo verificar (sin conexión): guardada, corrígela más tarde si hace falta',
+    'tmdb_key_offline':
+        'No se pudo verificar (sin conexión): guardada, corrígela más tarde si hace falta',
     'api_keys_title': 'Claves de API (TMDB)',
     'api_keys_sub': 'Tu clave de TMDB / PoiskKino',
     'support_authors': 'Apoya a los autores',
+    'support_section': 'Apoyar',
+    'support_intro':
+        'Kadr es una app gratuita y de código abierto. Cualquier donación ayuda a que el proyecto crezca.',
     'support_authors_sub': 'Boosty: ayuda a que la app crezca',
     'contact_support': 'Contactar con soporte',
-    'profile_add_hint': 'Introduce el código de tu amigo: puede encontrarlo en su perfil.',
+    'profile_add_hint':
+        'Introduce el código de tu amigo: puede encontrarlo en su perfil.',
     'profile_friend_code': 'Código de amigo',
     'profile_remove_friend': '¿Eliminar amigo?',
     'profile_remove_q': '¿Eliminar a {name} de tus amigos?',
     'profile_logout_q': '¿Cerrar sesión en este dispositivo?',
     'social_register': 'Registrarse',
     'social_login': 'Iniciar sesión',
-    'social_intro': 'Un perfil te permite añadir amigos y ver sus películas. Tu biblioteca se queda en tu teléfono.',
+    'social_intro':
+        'Un perfil te permite añadir amigos y ver sus películas. Tu biblioteca se queda en tu teléfono.',
     'social_name': 'Nombre',
     'social_password': 'Contraseña',
     'social_logout': 'Cerrar sesión',
@@ -1333,13 +1461,16 @@ const Map<String, Map<String, String>> kTranslations = {
     'recovery_title': 'Código de recuperación',
     'recovery_sub': 'Generar un código nuevo',
     'recovery_missing': 'Sin configurar: crea uno para no perder el acceso',
-    'recovery_save_hint': 'Guarda este código. Lo necesitarás para recuperar el acceso si olvidas tu contraseña. Se muestra una sola vez.',
+    'recovery_save_hint':
+        'Guarda este código. Lo necesitarás para recuperar el acceso si olvidas tu contraseña. Se muestra una sola vez.',
     'recovery_copied': 'Código copiado',
     'recovery_saved': 'Lo he guardado',
-    'recovery_regen_q': '¿Generar un código nuevo? El antiguo dejará de funcionar.',
+    'recovery_regen_q':
+        '¿Generar un código nuevo? El antiguo dejará de funcionar.',
     'recovery_regen': 'Generar',
     'reset_title': 'Restablecer contraseña',
-    'reset_hint': 'Introduce tu correo, el código de recuperación y una nueva contraseña.',
+    'reset_hint':
+        'Introduce tu correo, el código de recuperación y una nueva contraseña.',
     'reset_code': 'Código de recuperación',
     'reset_new_password': 'Nueva contraseña',
     'reset_submit': 'Restablecer contraseña',
@@ -1380,7 +1511,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'activity_recent': 'Novedades de tus amigos',
     'activity_recs': 'Tus amigos recomiendan',
     'activity_recs_sub': 'Muy valoradas por tus amigos y que aún no has visto',
-    'activity_empty': 'Aún no hay actividad de amigos. Añade amigos en tu perfil.',
+    'activity_empty':
+        'Aún no hay actividad de amigos. Añade amigos en tu perfil.',
     'activity_login': 'Inicia sesión para ver la actividad de tus amigos',
     'activity_watched': 'vio',
     'activity_wishlisted': 'quiere ver',
@@ -1403,17 +1535,21 @@ const Map<String, Map<String, String>> kTranslations = {
     'roulette_open': 'Abrir película',
     'roulette_src_watchlist': 'Mi lista Por ver',
     'roulette_src_friends': 'Elegidas por amigos',
-    'roulette_empty_watchlist': 'Tu lista Por ver está vacía: añade algunas películas',
+    'roulette_empty_watchlist':
+        'Tu lista Por ver está vacía: añade algunas películas',
     'roulette_empty_friends': 'Aún no hay elecciones de tus amigos',
     'for_you_title': 'Tu gusto',
     'for_you_sub': 'Creado a partir de las películas que valoraste alto',
     'for_you_empty': 'No hay recomendaciones',
-    'for_you_no_seeds': 'Valora algunas películas con 7+ y aquí aparecerán recomendaciones',
+    'for_you_no_seeds':
+        'Valora algunas películas con 7+ y aquí aparecerán recomendaciones',
     'select_all': 'Seleccionar todo',
     'n_selected': '{n} seleccionados',
     'delete_selected_title': '¿Eliminar lo seleccionado?',
-    'delete_selected_watched': 'Se eliminarán los registros de visionado ({n}). Los títulos permanecen en la base de datos.',
-    'delete_selected_watchlist': 'Lo seleccionado ({n}) se quitará de la lista Por ver. Los títulos permanecen en la base de datos.',
+    'delete_selected_watched':
+        'Se eliminarán los registros de visionado ({n}). Los títulos permanecen en la base de datos.',
+    'delete_selected_watchlist':
+        'Lo seleccionado ({n}) se quitará de la lista Por ver. Los títulos permanecen en la base de datos.',
     'removed_n': 'Eliminados: {n}',
     'on': 'Activado',
     'off': 'Desactivado',
@@ -1424,11 +1560,13 @@ const Map<String, Map<String, String>> kTranslations = {
     'ob1_title': 'Tu cine',
     'ob1_sub': 'Registra las películas y series que has visto, con estilo.',
     'ob2_title': 'Valora cada visionado',
-    'ob2_sub': 'Cada visionado tiene su propia valoración de 1.0 a 10.0: la opinión cambia al volver a verla.',
+    'ob2_sub':
+        'Cada visionado tiene su propia valoración de 1.0 a 10.0: la opinión cambia al volver a verla.',
     'ob3_title': 'Español y pósteres',
     'ob3_sub': 'Los títulos y pósteres se obtienen automáticamente de TMDB.',
     'ob4_title': 'Estadísticas y listas',
-    'ob4_sub': 'Consulta tus estadísticas, crea listas y haz copias de seguridad de todo.',
+    'ob4_sub':
+        'Consulta tus estadísticas, crea listas y haz copias de seguridad de todo.',
     'soon_sub': 'Esta sección está en construcción',
     'nav_watchlist': 'Por ver',
     'nav_watched': 'Vistos',
@@ -1505,7 +1643,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'drawer_settings': 'Ajustes',
     'drawer_about': 'Acerca de',
     'version': 'Versión',
-    'about_attribution': 'Datos de películas por TMDB y PoiskKino. Este producto usa la API de TMDB pero no está avalado ni certificado por TMDB.',
+    'about_attribution':
+        'Datos de películas por TMDB y PoiskKino. Este producto usa la API de TMDB pero no está avalado ni certificado por TMDB.',
     'search_hint': 'Películas y series…',
     'search_all_hint': 'Buscar en toda la base de datos de películas…',
     'settings_title': 'Ajustes',
@@ -1522,7 +1661,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'theme_system': 'Sistema',
     'theme_auto': 'Automático (según la hora)',
     'dynamic_color': 'Material You',
-    'dynamic_color_sub': 'Color según el fondo de pantalla del sistema (Android 12+)',
+    'dynamic_color_sub':
+        'Color según el fondo de pantalla del sistema (Android 12+)',
     'amoled': 'Negro AMOLED',
     'amoled_sub': 'Fondo negro puro en el tema oscuro',
     'theme_presets': 'Paletas',
@@ -1538,13 +1678,16 @@ const Map<String, Map<String, String>> kTranslations = {
     'create_backup_sub': 'Comparte un archivo (Telegram, Drive, …)',
     'restore_backup': 'Restaurar copia de seguridad',
     'restore_backup_sub': 'Elige un archivo JSON de copia de seguridad',
-    'backup_hint': '¿Cambias de teléfono? Crea aquí una copia de seguridad y restáurala en el nuevo dispositivo.',
+    'backup_hint':
+        '¿Cambias de teléfono? Crea aquí una copia de seguridad y restáurala en el nuevo dispositivo.',
     'backup_import_ok': 'Biblioteca restaurada',
     'backup_import_fail': 'No se pudo leer el archivo',
     'clear_all_data': 'Borrar todos los datos',
-    'clear_all_data_sub': 'Elimina todos los visionados, listas, valoraciones y series',
+    'clear_all_data_sub':
+        'Elimina todos los visionados, listas, valoraciones y series',
     'clear_all_title': '¿Borrar todos los datos?',
-    'clear_all_body': 'Se eliminarán permanentemente todos los visionados, valoraciones, listas, favoritos y series. Solo quedan los feeds de Descubrir y En cines. Haz primero una copia de seguridad si quieres conservar los datos.',
+    'clear_all_body':
+        'Se eliminarán permanentemente todos los visionados, valoraciones, listas, favoritos y series. Solo quedan los feeds de Descubrir y En cines. Haz primero una copia de seguridad si quieres conservar los datos.',
     'clear_all_done': 'Todos los datos borrados',
     'clear': 'Borrar',
     'about': 'Acerca de',
@@ -1591,7 +1734,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'mark_upto': 'Marcar hasta aquí',
     'network_error': 'Error de red',
     'no_episodes': 'No se pudieron cargar los episodios',
-    'link_hint': 'La serie puede estar guardada con otro título. Búscala manualmente: tus marcas de episodios se conservan.',
+    'link_hint':
+        'La serie puede estar guardada con otro título. Búscala manualmente: tus marcas de episodios se conservan.',
     'link_find': 'Buscar en TMDB',
     'link_hint_field': 'Nombre de la serie',
     'now_watching': 'Viendo ahora',
@@ -1660,34 +1804,43 @@ const Map<String, Map<String, String>> kTranslations = {
     'avg_of_episodes': 'Media de episodios',
     'rate_season': 'Valorar temporada',
     'season_rated': 'Valorados {n} episodios · {v}',
-    'season_no_watched': 'No hay episodios vistos en esta temporada para valorar',
+    'season_no_watched':
+        'No hay episodios vistos en esta temporada para valorar',
     'season_date': 'Fecha de visionado de la temporada',
     'season_dated': 'Fecha fijada para {n} episodios',
     'season_dates_replace_title': '¿Reemplazar las fechas de los episodios?',
-    'season_dates_replace_body': 'Los episodios de la temporada tienen fechas distintas ({n} días de visionado). Se agruparán en una sola. ¿Continuar?',
+    'season_dates_replace_body':
+        'Los episodios de la temporada tienen fechas distintas ({n} días de visionado). Se agruparán en una sola. ¿Continuar?',
     'replace': 'Reemplazar',
-    'season_done_undated': 'Temporada {n} marcada sin fecha: no aparecerá en el feed de Vistos',
+    'season_done_undated':
+        'Temporada {n} marcada sin fecha: no aparecerá en el feed de Vistos',
     'restrict_unaired': 'Bloquear episodios no emitidos',
-    'restrict_unaired_sub': 'No se puede marcar ni valorar un episodio que aún no se ha emitido',
+    'restrict_unaired_sub':
+        'No se puede marcar ni valorar un episodio que aún no se ha emitido',
     'episode_not_aired': 'El episodio aún no se ha emitido',
     'not_aired_badge': 'pronto',
-    'series_avg_locked': 'La valoración es la media de los episodios. Quita las valoraciones de los episodios para fijarla manualmente.',
+    'series_avg_locked':
+        'La valoración es la media de los episodios. Quita las valoraciones de los episodios para fijarla manualmente.',
     'mark_season': 'Marcar toda la temporada',
     'unmark_season': 'Desmarcar toda la temporada',
     'season_done': 'Temporada {n} marcada',
     'watch_again': 'Visto de nuevo',
     'season_mark_when': '¿Cuándo viste la temporada {n}?',
     'season_mark_sub': 'Marca los {n} episodios de la temporada',
-    'season_all_watched': 'Todos los episodios emitidos de la temporada ya están marcados',
-    'season_rewatch_title': '¿Marcar de nuevo como vista toda la temporada {n}?',
+    'season_all_watched':
+        'Todos los episodios emitidos de la temporada ya están marcados',
+    'season_rewatch_title':
+        '¿Marcar de nuevo como vista toda la temporada {n}?',
     'season_rewatch_sub': 'Vuelve a ver los {n} episodios de la temporada',
     'season_rewatched': 'Temporada marcada de nuevo ({c} episodios)',
     'episode_mark_when': '¿Cuándo viste este episodio?',
     'share': 'Compartir',
     'delete_from_base': 'Eliminar de la biblioteca',
-    'delete_from_base_confirm': '"{title}" se eliminará permanentemente. Puedes deshacerlo justo después.',
+    'delete_from_base_confirm':
+        '"{title}" se eliminará permanentemente. Puedes deshacerlo justo después.',
     'deleted_from_base': 'Eliminado de la biblioteca',
-    'delete_from_base_n': 'Lo seleccionado ({n}) se eliminará permanentemente. Puedes deshacerlo justo después.',
+    'delete_from_base_n':
+        'Lo seleccionado ({n}) se eliminará permanentemente. Puedes deshacerlo justo después.',
     'deleted_n_from_base': 'Eliminados de la biblioteca: {n}',
     'import_tracker': 'Importar desde un trekker (CSV)',
     'import_tracker_sub': 'Letterboxd, IMDb y otros: archivo .csv',
@@ -1711,27 +1864,36 @@ const Map<String, Map<String, String>> kTranslations = {
     'stat_my_ratings_by_year': 'Mis valoraciones por año de visionado',
     'stat_wy_best': 'Más generoso en {y} ({s})',
     'stat_wy_worst': 'Más severo en {y} ({s})',
-    'stat_wy_trend_up': 'Con el tiempo valoras las películas con más benevolencia: tu media sube.',
-    'stat_wy_trend_down': 'Con el tiempo valoras con más dureza: tu media baja.',
-    'stat_wy_trend_flat': 'Tus valoraciones son estables año tras año: un gusto asentado.',
+    'stat_wy_trend_up':
+        'Con el tiempo valoras las películas con más benevolencia: tu media sube.',
+    'stat_wy_trend_down':
+        'Con el tiempo valoras con más dureza: tu media baja.',
+    'stat_wy_trend_flat':
+        'Tus valoraciones son estables año tras año: un gusto asentado.',
     'stat_ry_best': 'La más alta — películas de {y} ({s})',
     'stat_ry_worst': 'La más baja — {y} ({s})',
-    'stat_ry_trend_up': 'Cuanto más nueva es la película, más alto la valoras: para ti el cine moderno gana a los clásicos.',
-    'stat_ry_trend_down': 'Cuanto más nueva es la película, más baja la puntuación: valoras los clásicos por encima del cine moderno.',
-    'stat_ry_trend_flat': 'Valoras las películas antiguas y las nuevas más o menos igual: el año de estreno apenas afecta a tu puntuación.',
+    'stat_ry_trend_up':
+        'Cuanto más nueva es la película, más alto la valoras: para ti el cine moderno gana a los clásicos.',
+    'stat_ry_trend_down':
+        'Cuanto más nueva es la película, más baja la puntuación: valoras los clásicos por encima del cine moderno.',
+    'stat_ry_trend_flat':
+        'Valoras las películas antiguas y las nuevas más o menos igual: el año de estreno apenas afecta a tu puntuación.',
     'watched_movies': 'Películas vistas',
     'watched_series': 'Series vistas',
     'auto_backup': 'Copia de seguridad automática',
     'auto_backup_sub': 'Copias locales a una carpeta elegida',
-    'auto_backup_hint': 'La app guarda una copia de tu biblioteca en la carpeta elegida. Las copias sobreviven a la desinstalación: una red de seguridad. Se conservan las últimas 20 copias.',
+    'auto_backup_hint':
+        'La app guarda una copia de tu biblioteca en la carpeta elegida. Las copias sobreviven a la desinstalación: una red de seguridad. Se conservan las últimas 20 copias.',
     'auto_backup_enable': 'Activar copia automática',
     'auto_backup_folder': 'Carpeta',
     'auto_backup_no_folder': 'Sin seleccionar',
     'auto_backup_need_folder': 'Elige primero una carpeta y concede el acceso',
-    'auto_backup_not_writable': 'En esta carpeta no se puede escribir: elige otra',
+    'auto_backup_not_writable':
+        'En esta carpeta no se puede escribir: elige otra',
     'auto_backup_when': 'Cuándo guardar',
     'auto_backup_on_change': 'Al haber cambios',
-    'auto_backup_on_change_sub': 'Medio minuto después de las ediciones, como máximo una vez cada 10 minutos',
+    'auto_backup_on_change_sub':
+        'Medio minuto después de las ediciones, como máximo una vez cada 10 minutos',
     'auto_backup_daily': 'Una vez al día',
     'auto_backup_daily_sub': 'Se comprueba al abrir la app',
     'auto_backup_now': 'Hacer copia ahora',
@@ -1741,12 +1903,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'auto_backup_last': 'Última copia: {when}',
     'choose': 'Elegir',
     'trakt_sub': 'Sincronizar vistos y listas',
-    'trakt_intro': 'Sincroniza lo visto, tu lista y tus valoraciones con Trakt. Kadr sigue siendo la fuente de verdad: la sincronización solo añade y completa, nunca borra ni sobrescribe.',
-    'trakt_limits_note': 'Cuenta Trakt gratuita: lista hasta 250, historial hasta 100.000, valoraciones hasta 10.000. Más — Trakt VIP (de pago, en Trakt).',
+    'trakt_intro':
+        'Sincroniza lo visto, tu lista y tus valoraciones con Trakt. Kadr sigue siendo la fuente de verdad: la sincronización solo añade y completa, nunca borra ni sobrescribe.',
+    'trakt_limits_note':
+        'Cuenta Trakt gratuita: lista hasta 250, historial hasta 100.000, valoraciones hasta 10.000. Más — Trakt VIP (de pago, en Trakt).',
     'trakt_connect': 'Conectar Trakt',
     'trakt_disconnect': 'Desconectar Trakt',
     'trakt_connected': 'Trakt conectado',
-    'trakt_activate': 'Abre trakt.tv/activate e introduce este código (toca para copiar):',
+    'trakt_activate':
+        'Abre trakt.tv/activate e introduce este código (toca para copiar):',
     'trakt_open_activate': 'Abrir trakt.tv/activate',
     'trakt_push': 'Enviar a Trakt',
     'trakt_pull': 'Cargar desde Trakt',
@@ -1754,7 +1919,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'trakt_pulling': 'Cargando desde Trakt…',
     'trakt_done': 'Listo',
     'trakt_sync_ratings': 'Sincronizar valoraciones',
-    'trakt_ratings_note': 'Manda Kadr: tus valoraciones nunca se sobrescriben desde Trakt',
+    'trakt_ratings_note':
+        'Manda Kadr: tus valoraciones nunca se sobrescriben desde Trakt',
     'trakt_login_failed': 'Error al iniciar sesión. Inténtalo de nuevo.',
     'trakt_error': 'Error de Trakt. Revisa tu conexión.',
     'trakt_powered': 'Powered by Trakt',
@@ -1790,7 +1956,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'review_hint': '¿Qué te ha parecido? Tus impresiones, pensamientos…',
     'filters': 'Filtros',
     'filter_genres': 'Géneros',
-    'filter_genres_loading': 'Los géneros se cargan en segundo plano: abre unas cuantas fichas o vuelve más tarde.',
+    'filter_genres_loading':
+        'Los géneros se cargan en segundo plano: abre unas cuantas fichas o vuelve más tarde.',
     'update_available': 'Actualización disponible',
     'update_new_version': 'Nueva versión {v}',
     'update_current_version': 'Tienes la {v}',
@@ -1809,14 +1976,16 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_title': 'Sincronización',
     'sync_webdav': 'Sincronización (WebDAV)',
     'sync_webdav_sub': 'Entre dispositivos a través de tu nube',
-    'sync_intro': 'Sincronización bidireccional vía WebDAV (Nextcloud, Yandex.Disk, ownCloud). Los datos se quedan en tu servidor; nada de lo añadido se pierde.',
+    'sync_intro':
+        'Sincronización bidireccional vía WebDAV (Nextcloud, Yandex.Disk, ownCloud). Los datos se quedan en tu servidor; nada de lo añadido se pierde.',
     'sync_url': 'URL de WebDAV',
     'sync_url_hint': 'https://cloud.example/remote.php/dav/files/user/',
     'sync_user': 'Nombre de usuario',
     'sync_pass': 'Contraseña (o contraseña de aplicación)',
     'sync_connect': 'Conectar',
     'sync_connected': 'Conectado',
-    'sync_connect_failed': 'Error de conexión. Revisa la URL y las credenciales.',
+    'sync_connect_failed':
+        'Error de conexión. Revisa la URL y las credenciales.',
     'sync_now': 'Sincronizar ahora',
     'sync_done': 'Sincronizado (+{a}, fusionados {m})',
     'sync_no_changes': 'Ya está actualizado',
@@ -1827,7 +1996,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_last': 'Última sincronización: {t}',
     'sync_never': 'Aún sin sincronizar',
     'seq_mode': 'Marcar episodios en orden',
-    'seq_mode_sub': 'Marcar un episodio marca todos los anteriores; desmarcarlo borra todos los posteriores',
+    'seq_mode_sub':
+        'Marcar un episodio marca todos los anteriores; desmarcarlo borra todos los posteriores',
     'dropped': 'Abandonadas',
     'mark_dropped': 'Abandonar',
     'in_dropped': 'Abandonada',
@@ -1837,7 +2007,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'dropped_series': 'Series',
     'dropped_count': 'Abandonadas: {n}',
     'notif_new_episodes': 'Nuevos episodios',
-    'notif_new_episodes_sub': 'Avisar cuando se estrenen nuevos episodios de las series que veo',
+    'notif_new_episodes_sub':
+        'Avisar cuando se estrenen nuevos episodios de las series que veo',
     'notif_channel_name': 'Nuevos episodios',
     'notif_new_ep_title': 'Nuevo episodio disponible',
     'notif_new_ep_body': '{title}: el episodio {ep} ya está disponible',
@@ -1845,7 +2016,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'notif_test': 'Mostrar un ejemplo',
     'notif_test_sub': 'Previsualiza cómo se ve la notificación',
     'close': 'Cerrar',
-    'kp_limit_hit': 'Se alcanzó el límite diario de PoiskKino (200 solicitudes/día). Los pósteres y la búsqueda se reanudarán más tarde.',
+    'kp_limit_hit':
+        'Se alcanzó el límite diario de PoiskKino (200 solicitudes/día). Los pósteres y la búsqueda se reanudarán más tarde.',
     'kp_limit_switch': 'Usar TMDB',
   },
   'it': {
@@ -1864,7 +2036,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'profile_about': 'Info',
     'profile_friends': 'Amici',
     'profile_join_title': 'Amici su Kadr',
-    'profile_join_sub': 'Crea un profilo, aggiungi amici e guarda le loro visioni, i voti e le liste Da vedere.',
+    'profile_join_sub':
+        'Crea un profilo, aggiungi amici e guarda le loro visioni, i voti e le liste Da vedere.',
     'profile_login_cta': 'Accedi o registrati',
     'profile_your_code': 'il tuo codice',
     'profile_code_copied': 'Codice copiato',
@@ -1897,12 +2070,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'open_link_fail': 'Impossibile aprire {url}',
     'tmdb_key_title': 'Chiave TMDB',
     'tmdb_key_intro_title': 'Serve la tua chiave TMDB personale',
-    'tmdb_key_intro': 'Kadr ottiene i dati dei film da TMDB. La chiave è gratuita e personale — ottieni la tua in un paio di minuti e incollala qui sotto. Resta solo su questo dispositivo.',
+    'tmdb_key_intro':
+        'Kadr ottiene i dati dei film da TMDB. La chiave è gratuita e personale — ottieni la tua in un paio di minuti e incollala qui sotto. Resta solo su questo dispositivo.',
     'tmdb_key_step1': 'Registrati su themoviedb.org (gratis).',
     'tmdb_key_step2': 'Impostazioni → API → crea una chiave (tipo Developer).',
-    'tmdb_key_step3': 'Copia l\'"API Read Access Token" (lungo, inizia con eyJ…).',
+    'tmdb_key_step3':
+        'Copia l\'"API Read Access Token" (lungo, inizia con eyJ…).',
     'tmdb_key_step4': 'Incollalo nel campo qui sotto e salva.',
-    'tmdb_key_form_note': 'Durante la creazione della chiave, TMDB ti chiede di '
+    'tmdb_key_form_note':
+        'Durante la creazione della chiave, TMDB ti chiede di '
         'compilare un breve modulo — nome dell\'app, link al sito, descrizione. '
         'Scrivi qualsiasi cosa: TMDB non lo verifica e non ha alcun effetto. '
         'Nessun problema.',
@@ -1913,22 +2089,29 @@ const Map<String, Map<String, String>> kTranslations = {
     'kinopoisk_key_hint': 'Solo se vuoi la fonte "PoiskKino"',
     'tmdb_key_save_go': 'Salva e continua',
     'tmdb_key_empty': 'Incolla un token',
-    'tmdb_key_invalid': 'Il token non ha funzionato — controlla e incollalo di nuovo',
+    'tmdb_key_invalid':
+        'Il token non ha funzionato — controlla e incollalo di nuovo',
     'tmdb_key_saved': 'Chiave salvata',
-    'tmdb_key_offline': 'Impossibile verificare (offline) — salvata, correggila più tardi se serve',
+    'tmdb_key_offline':
+        'Impossibile verificare (offline) — salvata, correggila più tardi se serve',
     'api_keys_title': 'Chiavi API (TMDB)',
     'api_keys_sub': 'La tua chiave TMDB / PoiskKino',
     'support_authors': 'Sostieni gli autori',
+    'support_section': 'Sostieni',
+    'support_intro':
+        'Kadr è un\'app gratuita e open-source. Ogni donazione aiuta il progetto a crescere.',
     'support_authors_sub': 'Boosty — aiuta l\'app a crescere',
     'contact_support': 'Contatta l\'assistenza',
-    'profile_add_hint': 'Inserisci il codice del tuo amico — lo trova nel suo profilo.',
+    'profile_add_hint':
+        'Inserisci il codice del tuo amico — lo trova nel suo profilo.',
     'profile_friend_code': 'Codice amico',
     'profile_remove_friend': 'Rimuovere l\'amico?',
     'profile_remove_q': 'Rimuovere {name} dagli amici?',
     'profile_logout_q': 'Disconnettersi su questo dispositivo?',
     'social_register': 'Registrati',
     'social_login': 'Accedi',
-    'social_intro': 'Un profilo ti permette di aggiungere amici e vedere i loro film. La tua libreria resta sul telefono.',
+    'social_intro':
+        'Un profilo ti permette di aggiungere amici e vedere i loro film. La tua libreria resta sul telefono.',
     'social_name': 'Nome',
     'social_password': 'Password',
     'social_logout': 'Disconnetti',
@@ -1948,13 +2131,16 @@ const Map<String, Map<String, String>> kTranslations = {
     'recovery_title': 'Codice di recupero',
     'recovery_sub': 'Genera un nuovo codice',
     'recovery_missing': 'Non impostato — creane uno per non perdere l\'accesso',
-    'recovery_save_hint': 'Salva questo codice. Ti servirà per recuperare l\'accesso se dimentichi la password. Mostrato una sola volta.',
+    'recovery_save_hint':
+        'Salva questo codice. Ti servirà per recuperare l\'accesso se dimentichi la password. Mostrato una sola volta.',
     'recovery_copied': 'Codice copiato',
     'recovery_saved': 'L\'ho salvato',
-    'recovery_regen_q': 'Generare un nuovo codice? Quello vecchio smetterà di funzionare.',
+    'recovery_regen_q':
+        'Generare un nuovo codice? Quello vecchio smetterà di funzionare.',
     'recovery_regen': 'Genera',
     'reset_title': 'Reimposta password',
-    'reset_hint': 'Inserisci la tua email, il codice di recupero e una nuova password.',
+    'reset_hint':
+        'Inserisci la tua email, il codice di recupero e una nuova password.',
     'reset_code': 'Codice di recupero',
     'reset_new_password': 'Nuova password',
     'reset_submit': 'Reimposta password',
@@ -1995,7 +2181,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'activity_recent': 'Novità dagli amici',
     'activity_recs': 'Consigliati dagli amici',
     'activity_recs_sub': 'Molto apprezzati dagli amici, non ancora visti da te',
-    'activity_empty': 'Ancora nessuna attività degli amici. Aggiungi amici dal tuo profilo.',
+    'activity_empty':
+        'Ancora nessuna attività degli amici. Aggiungi amici dal tuo profilo.',
     'activity_login': 'Accedi per vedere l\'attività degli amici',
     'activity_watched': 'ha visto',
     'activity_wishlisted': 'vuole vedere',
@@ -2018,7 +2205,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'roulette_open': 'Apri il film',
     'roulette_src_watchlist': 'La mia lista Da vedere',
     'roulette_src_friends': 'Scelte degli amici',
-    'roulette_empty_watchlist': 'La tua lista Da vedere è vuota — aggiungi qualche film',
+    'roulette_empty_watchlist':
+        'La tua lista Da vedere è vuota — aggiungi qualche film',
     'roulette_empty_friends': 'Ancora nessuna scelta dagli amici',
     'for_you_title': 'I tuoi gusti',
     'for_you_sub': 'Basati sui film che hai valutato più in alto',
@@ -2027,8 +2215,10 @@ const Map<String, Map<String, String>> kTranslations = {
     'select_all': 'Seleziona tutto',
     'n_selected': '{n} selezionati',
     'delete_selected_title': 'Eliminare i selezionati?',
-    'delete_selected_watched': 'Le visioni ({n}) verranno rimosse. I titoli restano nel database.',
-    'delete_selected_watchlist': 'I selezionati ({n}) verranno rimossi dalla lista Da vedere. I titoli restano nel database.',
+    'delete_selected_watched':
+        'Le visioni ({n}) verranno rimosse. I titoli restano nel database.',
+    'delete_selected_watchlist':
+        'I selezionati ({n}) verranno rimossi dalla lista Da vedere. I titoli restano nel database.',
     'removed_n': 'Rimossi: {n}',
     'on': 'On',
     'off': 'Off',
@@ -2037,13 +2227,16 @@ const Map<String, Map<String, String>> kTranslations = {
     'start': 'Inizia',
     'skip': 'Salta',
     'ob1_title': 'Il tuo cinema',
-    'ob1_sub': 'Tieni traccia dei film e delle serie che hai visto — con stile.',
+    'ob1_sub':
+        'Tieni traccia dei film e delle serie che hai visto — con stile.',
     'ob2_title': 'Vota ogni visione',
-    'ob2_sub': 'Ogni visione ha il suo voto da 1.0 a 10.0 — le opinioni cambiano quando si rivede.',
+    'ob2_sub':
+        'Ogni visione ha il suo voto da 1.0 a 10.0 — le opinioni cambiano quando si rivede.',
     'ob3_title': 'Titoli e locandine',
     'ob3_sub': 'Titoli e locandine vengono recuperati automaticamente da TMDB.',
     'ob4_title': 'Statistiche e liste',
-    'ob4_sub': 'Guarda le tue statistiche, crea liste e fai il backup di tutto.',
+    'ob4_sub':
+        'Guarda le tue statistiche, crea liste e fai il backup di tutto.',
     'soon_sub': 'Questa sezione è in costruzione',
     'nav_watchlist': 'Da vedere',
     'nav_watched': 'Visti',
@@ -2120,7 +2313,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'drawer_settings': 'Impostazioni',
     'drawer_about': 'Info',
     'version': 'Versione',
-    'about_attribution': 'Dati dei film forniti da TMDB e PoiskKino. Questo prodotto usa l\'API di TMDB ma non è approvato né certificato da TMDB.',
+    'about_attribution':
+        'Dati dei film forniti da TMDB e PoiskKino. Questo prodotto usa l\'API di TMDB ma non è approvato né certificato da TMDB.',
     'search_hint': 'Film e serie…',
     'search_all_hint': 'Cerca in tutto il database di film…',
     'settings_title': 'Impostazioni',
@@ -2153,13 +2347,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'create_backup_sub': 'Condividi un file (Telegram, Drive, …)',
     'restore_backup': 'Ripristina backup',
     'restore_backup_sub': 'Scegli un file di backup JSON',
-    'backup_hint': 'Cambi telefono? Crea qui un backup e ripristinalo sul nuovo dispositivo.',
+    'backup_hint':
+        'Cambi telefono? Crea qui un backup e ripristinalo sul nuovo dispositivo.',
     'backup_import_ok': 'Libreria ripristinata',
     'backup_import_fail': 'Impossibile leggere il file',
     'clear_all_data': 'Cancella tutti i dati',
     'clear_all_data_sub': 'Elimina tutte le visioni, liste, voti e serie',
     'clear_all_title': 'Cancellare tutti i dati?',
-    'clear_all_body': 'Tutte le visioni, i voti, le liste, i preferiti e le serie verranno eliminati definitivamente. Restano solo i feed Scopri e Al cinema. Fai prima un backup se vuoi conservare i dati.',
+    'clear_all_body':
+        'Tutte le visioni, i voti, le liste, i preferiti e le serie verranno eliminati definitivamente. Restano solo i feed Scopri e Al cinema. Fai prima un backup se vuoi conservare i dati.',
     'clear_all_done': 'Tutti i dati cancellati',
     'clear': 'Cancella',
     'about': 'Info',
@@ -2206,7 +2402,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'mark_upto': 'Segna fino a qui',
     'network_error': 'Errore di rete',
     'no_episodes': 'Impossibile caricare gli episodi',
-    'link_hint': 'La serie potrebbe essere salvata con un altro titolo. Trovala manualmente — le tue segnature degli episodi vengono conservate.',
+    'link_hint':
+        'La serie potrebbe essere salvata con un altro titolo. Trovala manualmente — le tue segnature degli episodi vengono conservate.',
     'link_find': 'Trova su TMDB',
     'link_hint_field': 'Nome della serie',
     'now_watching': 'In visione',
@@ -2279,30 +2476,38 @@ const Map<String, Map<String, String>> kTranslations = {
     'season_date': 'Data di visione della stagione',
     'season_dated': 'Data impostata per {n} episodi',
     'season_dates_replace_title': 'Sostituire le date degli episodi?',
-    'season_dates_replace_body': 'Gli episodi della stagione hanno date diverse ({n} giorni di visione). Verranno unificati in uno solo. Continuare?',
+    'season_dates_replace_body':
+        'Gli episodi della stagione hanno date diverse ({n} giorni di visione). Verranno unificati in uno solo. Continuare?',
     'replace': 'Sostituisci',
-    'season_done_undated': 'Stagione {n} segnata senza data — non apparirà nel feed Visti',
+    'season_done_undated':
+        'Stagione {n} segnata senza data — non apparirà nel feed Visti',
     'restrict_unaired': 'Blocca episodi non ancora usciti',
-    'restrict_unaired_sub': 'Non puoi segnare o votare un episodio non ancora andato in onda',
+    'restrict_unaired_sub':
+        'Non puoi segnare o votare un episodio non ancora andato in onda',
     'episode_not_aired': 'L\'episodio non è ancora uscito',
     'not_aired_badge': 'presto',
-    'series_avg_locked': 'Il voto è la media degli episodi. Rimuovi i voti degli episodi per impostarlo manualmente.',
+    'series_avg_locked':
+        'Il voto è la media degli episodi. Rimuovi i voti degli episodi per impostarlo manualmente.',
     'mark_season': 'Segna tutta la stagione',
     'unmark_season': 'Deseleziona tutta la stagione',
     'season_done': 'Stagione {n} segnata',
     'watch_again': 'Visto di nuovo',
     'season_mark_when': 'Quando hai visto la stagione {n}?',
     'season_mark_sub': 'Segna tutti i {n} episodi della stagione',
-    'season_all_watched': 'Tutti gli episodi usciti della stagione sono già segnati',
-    'season_rewatch_title': 'Segnare di nuovo come vista tutta la stagione {n}?',
+    'season_all_watched':
+        'Tutti gli episodi usciti della stagione sono già segnati',
+    'season_rewatch_title':
+        'Segnare di nuovo come vista tutta la stagione {n}?',
     'season_rewatch_sub': 'Rivedi tutti i {n} episodi della stagione',
     'season_rewatched': 'Stagione segnata di nuovo ({c} episodi)',
     'episode_mark_when': 'Quando hai visto questo episodio?',
     'share': 'Condividi',
     'delete_from_base': 'Elimina dalla libreria',
-    'delete_from_base_confirm': '"{title}" verrà rimosso definitivamente. Puoi annullare subito dopo.',
+    'delete_from_base_confirm':
+        '"{title}" verrà rimosso definitivamente. Puoi annullare subito dopo.',
     'deleted_from_base': 'Eliminato dalla libreria',
-    'delete_from_base_n': 'I selezionati ({n}) verranno rimossi definitivamente. Puoi annullare subito dopo.',
+    'delete_from_base_n':
+        'I selezionati ({n}) verranno rimossi definitivamente. Puoi annullare subito dopo.',
     'deleted_n_from_base': 'Eliminati dalla libreria: {n}',
     'import_tracker': 'Importa da tracker (CSV)',
     'import_tracker_sub': 'Letterboxd, IMDb e altri — file .csv',
@@ -2326,27 +2531,36 @@ const Map<String, Map<String, String>> kTranslations = {
     'stat_my_ratings_by_year': 'I miei voti per anno di visione',
     'stat_wy_best': 'Più generoso nel {y} ({s})',
     'stat_wy_worst': 'Più severo nel {y} ({s})',
-    'stat_wy_trend_up': 'Col tempo voti i film con più indulgenza — la tua media sta salendo.',
-    'stat_wy_trend_down': 'Col tempo voti in modo più severo — la tua media sta scendendo.',
-    'stat_wy_trend_flat': 'I tuoi voti sono costanti di anno in anno — un gusto ben definito.',
+    'stat_wy_trend_up':
+        'Col tempo voti i film con più indulgenza — la tua media sta salendo.',
+    'stat_wy_trend_down':
+        'Col tempo voti in modo più severo — la tua media sta scendendo.',
+    'stat_wy_trend_flat':
+        'I tuoi voti sono costanti di anno in anno — un gusto ben definito.',
     'stat_ry_best': 'Più alti — film del {y} ({s})',
     'stat_ry_worst': 'Più bassi — {y} ({s})',
-    'stat_ry_trend_up': 'Più il film è recente, più lo voti in alto — per te il cinema moderno batte i classici.',
-    'stat_ry_trend_down': 'Più il film è recente, più basso è il voto — apprezzi i classici più dei film moderni.',
-    'stat_ry_trend_flat': 'Voti allo stesso modo i film vecchi e nuovi — l\'anno di uscita influisce poco sul tuo voto.',
+    'stat_ry_trend_up':
+        'Più il film è recente, più lo voti in alto — per te il cinema moderno batte i classici.',
+    'stat_ry_trend_down':
+        'Più il film è recente, più basso è il voto — apprezzi i classici più dei film moderni.',
+    'stat_ry_trend_flat':
+        'Voti allo stesso modo i film vecchi e nuovi — l\'anno di uscita influisce poco sul tuo voto.',
     'watched_movies': 'Film visti',
     'watched_series': 'Serie viste',
     'auto_backup': 'Backup automatico',
     'auto_backup_sub': 'Copie locali in una cartella scelta',
-    'auto_backup_hint': 'L\'app salva una copia della tua libreria nella cartella scelta. Le copie sopravvivono alla disinstallazione — una rete di sicurezza. Vengono conservate le ultime 20 copie.',
+    'auto_backup_hint':
+        'L\'app salva una copia della tua libreria nella cartella scelta. Le copie sopravvivono alla disinstallazione — una rete di sicurezza. Vengono conservate le ultime 20 copie.',
     'auto_backup_enable': 'Attiva il backup automatico',
     'auto_backup_folder': 'Cartella',
     'auto_backup_no_folder': 'Non selezionata',
     'auto_backup_need_folder': 'Scegli prima una cartella e concedi l\'accesso',
-    'auto_backup_not_writable': 'Questa cartella non è scrivibile — scegline un\'altra',
+    'auto_backup_not_writable':
+        'Questa cartella non è scrivibile — scegline un\'altra',
     'auto_backup_when': 'Quando salvare',
     'auto_backup_on_change': 'Alle modifiche',
-    'auto_backup_on_change_sub': 'Mezzo minuto dopo le modifiche, al massimo una volta ogni 10 minuti',
+    'auto_backup_on_change_sub':
+        'Mezzo minuto dopo le modifiche, al massimo una volta ogni 10 minuti',
     'auto_backup_daily': 'Una volta al giorno',
     'auto_backup_daily_sub': 'Verificato all\'avvio dell\'app',
     'auto_backup_now': 'Esegui il backup ora',
@@ -2356,12 +2570,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'auto_backup_last': 'Ultimo backup: {when}',
     'choose': 'Scegli',
     'trakt_sub': 'Sincronizza visti e liste',
-    'trakt_intro': 'Sincronizza visti, watchlist e voti con Trakt. Kadr resta la fonte di verità: la sincronizzazione aggiunge e completa soltanto, non elimina né sovrascrive.',
-    'trakt_limits_note': 'Account Trakt gratuito: watchlist fino a 250, cronologia fino a 100.000, voti fino a 10.000. Di più — Trakt VIP (a pagamento, su Trakt).',
+    'trakt_intro':
+        'Sincronizza visti, watchlist e voti con Trakt. Kadr resta la fonte di verità: la sincronizzazione aggiunge e completa soltanto, non elimina né sovrascrive.',
+    'trakt_limits_note':
+        'Account Trakt gratuito: watchlist fino a 250, cronologia fino a 100.000, voti fino a 10.000. Di più — Trakt VIP (a pagamento, su Trakt).',
     'trakt_connect': 'Collega Trakt',
     'trakt_disconnect': 'Scollega Trakt',
     'trakt_connected': 'Trakt collegato',
-    'trakt_activate': 'Apri trakt.tv/activate e inserisci questo codice (tocca per copiare):',
+    'trakt_activate':
+        'Apri trakt.tv/activate e inserisci questo codice (tocca per copiare):',
     'trakt_open_activate': 'Apri trakt.tv/activate',
     'trakt_push': 'Invia a Trakt',
     'trakt_pull': 'Carica da Trakt',
@@ -2369,7 +2586,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'trakt_pulling': 'Caricamento da Trakt…',
     'trakt_done': 'Fatto',
     'trakt_sync_ratings': 'Sincronizza i voti',
-    'trakt_ratings_note': 'Comanda Kadr: i tuoi voti non vengono mai sovrascritti da Trakt',
+    'trakt_ratings_note':
+        'Comanda Kadr: i tuoi voti non vengono mai sovrascritti da Trakt',
     'trakt_login_failed': 'Accesso non riuscito. Riprova.',
     'trakt_error': 'Errore Trakt. Controlla la connessione.',
     'trakt_powered': 'Powered by Trakt',
@@ -2405,7 +2623,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'review_hint': 'Che ne pensi? Le tue impressioni, riflessioni…',
     'filters': 'Filtri',
     'filter_genres': 'Generi',
-    'filter_genres_loading': 'I generi si caricano in background — apri qualche scheda o torna più tardi.',
+    'filter_genres_loading':
+        'I generi si caricano in background — apri qualche scheda o torna più tardi.',
     'update_available': 'Aggiornamento disponibile',
     'update_new_version': 'Nuova versione {v}',
     'update_current_version': 'Hai la {v}',
@@ -2424,14 +2643,16 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_title': 'Sincronizzazione',
     'sync_webdav': 'Sincronizzazione (WebDAV)',
     'sync_webdav_sub': 'Tra dispositivi tramite il tuo cloud',
-    'sync_intro': 'Sincronizzazione bidirezionale via WebDAV (Nextcloud, Yandex.Disk, ownCloud). I dati restano sul tuo server; nulla di ciò che aggiungi viene perso.',
+    'sync_intro':
+        'Sincronizzazione bidirezionale via WebDAV (Nextcloud, Yandex.Disk, ownCloud). I dati restano sul tuo server; nulla di ciò che aggiungi viene perso.',
     'sync_url': 'URL WebDAV',
     'sync_url_hint': 'https://cloud.example/remote.php/dav/files/user/',
     'sync_user': 'Nome utente',
     'sync_pass': 'Password (o password per app)',
     'sync_connect': 'Connetti',
     'sync_connected': 'Connesso',
-    'sync_connect_failed': 'Connessione non riuscita. Controlla URL e credenziali.',
+    'sync_connect_failed':
+        'Connessione non riuscita. Controlla URL e credenziali.',
     'sync_now': 'Sincronizza ora',
     'sync_done': 'Sincronizzato (+{a}, uniti {m})',
     'sync_no_changes': 'Già aggiornato',
@@ -2442,7 +2663,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_last': 'Ultima sincronizzazione: {t}',
     'sync_never': 'Non ancora sincronizzato',
     'seq_mode': 'Segna gli episodi in ordine',
-    'seq_mode_sub': 'Segnando un episodio si segnano tutti i precedenti; deselezionandolo si cancellano tutti i successivi',
+    'seq_mode_sub':
+        'Segnando un episodio si segnano tutti i precedenti; deselezionandolo si cancellano tutti i successivi',
     'dropped': 'Abbandonati',
     'mark_dropped': 'Abbandona',
     'in_dropped': 'Abbandonato',
@@ -2452,7 +2674,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'dropped_series': 'Serie',
     'dropped_count': 'Abbandonati: {n}',
     'notif_new_episodes': 'Nuovi episodi',
-    'notif_new_episodes_sub': 'Avvisami quando escono nuovi episodi delle serie che guardo',
+    'notif_new_episodes_sub':
+        'Avvisami quando escono nuovi episodi delle serie che guardo',
     'notif_channel_name': 'Nuovi episodi',
     'notif_new_ep_title': 'Nuovo episodio uscito',
     'notif_new_ep_body': '{title}: è uscito l\'episodio {ep}',
@@ -2460,7 +2683,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'notif_test': 'Mostra un esempio',
     'notif_test_sub': 'Anteprima di come appare la notifica',
     'close': 'Chiudi',
-    'kp_limit_hit': 'Limite giornaliero di PoiskKino raggiunto (200 richieste/giorno). Locandine e ricerca riprenderanno più tardi.',
+    'kp_limit_hit':
+        'Limite giornaliero di PoiskKino raggiunto (200 richieste/giorno). Locandine e ricerca riprenderanno più tardi.',
     'kp_limit_switch': 'Usa TMDB',
   },
   'pt': {
@@ -2479,7 +2703,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'profile_about': 'Sobre',
     'profile_friends': 'Amigos',
     'profile_join_title': 'Amigos no Kadr',
-    'profile_join_sub': 'Crie um perfil, adicione amigos e veja o que eles assistem, avaliam e querem ver.',
+    'profile_join_sub':
+        'Crie um perfil, adicione amigos e veja o que eles assistem, avaliam e querem ver.',
     'profile_login_cta': 'Entrar ou cadastrar',
     'profile_your_code': 'seu código',
     'profile_code_copied': 'Código copiado',
@@ -2512,12 +2737,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'open_link_fail': 'Não foi possível abrir {url}',
     'tmdb_key_title': 'Chave do TMDB',
     'tmdb_key_intro_title': 'É preciso a sua própria chave do TMDB',
-    'tmdb_key_intro': 'O Kadr busca os dados dos filmes no TMDB. A chave é gratuita e pessoal — pegue a sua em poucos minutos e cole abaixo. Ela fica só neste dispositivo.',
+    'tmdb_key_intro':
+        'O Kadr busca os dados dos filmes no TMDB. A chave é gratuita e pessoal — pegue a sua em poucos minutos e cole abaixo. Ela fica só neste dispositivo.',
     'tmdb_key_step1': 'Cadastre-se em themoviedb.org (grátis).',
     'tmdb_key_step2': 'Configurações → API → crie uma chave (tipo Developer).',
-    'tmdb_key_step3': 'Copie o "API Read Access Token" (longo, começa com eyJ…).',
+    'tmdb_key_step3':
+        'Copie o "API Read Access Token" (longo, começa com eyJ…).',
     'tmdb_key_step4': 'Cole no campo abaixo e salve.',
-    'tmdb_key_form_note': 'Ao criar a chave, o TMDB pede para preencher um '
+    'tmdb_key_form_note':
+        'Ao criar a chave, o TMDB pede para preencher um '
         'formulário curto — nome do app, link do site, descrição. Coloque o que '
         'quiser: o TMDB não verifica e não afeta nada. Sem preocupação.',
     'tmdb_key_open': 'Abrir configurações da API do TMDB',
@@ -2529,20 +2757,26 @@ const Map<String, Map<String, String>> kTranslations = {
     'tmdb_key_empty': 'Cole um token',
     'tmdb_key_invalid': 'O token não funcionou — confira e cole de novo',
     'tmdb_key_saved': 'Chave salva',
-    'tmdb_key_offline': 'Não deu para verificar (offline) — salva, corrija depois se precisar',
+    'tmdb_key_offline':
+        'Não deu para verificar (offline) — salva, corrija depois se precisar',
     'api_keys_title': 'Chaves de API (TMDB)',
     'api_keys_sub': 'Sua chave do TMDB / PoiskKino',
     'support_authors': 'Apoiar os autores',
+    'support_section': 'Apoiar',
+    'support_intro':
+        'Kadr é um app gratuito e de código aberto. Qualquer doação ajuda o projeto a crescer.',
     'support_authors_sub': 'Boosty — ajude o app a crescer',
     'contact_support': 'Falar com o suporte',
-    'profile_add_hint': 'Digite o código do seu amigo — ele encontra no próprio perfil.',
+    'profile_add_hint':
+        'Digite o código do seu amigo — ele encontra no próprio perfil.',
     'profile_friend_code': 'Código de amigo',
     'profile_remove_friend': 'Remover amigo?',
     'profile_remove_q': 'Remover {name} dos amigos?',
     'profile_logout_q': 'Sair neste dispositivo?',
     'social_register': 'Cadastrar',
     'social_login': 'Entrar',
-    'social_intro': 'Um perfil permite adicionar amigos e ver os filmes deles. Sua biblioteca continua no seu celular.',
+    'social_intro':
+        'Um perfil permite adicionar amigos e ver os filmes deles. Sua biblioteca continua no seu celular.',
     'social_name': 'Nome',
     'social_password': 'Senha',
     'social_logout': 'Sair',
@@ -2562,13 +2796,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'recovery_title': 'Código de recuperação',
     'recovery_sub': 'Gerar um novo código',
     'recovery_missing': 'Não definido — crie um para não perder o acesso',
-    'recovery_save_hint': 'Guarde este código. Você precisará dele para recuperar o acesso se esquecer a senha. Mostrado uma única vez.',
+    'recovery_save_hint':
+        'Guarde este código. Você precisará dele para recuperar o acesso se esquecer a senha. Mostrado uma única vez.',
     'recovery_copied': 'Código copiado',
     'recovery_saved': 'Já guardei',
     'recovery_regen_q': 'Gerar um novo código? O antigo deixará de funcionar.',
     'recovery_regen': 'Gerar',
     'reset_title': 'Redefinir senha',
-    'reset_hint': 'Digite seu e-mail, o código de recuperação e uma nova senha.',
+    'reset_hint':
+        'Digite seu e-mail, o código de recuperação e uma nova senha.',
     'reset_code': 'Código de recuperação',
     'reset_new_password': 'Nova senha',
     'reset_submit': 'Redefinir senha',
@@ -2608,8 +2844,10 @@ const Map<String, Map<String, String>> kTranslations = {
     'activity_title': 'Atividade dos amigos',
     'activity_recent': 'Recentes dos amigos',
     'activity_recs': 'Amigos recomendam',
-    'activity_recs_sub': 'Muito bem avaliados pelos amigos e não vistos por você',
-    'activity_empty': 'Nenhuma atividade de amigos ainda. Adicione amigos no seu perfil.',
+    'activity_recs_sub':
+        'Muito bem avaliados pelos amigos e não vistos por você',
+    'activity_empty':
+        'Nenhuma atividade de amigos ainda. Adicione amigos no seu perfil.',
     'activity_login': 'Entre para ver a atividade dos amigos',
     'activity_watched': 'assistiu',
     'activity_wishlisted': 'quer assistir',
@@ -2632,17 +2870,21 @@ const Map<String, Map<String, String>> kTranslations = {
     'roulette_open': 'Abrir filme',
     'roulette_src_watchlist': 'Meu Quero ver',
     'roulette_src_friends': 'Escolhas dos amigos',
-    'roulette_empty_watchlist': 'Seu Quero ver está vazio — adicione alguns filmes',
+    'roulette_empty_watchlist':
+        'Seu Quero ver está vazio — adicione alguns filmes',
     'roulette_empty_friends': 'Nenhuma escolha dos amigos ainda',
     'for_you_title': 'Seu gosto',
     'for_you_sub': 'Montado a partir dos filmes que você bem avaliou',
     'for_you_empty': 'Nenhuma recomendação',
-    'for_you_no_seeds': 'Avalie alguns filmes com 7+ e as recomendações aparecerão aqui',
+    'for_you_no_seeds':
+        'Avalie alguns filmes com 7+ e as recomendações aparecerão aqui',
     'select_all': 'Selecionar tudo',
     'n_selected': '{n} selecionado(s)',
     'delete_selected_title': 'Excluir selecionados?',
-    'delete_selected_watched': 'Os registros de exibição ({n}) serão removidos. Os títulos continuam na base de dados.',
-    'delete_selected_watchlist': 'Os selecionados ({n}) serão removidos do Quero ver. Os títulos continuam na base de dados.',
+    'delete_selected_watched':
+        'Os registros de exibição ({n}) serão removidos. Os títulos continuam na base de dados.',
+    'delete_selected_watchlist':
+        'Os selecionados ({n}) serão removidos do Quero ver. Os títulos continuam na base de dados.',
     'removed_n': 'Removidos: {n}',
     'on': 'Ativado',
     'off': 'Desativado',
@@ -2653,7 +2895,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'ob1_title': 'Seu cinema',
     'ob1_sub': 'Acompanhe os filmes e séries que você assistiu — com estilo.',
     'ob2_title': 'Avalie cada sessão',
-    'ob2_sub': 'Cada visualização tem sua própria nota de 1.0 a 10.0 — a opinião muda ao rever.',
+    'ob2_sub':
+        'Cada visualização tem sua própria nota de 1.0 a 10.0 — a opinião muda ao rever.',
     'ob3_title': 'Nomes em português e pôsteres',
     'ob3_sub': 'Títulos e pôsteres são buscados automaticamente no TMDB.',
     'ob4_title': 'Estatísticas e listas',
@@ -2734,7 +2977,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'drawer_settings': 'Configurações',
     'drawer_about': 'Sobre',
     'version': 'Versão',
-    'about_attribution': 'Dados dos filmes por TMDB e PoiskKino. Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.',
+    'about_attribution':
+        'Dados dos filmes por TMDB e PoiskKino. Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.',
     'search_hint': 'Filmes e séries…',
     'search_all_hint': 'Buscar em toda a base de filmes…',
     'settings_title': 'Configurações',
@@ -2751,7 +2995,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'theme_system': 'Sistema',
     'theme_auto': 'Automático (por horário)',
     'dynamic_color': 'Material You',
-    'dynamic_color_sub': 'Cor a partir do papel de parede do sistema (Android 12+)',
+    'dynamic_color_sub':
+        'Cor a partir do papel de parede do sistema (Android 12+)',
     'amoled': 'Preto AMOLED',
     'amoled_sub': 'Fundo preto puro no tema escuro',
     'theme_presets': 'Paletas',
@@ -2767,13 +3012,16 @@ const Map<String, Map<String, String>> kTranslations = {
     'create_backup_sub': 'Compartilhar um arquivo (Telegram, Drive, …)',
     'restore_backup': 'Restaurar backup',
     'restore_backup_sub': 'Escolher um arquivo JSON de backup',
-    'backup_hint': 'Trocando de celular: crie um backup aqui e restaure no novo dispositivo.',
+    'backup_hint':
+        'Trocando de celular: crie um backup aqui e restaure no novo dispositivo.',
     'backup_import_ok': 'Biblioteca restaurada',
     'backup_import_fail': 'Não foi possível ler o arquivo',
     'clear_all_data': 'Apagar todos os dados',
-    'clear_all_data_sub': 'Excluir todas as exibições, listas, avaliações e séries',
+    'clear_all_data_sub':
+        'Excluir todas as exibições, listas, avaliações e séries',
     'clear_all_title': 'Apagar todos os dados?',
-    'clear_all_body': 'Todas as exibições, avaliações, listas, favoritos e séries serão excluídos permanentemente. Só os feeds Descobrir e Nos cinemas permanecem. Faça um backup antes se quiser manter os dados.',
+    'clear_all_body':
+        'Todas as exibições, avaliações, listas, favoritos e séries serão excluídos permanentemente. Só os feeds Descobrir e Nos cinemas permanecem. Faça um backup antes se quiser manter os dados.',
     'clear_all_done': 'Todos os dados apagados',
     'clear': 'Apagar',
     'about': 'Sobre',
@@ -2820,7 +3068,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'mark_upto': 'Marcar até aqui',
     'network_error': 'Erro de rede',
     'no_episodes': 'Não foi possível carregar os episódios',
-    'link_hint': 'A série pode estar salva com outro título. Encontre-a manualmente — suas marcas de episódios são mantidas.',
+    'link_hint':
+        'A série pode estar salva com outro título. Encontre-a manualmente — suas marcas de episódios são mantidas.',
     'link_find': 'Buscar no TMDB',
     'link_hint_field': 'Nome da série',
     'now_watching': 'Assistindo agora',
@@ -2893,30 +3142,38 @@ const Map<String, Map<String, String>> kTranslations = {
     'season_date': 'Data de exibição da temporada',
     'season_dated': 'Data definida para {n} episódios',
     'season_dates_replace_title': 'Substituir as datas dos episódios?',
-    'season_dates_replace_body': 'Os episódios da temporada têm datas diferentes ({n} dias de exibição). Elas serão unificadas em uma só. Continuar?',
+    'season_dates_replace_body':
+        'Os episódios da temporada têm datas diferentes ({n} dias de exibição). Elas serão unificadas em uma só. Continuar?',
     'replace': 'Substituir',
-    'season_done_undated': 'Temporada {n} marcada sem data — não aparecerá no feed de Vistos',
+    'season_done_undated':
+        'Temporada {n} marcada sem data — não aparecerá no feed de Vistos',
     'restrict_unaired': 'Bloquear episódios não exibidos',
-    'restrict_unaired_sub': 'Não é possível marcar ou avaliar um episódio que ainda não foi ao ar',
+    'restrict_unaired_sub':
+        'Não é possível marcar ou avaliar um episódio que ainda não foi ao ar',
     'episode_not_aired': 'O episódio ainda não foi ao ar',
     'not_aired_badge': 'em breve',
-    'series_avg_locked': 'A nota é a média dos episódios. Limpe as notas dos episódios para defini-la manualmente.',
+    'series_avg_locked':
+        'A nota é a média dos episódios. Limpe as notas dos episódios para defini-la manualmente.',
     'mark_season': 'Marcar temporada inteira',
     'unmark_season': 'Desmarcar temporada inteira',
     'season_done': 'Temporada {n} marcada',
     'watch_again': 'Assistido de novo',
     'season_mark_when': 'Quando você assistiu à temporada {n}?',
     'season_mark_sub': 'Marcar todos os {n} episódios da temporada',
-    'season_all_watched': 'Todos os episódios exibidos da temporada já estão marcados',
-    'season_rewatch_title': 'Marcar a temporada {n} inteira como assistida de novo?',
+    'season_all_watched':
+        'Todos os episódios exibidos da temporada já estão marcados',
+    'season_rewatch_title':
+        'Marcar a temporada {n} inteira como assistida de novo?',
     'season_rewatch_sub': 'Rever todos os {n} episódios da temporada',
     'season_rewatched': 'Temporada marcada de novo ({c} episódios)',
     'episode_mark_when': 'Quando você assistiu a este episódio?',
     'share': 'Compartilhar',
     'delete_from_base': 'Excluir da biblioteca',
-    'delete_from_base_confirm': '"{title}" será removido permanentemente. Você pode desfazer logo depois.',
+    'delete_from_base_confirm':
+        '"{title}" será removido permanentemente. Você pode desfazer logo depois.',
     'deleted_from_base': 'Excluído da biblioteca',
-    'delete_from_base_n': 'Os selecionados ({n}) serão removidos permanentemente. Você pode desfazer logo depois.',
+    'delete_from_base_n':
+        'Os selecionados ({n}) serão removidos permanentemente. Você pode desfazer logo depois.',
     'deleted_n_from_base': 'Excluídos da biblioteca: {n}',
     'import_tracker': 'Importar de outro rastreador (CSV)',
     'import_tracker_sub': 'Letterboxd, IMDb e outros — arquivo .csv',
@@ -2940,27 +3197,36 @@ const Map<String, Map<String, String>> kTranslations = {
     'stat_my_ratings_by_year': 'Minhas notas por ano assistido',
     'stat_wy_best': 'Mais generoso em {y} ({s})',
     'stat_wy_worst': 'Mais severo em {y} ({s})',
-    'stat_wy_trend_up': 'Com o tempo você avalia os filmes com mais generosidade — sua média está subindo.',
-    'stat_wy_trend_down': 'Com o tempo você avalia com mais severidade — sua média está caindo.',
-    'stat_wy_trend_flat': 'Suas notas se mantêm estáveis ano a ano — um gosto consolidado.',
+    'stat_wy_trend_up':
+        'Com o tempo você avalia os filmes com mais generosidade — sua média está subindo.',
+    'stat_wy_trend_down':
+        'Com o tempo você avalia com mais severidade — sua média está caindo.',
+    'stat_wy_trend_flat':
+        'Suas notas se mantêm estáveis ano a ano — um gosto consolidado.',
     'stat_ry_best': 'Mais alta — filmes de {y} ({s})',
     'stat_ry_worst': 'Mais baixa — {y} ({s})',
-    'stat_ry_trend_up': 'Quanto mais novo o filme, mais alta a nota — o cinema moderno ganha dos clássicos para você.',
-    'stat_ry_trend_down': 'Quanto mais novo o filme, mais baixa a nota — você valoriza os clássicos mais que os filmes modernos.',
-    'stat_ry_trend_flat': 'Você avalia filmes antigos e novos de forma parecida — o ano de lançamento quase não afeta sua nota.',
+    'stat_ry_trend_up':
+        'Quanto mais novo o filme, mais alta a nota — o cinema moderno ganha dos clássicos para você.',
+    'stat_ry_trend_down':
+        'Quanto mais novo o filme, mais baixa a nota — você valoriza os clássicos mais que os filmes modernos.',
+    'stat_ry_trend_flat':
+        'Você avalia filmes antigos e novos de forma parecida — o ano de lançamento quase não afeta sua nota.',
     'watched_movies': 'Filmes vistos',
     'watched_series': 'Séries vistas',
     'auto_backup': 'Backup automático',
     'auto_backup_sub': 'Cópias locais em uma pasta escolhida',
-    'auto_backup_hint': 'O app salva uma cópia da sua biblioteca na pasta escolhida. As cópias sobrevivem à desinstalação — uma rede de segurança. As últimas 20 cópias são mantidas.',
+    'auto_backup_hint':
+        'O app salva uma cópia da sua biblioteca na pasta escolhida. As cópias sobrevivem à desinstalação — uma rede de segurança. As últimas 20 cópias são mantidas.',
     'auto_backup_enable': 'Ativar backup automático',
     'auto_backup_folder': 'Pasta',
     'auto_backup_no_folder': 'Não selecionada',
     'auto_backup_need_folder': 'Escolha uma pasta e conceda acesso primeiro',
-    'auto_backup_not_writable': 'Esta pasta não permite gravação — escolha outra',
+    'auto_backup_not_writable':
+        'Esta pasta não permite gravação — escolha outra',
     'auto_backup_when': 'Quando salvar',
     'auto_backup_on_change': 'Ao mudar',
-    'auto_backup_on_change_sub': 'Meio minuto após as edições, no máximo uma vez a cada 10 minutos',
+    'auto_backup_on_change_sub':
+        'Meio minuto após as edições, no máximo uma vez a cada 10 minutos',
     'auto_backup_daily': 'Uma vez por dia',
     'auto_backup_daily_sub': 'Verificado ao abrir o app',
     'auto_backup_now': 'Fazer backup agora',
@@ -2970,12 +3236,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'auto_backup_last': 'Último backup: {when}',
     'choose': 'Escolher',
     'trakt_sub': 'Sincronizar vistos e listas',
-    'trakt_intro': 'Sincronize vistos, lista e avaliações com o Trakt. O Kadr continua sendo a fonte da verdade — a sincronização apenas adiciona e preenche, nunca apaga nem sobrescreve.',
-    'trakt_limits_note': 'Conta Trakt gratuita: lista até 250, histórico até 100.000, avaliações até 10.000. Mais — Trakt VIP (pago, no lado do Trakt).',
+    'trakt_intro':
+        'Sincronize vistos, lista e avaliações com o Trakt. O Kadr continua sendo a fonte da verdade — a sincronização apenas adiciona e preenche, nunca apaga nem sobrescreve.',
+    'trakt_limits_note':
+        'Conta Trakt gratuita: lista até 250, histórico até 100.000, avaliações até 10.000. Mais — Trakt VIP (pago, no lado do Trakt).',
     'trakt_connect': 'Conectar Trakt',
     'trakt_disconnect': 'Desconectar Trakt',
     'trakt_connected': 'Trakt conectado',
-    'trakt_activate': 'Abra trakt.tv/activate e digite este código (toque para copiar):',
+    'trakt_activate':
+        'Abra trakt.tv/activate e digite este código (toque para copiar):',
     'trakt_open_activate': 'Abrir trakt.tv/activate',
     'trakt_push': 'Enviar para o Trakt',
     'trakt_pull': 'Carregar do Trakt',
@@ -2983,7 +3252,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'trakt_pulling': 'Carregando do Trakt…',
     'trakt_done': 'Pronto',
     'trakt_sync_ratings': 'Sincronizar avaliações',
-    'trakt_ratings_note': 'O Kadr manda: suas avaliações nunca são sobrescritas pelo Trakt',
+    'trakt_ratings_note':
+        'O Kadr manda: suas avaliações nunca são sobrescritas pelo Trakt',
     'trakt_login_failed': 'Falha ao entrar. Tente novamente.',
     'trakt_error': 'Erro do Trakt. Verifique sua conexão.',
     'trakt_powered': 'Powered by Trakt',
@@ -3019,7 +3289,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'review_hint': 'O que você achou? Suas impressões, pensamentos…',
     'filters': 'Filtros',
     'filter_genres': 'Gêneros',
-    'filter_genres_loading': 'Os gêneros carregam em segundo plano — abra alguns cards ou volte mais tarde.',
+    'filter_genres_loading':
+        'Os gêneros carregam em segundo plano — abra alguns cards ou volte mais tarde.',
     'update_available': 'Atualização disponível',
     'update_new_version': 'Nova versão {v}',
     'update_current_version': 'Você tem a {v}',
@@ -3038,14 +3309,16 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_title': 'Sincronização',
     'sync_webdav': 'Sincronização (WebDAV)',
     'sync_webdav_sub': 'Entre dispositivos pela sua nuvem',
-    'sync_intro': 'Sincronização bidirecional via WebDAV (Nextcloud, Yandex.Disk, ownCloud). Os dados ficam no seu servidor; nada que você adiciona é perdido.',
+    'sync_intro':
+        'Sincronização bidirecional via WebDAV (Nextcloud, Yandex.Disk, ownCloud). Os dados ficam no seu servidor; nada que você adiciona é perdido.',
     'sync_url': 'URL do WebDAV',
     'sync_url_hint': 'https://cloud.example/remote.php/dav/files/user/',
     'sync_user': 'Usuário',
     'sync_pass': 'Senha (ou senha de app)',
     'sync_connect': 'Conectar',
     'sync_connected': 'Conectado',
-    'sync_connect_failed': 'Falha na conexão. Verifique a URL e as credenciais.',
+    'sync_connect_failed':
+        'Falha na conexão. Verifique a URL e as credenciais.',
     'sync_now': 'Sincronizar agora',
     'sync_done': 'Sincronizado (+{a}, mesclados {m})',
     'sync_no_changes': 'Já está atualizado',
@@ -3056,7 +3329,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_last': 'Última sincronização: {t}',
     'sync_never': 'Ainda não sincronizado',
     'seq_mode': 'Marcar episódios em ordem',
-    'seq_mode_sub': 'Marcar um episódio marca todos os anteriores; desmarcar limpa todos os seguintes',
+    'seq_mode_sub':
+        'Marcar um episódio marca todos os anteriores; desmarcar limpa todos os seguintes',
     'dropped': 'Abandonados',
     'mark_dropped': 'Abandonar',
     'in_dropped': 'Abandonado',
@@ -3066,7 +3340,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'dropped_series': 'Séries',
     'dropped_count': 'Abandonados: {n}',
     'notif_new_episodes': 'Novos episódios',
-    'notif_new_episodes_sub': 'Avisar quando saírem novos episódios das séries que eu assisto',
+    'notif_new_episodes_sub':
+        'Avisar quando saírem novos episódios das séries que eu assisto',
     'notif_channel_name': 'Novos episódios',
     'notif_new_ep_title': 'Novo episódio disponível',
     'notif_new_ep_body': '{title}: o episódio {ep} está disponível',
@@ -3074,7 +3349,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'notif_test': 'Mostrar um exemplo',
     'notif_test_sub': 'Veja como a notificação fica',
     'close': 'Fechar',
-    'kp_limit_hit': 'Limite diário do PoiskKino atingido (200 requisições/dia). Pôsteres e busca voltarão mais tarde.',
+    'kp_limit_hit':
+        'Limite diário do PoiskKino atingido (200 requisições/dia). Pôsteres e busca voltarão mais tarde.',
     'kp_limit_switch': 'Usar TMDB',
   },
 };
