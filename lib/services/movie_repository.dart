@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 
+import '../l10n/locale_controller.dart';
 import '../models/library_entry.dart';
 import 'kinopoisk_service.dart';
 import 'movie_source.dart';
@@ -1911,39 +1912,77 @@ class MovieRepository extends ChangeNotifier {
 
   bool _titleSweeping = false;
 
-  /// Фоновая дозагрузка ЛОКАЛИЗОВАННЫХ названий (`ruTitle`) для фильмов, у которых
-  /// оно пустое — например импортированных, где источник (Kinopoisk) не отдал
-  /// русского имени, из-за чего в списке «Просмотрено» оставалось оригинальное
-  /// (английское) название. Название берём из TMDB по названию+году — оно уже в
-  /// языке интерфейса, и у TMDB нет суточного лимита. Порциями; тихо выходим,
-  /// если TMDB недоступен (нет ключа/лимит).
-  Future<void> backfillTitlesSweep({int budget = 400}) async {
+  /// Фоновая ЛОКАЛИЗАЦИЯ названий (`ruTitle`) под текущий язык интерфейса — для
+  /// фильмов И сериалов. Берёт записи, где локализованного имени нет ИЛИ оно в
+  /// другом языке (`titleLang != текущий`), и тянет название из TMDB (по tmdbId —
+  /// точно; иначе поиском по названию+году). У TMDB нет суточного лимита. Порциями;
+  /// тихо выходит, если TMDB недоступен (нет ключа/лимит). Запускается на старте и
+  /// при смене языка — прогресс сохраняется по записям (сеттер `ruTitle` проставляет
+  /// `titleLang`), поэтому при прерывании продолжается, а не начинается заново.
+  Future<void> relocalizeTitlesSweep({int budget = 500}) async {
     if (_titleSweeping) return;
     _titleSweeping = true;
     try {
-      final todo = <LibraryMovie>[...watched, ...watchlist]
-          .where((m) => m.ruTitle == null || m.ruTitle!.trim().isEmpty)
+      final lang = LocaleController.instance.code;
+      bool needs(String? rt, String? tl) =>
+          rt == null || rt.trim().isEmpty || (tl ?? 'ru') != lang;
+
+      // Приоритет показа: просмотрено → буду смотреть → остальные фильмы; дедуп.
+      final seen = <String>{};
+      final movies = <LibraryMovie>[...watched, ...watchlist, ..._movies]
+          .where((m) => seen.add(m.uuid) && needs(m.ruTitle, m.titleLang))
           .toList();
+      final series =
+          _series.where((s) => needs(s.ruTitle, s.titleLang)).toList();
+
       var used = 0;
       var dirty = 0;
-      for (final m in todo) {
+      Future<void> bump() async {
+        dirty++;
+        _persistSoon();
+        if (dirty % 20 == 0) notifyListeners();
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+      }
+
+      for (final m in movies) {
         if (used >= budget) break;
         try {
-          final match = await TmdbService.search(m.title, year: m.year);
+          String? name;
+          if (m.tmdbId != null) {
+            name = await TmdbService.localizedTitle(m.tmdbId!, isTv: false);
+          } else {
+            final match = await TmdbService.search(m.title, year: m.year);
+            m.tmdbId ??= match?.tmdbId;
+            name = match?.ruName;
+          }
           used++;
-          if (match != null &&
-              match.ruName != null &&
-              match.ruName!.trim().isNotEmpty) {
-            m.ruTitle = match.ruName!.trim();
-            m.tmdbId ??= match.tmdbId;
-            dirty++;
-            _persistSoon();
-            if (dirty % 20 == 0) notifyListeners();
+          if (name != null && name.trim().isNotEmpty) {
+            m.ruTitle = name.trim(); // сеттер проставит titleLang = текущий язык
+            await bump();
           }
         } on SourceLimitException {
           break; // нет TMDB-ключа / лимит — прекращаем проход
-        } catch (_) {/* сетевая ошибка — пропускаем этот фильм */}
-        await Future<void>.delayed(const Duration(milliseconds: 130));
+        } catch (_) {/* сетевая ошибка — пропускаем */}
+      }
+      for (final s in series) {
+        if (used >= budget) break;
+        try {
+          String? name;
+          if (s.tmdbId != null) {
+            name = await TmdbService.localizedTitle(s.tmdbId!, isTv: true);
+          } else {
+            final match = await TmdbService.searchTv(s.title, year: s.year);
+            s.tmdbId ??= match?.tmdbId;
+            name = match?.ruName;
+          }
+          used++;
+          if (name != null && name.trim().isNotEmpty) {
+            s.ruTitle = name.trim();
+            await bump();
+          }
+        } on SourceLimitException {
+          break;
+        } catch (_) {}
       }
     } finally {
       _titleSweeping = false;

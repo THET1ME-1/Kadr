@@ -2,6 +2,7 @@
 // пользователем. Постеры и `kinopoiskId` дотягиваются лениво из kinopoisk.dev /
 // KinoBD-дампа по названию+году и кэшируются здесь же.
 
+import '../l10n/locale_controller.dart';
 import '../services/poster_store.dart';
 
 /// Эмоция-реакция на фильм (наследие TV Time) + её стартовый вклад в балл.
@@ -69,8 +70,19 @@ class LibraryMovie {
   final String uuid;
   String title;
 
-  /// Русское название и рейтинг Кинопоиска — подтягиваются из kinopoisk.dev.
-  String? ruTitle;
+  /// Локализованное название (в языке [titleLang]). Имя историческое: приложение
+  /// было русским-первым. Меняется через сеттер, который проставляет [titleLang].
+  String? _ruTitle;
+  String? get ruTitle => _ruTitle;
+  set ruTitle(String? v) {
+    _ruTitle = v;
+    if (v != null && v.isNotEmpty) titleLang = LocaleController.instance.code;
+  }
+
+  /// Код языка, на котором сейчас лежит [ruTitle]. У легаси-записей — null,
+  /// трактуется как 'ru'. По нему решаем, нужна ли пере-локализация при смене
+  /// языка интерфейса.
+  String? titleLang;
   double? kpRating;
 
   /// Пытались ли уже обогатить (чтобы не тратить лимит API повторно).
@@ -121,7 +133,8 @@ class LibraryMovie {
   LibraryMovie({
     required this.uuid,
     required this.title,
-    this.ruTitle,
+    String? ruTitle,
+    String? titleLang,
     this.kpRating,
     this.enrichTried = false,
     this.tmdbId,
@@ -144,7 +157,12 @@ class LibraryMovie {
     List<String>? genres,
     List<String>? countries,
     this.detailsTried = false,
-  })  : viewings = viewings ?? [],
+  })  : _ruTitle = ruTitle,
+        titleLang = titleLang ??
+            ((ruTitle != null && ruTitle.isNotEmpty)
+                ? LocaleController.instance.code
+                : null),
+        viewings = viewings ?? [],
         emotions = emotions ?? [],
         lists = lists ?? [],
         genres = genres ?? [],
@@ -202,9 +220,18 @@ class LibraryMovie {
   /// Смотрел ли повторно.
   bool get isRewatched => rewatchCount > 0 || viewings.length > 1;
 
-  /// Название для показа: русское, если уже подтянуто, иначе оригинал.
-  String get displayTitle =>
-      (ruTitle != null && ruTitle!.isNotEmpty) ? ruTitle! : title;
+  /// Название для показа: локализованное, если оно в языке интерфейса, иначе
+  /// оригинал. Так при смене языка не показывается устаревший кэш (напр. русский
+  /// при английском интерфейсе), пока пере-локализация не подтянет перевод.
+  String get displayTitle {
+    final rt = _ruTitle;
+    if (rt != null &&
+        rt.isNotEmpty &&
+        (titleLang ?? 'ru') == LocaleController.instance.code) {
+      return rt;
+    }
+    return title;
+  }
 
   /// Постер для показа: локальный пользовательский (если задан), иначе сетевой.
   String? get displayPoster =>
@@ -221,6 +248,8 @@ class LibraryMovie {
         uuid: '${j['uuid']}',
         title: j['title'] as String? ?? '',
         ruTitle: j['ruTitle'] as String?,
+        titleLang: j['titleLang'] as String? ??
+            ((j['ruTitle'] as String?)?.isNotEmpty == true ? 'ru' : null),
         kpRating: (j['kpRating'] as num?)?.toDouble(),
         enrichTried: j['enrichTried'] == true,
         year: (j['year'] as num?)?.toInt(),
@@ -253,6 +282,7 @@ class LibraryMovie {
         'uuid': uuid,
         'title': title,
         'ruTitle': ruTitle,
+        'titleLang': titleLang,
         'kpRating': kpRating,
         'enrichTried': enrichTried,
         'year': year,
@@ -460,7 +490,17 @@ class EpisodeSession {
 class LibrarySeries {
   final String tvShowId;
   String title;
-  String? ruTitle;
+
+  /// Локализованное название (в языке [titleLang]) — см. [LibraryMovie.ruTitle].
+  String? _ruTitle;
+  String? get ruTitle => _ruTitle;
+  set ruTitle(String? v) {
+    _ruTitle = v;
+    if (v != null && v.isNotEmpty) titleLang = LocaleController.instance.code;
+  }
+
+  /// Язык, на котором сейчас лежит [ruTitle] (null → легаси, трактуем как 'ru').
+  String? titleLang;
   List<Episode> episodes;
   bool favorite;
 
@@ -498,7 +538,8 @@ class LibrarySeries {
   LibrarySeries({
     required this.tvShowId,
     required this.title,
-    this.ruTitle,
+    String? ruTitle,
+    String? titleLang,
     List<Episode>? episodes,
     this.favorite = false,
     this.watchlist = false,
@@ -516,7 +557,12 @@ class LibrarySeries {
     this.enrichTried = false,
     this.posterUrl,
     this.posterFile,
-  }) : episodes = episodes ?? [];
+  })  : _ruTitle = ruTitle,
+        titleLang = titleLang ??
+            ((ruTitle != null && ruTitle.isNotEmpty)
+                ? LocaleController.instance.code
+                : null),
+        episodes = episodes ?? [];
 
   /// Полностью ли просмотрен сериал (известно общее число серий и все отмечены).
   bool get isCompleted =>
@@ -548,8 +594,15 @@ class LibrarySeries {
     return best;
   }
 
-  String get displayTitle =>
-      (ruTitle != null && ruTitle!.isNotEmpty) ? ruTitle! : title;
+  String get displayTitle {
+    final rt = _ruTitle;
+    if (rt != null &&
+        rt.isNotEmpty &&
+        (titleLang ?? 'ru') == LocaleController.instance.code) {
+      return rt;
+    }
+    return title;
+  }
 
   /// Постер для показа: локальный пользовательский (если задан), иначе сетевой.
   String? get displayPoster =>
@@ -619,6 +672,8 @@ class LibrarySeries {
       tvShowId: '${j['tvShowId']}',
       title: j['title'] as String? ?? '',
       ruTitle: j['ruTitle'] as String?,
+      titleLang: j['titleLang'] as String? ??
+          ((j['ruTitle'] as String?)?.isNotEmpty == true ? 'ru' : null),
       episodes: eps,
       favorite: j['favorite'] == true,
       watchlist: j['watchlist'] == true,
@@ -643,6 +698,7 @@ class LibrarySeries {
         'tvShowId': tvShowId,
         'title': title,
         'ruTitle': ruTitle,
+        'titleLang': titleLang,
         'episodes': [for (final e in episodes) e.toJson()],
         'favorite': favorite,
         'watchlist': watchlist,

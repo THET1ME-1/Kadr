@@ -447,7 +447,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       color: Theme.of(context).colorScheme.primary)
                   : null,
               onTap: () {
+                // setCode меняет код синхронно (persist — в фоне), поэтому
+                // пере-локализация ниже уже видит новый язык.
                 _locale.setCode(l.code);
+                MovieRepository.instance.relocalizeTitlesSweep();
                 Navigator.pop(context);
               },
             ),

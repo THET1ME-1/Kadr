@@ -379,6 +379,30 @@ class TmdbService {
     }
   }
 
+  /// Локализованное название по tmdbId в текущем языке интерфейса. Лёгкий
+  /// запрос (без append) — для пере-локализации библиотеки при смене языка.
+  /// Возвращает название или null (нет ключа/лимит/сеть/не найдено).
+  static Future<String?> localizedTitle(int tmdbId,
+      {required bool isTv}) async {
+    try {
+      final path = isTv ? 'tv' : 'movie';
+      final uri = Uri.parse('${ApiConfig.tmdbBase}/$path/$tmdbId').replace(
+          queryParameters: {
+            'language': LocaleController.instance.tmdbLanguage
+          });
+      final resp = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 12));
+      if (resp.statusCode != 200) return null;
+      final j = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      final t = (isTv ? j['name'] : j['title']) as String?;
+      return (t != null && t.trim().isNotEmpty) ? t.trim() : null;
+    } catch (e) {
+      debugPrint('tmdb localizedTitle $tmdbId error: $e');
+      return null;
+    }
+  }
+
   /// Кэш частей коллекций (на сессию).
   static final Map<int, List<TmdbMovie>> _collectionCache = {};
 
