@@ -81,6 +81,59 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Интерфейс под пульт (авто на Android TV)',
     'en': 'Remote-friendly UI (auto on Android TV)'
   },
+  'trakt_sub': {
+    'ru': 'Синхронизация просмотренного и списков',
+    'en': 'Sync watched and lists'
+  },
+  'trakt_intro': {
+    'ru': 'Синхронизируй просмотренное, «буду смотреть» и оценки с Trakt. Kadr '
+        'остаётся источником правды — синк только добавляет и заполняет, ничего '
+        'не удаляет и не перезаписывает.',
+    'en': 'Sync your watched, watchlist and ratings with Trakt. Kadr stays the '
+        'source of truth — sync only adds and fills gaps, never deletes or '
+        'overwrites.'
+  },
+  'trakt_limits_note': {
+    'ru': 'Бесплатный аккаунт Trakt: «буду смотреть» — до 250, история '
+        'просмотров — до 100 000, оценки — до 10 000. Нужно больше — Trakt VIP '
+        '(платно, оформляется на стороне Trakt).',
+    'en': 'Free Trakt account: watchlist up to 250, watched history up to '
+        '100,000, ratings up to 10,000. Need more — Trakt VIP (paid, on Trakt\'s '
+        'side).'
+  },
+  'trakt_connect': {'ru': 'Подключить Trakt', 'en': 'Connect Trakt'},
+  'trakt_disconnect': {'ru': 'Отключить Trakt', 'en': 'Disconnect Trakt'},
+  'trakt_connected': {'ru': 'Trakt подключён', 'en': 'Trakt connected'},
+  'trakt_activate': {
+    'ru': 'Открой trakt.tv/activate и введи этот код (нажми, чтобы скопировать):',
+    'en': 'Open trakt.tv/activate and enter this code (tap to copy):'
+  },
+  'trakt_open_activate': {
+    'ru': 'Открыть trakt.tv/activate',
+    'en': 'Open trakt.tv/activate'
+  },
+  'trakt_push': {'ru': 'Отправить в Trakt', 'en': 'Push to Trakt'},
+  'trakt_pull': {'ru': 'Загрузить из Trakt', 'en': 'Pull from Trakt'},
+  'trakt_pushing': {'ru': 'Отправка в Trakt…', 'en': 'Pushing to Trakt…'},
+  'trakt_pulling': {'ru': 'Загрузка из Trakt…', 'en': 'Pulling from Trakt…'},
+  'trakt_done': {'ru': 'Готово', 'en': 'Done'},
+  'trakt_sync_ratings': {
+    'ru': 'Синхронизировать оценки',
+    'en': 'Sync ratings'
+  },
+  'trakt_ratings_note': {
+    'ru': 'Kadr главный: твои оценки из Trakt не перезаписываются',
+    'en': 'Kadr wins: your ratings are never overwritten from Trakt'
+  },
+  'trakt_login_failed': {
+    'ru': 'Не удалось войти. Попробуй ещё раз.',
+    'en': 'Login failed. Please try again.'
+  },
+  'trakt_error': {
+    'ru': 'Ошибка Trakt. Проверь соединение.',
+    'en': 'Trakt error. Check your connection.'
+  },
+  'trakt_powered': {'ru': 'Работает на Trakt', 'en': 'Powered by Trakt'},
   'undo': {'ru': 'Отменить', 'en': 'Undo'},
   'save': {'ru': 'Сохранить', 'en': 'Save'},
   'delete': {'ru': 'Удалить', 'en': 'Delete'},

@@ -6,6 +6,11 @@
   "observability": {
     "enabled": true
   },
+  "vars": {
+    // Trakt client_id НЕ секретный (виден в каждом запросе). Секрет —
+    // только через `wrangler secret put TRAKT_CLIENT_SECRET`, не здесь.
+    "TRAKT_CLIENT_ID": "1fffef4018ee6291d28d2da754e83e832d662f4f98a7e583881544478334fafb"
+  },
   "triggers": {
     "crons": ["0 3 * * *"]
   },

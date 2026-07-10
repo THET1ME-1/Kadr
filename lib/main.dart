@@ -10,6 +10,7 @@ import 'services/movie_repository.dart';
 import 'services/movie_source.dart';
 import 'services/poster_store.dart';
 import 'services/social/social_controller.dart';
+import 'services/trakt/trakt_controller.dart';
 import 'services/sync/webdav_service.dart';
 import 'services/store.dart';
 import 'theme/app_theme.dart';
@@ -31,6 +32,7 @@ Future<void> main() async {
   // Соц-слой: восстановить сессию и синхронизировать профиль/друзей в фоне
   // (не блокируем старт — экраны слушают контроллер и обновятся сами).
   SocialController.instance.load();
+  await TraktController.instance.load();
   // Автобекап по расписанию — при запуске (и при возврате в приложение ниже).
   AutoBackupService.instance.maybePeriodic();
   // Сбрасываем отложенную запись библиотеки на диск при уходе в фон, чтобы не

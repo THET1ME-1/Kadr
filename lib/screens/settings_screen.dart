@@ -20,6 +20,7 @@ import '../widgets/color_picker_sheet.dart';
 import '../widgets/seed_swatch.dart';
 import 'about_screen.dart';
 import 'auto_backup_screen.dart';
+import 'trakt_screen.dart';
 import 'sync_screen.dart';
 import 'tmdb_key_screen.dart';
 
@@ -196,6 +197,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: tr('api_keys_sub'),
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => const TmdbKeyScreen())),
+                ),
+                _divider(),
+                _tile(
+                  icon: Icons.sync_rounded,
+                  title: 'Trakt',
+                  subtitle: tr('trakt_sub'),
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const TraktScreen())),
                 ),
               ]),
               _section(tr('nav_series')),

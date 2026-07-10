@@ -1024,6 +1024,59 @@ async function dismissCoWatch(env, me, id) {
 
 // ------------------------------- роутинг -------------------------------
 
+// ----------------------- Trakt OAuth (прокси секрета) -----------------------
+const TRAKT_API = 'https://api.trakt.tv';
+
+// Заголовки для запросов к Trakt. User-Agent ОБЯЗАТЕЛЕН — без него Cloudflare
+// Trakt блокирует запрос (403). Плюс штатные trakt-api-key/version.
+const traktHeaders = (env) => ({
+  'Content-Type': 'application/json',
+  'User-Agent': 'Kadr (github.com/THET1ME-1/Kadr)',
+  'trakt-api-version': '2',
+  'trakt-api-key': env.TRAKT_CLIENT_ID,
+});
+
+// Пробрасываем ответ Trakt как есть — приложению нужны его статусы (device-flow:
+// 400=ждём, 409=использован, 410=истёк, 418=отклонён, 429=медленнее).
+function traktPass(r, text) {
+  return new Response(text, {
+    status: r.status,
+    headers: { ...CORS, 'Content-Type': 'application/json' },
+  });
+}
+
+async function traktDeviceToken(request, env) {
+  const body = await request.json().catch(() => ({}));
+  if (!body.code) return err('bad_request');
+  const r = await fetch(`${TRAKT_API}/oauth/device/token`, {
+    method: 'POST',
+    headers: traktHeaders(env),
+    body: JSON.stringify({
+      code: body.code,
+      client_id: env.TRAKT_CLIENT_ID,
+      client_secret: env.TRAKT_CLIENT_SECRET,
+    }),
+  });
+  return traktPass(r, await r.text());
+}
+
+async function traktRefresh(request, env) {
+  const body = await request.json().catch(() => ({}));
+  if (!body.refresh_token) return err('bad_request');
+  const r = await fetch(`${TRAKT_API}/oauth/token`, {
+    method: 'POST',
+    headers: traktHeaders(env),
+    body: JSON.stringify({
+      refresh_token: body.refresh_token,
+      client_id: env.TRAKT_CLIENT_ID,
+      client_secret: env.TRAKT_CLIENT_SECRET,
+      redirect_uri: 'urn:ietf:wg:oauth:2.0:oob',
+      grant_type: 'refresh_token',
+    }),
+  });
+  return traktPass(r, await r.text());
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
@@ -1036,6 +1089,11 @@ export default {
       if (path === '/auth/register' && method === 'POST') return register(request, env);
       if (path === '/auth/login' && method === 'POST') return login(request, env);
       if (path === '/auth/reset' && method === 'POST') return resetPassword(request, env);
+
+      // Trakt OAuth: обмен device-кода на токен и refresh — через воркер, чтобы
+      // client_secret жил ТОЛЬКО на сервере (не в приложении и не в репозитории).
+      if (path === '/trakt/token' && method === 'POST') return traktDeviceToken(request, env);
+      if (path === '/trakt/refresh' && method === 'POST') return traktRefresh(request, env);
 
       // Публичная отдача аватара (без токена — картинка не секрет).
       const avaMatch = path.match(/^\/avatars\/([^/?]+)$/);

@@ -29,4 +29,13 @@ class ApiConfig {
     'SOCIAL_BASE',
     defaultValue: 'https://kadr-social.badzoff.workers.dev',
   );
+
+  // -------------------------------- Trakt --------------------------------
+  static const String traktBase = 'https://api.trakt.tv';
+
+  /// Trakt client_id — НЕ секретный (виден в каждом запросе). client_secret
+  /// живёт только в воркере: обмен device-кода на токен и refresh идут через
+  /// `$socialBase/trakt/token` и `/trakt/refresh`.
+  static const String traktClientId =
+      '1fffef4018ee6291d28d2da754e83e832d662f4f98a7e583881544478334fafb';
 }
