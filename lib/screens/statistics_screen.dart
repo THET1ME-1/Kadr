@@ -1,7 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
+import '../services/app_prefs.dart';
 import '../services/movie_repository.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
@@ -40,6 +42,7 @@ class StatisticsScreen extends StatelessWidget {
                     _hero(context, s),
                     const SizedBox(height: 16),
                     _tiles(context, s),
+                    _favoriteCard(context),
                     if (s.records.isNotEmpty) ...[
                       const SizedBox(height: 20),
                       _records(context, s),
@@ -333,6 +336,83 @@ class StatisticsScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// Карточка «Любимый персонаж» (выбирается долгим нажатием на актёра в
+  /// фильме/сериале). Пусто, если не выбран.
+  Widget _favoriteCard(BuildContext context) {
+    return ListenableBuilder(
+      listenable: AppPrefs.instance,
+      builder: (context, _) {
+        final f = AppPrefs.instance.favoriteCharacter;
+        if (f == null) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 20),
+          child: _card(context, tr('fav_char_title'), _favoriteContent(context, f)),
+        );
+      },
+    );
+  }
+
+  Widget _favoriteContent(BuildContext context, FavoriteCharacter f) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+              shape: BoxShape.circle, color: scheme.surfaceContainerHighest),
+          clipBehavior: Clip.antiAlias,
+          child: f.photoUrl != null
+              ? CachedNetworkImage(
+                  imageUrl: f.photoUrl!,
+                  fit: BoxFit.cover,
+                  errorWidget: (c, u, e) => Icon(Icons.person_rounded,
+                      color: scheme.onSurfaceVariant, size: 30),
+                )
+              : Icon(Icons.person_rounded,
+                  color: scheme.onSurfaceVariant, size: 30),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(f.character,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      color: scheme.onSurface)),
+              Text(f.actor,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 13,
+                      color: scheme.onSurfaceVariant)),
+              if (f.title.isNotEmpty)
+                Text(trf('fav_char_from', {'title': f.title}),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant)),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: tr('fav_char_remove'),
+          icon: Icon(Icons.close_rounded, color: scheme.onSurfaceVariant),
+          onPressed: () => AppPrefs.instance.setFavoriteCharacter(null),
+        ),
+      ],
     );
   }
 
@@ -842,7 +922,7 @@ class StatisticsScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                 ],
-                Poster(title: m.displayTitle, url: m.posterUrl, width: 44),
+                Poster(title: m.displayTitle, url: m.displayPoster, width: 44),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -909,7 +989,7 @@ class StatisticsScreen extends StatelessWidget {
               children: [
                 Stack(
                   children: [
-                    Poster(title: s.displayTitle, url: s.posterUrl, width: 44),
+                    Poster(title: s.displayTitle, url: s.displayPoster, width: 44),
                     Positioned(
                       left: 3,
                       top: 3,

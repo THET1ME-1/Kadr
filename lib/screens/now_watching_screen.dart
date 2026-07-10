@@ -179,7 +179,7 @@ class _NowWatchingScreenState extends State<NowWatchingScreen> {
           children: [
             Stack(
               children: [
-                Poster(title: s.displayTitle, url: s.posterUrl, width: w, radius: 16),
+                Poster(title: s.displayTitle, url: s.displayPoster, width: w, radius: 16),
                 Positioned(
                   left: 6,
                   bottom: 6,

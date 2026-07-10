@@ -58,6 +58,10 @@ const Map<String, Map<String, String>> kTranslations = {
     'tmdb_key_step2': 'Einstellungen → API → einen Schlüssel erstellen (Typ „Developer“).',
     'tmdb_key_step3': 'Kopiere das „API Read Access Token“ (lang, beginnt mit eyJ…).',
     'tmdb_key_step4': 'Füge es unten in das Feld ein und speichere.',
+    'tmdb_key_form_note': 'Beim Erstellen des Schlüssels bittet TMDB dich, ein '
+        'kurzes Formular auszufüllen — App-Name, Website-Link, Beschreibung. '
+        'Schreib irgendetwas hinein: TMDB prüft es nicht und es hat keine '
+        'Auswirkungen. Keine Sorge.',
     'tmdb_key_open': 'TMDB-API-Einstellungen öffnen',
     'tmdb_key_field': 'TMDB Read Access Token',
     'tmdb_key_hint': 'eyJ…',
@@ -507,6 +511,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'auto_backup_never': 'Noch keine Sicherungen',
     'auto_backup_last': 'Letzte Sicherung: {when}',
     'choose': 'Wählen',
+    'poster_change': 'Poster ändern',
+    'poster_reset': 'Original wiederherstellen',
     'mark_finished': 'Serie beendet',
     'finished_removed': 'Aus „Aktuell am Schauen“ entfernt',
     'now_watching_hint': 'Lange drücken, um als beendet zu markieren',
@@ -649,6 +655,10 @@ const Map<String, Map<String, String>> kTranslations = {
     'tmdb_key_step2': 'Paramètres → API → créez une clé (type Developer).',
     'tmdb_key_step3': 'Copiez l\'« API Read Access Token » (long, commence par eyJ…).',
     'tmdb_key_step4': 'Collez-le dans le champ ci-dessous et enregistrez.',
+    'tmdb_key_form_note': 'Lors de la création de la clé, TMDB vous demande de '
+        'remplir un court formulaire — nom de l\'app, lien du site, description. '
+        'Mettez ce que vous voulez : TMDB ne le vérifie pas et cela n\'a aucun '
+        'effet. Pas d\'inquiétude.',
     'tmdb_key_open': 'Ouvrir les paramètres API de TMDB',
     'tmdb_key_field': 'TMDB Read Access Token',
     'tmdb_key_hint': 'eyJ…',
@@ -1098,6 +1108,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'auto_backup_never': 'Aucune sauvegarde pour l\'instant',
     'auto_backup_last': 'Dernière sauvegarde : {when}',
     'choose': 'Choisir',
+    'poster_change': 'Changer l\'affiche',
+    'poster_reset': 'Rétablir l\'original',
     'mark_finished': 'Série terminée',
     'finished_removed': 'Retiré de En cours de visionnage',
     'now_watching_hint': 'Appui long pour marquer comme terminée',
@@ -1240,6 +1252,9 @@ const Map<String, Map<String, String>> kTranslations = {
     'tmdb_key_step2': 'Ajustes → API → crea una clave (tipo Developer).',
     'tmdb_key_step3': 'Copia el "API Read Access Token" (largo, empieza por eyJ…).',
     'tmdb_key_step4': 'Pégalo en el campo de abajo y guarda.',
+    'tmdb_key_form_note': 'Al crear la clave, TMDB te pide rellenar un breve '
+        'formulario: nombre de la app, enlace del sitio, descripción. Pon lo que '
+        'quieras: TMDB no lo verifica y no afecta a nada. Sin preocupaciones.',
     'tmdb_key_open': 'Abrir los ajustes de la API de TMDB',
     'tmdb_key_field': 'TMDB Read Access Token',
     'tmdb_key_hint': 'eyJ…',
@@ -1689,6 +1704,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'auto_backup_never': 'Aún no hay copias',
     'auto_backup_last': 'Última copia: {when}',
     'choose': 'Elegir',
+    'poster_change': 'Cambiar póster',
+    'poster_reset': 'Restaurar original',
     'mark_finished': 'Serie terminada',
     'finished_removed': 'Quitada de Viendo ahora',
     'now_watching_hint': 'Mantén pulsado para marcar como terminada',
@@ -1831,6 +1848,10 @@ const Map<String, Map<String, String>> kTranslations = {
     'tmdb_key_step2': 'Impostazioni → API → crea una chiave (tipo Developer).',
     'tmdb_key_step3': 'Copia l\'"API Read Access Token" (lungo, inizia con eyJ…).',
     'tmdb_key_step4': 'Incollalo nel campo qui sotto e salva.',
+    'tmdb_key_form_note': 'Durante la creazione della chiave, TMDB ti chiede di '
+        'compilare un breve modulo — nome dell\'app, link al sito, descrizione. '
+        'Scrivi qualsiasi cosa: TMDB non lo verifica e non ha alcun effetto. '
+        'Nessun problema.',
     'tmdb_key_open': 'Apri le impostazioni API di TMDB',
     'tmdb_key_field': 'TMDB Read Access Token',
     'tmdb_key_hint': 'eyJ…',
@@ -2280,6 +2301,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'auto_backup_never': 'Ancora nessun backup',
     'auto_backup_last': 'Ultimo backup: {when}',
     'choose': 'Scegli',
+    'poster_change': 'Cambia poster',
+    'poster_reset': 'Ripristina originale',
     'mark_finished': 'Serie terminata',
     'finished_removed': 'Rimossa da In visione',
     'now_watching_hint': 'Tieni premuto per segnare come terminata',
@@ -2422,6 +2445,9 @@ const Map<String, Map<String, String>> kTranslations = {
     'tmdb_key_step2': 'Configurações → API → crie uma chave (tipo Developer).',
     'tmdb_key_step3': 'Copie o "API Read Access Token" (longo, começa com eyJ…).',
     'tmdb_key_step4': 'Cole no campo abaixo e salve.',
+    'tmdb_key_form_note': 'Ao criar a chave, o TMDB pede para preencher um '
+        'formulário curto — nome do app, link do site, descrição. Coloque o que '
+        'quiser: o TMDB não verifica e não afeta nada. Sem preocupação.',
     'tmdb_key_open': 'Abrir configurações da API do TMDB',
     'tmdb_key_field': 'TMDB Read Access Token',
     'tmdb_key_hint': 'eyJ…',
@@ -2871,6 +2897,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'auto_backup_never': 'Nenhum backup ainda',
     'auto_backup_last': 'Último backup: {when}',
     'choose': 'Escolher',
+    'poster_change': 'Alterar pôster',
+    'poster_reset': 'Restaurar original',
     'mark_finished': 'Terminei a série',
     'finished_removed': 'Removido de Assistindo agora',
     'now_watching_hint': 'Toque e segure para marcar como terminada',

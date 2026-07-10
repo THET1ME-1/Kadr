@@ -163,6 +163,35 @@ function base64FromArrayBuffer(buf) {
   return btoa(bin);
 }
 
+function base64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+// gzip/gunzip строки (Workers runtime: Compression/DecompressionStream).
+async function gzipToBase64(str) {
+  const cs = new CompressionStream('gzip');
+  const w = cs.writable.getWriter();
+  w.write(new TextEncoder().encode(str));
+  w.close();
+  const ab = await new Response(cs.readable).arrayBuffer();
+  return base64FromArrayBuffer(ab);
+}
+
+async function gunzipFromBase64(b64) {
+  const ds = new DecompressionStream('gzip');
+  const w = ds.writable.getWriter();
+  w.write(base64ToBytes(b64));
+  w.close();
+  const ab = await new Response(ds.readable).arrayBuffer();
+  return new TextDecoder().decode(ab);
+}
+
+// Маркер сжатой проекции в колонке library.data (старые записи — сырой JSON).
+const GZ_PREFIX = 'gz:';
+
 const isEmail = (s) => typeof s === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
 const normEmail = (s) => String(s).trim().toLowerCase();
 
@@ -604,17 +633,21 @@ async function removeFriend(env, me, otherId) {
 async function putLibrary(request, env, me) {
   if (!(await rateLimit(env, `pub:${me.id}`, 300, 60 * 60 * 1000))) return err('rate_limited', 429);
   const raw = await request.text();
-  if (raw.length > 1024 * 1024) return err('too_large', 413); // ≤ 1 МБ
+  // Сырое тело допускаем до 6 МБ: gzip ужимает JSON проекции в ~6–8 раз, так что
+  // в D1 ляжет ~1 МБ даже у крупных библиотек. Раньше лимит 1 МБ на СЫРОЙ JSON
+  // молча рубил большие библиотеки (413) → друг видел пустой профиль.
+  if (raw.length > 6 * 1024 * 1024) return err('too_large', 413);
   try {
     JSON.parse(raw); // валидируем, что это JSON
   } catch {
     return err('bad_json');
   }
+  const stored = GZ_PREFIX + (await gzipToBase64(raw)); // храним сжато
   await env.DB.prepare(
     `INSERT INTO library (user_id, data, updated_at) VALUES (?1, ?2, ?3)
      ON CONFLICT(user_id) DO UPDATE SET data = ?2, updated_at = ?3`,
   )
-    .bind(me.id, raw, now())
+    .bind(me.id, stored, now())
     .run();
   return json({ ok: true, updatedAt: now() });
 }
@@ -653,8 +686,14 @@ async function getFriendLibrary(env, me, friendId) {
     .bind(friendId)
     .first();
   if (!row) return json({ data: null, updatedAt: 0 });
+  // Новые записи сжаты (префикс gz:), старые — сырой JSON. Разжимаем прозрачно —
+  // клиент друга получает обычный JSON-объект, менять приложение не нужно.
+  const rawJson =
+    typeof row.data === 'string' && row.data.startsWith(GZ_PREFIX)
+      ? await gunzipFromBase64(row.data.slice(GZ_PREFIX.length))
+      : row.data;
   return new Response(
-    JSON.stringify({ data: JSON.parse(row.data), updatedAt: row.updated_at }),
+    JSON.stringify({ data: JSON.parse(rawJson), updatedAt: row.updated_at }),
     { headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS } },
   );
 }

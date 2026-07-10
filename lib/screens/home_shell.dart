@@ -78,6 +78,9 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
       // Фоновая дозагрузка жанров/стран/длительности (для фильтров и статистики).
       await Future<void>.delayed(const Duration(seconds: 3));
       await MovieRepository.instance.backfillDetailsSweep();
+      // Дотягиваем локализованные названия (ruTitle) для фильмов без перевода —
+      // напр. импортированных просмотренных, где источник не дал русского имени.
+      await MovieRepository.instance.backfillTitlesSweep();
       // ВНИМАНИЕ: авто-чистку серий по структуре TMDB (pruneStructureSweep)
       // УБРАЛИ намеренно. Она удаляла реальные серии пользователя по НЕТОЧНОМУ
       // авто-совпадению названия с TMDB (enrichSeries ставит чужой tmdbId), и

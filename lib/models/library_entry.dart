@@ -2,6 +2,8 @@
 // пользователем. Постеры и `kinopoiskId` дотягиваются лениво из kinopoisk.dev /
 // KinoBD-дампа по названию+году и кэшируются здесь же.
 
+import '../services/poster_store.dart';
+
 /// Эмоция-реакция на фильм (наследие TV Time) + её стартовый вклад в балл.
 class MovieEmotion {
   final String id;
@@ -98,6 +100,10 @@ class LibraryMovie {
   int? tmdbId;
   String? posterUrl;
 
+  /// Имя файла локального пользовательского постера (замена своим изображением).
+  /// При показе приоритетнее сетевого `posterUrl`; на сервер/друзьям не уходит.
+  String? posterFile;
+
   /// Жанры и страны (названия, ru) — кэшируются из TMDB details при открытии
   /// карточки / фоновой дозагрузке. Для фильтров и статистики по жанрам.
   List<String> genres;
@@ -127,6 +133,7 @@ class LibraryMovie {
     this.review,
     this.kinopoiskId,
     this.posterUrl,
+    this.posterFile,
     List<String>? genres,
     List<String>? countries,
     this.detailsTried = false,
@@ -192,6 +199,10 @@ class LibraryMovie {
   String get displayTitle =>
       (ruTitle != null && ruTitle!.isNotEmpty) ? ruTitle! : title;
 
+  /// Постер для показа: локальный пользовательский (если задан), иначе сетевой.
+  String? get displayPoster =>
+      PosterStore.instance.pathOf(posterFile) ?? posterUrl;
+
   static LibraryStatus _status(String? s) => switch (s) {
         'watched' => LibraryStatus.watched,
         'watchlist' => LibraryStatus.watchlist,
@@ -223,6 +234,7 @@ class LibraryMovie {
         kinopoiskId: (j['kinopoiskId'] as num?)?.toInt(),
         tmdbId: (j['tmdbId'] as num?)?.toInt(),
         posterUrl: j['posterUrl'] as String?,
+        posterFile: j['posterFile'] as String?,
         genres: (j['genres'] as List? ?? []).map((e) => '$e').toList(),
         countries: (j['countries'] as List? ?? []).map((e) => '$e').toList(),
         detailsTried: j['detailsTried'] == true,
@@ -248,6 +260,7 @@ class LibraryMovie {
         'kinopoiskId': kinopoiskId,
         'tmdbId': tmdbId,
         'posterUrl': posterUrl,
+        if (posterFile != null) 'posterFile': posterFile,
         if (genres.isNotEmpty) 'genres': genres,
         if (countries.isNotEmpty) 'countries': countries,
         if (detailsTried) 'detailsTried': true,
@@ -466,6 +479,9 @@ class LibrarySeries {
   bool enrichTried;
   String? posterUrl;
 
+  /// Имя файла локального пользовательского постера (см. [LibraryMovie.posterFile]).
+  String? posterFile;
+
   LibrarySeries({
     required this.tvShowId,
     required this.title,
@@ -484,6 +500,7 @@ class LibrarySeries {
     this.kpRating,
     this.enrichTried = false,
     this.posterUrl,
+    this.posterFile,
   }) : episodes = episodes ?? [];
 
   /// Полностью ли просмотрен сериал (известно общее число серий и все отмечены).
@@ -518,6 +535,10 @@ class LibrarySeries {
 
   String get displayTitle =>
       (ruTitle != null && ruTitle!.isNotEmpty) ? ruTitle! : title;
+
+  /// Постер для показа: локальный пользовательский (если задан), иначе сетевой.
+  String? get displayPoster =>
+      PosterStore.instance.pathOf(posterFile) ?? posterUrl;
 
   Episode? watchedEpisode(int? season, int? number) {
     for (final e in episodes) {
@@ -597,6 +618,7 @@ class LibrarySeries {
       kpRating: (j['kpRating'] as num?)?.toDouble(),
       enrichTried: j['enrichTried'] == true,
       posterUrl: j['posterUrl'] as String?,
+      posterFile: j['posterFile'] as String?,
     );
   }
 
@@ -618,6 +640,7 @@ class LibrarySeries {
         'kpRating': kpRating,
         'enrichTried': enrichTried,
         'posterUrl': posterUrl,
+        if (posterFile != null) 'posterFile': posterFile,
       };
 }
 

@@ -153,6 +153,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: _pickFabPosition,
                 ),
               ]),
+              _section(tr('disc_hide_section')),
+              _card([
+                _discSwitch(DiscoverHide.watchedMovies,
+                    Icons.check_circle_rounded, 'disc_hide_watched_movies'),
+                _divider(),
+                _discSwitch(DiscoverHide.watchedSeries,
+                    Icons.check_circle_rounded, 'disc_hide_watched_series'),
+                _divider(),
+                _discSwitch(DiscoverHide.droppedMovies,
+                    Icons.heart_broken_rounded, 'disc_hide_dropped_movies'),
+                _divider(),
+                _discSwitch(DiscoverHide.droppedSeries,
+                    Icons.heart_broken_rounded, 'disc_hide_dropped_series'),
+                _divider(),
+                _discSwitch(DiscoverHide.watchlistMovies,
+                    Icons.bookmark_rounded, 'disc_hide_watchlist_movies'),
+                _divider(),
+                _discSwitch(DiscoverHide.watchlistSeries,
+                    Icons.bookmark_rounded, 'disc_hide_watchlist_series'),
+              ]),
               _section(tr('movies_section')),
               _card([
                 _tile(
@@ -313,6 +333,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 _divider(),
                 _tile(
+                  icon: Icons.card_giftcard_rounded,
+                  title: 'DonationAlerts',
+                  subtitle: 'donationalerts.com/r/thet1me',
+                  onTap: openDonationAlerts,
+                ),
+                _divider(),
+                _tile(
                   icon: Icons.mail_outline_rounded,
                   title: tr('contact_support'),
                   subtitle: kSupportEmail,
@@ -373,6 +400,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
 
   Widget _divider() => const Divider(height: 1, indent: 56);
+
+  Widget _discSwitch(DiscoverHide h, IconData icon, String key) =>
+      SwitchListTile(
+        secondary: Icon(icon),
+        title: Text(tr(key)),
+        value: _prefs.discoverHidden(h),
+        onChanged: (v) => _prefs.setDiscoverHidden(h, v),
+      );
 
   Widget _tile({
     required IconData icon,

@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/strings.dart';
@@ -15,6 +18,7 @@ import '../utils/format.dart';
 import '../utils/score.dart';
 import '../widgets/movie_cards.dart' show statusBadges;
 import '../widgets/pop_icon.dart';
+import '../widgets/favorite_character.dart';
 import '../widgets/poster.dart';
 import '../widgets/poster_viewer.dart';
 import '../widgets/rating_slider.dart';
@@ -222,8 +226,9 @@ class _MovieScreenState extends State<MovieScreen> {
                 GestureDetector(
                   onTap: () => openPosterViewer(context,
                       title: m.displayTitle,
-                      url: m.posterUrl,
+                      url: m.displayPoster,
                       heroTag: widget.heroTag ?? 'poster-${m.uuid}'),
+                  onLongPress: () => _editMoviePoster(m),
                   child: Hero(
                     tag: widget.heroTag ?? 'poster-${m.uuid}',
                     child: Material(
@@ -232,7 +237,7 @@ class _MovieScreenState extends State<MovieScreen> {
                       shadowColor: Colors.black54,
                       child: Poster(
                           title: m.displayTitle,
-                          url: m.posterUrl,
+                          url: m.displayPoster,
                           width: 104,
                           radius: 16),
                     ),
@@ -606,6 +611,8 @@ class _MovieScreenState extends State<MovieScreen> {
                         builder: (_) => PersonScreen(
                             personId: d.cast[i].id, personName: d.cast[i].name)))
                     : null,
+                onLongPress: () =>
+                    promptFavoriteCharacter(context, d.cast[i], m.displayTitle),
                 child: _castCard(scheme, d.cast[i]),
               ),
             ),
@@ -803,6 +810,51 @@ class _MovieScreenState extends State<MovieScreen> {
       );
 
   /// Копирует текст в буфер обмена (по удержанию названия/описания).
+  /// Локальная замена постера фильма своим изображением (долгое нажатие на
+  /// постер). Меняется в одном месте — отображается везде.
+  Future<void> _editMoviePoster(LibraryMovie m) async {
+    final scheme = Theme.of(context).colorScheme;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.image_rounded, color: scheme.primary),
+              title: Text(tr('poster_change')),
+              onTap: () => Navigator.pop(ctx, 'pick'),
+            ),
+            if (m.posterFile != null)
+              ListTile(
+                leading: Icon(Icons.restore_rounded,
+                    color: scheme.onSurfaceVariant),
+                title: Text(tr('poster_reset')),
+                onTap: () => Navigator.pop(ctx, 'reset'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'reset') {
+      await _repo.clearMoviePosterLocal(m.uuid);
+      if (mounted) setState(() {});
+      return;
+    }
+    try {
+      final res = await FilePicker.platform
+          .pickFiles(type: FileType.image, withData: true);
+      if (res == null || res.files.isEmpty) return;
+      final f = res.files.single;
+      final raw = f.bytes ??
+          (f.path != null ? await File(f.path!).readAsBytes() : null);
+      if (raw == null) return;
+      final ok = await _repo.setMoviePosterLocal(m.uuid, raw);
+      if (mounted && ok) setState(() {});
+    } catch (_) {/* отмена/ошибка выбора файла — игнорируем */}
+  }
+
   void _copy(String text) {
     Clipboard.setData(ClipboardData(text: text));
     _snack(tr('copied'));

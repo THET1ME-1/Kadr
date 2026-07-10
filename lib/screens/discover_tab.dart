@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../l10n/locale_controller.dart';
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
+import '../services/app_prefs.dart';
 import '../services/movie_repository.dart';
 import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
@@ -140,21 +141,46 @@ class _DiscoverTabState extends State<DiscoverTab>
     return null;
   }
 
-  /// Прячет из ленты уже просмотренное (фильмы — watched; сериалы — начатые).
+  /// Прячет из ленты «Обзор» тайтлы, чьи статус+тип отключены в настройках
+  /// (просмотрено/брошено/«буду смотреть» — отдельно для фильмов и сериалов).
   List<TmdbMovie> _hideWatchedM(List<TmdbMovie> list) {
     final repo = MovieRepository.instance;
+    final p = AppPrefs.instance;
     return [
       for (final m in list)
-        if (repo.movieByTmdb(m.id)?.status != LibraryStatus.watched) m
+        if (!_movieHidden(repo.movieByTmdb(m.id), p)) m
     ];
+  }
+
+  static bool _movieHidden(LibraryMovie? lib, AppPrefs p) {
+    if (lib == null) return false;
+    return switch (lib.status) {
+      LibraryStatus.watched => p.discoverHidden(DiscoverHide.watchedMovies),
+      LibraryStatus.dropped => p.discoverHidden(DiscoverHide.droppedMovies),
+      LibraryStatus.watchlist => p.discoverHidden(DiscoverHide.watchlistMovies),
+      LibraryStatus.library => false,
+    };
   }
 
   List<TmdbSeries> _hideWatchedS(List<TmdbSeries> list) {
     final repo = MovieRepository.instance;
+    final p = AppPrefs.instance;
     return [
       for (final s in list)
-        if (repo.seriesByTmdb(s.id)?.episodes.isEmpty ?? true) s
+        if (!_seriesHidden(repo.seriesByTmdb(s.id), p)) s
     ];
+  }
+
+  static bool _seriesHidden(LibrarySeries? lib, AppPrefs p) {
+    if (lib == null) return false;
+    if (lib.dropped) return p.discoverHidden(DiscoverHide.droppedSeries);
+    if (lib.watchlist && lib.episodes.isEmpty) {
+      return p.discoverHidden(DiscoverHide.watchlistSeries);
+    }
+    if (lib.episodes.isNotEmpty) {
+      return p.discoverHidden(DiscoverHide.watchedSeries);
+    }
+    return false;
   }
 
   bool get _mActive =>

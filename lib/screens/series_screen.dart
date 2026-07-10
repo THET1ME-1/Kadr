@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -16,8 +19,10 @@ import '../widgets/pop_icon.dart';
 import '../widgets/poster.dart';
 import '../widgets/poster_viewer.dart';
 import '../widgets/rating_slider.dart';
+import '../widgets/favorite_character.dart';
 import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
+import 'browse_screens.dart';
 import 'delete_helpers.dart';
 import 'social/friend_pick_sheet.dart';
 
@@ -434,11 +439,102 @@ class _SeriesScreenState extends State<SeriesScreen> {
                       childCount: _eps!.length,
                     ),
                   ),
+                if (_extra?.cast.isNotEmpty ?? false)
+                  SliverToBoxAdapter(child: _castSection(scheme)),
                 const SliverToBoxAdapter(child: SizedBox(height: 40)),
               ],
             ],
           );
         },
+      ),
+    );
+  }
+
+  /// Актёры сериала (как в карточке фильма). Тап → фильмография актёра,
+  /// долгое нажатие → «сделать любимым персонажем».
+  Widget _castSection(ColorScheme scheme) {
+    final cast = _extra!.cast;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 0, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16, bottom: 12),
+            child: Text(tr('cast'),
+                style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: scheme.primary)),
+          ),
+          SizedBox(
+            height: 148,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: cast.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (c, i) => GestureDetector(
+                onTap: cast[i].id > 0
+                    ? () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => PersonScreen(
+                            personId: cast[i].id, personName: cast[i].name)))
+                    : null,
+                onLongPress: () =>
+                    promptFavoriteCharacter(context, cast[i], s.displayTitle),
+                child: _castCard(scheme, cast[i]),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _castCard(ColorScheme scheme, TmdbCast c) {
+    return SizedBox(
+      width: 84,
+      child: Column(
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+                shape: BoxShape.circle, color: scheme.surfaceContainerHighest),
+            clipBehavior: Clip.antiAlias,
+            child: c.photoUrl != null
+                ? CachedNetworkImage(
+                    imageUrl: c.photoUrl!,
+                    fit: BoxFit.cover,
+                    memCacheWidth:
+                        (72 * MediaQuery.devicePixelRatioOf(context)).round(),
+                    errorWidget: (ctx, u, e) => Icon(Icons.person_rounded,
+                        color: scheme.onSurfaceVariant, size: 34),
+                  )
+                : Icon(Icons.person_rounded,
+                    color: scheme.onSurfaceVariant, size: 34),
+          ),
+          const SizedBox(height: 6),
+          Text(c.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11.5,
+                  height: 1.1,
+                  color: scheme.onSurface)),
+          if (c.character != null && c.character!.isNotEmpty)
+            Text(c.character!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontSize: 10.5,
+                    color: scheme.onSurfaceVariant)),
+        ],
       ),
     );
   }
@@ -486,8 +582,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 GestureDetector(
                   onTap: () => openPosterViewer(context,
                       title: s.displayTitle,
-                      url: s.posterUrl,
+                      url: s.displayPoster,
                       heroTag: widget.heroTag ?? 'sposter-${s.tvShowId}'),
+                  onLongPress: () => _editSeriesPoster(s),
                   child: Hero(
                     tag: widget.heroTag ?? 'sposter-${s.tvShowId}',
                     child: Material(
@@ -496,7 +593,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                       shadowColor: Colors.black54,
                       child: Poster(
                           title: s.displayTitle,
-                          url: s.posterUrl,
+                          url: s.displayPoster,
                           width: 104,
                           radius: 16),
                     ),
@@ -581,6 +678,50 @@ class _SeriesScreenState extends State<SeriesScreen> {
       );
 
   // ----------------------- действия (оценка/избранное) -----------------------
+
+  /// Локальная замена постера сериала своим изображением (долгое нажатие).
+  Future<void> _editSeriesPoster(LibrarySeries s) async {
+    final scheme = Theme.of(context).colorScheme;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.image_rounded, color: scheme.primary),
+              title: Text(tr('poster_change')),
+              onTap: () => Navigator.pop(ctx, 'pick'),
+            ),
+            if (s.posterFile != null)
+              ListTile(
+                leading: Icon(Icons.restore_rounded,
+                    color: scheme.onSurfaceVariant),
+                title: Text(tr('poster_reset')),
+                onTap: () => Navigator.pop(ctx, 'reset'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'reset') {
+      await _repo.clearSeriesPosterLocal(s.tvShowId);
+      if (mounted) setState(() {});
+      return;
+    }
+    try {
+      final res = await FilePicker.platform
+          .pickFiles(type: FileType.image, withData: true);
+      if (res == null || res.files.isEmpty) return;
+      final f = res.files.single;
+      final raw = f.bytes ??
+          (f.path != null ? await File(f.path!).readAsBytes() : null);
+      if (raw == null) return;
+      final ok = await _repo.setSeriesPosterLocal(s.tvShowId, raw);
+      if (mounted && ok) setState(() {});
+    } catch (_) {/* отмена/ошибка выбора файла — игнорируем */}
+  }
 
   Widget _actions(ColorScheme scheme) {
     // Если у серий есть оценки — показываем их среднее (считается автоматически).

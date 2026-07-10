@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kadr — Privacy Policy / Политика конфиденциальности</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2.2rem 1.1rem 4rem;
+    font: 16px/1.6 -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+    max-width: 760px; margin-inline: auto;
+    color: #1a1c1e; background: #fbfcfe;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e3e2e6; background: #121316; }
+    a { color: #a6c8ff; }
+    hr { border-color: #33353a; }
+    .card { background: #1c1e22; }
+  }
+  h1 { font-size: 1.7rem; line-height: 1.25; margin: 0 0 .3rem; }
+  h2 { font-size: 1.3rem; margin: 2.4rem 0 .6rem; }
+  .meta { color: #6a6f76; font-size: .9rem; margin-bottom: 1.4rem; }
+  .nav { font-size: .95rem; margin-bottom: 1.6rem; }
+  .nav a { margin-right: 1rem; }
+  p { margin: .55rem 0; }
+  ul { margin: .4rem 0 .8rem; padding-left: 1.3rem; }
+  li { margin: .25rem 0; }
+  hr { border: none; border-top: 1px solid #e2e4e8; margin: 2.6rem 0; }
+  a { color: #005ac1; }
+  .card {
+    background: #eef1f6; border-radius: 14px;
+    padding: .9rem 1.1rem; font-size: .92rem; margin: 1rem 0;
+  }
+  code { font-size: .88em; }
+</style>
+</head>
+<body>
+  <h1>Kadr — Privacy Policy</h1>
+  <p class="meta">Last updated / Дата обновления: 2026-07-10</p>
+  <p class="nav"><a href="#en">English</a><a href="#ru">Русский</a></p>
+
+  <section id="en">
+    <p>Kadr (“the app”) is an open-source movie and TV tracker. This policy explains what data the app handles.</p>
+
+    <p><strong>1. The app works locally by default.</strong> You can use Kadr without creating an account. Your library (watched titles, ratings, watchlist, notes) is stored only on your device. In this mode no personal data is sent to us.</p>
+
+    <p><strong>2. Optional online account (social features).</strong> If you choose to register, we collect and store on our server the following data, solely to provide social features (friends, shared lists, recommendations, “watched together”):</p>
+    <ul>
+      <li><strong>Email address</strong> — used as your login identifier. We do not send marketing email.</li>
+      <li><strong>Password</strong> — stored only as a salted hash (PBKDF2-SHA256, 100 000 iterations). We never store your plain password.</li>
+      <li><strong>Display name</strong> and a public <strong>friend code</strong>.</li>
+      <li><strong>Optional recovery code</strong> — stored only as a hash.</li>
+      <li><strong>Avatar and banner images</strong> you upload (stored on Cloudflare R2; accessible by public URL).</li>
+      <li>A <strong>public projection of your library</strong> (watched/watchlist), plus your <strong>friendships, shared lists, recommendations and “watched together” records</strong>.</li>
+      <li><strong>Session tokens</strong> — stored only as a hash.</li>
+    </ul>
+
+    <p><strong>3. IP address.</strong> When you register, log in or request password recovery, your IP address is stored temporarily as an anti-abuse (rate-limiting) key and is automatically deleted within 24 hours. It is not used for tracking, advertising or profiling.</p>
+
+    <p><strong>4. Where data is stored.</strong> Account data is hosted on Cloudflare (Workers, D1 database, R2 storage); default endpoint <code>https://kadr-social.badzoff.workers.dev</code>. Data is encrypted in transit (HTTPS/TLS).</p>
+
+    <p><strong>5. Third-party movie data (TMDB &amp; Kinopoisk).</strong> Movie and TV metadata and poster images are fetched directly from The Movie Database (TMDB) and Kinopoisk (via kinopoisk.dev) using an API key that you provide. Poster images load directly from those services and are cached on your device; we do not host them. Your use of these services is subject to their own terms. <em>This product uses the TMDB API but is not endorsed or certified by TMDB.</em></p>
+
+    <p><strong>6. Optional WebDAV backup.</strong> You may optionally back up your library to your own WebDAV server (e.g. Nextcloud, Yandex.Disk). The server address, login and password you enter are stored only on your device and are never sent to us. Backup data goes only to the server you specify.</p>
+
+    <p><strong>7. Analytics.</strong> The app contains <strong>no analytics, advertising or crash-reporting SDKs</strong>. We do not track your behaviour.</p>
+
+    <p><strong>8. Notifications.</strong> The app shows only <strong>local</strong> notifications (e.g. new-episode reminders) generated on your device. There is no push service; no notification data is sent to any server.</p>
+
+    <p><strong>9. Data sharing.</strong> We do not sell your personal data and do not share it with third parties for advertising. The only sharing is between you and the friends you add, by your own action (shared lists, recommendations, public library projection, avatar/banner).</p>
+
+    <p><strong>10. Data retention and deletion.</strong> Local data is removed when you uninstall the app or clear its data. To delete your online account and all associated server data, contact us at <strong>CONTACT_EMAIL</strong>; we will delete it within 30 days. <em>(In-app deletion under Profile → Delete account, when available.)</em></p>
+
+    <p><strong>11. Children.</strong> The app is not directed to children under 13.</p>
+
+    <p><strong>12. Changes.</strong> We may update this policy; the “last updated” date will change accordingly.</p>
+
+    <p><strong>13. Contact.</strong> <strong>CONTACT_EMAIL</strong></p>
+  </section>
+
+  <hr>
+
+  <section id="ru">
+    <h2>Русский</h2>
+    <p>Kadr («приложение») — трекер фильмов и сериалов с открытым исходным кодом. Эта политика описывает, какие данные обрабатывает приложение.</p>
+
+    <p><strong>1. По умолчанию приложение работает локально.</strong> Пользоваться Kadr можно без регистрации. Ваша библиотека (просмотренное, оценки, список желаемого, заметки) хранится только на вашем устройстве. В этом режиме никакие персональные данные нам не передаются.</p>
+
+    <p><strong>2. Необязательный онлайн-аккаунт (соцфункции).</strong> Если вы решите зарегистрироваться, мы собираем и храним на нашем сервере следующие данные — исключительно для работы соцфункций (друзья, совместные списки, рекомендации, «посмотрел с другом»):</p>
+    <ul>
+      <li><strong>Email</strong> — используется как логин. Рекламных писем мы не отправляем.</li>
+      <li><strong>Пароль</strong> — хранится только в виде соленого хэша (PBKDF2-SHA256, 100 000 итераций). Пароль в открытом виде мы не храним.</li>
+      <li><strong>Отображаемое имя</strong> и публичный <strong>код друга</strong>.</li>
+      <li><strong>Необязательный код восстановления</strong> — хранится только как хэш.</li>
+      <li><strong>Аватар и баннер</strong>, которые вы загружаете (хранятся в Cloudflare R2, доступны по публичной ссылке).</li>
+      <li><strong>Публичная витрина вашей библиотеки</strong> (просмотренное/желаемое), а также ваши <strong>дружеские связи, совместные списки, рекомендации и записи «посмотрел с другом»</strong>.</li>
+      <li><strong>Токены сессии</strong> — хранятся только как хэш.</li>
+    </ul>
+
+    <p><strong>3. IP-адрес.</strong> При регистрации, входе или запросе восстановления пароля ваш IP-адрес временно сохраняется как ключ защиты от злоупотреблений (ограничение частоты запросов) и автоматически удаляется в течение 24 часов. Он не используется для отслеживания, рекламы или профилирования.</p>
+
+    <p><strong>4. Где хранятся данные.</strong> Данные аккаунта размещены в Cloudflare (Workers, база D1, хранилище R2); адрес по умолчанию — <code>https://kadr-social.badzoff.workers.dev</code>. Данные передаются по защищённому соединению (HTTPS/TLS).</p>
+
+    <p><strong>5. Сторонние киноданные (TMDB и Кинопоиск).</strong> Метаданные фильмов/сериалов и постеры загружаются напрямую из The Movie Database (TMDB) и Кинопоиска (через kinopoisk.dev) с использованием API-ключа, который вводите вы. Постеры грузятся напрямую с серверов этих сервисов и кэшируются на вашем устройстве; мы их не храним. Использование этих сервисов регулируется их собственными условиями. <em>Этот продукт использует API TMDB, но не одобрен и не сертифицирован TMDB.</em></p>
+
+    <p><strong>6. Необязательный бэкап по WebDAV.</strong> По желанию вы можете делать резервные копии библиотеки на ваш собственный WebDAV-сервер (например, Nextcloud, Яндекс.Диск). Введённые вами адрес сервера, логин и пароль хранятся только на вашем устройстве и нам не передаются. Данные копии уходят только на указанный вами сервер.</p>
+
+    <p><strong>7. Аналитика.</strong> В приложении <strong>нет SDK аналитики, рекламы или сбора отчётов о сбоях</strong>. Мы не отслеживаем ваше поведение.</p>
+
+    <p><strong>8. Уведомления.</strong> Приложение показывает только <strong>локальные</strong> уведомления (например, напоминания о выходе новых серий), формируемые на устройстве. Пуш-сервиса нет; данные уведомлений никуда не отправляются.</p>
+
+    <p><strong>9. Передача данных.</strong> Мы не продаём ваши персональные данные и не передаём их третьим лицам для рекламы. Единственная «передача» — между вами и добавленными вами друзьями, по вашему собственному действию (совместные списки, рекомендации, публичная витрина библиотеки, аватар/баннер).</p>
+
+    <p><strong>10. Хранение и удаление данных.</strong> Локальные данные удаляются при удалении приложения или очистке его данных. Чтобы удалить онлайн-аккаунт и все связанные с ним данные на сервере, напишите нам на <strong>CONTACT_EMAIL</strong>; мы удалим их в течение 30 дней. <em>(Удаление прямо в приложении — «Профиль → Удалить аккаунт», когда функция будет добавлена.)</em></p>
+
+    <p><strong>11. Дети.</strong> Приложение не предназначено для детей младше 13 лет.</p>
+
+    <p><strong>12. Изменения.</strong> Мы можем обновлять эту политику; дата обновления будет меняться соответственно.</p>
+
+    <p><strong>13. Контакт.</strong> <strong>CONTACT_EMAIL</strong></p>
+  </section>
+</body>
+</html>

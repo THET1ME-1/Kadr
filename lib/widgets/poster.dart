@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
@@ -38,6 +40,20 @@ class Poster extends StatelessWidget {
       // полном разрешении — иначе прокрутка списка/сетки лагает на декодинге.
       final dpr = MediaQuery.devicePixelRatioOf(context);
       final decodeW = (width * dpr).round();
+      // Локальный пользовательский постер (абсолютный путь) — грузим из файла.
+      if (url!.startsWith('/')) {
+        return ClipRRect(
+          borderRadius: border,
+          child: Image.file(
+            File(url!),
+            width: width,
+            height: height,
+            fit: BoxFit.cover,
+            cacheWidth: decodeW,
+            errorBuilder: (c, _, _) => _placeholder(c),
+          ),
+        );
+      }
       return ClipRRect(
         borderRadius: border,
         child: CachedNetworkImage(

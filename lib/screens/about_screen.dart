@@ -9,6 +9,10 @@ import '../widgets/reveal.dart';
 /// Ссылка «Поддержать авторов» (Boosty).
 final Uri kBoostyUrl = Uri.parse('https://boosty.to/sntcompany');
 
+/// Ссылка DonationAlerts (разовый донат — картой/СБП).
+final Uri kDonationAlertsUrl =
+    Uri.parse('https://www.donationalerts.com/r/thet1me');
+
 /// Почта поддержки — куда писать пользователям.
 const String kSupportEmail = 'stgroup.dev@gmail.com';
 
@@ -21,6 +25,10 @@ Future<void> openRepo() async {
 
 Future<void> openSupportAuthors() async {
   await launchUrl(kBoostyUrl, mode: LaunchMode.externalApplication);
+}
+
+Future<void> openDonationAlerts() async {
+  await launchUrl(kDonationAlertsUrl, mode: LaunchMode.externalApplication);
 }
 
 Future<void> openSupportEmail() async {
@@ -87,6 +95,21 @@ class AboutScreen extends StatelessWidget {
                   icon: const Icon(Icons.favorite_rounded),
                   label: Text(tr('support_authors'),
                       style: const TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonalIcon(
+                  onPressed: openDonationAlerts,
+                  style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13)),
+                  icon: const Icon(Icons.card_giftcard_rounded, size: 18),
+                  label: const Text('DonationAlerts',
+                      style: TextStyle(
                           fontFamily: AppTheme.displayFont,
                           fontWeight: FontWeight.w700,
                           fontSize: 15)),

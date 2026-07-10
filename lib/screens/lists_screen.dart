@@ -234,8 +234,8 @@ class ListsScreen extends StatelessWidget {
 
   Widget _collage(_ListData data) {
     final items = <({String title, String? url})>[
-      for (final m in data.movies) (title: m.displayTitle, url: m.posterUrl),
-      for (final s in data.series) (title: s.displayTitle, url: s.posterUrl),
+      for (final m in data.movies) (title: m.displayTitle, url: m.displayPoster),
+      for (final s in data.series) (title: s.displayTitle, url: s.displayPoster),
     ];
     final shown = items.take(3).toList();
     if (shown.isEmpty) {
@@ -524,7 +524,7 @@ class _ListDetail extends StatelessWidget {
             padding: const EdgeInsets.all(10),
             child: Row(
               children: [
-                Poster(title: m.displayTitle, url: m.posterUrl, width: 52),
+                Poster(title: m.displayTitle, url: m.displayPoster, width: 52),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -578,7 +578,7 @@ class _ListDetail extends StatelessWidget {
               children: [
                 Stack(
                   children: [
-                    Poster(title: s.displayTitle, url: s.posterUrl, width: 52),
+                    Poster(title: s.displayTitle, url: s.displayPoster, width: 52),
                     Positioned(
                       left: 3,
                       top: 3,

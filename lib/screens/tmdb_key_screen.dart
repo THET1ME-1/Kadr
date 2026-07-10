@@ -93,47 +93,85 @@ class _TmdbKeyScreenState extends State<TmdbKeyScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [scheme.primary, scheme.tertiary],
-                ),
+                color: scheme.primaryContainer,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(Icons.vpn_key_rounded,
-                      color: Colors.white.withValues(alpha: 0.95), size: 36),
+                      color: scheme.onPrimaryContainer, size: 34),
                   const SizedBox(height: 12),
                   Text(tr('tmdb_key_intro_title'),
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontFamily: AppTheme.displayFont,
                           fontWeight: FontWeight.w800,
                           fontSize: 20,
-                          color: Colors.white)),
+                          color: scheme.onPrimaryContainer)),
                   const SizedBox(height: 8),
                   Text(tr('tmdb_key_intro'),
                       style: TextStyle(
                           fontFamily: AppTheme.bodyFont,
                           fontSize: 13.5,
                           height: 1.4,
-                          color: Colors.white.withValues(alpha: 0.92))),
+                          color: scheme.onPrimaryContainer
+                              .withValues(alpha: 0.9))),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-            _step(scheme, '1', tr('tmdb_key_step1')),
-            _step(scheme, '2', tr('tmdb_key_step2')),
-            _step(scheme, '3', tr('tmdb_key_step3')),
-            _step(scheme, '4', tr('tmdb_key_step4')),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _openTmdb,
-              icon: const Icon(Icons.open_in_new_rounded, size: 18),
-              label: Text(tr('tmdb_key_open')),
+            // Шаги получения ключа — сгруппированы в одну M3-карточку.
+            Material(
+              color: scheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(24),
+              clipBehavior: Clip.antiAlias,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  children: [
+                    _step(scheme, '1', tr('tmdb_key_step1')),
+                    _step(scheme, '2', tr('tmdb_key_step2')),
+                    _step(scheme, '3', tr('tmdb_key_step3')),
+                    _step(scheme, '4', tr('tmdb_key_step4')),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
+            // «Не переживай»: в анкете TMDB можно писать что угодно.
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: scheme.tertiaryContainer,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.lightbulb_outline_rounded,
+                      size: 20, color: scheme.onTertiaryContainer),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(tr('tmdb_key_form_note'),
+                        style: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontSize: 13,
+                            height: 1.4,
+                            color: scheme.onTertiaryContainer)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: _openTmdb,
+                icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                label: Text(tr('tmdb_key_open')),
+              ),
+            ),
+            const SizedBox(height: 24),
             TextField(
               controller: _tmdb,
               minLines: 2,
@@ -207,7 +245,7 @@ class _TmdbKeyScreenState extends State<TmdbKeyScreen> {
   }
 
   Widget _step(ColorScheme scheme, String n, String text) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

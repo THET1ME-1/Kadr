@@ -29,8 +29,11 @@ dependencies:
   # Данные, бэкап, синхронизация
   path_provider: ^2.1.4
   file_picker: ^10.2.0
-  permission_handler: ^11.3.1
   share_plus: ^10.1.4
+  # Автобекап в выбранную папку через Storage Access Framework
+  # (без MANAGE_EXTERNAL_STORAGE — совместимо с Google Play).
+  saf_util: ^2.2.0
+  saf_stream: ^2.0.0
   package_info_plus: ^8.0.2
   url_launcher: ^6.3.1
   open_filex: ^4.5.0

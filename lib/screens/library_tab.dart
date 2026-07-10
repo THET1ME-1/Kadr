@@ -1142,7 +1142,7 @@ class _LibraryTabState extends State<LibraryTab> {
       final s = e.session!.series;
       return _PosterCell(
         title: s.displayTitle,
-        posterUrl: s.posterUrl,
+        posterUrl: s.displayPoster,
         width: w,
         score: e.session!.avgScore ?? e.session!.series.displayScore,
         favorite: s.favorite,
@@ -1161,7 +1161,7 @@ class _LibraryTabState extends State<LibraryTab> {
       final s = e.seriesItem!;
       return _PosterCell(
         title: s.displayTitle,
-        posterUrl: s.posterUrl,
+        posterUrl: s.displayPoster,
         width: w,
         score: null,
         favorite: s.favorite,
@@ -1177,7 +1177,7 @@ class _LibraryTabState extends State<LibraryTab> {
     final m = e.movie!;
     return _PosterCell(
       title: m.displayTitle,
-      posterUrl: m.posterUrl,
+      posterUrl: m.displayPoster,
       width: w,
       score: e.viewing != null ? m.scoreOf(e.viewing!) : null,
       favorite: m.favorite,
@@ -1196,7 +1196,7 @@ class _LibraryTabState extends State<LibraryTab> {
       final s = e.session!.series;
       return _BannerCell(
         title: s.displayTitle,
-        posterUrl: s.posterUrl,
+        posterUrl: s.displayPoster,
         subtitle: '${e.session!.rangeLabel} · ${e.session!.count} сер.',
         score: e.session!.avgScore ?? e.session!.series.displayScore,
         favorite: s.favorite,
@@ -1212,7 +1212,7 @@ class _LibraryTabState extends State<LibraryTab> {
       final s = e.seriesItem!;
       return _BannerCell(
         title: s.displayTitle,
-        posterUrl: s.posterUrl,
+        posterUrl: s.displayPoster,
         subtitle: tr('act_watchlist'),
         score: null,
         favorite: s.favorite,
@@ -1228,7 +1228,7 @@ class _LibraryTabState extends State<LibraryTab> {
     final date = e.viewing?.date;
     return _BannerCell(
       title: m.displayTitle,
-      posterUrl: m.posterUrl,
+      posterUrl: m.displayPoster,
       subtitle: [
         if (m.year != null) '${m.year}',
         if (date != null) dateExactWithTime(date),
@@ -2098,7 +2098,7 @@ class _SeriesSessionCard extends StatelessWidget {
                         children: [
                           Poster(
                               title: s.displayTitle,
-                              url: s.posterUrl,
+                              url: s.displayPoster,
                               width: 58,
                               heroTag: heroTag),
                           Positioned(
@@ -2523,7 +2523,7 @@ class _MovieRow extends StatelessWidget {
                     children: [
                       Poster(
                           title: movie.displayTitle,
-                          url: movie.posterUrl,
+                          url: movie.displayPoster,
                           width: 58,
                           heroTag: heroTag),
                       if (selecting) _selectOverlay(scheme, selected, 12),
@@ -2678,7 +2678,7 @@ class _WatchlistSeriesRow extends StatelessWidget {
                     children: [
                       Poster(
                           title: series.displayTitle,
-                          url: series.posterUrl,
+                          url: series.displayPoster,
                           width: 58),
                       Positioned(
                         left: 4,

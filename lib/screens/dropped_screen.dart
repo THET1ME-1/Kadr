@@ -81,7 +81,7 @@ class _MovieDroppedRow extends StatelessWidget {
       context,
       title: movie.displayTitle,
       subtitle: movie.year != null ? '${movie.year}' : '',
-      posterUrl: movie.posterUrl,
+      posterUrl: movie.displayPoster,
       scheme: scheme,
       onTap: () => showMovieSheet(context, movie),
     );
@@ -99,7 +99,7 @@ class _SeriesDroppedRow extends StatelessWidget {
       context,
       title: series.displayTitle,
       subtitle: trf('episodes_n', {'n': series.episodes.length}),
-      posterUrl: series.posterUrl,
+      posterUrl: series.displayPoster,
       scheme: scheme,
       seriesIcon: true,
       onTap: () => Navigator.of(context)

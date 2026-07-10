@@ -8,6 +8,7 @@ import 'services/app_prefs.dart';
 import 'services/auto_backup_service.dart';
 import 'services/movie_repository.dart';
 import 'services/movie_source.dart';
+import 'services/poster_store.dart';
 import 'services/social/social_controller.dart';
 import 'services/sync/webdav_service.dart';
 import 'services/store.dart';
@@ -24,6 +25,7 @@ Future<void> main() async {
   await SourceController.instance.load();
   await ApiKeys.load(); // персональные API-ключи (TMDB/kinopoisk)
   await AppPrefs.instance.load();
+  await PosterStore.instance.init(); // папка локальных постеров (для displayPoster)
   await MovieRepository.instance.load();
   await AutoBackupService.instance.load();
   // Соц-слой: восстановить сессию и синхронизировать профиль/друзей в фоне

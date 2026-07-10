@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/library_entry.dart';
 import 'kinopoisk_service.dart';
 import 'movie_source.dart';
+import 'poster_store.dart';
 import 'store.dart';
 import 'sync/sync_merge.dart';
 import 'tmdb_service.dart';
@@ -1900,6 +1901,48 @@ class MovieRepository extends ChangeNotifier {
     }
   }
 
+  bool _titleSweeping = false;
+
+  /// Фоновая дозагрузка ЛОКАЛИЗОВАННЫХ названий (`ruTitle`) для фильмов, у которых
+  /// оно пустое — например импортированных, где источник (Kinopoisk) не отдал
+  /// русского имени, из-за чего в списке «Просмотрено» оставалось оригинальное
+  /// (английское) название. Название берём из TMDB по названию+году — оно уже в
+  /// языке интерфейса, и у TMDB нет суточного лимита. Порциями; тихо выходим,
+  /// если TMDB недоступен (нет ключа/лимит).
+  Future<void> backfillTitlesSweep({int budget = 400}) async {
+    if (_titleSweeping) return;
+    _titleSweeping = true;
+    try {
+      final todo = <LibraryMovie>[...watched, ...watchlist]
+          .where((m) => m.ruTitle == null || m.ruTitle!.trim().isEmpty)
+          .toList();
+      var used = 0;
+      var dirty = 0;
+      for (final m in todo) {
+        if (used >= budget) break;
+        try {
+          final match = await TmdbService.search(m.title, year: m.year);
+          used++;
+          if (match != null &&
+              match.ruName != null &&
+              match.ruName!.trim().isNotEmpty) {
+            m.ruTitle = match.ruName!.trim();
+            m.tmdbId ??= match.tmdbId;
+            dirty++;
+            _persistSoon();
+            if (dirty % 20 == 0) notifyListeners();
+          }
+        } on SourceLimitException {
+          break; // нет TMDB-ключа / лимит — прекращаем проход
+        } catch (_) {/* сетевая ошибка — пропускаем этот фильм */}
+        await Future<void>.delayed(const Duration(milliseconds: 130));
+      }
+    } finally {
+      _titleSweeping = false;
+      notifyListeners();
+    }
+  }
+
   /// Повторить обогащение для необогащённых (напр. после смены источника).
   Future<void> retryUnmatched() async {
     _limitHit = false;
@@ -1977,6 +2020,55 @@ class MovieRepository extends ChangeNotifier {
     final s = seriesById(id);
     if (s == null || s.posterUrl == posterUrl) return;
     s.posterUrl = posterUrl;
+    notifyListeners();
+    await _persist();
+  }
+
+  // ------------------ локальные пользовательские постеры -------------------
+  // Замена постера своим изображением. Хранится локально (имя файла в модели),
+  // при показе приоритетнее сетевого; на сервер/друзьям не уходит. Меняется в
+  // одном месте (модель) → отображается везде, где показывается постер.
+
+  /// Ставит локальный постер фильму. Возвращает true при успехе.
+  Future<bool> setMoviePosterLocal(String uuid, Uint8List bytes) async {
+    final m = byUuid(uuid);
+    if (m == null) return false;
+    final name = await PosterStore.instance.save(uuid, bytes, old: m.posterFile);
+    if (name == null) return false;
+    m.posterFile = name;
+    notifyListeners();
+    await _persist();
+    return true;
+  }
+
+  /// Сбрасывает локальный постер фильма — снова показывается сетевой.
+  Future<void> clearMoviePosterLocal(String uuid) async {
+    final m = byUuid(uuid);
+    if (m == null || m.posterFile == null) return;
+    await PosterStore.instance.delete(m.posterFile);
+    m.posterFile = null;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Ставит локальный постер сериалу. Возвращает true при успехе.
+  Future<bool> setSeriesPosterLocal(String id, Uint8List bytes) async {
+    final s = seriesById(id);
+    if (s == null) return false;
+    final name = await PosterStore.instance.save(id, bytes, old: s.posterFile);
+    if (name == null) return false;
+    s.posterFile = name;
+    notifyListeners();
+    await _persist();
+    return true;
+  }
+
+  /// Сбрасывает локальный постер сериала.
+  Future<void> clearSeriesPosterLocal(String id) async {
+    final s = seriesById(id);
+    if (s == null || s.posterFile == null) return;
+    await PosterStore.instance.delete(s.posterFile);
+    s.posterFile = null;
     notifyListeners();
     await _persist();
   }

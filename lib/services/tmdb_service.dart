@@ -176,12 +176,14 @@ class TmdbTvExtra {
   final String? overview;
   final List<TmdbGenre> genres;
   final int? year;
+  final List<TmdbCast> cast;
   const TmdbTvExtra(
       {this.backdropUrl,
       this.posterUrl,
       this.overview,
       this.genres = const [],
-      this.year});
+      this.year,
+      this.cast = const []});
 }
 
 /// Сезон сериала (для навигации по сериям).
@@ -635,8 +637,11 @@ class TmdbService {
   static Future<List<TmdbSeason>> seasons(int tvId) async {
     if (_seasonsCache.containsKey(tvId)) return _seasonsCache[tvId]!;
     try {
-      final uri = Uri.parse('${ApiConfig.tmdbBase}/tv/$tvId')
-          .replace(queryParameters: {'language': LocaleController.instance.tmdbLanguage});
+      final uri = Uri.parse('${ApiConfig.tmdbBase}/tv/$tvId').replace(
+          queryParameters: {
+            'language': LocaleController.instance.tmdbLanguage,
+            'append_to_response': 'credits',
+          });
       final resp = await http
           .get(uri, headers: _headers)
           .timeout(const Duration(seconds: 12));
@@ -644,7 +649,20 @@ class TmdbService {
       final j = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
       final backdrop = j['backdrop_path'] as String?;
       final poster = j['poster_path'] as String?;
+      final credits = j['credits'] as Map<String, dynamic>?;
+      final castList = (credits?['cast'] as List? ?? []).take(16).map((c) {
+        final cm = c as Map<String, dynamic>;
+        final photo = cm['profile_path'] as String?;
+        return TmdbCast(
+          id: (cm['id'] as num?)?.toInt() ?? 0,
+          name: cm['name'] as String? ?? '',
+          character: cm['character'] as String?,
+          photoUrl:
+              photo != null ? '${ApiConfig.tmdbProfileBase}$photo' : null,
+        );
+      }).toList();
       _tvExtraCache[tvId] = TmdbTvExtra(
+        cast: castList,
         backdropUrl:
             backdrop != null ? '${ApiConfig.tmdbBackdropBase}$backdrop' : null,
         posterUrl:

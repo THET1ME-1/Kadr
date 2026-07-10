@@ -27,6 +27,34 @@ const Map<String, Map<String, String>> _strings = {
   // ------------------------------ Общее ------------------------------
   'app_name': {'ru': 'Kadr', 'en': 'Kadr'},
   'cancel': {'ru': 'Отмена', 'en': 'Cancel'},
+  'poster_change': {'ru': 'Изменить постер', 'en': 'Change poster'},
+  'poster_reset': {'ru': 'Вернуть оригинал', 'en': 'Restore original'},
+  'disc_hide_section': {'ru': 'Скрывать в Обзоре', 'en': 'Hide in Discover'},
+  'disc_hide_watched_movies': {
+    'ru': 'Просмотренные фильмы',
+    'en': 'Watched movies'
+  },
+  'disc_hide_watched_series': {
+    'ru': 'Просмотренные сериалы',
+    'en': 'Watched series'
+  },
+  'disc_hide_dropped_movies': {'ru': 'Брошенные фильмы', 'en': 'Dropped movies'},
+  'disc_hide_dropped_series': {'ru': 'Брошенные сериалы', 'en': 'Dropped series'},
+  'disc_hide_watchlist_movies': {
+    'ru': '«Буду смотреть» — фильмы',
+    'en': 'Watchlist — movies'
+  },
+  'disc_hide_watchlist_series': {
+    'ru': '«Буду смотреть» — сериалы',
+    'en': 'Watchlist — series'
+  },
+  'fav_char_set': {
+    'ru': 'Сделать любимым персонажем',
+    'en': 'Set as favourite character'
+  },
+  'fav_char_remove': {'ru': 'Убрать из любимых', 'en': 'Remove from favourites'},
+  'fav_char_title': {'ru': 'Любимый персонаж', 'en': 'Favourite character'},
+  'fav_char_from': {'ru': 'из «{title}»', 'en': 'from "{title}"'},
   'undo': {'ru': 'Отменить', 'en': 'Undo'},
   'save': {'ru': 'Сохранить', 'en': 'Save'},
   'delete': {'ru': 'Удалить', 'en': 'Delete'},
@@ -132,6 +160,14 @@ const Map<String, Map<String, String>> _strings = {
   'tmdb_key_step4': {
     'ru': 'Вставь его в поле ниже и сохрани.',
     'en': 'Paste it into the field below and save.'
+  },
+  'tmdb_key_form_note': {
+    'ru': 'При создании ключа TMDB попросит заполнить анкету — название '
+        'приложения, ссылку на сайт, описание. Вписывай что угодно: TMDB это '
+        'не проверяет и ни на что не влияет. Не переживай.',
+    'en': 'When creating the key, TMDB asks you to fill a short form — app '
+        'name, website URL, description. Put anything you like: TMDB does not '
+        'verify it and it affects nothing. No worries.'
   },
   'tmdb_key_open': {
     'ru': 'Открыть настройки API TMDB',

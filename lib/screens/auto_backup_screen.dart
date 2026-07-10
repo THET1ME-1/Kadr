@@ -102,7 +102,7 @@ class _AutoBackupScreenState extends State<AutoBackupScreen> {
   }
 
   Future<void> _doRestore(BackupFile b) async {
-    final done = await _svc.restore(b.file);
+    final done = await _svc.restore(b);
     if (!mounted) return;
     if (done) {
       _snack(trf(

@@ -131,7 +131,7 @@ class _ShareCardSheetState extends State<_ShareCardSheet> {
             shadowColor: Colors.black54,
             child: Poster(
                 title: m.displayTitle,
-                url: m.posterUrl,
+                url: m.displayPoster,
                 width: 150,
                 radius: 16),
           ),

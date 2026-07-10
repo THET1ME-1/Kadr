@@ -164,7 +164,7 @@ class TasteMatch extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         children: [
-          Poster(title: mineM.displayTitle, url: mineM.posterUrl, width: 38),
+          Poster(title: mineM.displayTitle, url: mineM.displayPoster, width: 38),
           const SizedBox(width: 12),
           Expanded(
             child: Text(mineM.displayTitle,
@@ -293,7 +293,7 @@ class WatchTogether extends StatelessWidget {
                     children: [
                       Poster(
                           title: m.displayTitle,
-                          url: m.posterUrl,
+                          url: m.displayPoster,
                           width: 84,
                           radius: 12),
                       const SizedBox(height: 5),
