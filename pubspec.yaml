@@ -22,6 +22,7 @@ dependencies:
 
   # База фильмов (TMDB) и изображения
   http: ^1.2.2
+  xml: ^6.6.1 # парсинг RSS кино-новостей (Google News)
   cached_network_image: ^3.4.1
   flutter_cache_manager: ^3.4.1
   flutter_image_compress: ^2.4.0

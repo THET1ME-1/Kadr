@@ -67,6 +67,15 @@ const Map<String, Map<String, String>> _strings = {
   'fav_actor_add': {'ru': 'В любимые актёры', 'en': 'Favourite this actor'},
   'fav_actor_remove': {'ru': 'Убрать из любимых', 'en': 'Remove from favourites'},
   'fav_actors_title': {'ru': 'Любимые актёры', 'en': 'Favourite actors'},
+  'drawer_news': {'ru': 'Кино-новости', 'en': 'Movie news'},
+  'news_empty_title': {'ru': 'Новостей нет', 'en': 'No news'},
+  'news_empty_sub': {
+    'ru': 'Не удалось загрузить новости. Проверь соединение и попробуй ещё раз.',
+    'en': 'Couldn\'t load news. Check your connection and try again.'
+  },
+  'news_recent': {'ru': 'только что', 'en': 'just now'},
+  'news_hours_ago': {'ru': '{n} ч назад', 'en': '{n}h ago'},
+  'news_days_ago': {'ru': '{n} дн назад', 'en': '{n}d ago'},
   'undo': {'ru': 'Отменить', 'en': 'Undo'},
   'save': {'ru': 'Сохранить', 'en': 'Save'},
   'delete': {'ru': 'Удалить', 'en': 'Delete'},

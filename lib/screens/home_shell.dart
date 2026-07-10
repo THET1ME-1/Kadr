@@ -20,6 +20,7 @@ import 'discover_tab.dart';
 import 'dropped_screen.dart';
 import 'library_tab.dart';
 import 'lists_screen.dart';
+import 'news_screen.dart';
 import 'schedule_screen.dart';
 import 'now_watching_screen.dart';
 import 'series_screen.dart';
@@ -643,6 +644,11 @@ class _KadrDrawer extends StatelessWidget {
           Navigator.pop(context);
           Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ScheduleScreen()));
+        }),
+        _drawerTile(context, Icons.newspaper_rounded, tr('drawer_news'), () {
+          Navigator.pop(context);
+          Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const NewsScreen()));
         }),
         _drawerTile(context, Icons.insights_rounded, tr('drawer_stats'), () {
           Navigator.pop(context);
