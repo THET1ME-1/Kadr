@@ -379,6 +379,23 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Selected ({n}) will be removed from the watchlist. Titles stay in the database.'
   },
   'removed_n': {'ru': 'Убрано: {n}', 'en': 'Removed: {n}'},
+  'mark_watched_selected': {
+    'ru': 'Отметить просмотренными',
+    'en': 'Mark as watched'
+  },
+  'add_to_list_selected': {'ru': 'Добавить в список', 'en': 'Add to list'},
+  'batch_marked_watched': {
+    'ru': 'Отмечено просмотренными: {n}',
+    'en': 'Marked as watched: {n}'
+  },
+  'batch_added_to_list': {
+    'ru': 'Добавлено в «{name}»: {n}',
+    'en': 'Added to "{name}": {n}'
+  },
+  'batch_no_movies': {
+    'ru': 'В выделении нет фильмов',
+    'en': 'No movies in selection'
+  },
   'on': {'ru': 'Вкл', 'en': 'On'},
   'off': {'ru': 'Выкл', 'en': 'Off'},
   'soon': {'ru': 'Скоро', 'en': 'Coming soon'},
@@ -821,13 +838,13 @@ const Map<String, Map<String, String>> _strings = {
   'share_want_to_watch': {'ru': 'Хочу посмотреть', 'en': 'Want to watch'},
   'delete_from_base': {'ru': 'Удалить из базы', 'en': 'Delete from library'},
   'delete_from_base_confirm': {
-    'ru': '«{title}» будет полностью удалён из базы. Можно отменить сразу после удаления.',
-    'en': '"{title}" will be permanently removed. You can undo right after.'
+    'ru': '«{title}» и вся история просмотров, оценки и даты по нему будут удалены НАВСЕГДА. Вернуть можно только сразу — кнопкой «Отменить». После этого восстановить уже не получится.',
+    'en': '"{title}" and its entire watch history, ratings and dates will be deleted PERMANENTLY. The only way back is the "Undo" button right after — after that it cannot be restored.'
   },
   'deleted_from_base': {'ru': 'Удалено из базы', 'en': 'Deleted from library'},
   'delete_from_base_n': {
-    'ru': 'Выбранное ({n}) будет полностью удалено из базы. Можно отменить сразу.',
-    'en': 'Selected ({n}) will be permanently removed. You can undo right after.'
+    'ru': 'Выбранное ({n}) и вся история просмотров, оценки и даты по нему будут удалены НАВСЕГДА. Вернуть можно только сразу — кнопкой «Отменить». После этого восстановить уже не получится.',
+    'en': 'The selected ({n}) and their entire watch history, ratings and dates will be deleted PERMANENTLY. The only way back is the "Undo" button right after — after that it cannot be restored.'
   },
   'deleted_n_from_base': {
     'ru': 'Удалено из базы: {n}',

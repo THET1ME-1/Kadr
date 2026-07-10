@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../l10n/locale_controller.dart';
 import '../l10n/strings.dart';
@@ -74,8 +75,21 @@ class DiscoverTab extends StatefulWidget {
 }
 
 class _DiscoverTabState extends State<DiscoverTab>
-    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late final TabController _tab = TabController(length: 2, vsync: this);
+
+  /// Плавное скрытие шапки (переключатель режима + вкладки + фильтры) при
+  /// прокрутке ленты вниз и её возврат при прокрутке вверх. 1 — показана, 0 —
+  /// скрыта; порог срабатывания — накопленные 50px.
+  late final AnimationController _headerCtl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 240),
+    value: 1,
+  );
+  late final Animation<double> _headerAnim =
+      CurvedAnimation(parent: _headerCtl, curve: Curves.easeInOut);
+  bool _headerHidden = false;
+  double _scrollAccum = 0;
 
   /// Режим ленты: популярное («Обзор») или сейчас в прокате («В кино»).
   DiscoverMode _mode = DiscoverMode.trending;
@@ -99,6 +113,7 @@ class _DiscoverTabState extends State<DiscoverTab>
   @override
   void dispose() {
     _tab.dispose();
+    _headerCtl.dispose();
     super.dispose();
   }
 
@@ -202,6 +217,46 @@ class _DiscoverTabState extends State<DiscoverTab>
     return _hideWatchedS(list);
   }
 
+  /// Реакция на прокрутку ленты: копим смещение и на ±50px прячем/показываем
+  /// шапку. Реагируем только на вертикаль сетки (горизонтальную прокрутку
+  /// фильтров игнорируем). setState не зовём — анимируют сами Size/Fade, сетки
+  /// не перестраиваются.
+  bool _onGridScroll(ScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    if (n is! ScrollUpdateNotification) return false;
+    // У самого верха ленты шапка всегда видна.
+    if (n.metrics.pixels <= 4) {
+      _scrollAccum = 0;
+      if (_headerHidden) _setHeader(hidden: false);
+      return false;
+    }
+    final d = n.scrollDelta ?? 0;
+    if (d == 0) return false;
+    // Смена направления прокрутки — сбрасываем накопитель.
+    if ((d > 0) != (_scrollAccum >= 0)) _scrollAccum = 0;
+    _scrollAccum += d;
+    if (_scrollAccum >= 50 && !_headerHidden) {
+      _scrollAccum = 0;
+      _setHeader(hidden: true);
+    } else if (_scrollAccum <= -50 && _headerHidden) {
+      _scrollAccum = 0;
+      _setHeader(hidden: false);
+    }
+    return false;
+  }
+
+  void _setHeader({required bool hidden}) {
+    _headerHidden = hidden;
+    hidden ? _headerCtl.reverse() : _headerCtl.forward();
+  }
+
+  /// Обёртка для плавного сворачивания части шапки (высота + прозрачность).
+  Widget _collapsible(Widget child) => SizeTransition(
+        sizeFactor: _headerAnim,
+        axisAlignment: -1,
+        child: FadeTransition(opacity: _headerAnim, child: child),
+      );
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -209,70 +264,82 @@ class _DiscoverTabState extends State<DiscoverTab>
     final mKey =
         'm|$_mode|$_q|${_mGenre?.id}|$_mYear|$_mSort|${_topMovieGenreId()}';
     final tKey = 's|$_mode|$_q|${_tGenre?.id}|$_tYear|$_tSort';
-    return Column(
-      children: [
-        if (_q.isEmpty) _modeToggle(scheme),
-        TabBar(
-          controller: _tab,
-          labelColor: scheme.primary,
-          unselectedLabelColor: scheme.onSurfaceVariant,
-          indicatorColor: scheme.primary,
-          indicatorSize: TabBarIndicatorSize.label,
-          labelStyle: const TextStyle(
-              fontFamily: AppTheme.displayFont,
-              fontWeight: FontWeight.w700,
-              fontSize: 14),
-          unselectedLabelStyle: const TextStyle(
-              fontFamily: AppTheme.displayFont,
-              fontWeight: FontWeight.w600,
-              fontSize: 14),
-          tabs: [
-            Tab(text: tr('filter_movies')),
-            Tab(text: tr('filter_series')),
-          ],
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tab,
-            children: [
-              Column(
-                children: [
-                  // Фильтры действуют на ленту; при поиске идёт глобальный
-                  // поиск по базе — панель скрываем.
-                  if (_q.isEmpty) _filterBar(movies: true),
-                  Expanded(
-                    child: ListenableBuilder(
-                      listenable: MovieRepository.instance,
-                      builder: (context, _) => InfiniteGrid<TmdbMovie>(
-                        reloadKey: mKey,
-                        loader: _movieLoader,
-                        itemBuilder: (context, m, w) =>
-                            DiscoverMovieCard(movie: m, width: w),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                children: [
-                  if (_q.isEmpty) _filterBar(movies: false),
-                  Expanded(
-                    child: ListenableBuilder(
-                      listenable: MovieRepository.instance,
-                      builder: (context, _) => InfiniteGrid<TmdbSeries>(
-                        reloadKey: tKey,
-                        loader: _seriesLoader,
-                        itemBuilder: (context, s, w) =>
-                            DiscoverSeriesCard(series: s, width: w),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+    // Прокрутка ленты вниз плавно прячет шапку (переключатель + вкладки +
+    // фильтры) — на «Обзоре» она занимала пол-экрана; вверх — возвращает.
+    return NotificationListener<ScrollNotification>(
+      onNotification: _onGridScroll,
+      child: Column(
+        children: [
+          _collapsible(
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_q.isEmpty) _modeToggle(scheme),
+                TabBar(
+                  controller: _tab,
+                  labelColor: scheme.primary,
+                  unselectedLabelColor: scheme.onSurfaceVariant,
+                  indicatorColor: scheme.primary,
+                  indicatorSize: TabBarIndicatorSize.label,
+                  labelStyle: const TextStyle(
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14),
+                  unselectedLabelStyle: const TextStyle(
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14),
+                  tabs: [
+                    Tab(text: tr('filter_movies')),
+                    Tab(text: tr('filter_series')),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          Expanded(
+            child: TabBarView(
+              controller: _tab,
+              children: [
+                Column(
+                  children: [
+                    // Фильтры действуют на ленту; при поиске идёт глобальный
+                    // поиск по базе — панель скрываем.
+                    if (_q.isEmpty) _collapsible(_filterBar(movies: true)),
+                    Expanded(
+                      child: ListenableBuilder(
+                        listenable: MovieRepository.instance,
+                        builder: (context, _) => InfiniteGrid<TmdbMovie>(
+                          reloadKey: mKey,
+                          loader: _movieLoader,
+                          itemBuilder: (context, m, w) =>
+                              DiscoverMovieCard(movie: m, width: w),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  children: [
+                    if (_q.isEmpty) _collapsible(_filterBar(movies: false)),
+                    Expanded(
+                      child: ListenableBuilder(
+                        listenable: MovieRepository.instance,
+                        builder: (context, _) => InfiniteGrid<TmdbSeries>(
+                          reloadKey: tKey,
+                          loader: _seriesLoader,
+                          itemBuilder: (context, s, w) =>
+                              DiscoverSeriesCard(series: s, width: w),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -410,7 +477,10 @@ class _DiscoverTabState extends State<DiscoverTab>
           fontFamily: AppTheme.bodyFont,
           fontWeight: FontWeight.w600,
           fontSize: 13),
-      onSelected: (_) => onTap(),
+      onSelected: (_) {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
     );
   }
 

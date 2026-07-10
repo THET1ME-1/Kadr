@@ -12,6 +12,7 @@ import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/score.dart';
+import '../widgets/pop_icon.dart';
 import '../widgets/poster.dart';
 import '../widgets/poster_viewer.dart';
 import '../widgets/rating_slider.dart';
@@ -636,15 +637,20 @@ class _SeriesScreenState extends State<SeriesScreen> {
             shape: const CircleBorder(),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
-              onTap: () => _repo.toggleSeriesFavorite(s.tvShowId),
+              onTap: () {
+                HapticFeedback.lightImpact();
+                _repo.toggleSeriesFavorite(s.tvShowId);
+              },
               child: SizedBox(
                 width: 48,
                 height: 48,
-                child: Icon(
-                    s.favorite
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    color: s.favorite ? scheme.onPrimary : scheme.onSurfaceVariant),
+                child: PopIcon(
+                  active: s.favorite,
+                  activeIcon: Icons.favorite_rounded,
+                  inactiveIcon: Icons.favorite_border_rounded,
+                  activeColor: scheme.onPrimary,
+                  inactiveColor: scheme.onSurfaceVariant,
+                ),
               ),
             ),
           ),

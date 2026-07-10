@@ -14,6 +14,7 @@ import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/score.dart';
 import '../widgets/movie_cards.dart' show statusBadges;
+import '../widgets/pop_icon.dart';
 import '../widgets/poster.dart';
 import '../widgets/poster_viewer.dart';
 import '../widgets/rating_slider.dart';
@@ -1809,13 +1810,19 @@ class _HeartButton extends StatelessWidget {
       shape: const CircleBorder(),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
         child: SizedBox(
           width: 56,
           height: 56,
-          child: Icon(
-            active ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-            color: active ? scheme.onPrimary : scheme.onSurfaceVariant,
+          child: PopIcon(
+            active: active,
+            activeIcon: Icons.favorite_rounded,
+            inactiveIcon: Icons.favorite_border_rounded,
+            activeColor: scheme.onPrimary,
+            inactiveColor: scheme.onSurfaceVariant,
             size: 26,
           ),
         ),

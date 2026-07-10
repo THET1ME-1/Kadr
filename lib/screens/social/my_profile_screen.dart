@@ -10,17 +10,34 @@ import '../../l10n/strings.dart';
 import '../../models/social.dart';
 import '../../services/movie_repository.dart';
 import '../../services/social/avatar_util.dart';
+import '../../services/backup_service.dart';
 import '../../services/social/social_controller.dart';
 import '../../services/store.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_controller.dart';
 import '../../widgets/profile_banner.dart';
 import '../../widgets/user_avatar.dart';
+import '../auto_backup_screen.dart';
 import '../statistics_screen.dart';
+import '../sync_screen.dart';
 import 'auth_screen.dart';
 import 'friend_profile_screen.dart';
 import 'media_image_picker.dart';
 import 'profile_stats.dart';
 import 'recovery.dart';
+
+/// Акцентные цвета для быстрого выбора темы в профиле (совпадают с палитрой
+/// настроек, бирюзовый — по умолчанию).
+const List<Color> _kAccentPalette = [
+  Color(0xFF00B5C7),
+  Color(0xFF7C4DFF),
+  Color(0xFFE53935),
+  Color(0xFFFF7043),
+  Color(0xFFFFB300),
+  Color(0xFF43A047),
+  Color(0xFF1E88E5),
+  Color(0xFFEC407A),
+];
 
 /// Свой профиль (4-я вкладка навигации). Не вошёл — приглашение войти; вошёл —
 /// аватар/ник/код с правкой, входящие заявки, друзья и своя статистика.
@@ -73,7 +90,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: SocialController.instance,
+      listenable: Listenable.merge(
+          [SocialController.instance, ThemeController.instance]),
       builder: (context, _) {
         final ctl = SocialController.instance;
         if (!ctl.isLoggedIn) return _loggedOut(context);
@@ -121,7 +139,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
         FilledButton.icon(
           onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AuthScreen())),
@@ -134,6 +152,24 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   fontWeight: FontWeight.w700,
                   fontSize: 15)),
         ),
+        // Оформление, бэкап и статистика доступны и без входа — аккаунт нужен
+        // только для друзей и ленты.
+        const SizedBox(height: 28),
+        _sectionLabel(tr('appearance')),
+        const SizedBox(height: 12),
+        _appearanceCard(context),
+        const SizedBox(height: 24),
+        _sectionLabel(tr('sync_backup')),
+        const SizedBox(height: 12),
+        _dataCard(context),
+        const SizedBox(height: 24),
+        _sectionLabel(tr('drawer_stats')),
+        const SizedBox(height: 12),
+        ProfileStats(
+          repo: MovieRepository.instance,
+          onHeroTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const StatisticsScreen())),
+        ),
       ],
     );
   }
@@ -141,7 +177,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   // ------------------------------- профиль -------------------------------
 
   Widget _profile(BuildContext context, SocialUser me, SocialController ctl) {
-    final scheme = Theme.of(context).colorScheme;
     return RefreshIndicator(
       onRefresh: () => ctl.refreshFriends(),
       child: ListView(
@@ -162,15 +197,15 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 const SizedBox(height: 24),
                 _accountSection(context, me),
                 const SizedBox(height: 24),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(tr('drawer_stats'),
-                      style: TextStyle(
-                          fontFamily: AppTheme.displayFont,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 17,
-                          color: scheme.onSurface)),
-                ),
+                _sectionLabel(tr('appearance')),
+                const SizedBox(height: 12),
+                _appearanceCard(context),
+                const SizedBox(height: 24),
+                _sectionLabel(tr('sync_backup')),
+                const SizedBox(height: 12),
+                _dataCard(context),
+                const SizedBox(height: 24),
+                _sectionLabel(tr('drawer_stats')),
                 const SizedBox(height: 12),
                 ProfileStats(
                   repo: MovieRepository.instance,
@@ -599,6 +634,179 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
       }
     }
+  }
+
+  // -------------------------- оформление и данные --------------------------
+
+  /// Заголовок секции (в стиле блока статистики).
+  Widget _sectionLabel(String text) {
+    final scheme = Theme.of(context).colorScheme;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(text,
+          style: TextStyle(
+              fontFamily: AppTheme.displayFont,
+              fontWeight: FontWeight.w800,
+              fontSize: 17,
+              color: scheme.onSurface)),
+    );
+  }
+
+  /// Быстрый выбор темы (режим + акцентный цвет) прямо в профиле — чтобы не
+  /// нырять в «Настройки».
+  Widget _appearanceCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final theme = ThemeController.instance;
+    return Container(
+      decoration: BoxDecoration(
+          color: scheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(22)),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<AppThemeMode>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                    value: AppThemeMode.light,
+                    icon: Icon(Icons.light_mode_rounded)),
+                ButtonSegment(
+                    value: AppThemeMode.dark,
+                    icon: Icon(Icons.dark_mode_rounded)),
+                ButtonSegment(
+                    value: AppThemeMode.system,
+                    icon: Icon(Icons.brightness_auto_rounded)),
+                ButtonSegment(
+                    value: AppThemeMode.autoTime,
+                    icon: Icon(Icons.schedule_rounded)),
+              ],
+              selected: {theme.mode},
+              onSelectionChanged: (s) {
+                HapticFeedback.selectionClick();
+                theme.setMode(s.first);
+              },
+            ),
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(_themeModeLabel(theme.mode),
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontSize: 12,
+                    color: scheme.onSurfaceVariant)),
+          ),
+          // Акцентный цвет прячем в режиме Material You — там цвет из обоев.
+          if (!theme.useDynamicColor) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final c in _kAccentPalette)
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      theme.setSeedColor(c);
+                    },
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: c,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.seedColor.toARGB32() == c.toARGB32()
+                              ? scheme.onSurface
+                              : Colors.transparent,
+                          width: 3,
+                        ),
+                      ),
+                      child: theme.seedColor.toARGB32() == c.toARGB32()
+                          ? const Icon(Icons.check_rounded,
+                              color: Colors.white, size: 18)
+                          : null,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _themeModeLabel(AppThemeMode m) => switch (m) {
+        AppThemeMode.light => tr('theme_light'),
+        AppThemeMode.dark => tr('theme_dark'),
+        AppThemeMode.system => tr('theme_system'),
+        AppThemeMode.autoTime => tr('theme_auto'),
+      };
+
+  /// Резервная копия и синхронизация — вынесены из глубины «Настроек», т.к.
+  /// для офлайн-базы это самое важное.
+  Widget _dataCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+          color: scheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(22)),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        children: [
+          _dataTile(scheme, Icons.ios_share_rounded, tr('create_backup'),
+              tr('create_backup_sub'), () => BackupService.exportAndShare()),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          _dataTile(scheme, Icons.file_open_rounded, tr('restore_backup'),
+              tr('restore_backup_sub'), _restoreBackup),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          _dataTile(
+              scheme,
+              Icons.cloud_sync_rounded,
+              tr('sync_webdav'),
+              tr('sync_webdav_sub'),
+              () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SyncScreen()))),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          _dataTile(
+              scheme,
+              Icons.folder_zip_rounded,
+              tr('auto_backup'),
+              tr('auto_backup_sub'),
+              () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AutoBackupScreen()))),
+        ],
+      ),
+    );
+  }
+
+  Widget _dataTile(ColorScheme scheme, IconData icon, String title,
+      String subtitle, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: scheme.onSurfaceVariant),
+      title: Text(title,
+          style: const TextStyle(
+              fontFamily: AppTheme.bodyFont, fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle,
+          style: TextStyle(
+              fontFamily: AppTheme.bodyFont,
+              fontSize: 12,
+              color: scheme.onSurfaceVariant)),
+      trailing:
+          Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+      onTap: onTap,
+    );
+  }
+
+  Future<void> _restoreBackup() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await BackupService.importFromFile();
+    if (!mounted) return;
+    messenger.showSnackBar(SnackBar(
+        content: Text(tr(ok ? 'backup_import_ok' : 'backup_import_fail'))));
   }
 
   // ------------------------------ действия ------------------------------

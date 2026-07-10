@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
@@ -12,6 +13,7 @@ import '../utils/score.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/movie_cards.dart' show droppedBadge;
 import '../widgets/poster.dart';
+import '../widgets/pressable.dart';
 import '../widgets/rating_slider.dart';
 import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
@@ -145,6 +147,9 @@ class _LibraryTabState extends State<LibraryTab> {
 
   void _onSelect(String key) {
     if (widget.readOnly) return; // в библиотеке друга выделения/удаления нет
+    // Вход в мультивыбор (долгий тап) — ощутимый отклик; тап-переключение
+    // тиков уже даёт Pressable/ripple карточки.
+    if (!_selecting) HapticFeedback.mediumImpact();
     setState(() {
       if (_selected.remove(key)) {
         if (_selected.isEmpty) _selecting = false;
@@ -187,6 +192,7 @@ class _LibraryTabState extends State<LibraryTab> {
       ),
     );
     if (ok != true) return;
+    HapticFeedback.mediumImpact();
     final (movieSnaps, seriesSnaps) = await _deleteSelected();
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -379,9 +385,42 @@ class _LibraryTabState extends State<LibraryTab> {
               enabled: !empty,
               icon: Icon(Icons.more_vert_rounded, color: scheme.onSurfaceVariant),
               onSelected: (v) {
-                if (v == 'base') _confirmDeleteFromBase();
+                switch (v) {
+                  case 'watched':
+                    _markSelectedWatched();
+                  case 'list':
+                    _addSelectedToList();
+                  case 'base':
+                    _confirmDeleteFromBase();
+                }
               },
               itemBuilder: (context) => [
+                // «Отметить просмотренными» — только из «Буду смотреть»: фильмы
+                // получают просмотр с сегодняшней датой (сериалы пропускаются).
+                if (widget.mode == LibraryMode.watchlist)
+                  PopupMenuItem(
+                    value: 'watched',
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle_outline_rounded,
+                            size: 20, color: scheme.onSurfaceVariant),
+                        const SizedBox(width: 10),
+                        Text(tr('mark_watched_selected')),
+                      ],
+                    ),
+                  ),
+                PopupMenuItem(
+                  value: 'list',
+                  child: Row(
+                    children: [
+                      Icon(Icons.playlist_add_rounded,
+                          size: 20, color: scheme.onSurfaceVariant),
+                      const SizedBox(width: 10),
+                      Text(tr('add_to_list_selected')),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
                 PopupMenuItem(
                   value: 'base',
                   child: Row(
@@ -409,6 +448,7 @@ class _LibraryTabState extends State<LibraryTab> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.warning_amber_rounded, color: scheme.error, size: 32),
         title: Text(tr('delete_from_base')),
         content: Text(trf('delete_from_base_n', {'n': n})),
         actions: [
@@ -425,6 +465,7 @@ class _LibraryTabState extends State<LibraryTab> {
       ),
     );
     if (ok != true) return;
+    HapticFeedback.mediumImpact();
     final repo = MovieRepository.instance;
     // Собираем уникальные фильмы/сериалы из выделения.
     final movieUuids = <String>{};
@@ -466,6 +507,191 @@ class _LibraryTabState extends State<LibraryTab> {
           onPressed: () => repo.restoreFromSnapshot(movieSnaps, seriesSnaps),
         ),
       ));
+  }
+
+  /// Уникальные uuid ФИЛЬМОВ в выделении. Сериалы для групповых действий
+  /// «просмотрено»/«в список» не подходят (списки — по фильмам, а целый сериал
+  /// «просмотренным» без списка серий не отметить) — их пропускаем.
+  List<String> _selectedMovieUuids() {
+    final seen = <String>{};
+    final out = <String>[];
+    for (final k in _selected) {
+      final m = _entryByKey[k]?.movie;
+      if (m != null && seen.add(m.uuid)) out.add(m.uuid);
+    }
+    return out;
+  }
+
+  void _snack(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+          content: Text(text), behavior: SnackBarBehavior.floating));
+  }
+
+  /// Групповая отметка «просмотрено сегодня» для выбранных фильмов. Без диалога —
+  /// действие обратимо кнопкой «Отменить» (снимок берётся до мутаций).
+  Future<void> _markSelectedWatched() async {
+    final repo = MovieRepository.instance;
+    final uuids = _selectedMovieUuids();
+    if (uuids.isEmpty) {
+      _snack(tr('batch_no_movies'));
+      return;
+    }
+    final snaps = <Map<String, dynamic>>[];
+    for (final uuid in uuids) {
+      final m = repo.byUuid(uuid);
+      if (m != null) snaps.add(m.toJson());
+    }
+    final today = DateTime.now();
+    for (final uuid in uuids) {
+      await repo.addViewing(uuid, today);
+    }
+    if (!mounted) return;
+    setState(() {
+      _selected.clear();
+      _selecting = false;
+    });
+    HapticFeedback.mediumImpact();
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(trf('batch_marked_watched', {'n': uuids.length})),
+        action: SnackBarAction(
+          label: tr('undo'),
+          onPressed: () => repo.restoreFromSnapshot(snaps, const []),
+        ),
+      ));
+  }
+
+  /// Групповое добавление выбранных фильмов в список: нижняя панель с
+  /// существующими списками и полем создания нового.
+  Future<void> _addSelectedToList() async {
+    final repo = MovieRepository.instance;
+    final uuids = _selectedMovieUuids();
+    if (uuids.isEmpty) {
+      _snack(tr('batch_no_movies'));
+      return;
+    }
+    final scheme = Theme.of(context).colorScheme;
+    final ctl = TextEditingController();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheet) {
+          final lists = repo.lists;
+          return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: scheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 14, 24, 6),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(tr('add_to_list_selected'),
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                              color: scheme.onSurface)),
+                    ),
+                  ),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        if (lists.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                            child: Text(tr('no_lists_yet'),
+                                style: TextStyle(
+                                    fontFamily: AppTheme.bodyFont,
+                                    color: scheme.onSurfaceVariant)),
+                          ),
+                        for (final l in lists)
+                          ListTile(
+                            leading: Icon(Icons.playlist_add_check_rounded,
+                                color: scheme.primary),
+                            title: Text(l.name,
+                                style: const TextStyle(
+                                    fontFamily: AppTheme.bodyFont,
+                                    fontWeight: FontWeight.w600)),
+                            onTap: () {
+                              Navigator.pop(sheetCtx);
+                              _applyAddToList(l.name, uuids);
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: ctl,
+                            decoration:
+                                InputDecoration(hintText: tr('new_list')),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        FilledButton(
+                          onPressed: () {
+                            final name = ctl.text.trim();
+                            if (name.isEmpty) return;
+                            Navigator.pop(sheetCtx);
+                            _applyAddToList(name, uuids, create: true);
+                          },
+                          child: Text(tr('create')),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Добавляет фильмы в список (создаёт при [create]); добавляет только тех,
+  /// кого там ещё нет — чтобы не снять уже добавленных.
+  Future<void> _applyAddToList(String listName, List<String> uuids,
+      {bool create = false}) async {
+    final repo = MovieRepository.instance;
+    if (create) await repo.createList(listName);
+    for (final uuid in uuids) {
+      if (!repo.listsForMovie(uuid).contains(listName)) {
+        await repo.toggleInList(listName, uuid);
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _selected.clear();
+      _selecting = false;
+    });
+    HapticFeedback.mediumImpact();
+    _snack(trf('batch_added_to_list', {'name': listName, 'n': uuids.length}));
   }
 
   /// Пустой результат: если это ПОИСК (query не пуст) — предлагаем искать по
@@ -1519,10 +1745,9 @@ class _PosterCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return GestureDetector(
+    return Pressable(
       onTap: selecting ? onSelect : onTap,
       onLongPress: onSelect,
-      behavior: HitTestBehavior.opaque,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

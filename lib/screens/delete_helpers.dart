@@ -12,6 +12,7 @@ Future<bool> _confirm(BuildContext context, String title) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
+      icon: Icon(Icons.warning_amber_rounded, color: scheme.error, size: 32),
       title: Text(tr('delete_from_base')),
       content: Text(trf('delete_from_base_confirm', {'title': title})),
       actions: [

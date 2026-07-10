@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../l10n/strings.dart';
@@ -137,6 +138,7 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
 
   /// Смена вкладки — сперва гасим клавиатуру (иначе она «висит» на новой вкладке).
   void _goTab(int i) {
+    if (i != _index) HapticFeedback.selectionClick();
     _dismissKeyboard();
     setState(() => _index = i);
   }
@@ -606,10 +608,6 @@ class _KadrDrawer extends StatelessWidget {
             ],
           ),
         ),
-        _drawerTile(context, Icons.home_rounded, tr('drawer_home'), () {
-          Navigator.pop(context);
-          onSelectTab(0);
-        }),
         _drawerTile(context, Icons.search_rounded, tr('drawer_search'), () {
           Navigator.pop(context);
           onSelectTab(2);

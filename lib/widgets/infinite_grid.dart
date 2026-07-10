@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/strings.dart';
 import '../theme/app_theme.dart';
 import 'reveal.dart';
+import 'shimmer.dart';
 
 /// Бесконечная сетка постеров с ленивой подгрузкой по мере прокрутки.
 ///
@@ -154,7 +155,12 @@ class _InfiniteGridState<T> extends State<InfiniteGrid<T>>
   Widget build(BuildContext context) {
     super.build(context);
     if (_page == 0 && _loading) {
-      return const Center(child: CircularProgressIndicator());
+      // Скелет-сетка с мерцанием вместо голого спиннера — «премиальная» загрузка.
+      return PosterGridSkeleton(
+        minTile: widget.minTile,
+        textExtra: widget.textExtra,
+        padding: widget.padding,
+      );
     }
     if (_items.isEmpty && _error) {
       final scheme = Theme.of(context).colorScheme;
