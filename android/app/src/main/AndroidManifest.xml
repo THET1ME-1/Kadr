@@ -6,11 +6,18 @@
     <!-- Бэкап/экспорт идут через системное «Поделиться» и SAF-выбор файла — доступ ко всем файлам не нужен. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29"/>
+
+    <!-- Android TV: то же приложение работает и на ТВ (без сенсорного экрана,
+         leanback не обязателен — на телефоне не мешает). -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
+    <uses-feature android:name="android.software.leanback" android:required="false"/>
+
     <application
         android:label="Kadr"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
+        android:banner="@drawable/tv_banner"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
@@ -33,6 +40,8 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+                <!-- Появляться в лаунчере Android TV. -->
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
