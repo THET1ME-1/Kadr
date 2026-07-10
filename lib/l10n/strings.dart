@@ -55,6 +55,15 @@ const Map<String, Map<String, String>> _strings = {
   'fav_char_remove': {'ru': 'Убрать из любимых', 'en': 'Remove from favourites'},
   'fav_char_title': {'ru': 'Любимый персонаж', 'en': 'Favourite character'},
   'fav_char_from': {'ru': 'из «{title}»', 'en': 'from "{title}"'},
+  'drawer_schedule': {'ru': 'Расписание', 'en': 'Schedule'},
+  'schedule_empty_title': {'ru': 'Пока нечего ждать', 'en': 'Nothing upcoming'},
+  'schedule_empty_sub': {
+    'ru': 'Здесь появятся ближайшие серии сериалов из «Сейчас смотрю».',
+    'en': 'Upcoming episodes of your in-progress series will show here.'
+  },
+  'schedule_today': {'ru': 'сегодня', 'en': 'today'},
+  'schedule_tomorrow': {'ru': 'завтра', 'en': 'tomorrow'},
+  'schedule_in_days': {'ru': 'через {n} дн.', 'en': 'in {n} days'},
   'undo': {'ru': 'Отменить', 'en': 'Undo'},
   'save': {'ru': 'Сохранить', 'en': 'Save'},
   'delete': {'ru': 'Удалить', 'en': 'Delete'},

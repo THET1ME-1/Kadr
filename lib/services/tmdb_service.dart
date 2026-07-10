@@ -177,13 +177,24 @@ class TmdbTvExtra {
   final List<TmdbGenre> genres;
   final int? year;
   final List<TmdbCast> cast;
+
+  /// Ближайшая ещё НЕ вышедшая серия (для раздела «Расписание»). null — сериал
+  /// завершён или данных нет.
+  final String? nextEpDate;
+  final int? nextEpSeason;
+  final int? nextEpNumber;
+  final String? nextEpName;
   const TmdbTvExtra(
       {this.backdropUrl,
       this.posterUrl,
       this.overview,
       this.genres = const [],
       this.year,
-      this.cast = const []});
+      this.cast = const [],
+      this.nextEpDate,
+      this.nextEpSeason,
+      this.nextEpNumber,
+      this.nextEpName});
 }
 
 /// Сезон сериала (для навигации по сериям).
@@ -661,8 +672,13 @@ class TmdbService {
               photo != null ? '${ApiConfig.tmdbProfileBase}$photo' : null,
         );
       }).toList();
+      final nextEp = j['next_episode_to_air'] as Map<String, dynamic>?;
       _tvExtraCache[tvId] = TmdbTvExtra(
         cast: castList,
+        nextEpDate: nextEp?['air_date'] as String?,
+        nextEpSeason: (nextEp?['season_number'] as num?)?.toInt(),
+        nextEpNumber: (nextEp?['episode_number'] as num?)?.toInt(),
+        nextEpName: nextEp?['name'] as String?,
         backdropUrl:
             backdrop != null ? '${ApiConfig.tmdbBackdropBase}$backdrop' : null,
         posterUrl:
