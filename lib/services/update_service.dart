@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../l10n/locale_controller.dart';
+
 /// Данные о доступном обновлении с GitHub Releases.
 class UpdateInfo {
   final String version; // тег без «v», напр. «0.2.6»
@@ -62,7 +64,8 @@ class UpdateService {
 
       return UpdateInfo(
         version: latest,
-        notes: (json['body'] ?? '').toString().trim(),
+        notes: _localizedNotes(
+            (json['body'] ?? '').toString(), LocaleController.instance.code),
         apkUrl: (apkUrl != null && apkUrl.isNotEmpty) ? apkUrl : null,
         releaseUrl: (json['html_url'] ??
                 'https://github.com/$_owner/$_repo/releases/latest')
@@ -170,6 +173,52 @@ class UpdateService {
 
   static List<int> _parts(String v) =>
       v.split('.').map((s) => int.tryParse(s.trim()) ?? 0).toList();
+
+  /// Достаёт из двуязычного тела релиза секцию под язык интерфейса. Формат тела:
+  /// `<!--lang:ru-->…<!--/lang:ru-->` и `<!--lang:en-->…<!--/lang:en-->`
+  /// (HTML-комментарии невидимы на странице GitHub, но есть в теле из API).
+  /// Русский → ru-секция; любой другой язык → en-секция (пишем только ru+en).
+  /// Если маркеров нет (старые релизы) — возвращает всё тело как есть.
+  static String _localizedNotes(String body, String code) {
+    String? block(String lang) {
+      final re = RegExp(
+        '<!--\\s*lang:$lang\\s*-->(.*?)<!--\\s*/\\s*lang:$lang\\s*-->',
+        dotAll: true,
+        caseSensitive: false,
+      );
+      return re.firstMatch(body)?.group(1)?.trim();
+    }
+
+    final chosen =
+        (code == 'ru' ? block('ru') : block('en')) ?? block('en') ?? block('ru');
+    final text =
+        (chosen != null && chosen.isNotEmpty) ? chosen : body.trim();
+    return _stripMarkdown(text);
+  }
+
+  /// Лёгкая чистка markdown, чтобы попап обновления не показывал `#`, `**`, `` ` ``
+  /// как символы (тело показывается обычным текстом, без рендера markdown).
+  static String _stripMarkdown(String s) {
+    final lines = s.split('\n').map((line) {
+      var l = line;
+      l = l.replaceAll(RegExp(r'^\s{0,3}#{1,6}\s*'), ''); // заголовки
+      l = l.replaceAll(RegExp(r'^\s*[-*]\s+'), '• '); // маркеры списка
+      l = l.replaceAllMapped(
+          RegExp(r'\*\*([^*]+)\*\*'), (m) => m.group(1)!); // **жирный**
+      l = l.replaceAllMapped(RegExp(r'`([^`]+)`'), (m) => m.group(1)!); // `код`
+      if (RegExp(r'^\s*---+\s*$').hasMatch(l)) l = ''; // разделители
+      return l;
+    }).toList();
+    // Схлопываем повторяющиеся пустые строки.
+    final out = <String>[];
+    for (final l in lines) {
+      if (l.trim().isEmpty && out.isNotEmpty && out.last.trim().isEmpty) {
+        continue;
+      }
+      out.add(l);
+    }
+    return out.join('\n').trim();
+  }
 
   /// Убираем ведущую «v»: «v0.2.6» → «0.2.6».
   static String _normalize(String v) {
