@@ -18,6 +18,7 @@ import '../widgets/update_sheet.dart';
 import 'about_screen.dart';
 import 'discover_tab.dart';
 import 'dropped_screen.dart';
+import 'drawer_customize_screen.dart';
 import 'library_tab.dart';
 import 'lists_screen.dart';
 import 'news_screen.dart';
@@ -613,59 +614,9 @@ class _KadrDrawer extends StatelessWidget {
             ],
           ),
         ),
-        _drawerTile(context, Icons.search_rounded, tr('drawer_search'), () {
-          Navigator.pop(context);
-          onSelectTab(2);
-        }),
-        _drawerTile(context, Icons.live_tv_rounded, tr('now_watching'), () {
-          Navigator.pop(context);
-          Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const NowWatchingScreen()));
-        }),
-        _drawerTile(context, Icons.dynamic_feed_rounded, tr('activity_title'),
-            () {
-          Navigator.pop(context);
-          Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ActivityScreen()));
-        }),
-        _drawerTile(context, Icons.casino_rounded, tr('roulette_title'), () {
-          Navigator.pop(context);
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const RouletteScreen()));
-        }),
-        _drawerTile(context, Icons.auto_awesome_rounded, tr('for_you_title'),
-            () {
-          Navigator.pop(context);
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const ForYouScreen()));
-        }),
-        _drawerTile(context, Icons.calendar_month_rounded, tr('drawer_schedule'),
-            () {
-          Navigator.pop(context);
-          Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ScheduleScreen()));
-        }),
-        _drawerTile(context, Icons.newspaper_rounded, tr('drawer_news'), () {
-          Navigator.pop(context);
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const NewsScreen()));
-        }),
-        _drawerTile(context, Icons.insights_rounded, tr('drawer_stats'), () {
-          Navigator.pop(context);
-          Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => const StatisticsScreen()));
-        }),
-        _drawerTile(context, Icons.list_alt_rounded, tr('drawer_lists'), () {
-          Navigator.pop(context);
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const ListsScreen()));
-        }),
-        _drawerTile(context, Icons.heart_broken_rounded, tr('drawer_dropped'),
-            () {
-          Navigator.pop(context);
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const DroppedScreen()));
-        }),
+        // Пункты меню — в порядке и с видимостью из настроек (кастомизация).
+        for (final item in AppPrefs.instance.drawerItems)
+          _itemTile(context, item),
         const Divider(indent: 28, endIndent: 28, height: 24),
         _drawerTile(context, Icons.settings_rounded, tr('drawer_settings'), () {
           Navigator.pop(context);
@@ -680,6 +631,32 @@ class _KadrDrawer extends StatelessWidget {
         }),
       ],
     );
+  }
+
+  Widget _itemTile(BuildContext context, DrawerItem item) {
+    void go(Widget screen) {
+      Navigator.pop(context);
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => screen));
+    }
+
+    final VoidCallback onTap = switch (item) {
+      DrawerItem.search => () {
+          Navigator.pop(context);
+          onSelectTab(2);
+        },
+      DrawerItem.nowWatching => () => go(const NowWatchingScreen()),
+      DrawerItem.activity => () => go(const ActivityScreen()),
+      DrawerItem.roulette => () => go(const RouletteScreen()),
+      DrawerItem.forYou => () => go(const ForYouScreen()),
+      DrawerItem.schedule => () => go(const ScheduleScreen()),
+      DrawerItem.news => () => go(const NewsScreen()),
+      DrawerItem.stats => () => go(const StatisticsScreen()),
+      DrawerItem.lists => () => go(const ListsScreen()),
+      DrawerItem.dropped => () => go(const DroppedScreen()),
+    };
+    return _drawerTile(
+        context, drawerItemIcon(item), tr(drawerItemLabelKey(item)), onTap);
   }
 
   Widget _drawerTile(

@@ -76,6 +76,11 @@ const Map<String, Map<String, String>> _strings = {
   'news_recent': {'ru': 'только что', 'en': 'just now'},
   'news_hours_ago': {'ru': '{n} ч назад', 'en': '{n}h ago'},
   'news_days_ago': {'ru': '{n} дн назад', 'en': '{n}d ago'},
+  'drawer_customize': {'ru': 'Настроить меню', 'en': 'Customize menu'},
+  'drawer_customize_sub': {
+    'ru': 'Порядок и видимость пунктов бокового меню',
+    'en': 'Order and visibility of side-menu items'
+  },
   'tv_mode': {'ru': 'TV-режим', 'en': 'TV mode'},
   'tv_mode_sub': {
     'ru': 'Интерфейс под пульт (авто на Android TV)',

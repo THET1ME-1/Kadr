@@ -49,6 +49,21 @@ enum StartScreen { watchlist, watched, nowWatching, discover, cinema }
 /// Позиция кнопки «+» (докнута к нижней навигации).
 enum FabPosition { center, left, right }
 
+/// Настраиваемые пункты бокового меню (порядок и видимость). Настройки и «О
+/// приложении» — фиксированные, здесь их нет.
+enum DrawerItem {
+  search,
+  nowWatching,
+  activity,
+  roulette,
+  forYou,
+  schedule,
+  news,
+  stats,
+  lists,
+  dropped,
+}
+
 /// Что скрывать в ленте «Обзор» — по типу (фильм/сериал) и статусу отдельно.
 enum DiscoverHide {
   watchedMovies,
@@ -91,6 +106,21 @@ class AppPrefs extends ChangeNotifier {
 
   bool discoverHidden(DiscoverHide h) => _discHide[h] ?? false;
 
+  /// Полный порядок пунктов меню и скрытые из них.
+  List<DrawerItem> drawerOrder = List.of(DrawerItem.values);
+  Set<DrawerItem> drawerHidden = {};
+
+  /// Видимые пункты меню в выбранном порядке (для отрисовки drawer).
+  List<DrawerItem> get drawerItems =>
+      [for (final i in drawerOrder) if (!drawerHidden.contains(i)) i];
+
+  static DrawerItem? _parseDrawer(String s) {
+    for (final i in DrawerItem.values) {
+      if (i.name == s) return i;
+    }
+    return null;
+  }
+
   /// Любимый персонаж (для статистики). null — не выбран.
   FavoriteCharacter? favoriteCharacter;
 
@@ -118,6 +148,21 @@ class AppPrefs extends ChangeNotifier {
           h == DiscoverHide.watchedMovies || h == DiscoverHide.watchedSeries;
       _discHide[h] = await Store.instance.getBool(_discKey(h), def: def);
     }
+    final order = await Store.instance.getString('drawer.order');
+    if (order != null && order.isNotEmpty) {
+      final parsed =
+          order.split(',').map(_parseDrawer).whereType<DrawerItem>().toList();
+      // Новые пункты (появившиеся в обновлении) добавляем в конец, чтобы не терять.
+      for (final i in DrawerItem.values) {
+        if (!parsed.contains(i)) parsed.add(i);
+      }
+      drawerOrder = parsed;
+    }
+    final hidden = await Store.instance.getString('drawer.hidden');
+    if (hidden != null && hidden.isNotEmpty) {
+      drawerHidden =
+          hidden.split(',').map(_parseDrawer).whereType<DrawerItem>().toSet();
+    }
     final favRaw = await Store.instance.getString('favChar');
     favoriteCharacter = (favRaw == null || favRaw.isEmpty)
         ? null
@@ -128,6 +173,22 @@ class AppPrefs extends ChangeNotifier {
         : (jsonDecode(faRaw) as List)
             .map((e) => FavoriteActor.fromJson(e as Map<String, dynamic>))
             .toList();
+  }
+
+  Future<void> setDrawerOrder(List<DrawerItem> order) async {
+    drawerOrder = order;
+    await Store.instance
+        .setString('drawer.order', order.map((e) => e.name).join(','));
+    notifyListeners();
+  }
+
+  Future<void> setDrawerHidden(DrawerItem item, bool hidden) async {
+    drawerHidden = hidden
+        ? {...drawerHidden, item}
+        : drawerHidden.where((x) => x != item).toSet();
+    await Store.instance
+        .setString('drawer.hidden', drawerHidden.map((e) => e.name).join(','));
+    notifyListeners();
   }
 
   Future<void> setFavoriteCharacter(FavoriteCharacter? c) async {

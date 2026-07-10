@@ -19,6 +19,7 @@ import '../theme/theme_controller.dart';
 import '../widgets/appearance_card.dart';
 import 'about_screen.dart';
 import 'auto_backup_screen.dart';
+import 'drawer_customize_screen.dart';
 import 'trakt_screen.dart';
 import 'sync_screen.dart';
 import 'tmdb_key_screen.dart';
@@ -122,6 +123,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: tr('fab_position'),
                   subtitle: _fabPositionLabel(_prefs.fabPosition),
                   onTap: _pickFabPosition,
+                ),
+                _divider(),
+                _tile(
+                  icon: Icons.menu_open_rounded,
+                  title: tr('drawer_customize'),
+                  subtitle: tr('drawer_customize_sub'),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const DrawerCustomizeScreen())),
                 ),
                 _divider(),
                 SwitchListTile(
