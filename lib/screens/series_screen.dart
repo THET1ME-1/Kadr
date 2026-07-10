@@ -875,9 +875,12 @@ class _SeriesScreenState extends State<SeriesScreen> {
                     fontFamily: AppTheme.bodyFont,
                     fontWeight: FontWeight.w600,
                     color: _season == se.number
-                        ? scheme.onSecondaryContainer
+                        ? scheme.onPrimary
                         : scheme.onSurfaceVariant),
-                selectedColor: scheme.secondaryContainer,
+                selectedColor: scheme.primary,
+                backgroundColor: scheme.surfaceContainerHighest,
+                side: BorderSide.none,
+                shape: const StadiumBorder(),
                 showCheckmark: false,
               ),
             ),

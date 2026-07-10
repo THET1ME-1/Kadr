@@ -490,19 +490,23 @@ class _DiscoverTabState extends State<DiscoverTab>
     required IconData icon,
     required VoidCallback onTap,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     return FilterChip(
       selected: selected,
       showCheckmark: false,
+      side: BorderSide.none,
+      shape: const StadiumBorder(),
+      backgroundColor: scheme.surfaceContainerHighest,
+      selectedColor: scheme.primary,
       avatar: Icon(icon,
           size: 17,
-          color: selected
-              ? Theme.of(context).colorScheme.onSecondaryContainer
-              : Theme.of(context).colorScheme.onSurfaceVariant),
+          color: selected ? scheme.onPrimary : scheme.onSurfaceVariant),
       label: Text(label),
-      labelStyle: const TextStyle(
+      labelStyle: TextStyle(
           fontFamily: AppTheme.bodyFont,
           fontWeight: FontWeight.w600,
-          fontSize: 13),
+          fontSize: 13,
+          color: selected ? scheme.onPrimary : scheme.onSurfaceVariant),
       onSelected: (_) {
         HapticFeedback.selectionClick();
         onTap();
