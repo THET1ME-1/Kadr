@@ -57,6 +57,9 @@ class AppTheme {
     return base.copyWith(
       textTheme: textTheme,
       scaffoldBackgroundColor: colorScheme.surface,
+      // Заметная подсветка фокуса для пульта/клавиатуры (Android TV). На тач-вводе
+      // фокус не появляется — на телефоне визуально ничего не меняется.
+      focusColor: colorScheme.primary.withValues(alpha: 0.22),
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,

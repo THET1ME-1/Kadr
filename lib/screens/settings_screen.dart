@@ -152,6 +152,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: _fabPositionLabel(_prefs.fabPosition),
                   onTap: _pickFabPosition,
                 ),
+                _divider(),
+                SwitchListTile(
+                  secondary: const Icon(Icons.tv_rounded),
+                  title: Text(tr('tv_mode')),
+                  subtitle: Text(tr('tv_mode_sub')),
+                  value: _prefs.forceTvMode,
+                  onChanged: _prefs.setForceTvMode,
+                ),
               ]),
               _section(tr('disc_hide_section')),
               _card([

@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 
 import 'store.dart';
@@ -74,6 +76,15 @@ class AppPrefs extends ChangeNotifier {
   /// Позиция кнопки «+» над нижней навигацией (центр/слева/справа).
   FabPosition fabPosition = FabPosition.center;
 
+  /// Устройство — Android TV (leanback). Определяется при запуске.
+  bool isTvDevice = false;
+
+  /// Принудительно включить TV-режим (для превью на телефоне).
+  bool forceTvMode = false;
+
+  /// Активен ли TV-режим (крупный интерфейс под пульт).
+  bool get tvActive => isTvDevice || forceTvMode;
+
   /// Скрытые в «Обзоре» статусы. По умолчанию скрыты уже просмотренные
   /// (как было раньше), остальное показывается.
   final Map<DiscoverHide, bool> _discHide = {};
@@ -93,6 +104,15 @@ class AppPrefs extends ChangeNotifier {
     final raw = await Store.instance.getString('startScreen');
     startScreen = _parse(raw);
     fabPosition = _parseFab(await Store.instance.getString('fabPosition'));
+    forceTvMode = await Store.instance.getBool('forceTvMode');
+    try {
+      if (Platform.isAndroid) {
+        final info = await DeviceInfoPlugin().androidInfo;
+        isTvDevice = info.systemFeatures
+                .contains('android.software.leanback') ||
+            info.systemFeatures.contains('android.software.leanback_only');
+      }
+    } catch (_) {/* детект не критичен */}
     for (final h in DiscoverHide.values) {
       final def =
           h == DiscoverHide.watchedMovies || h == DiscoverHide.watchedSeries;
@@ -146,6 +166,13 @@ class AppPrefs extends ChangeNotifier {
     if (fabPosition == p) return;
     fabPosition = p;
     await Store.instance.setString('fabPosition', p.name);
+    notifyListeners();
+  }
+
+  Future<void> setForceTvMode(bool v) async {
+    if (forceTvMode == v) return;
+    forceTvMode = v;
+    await Store.instance.setBool('forceTvMode', v);
     notifyListeners();
   }
 

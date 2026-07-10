@@ -338,7 +338,7 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
           ),
         ],
       ),
-      floatingActionButton: onLibrary
+      floatingActionButton: (onLibrary && !AppPrefs.instance.tvActive)
           ? FloatingActionButton(
               onPressed: () => _goTab(2),
               shape: const CircleBorder(), // именно круг, а не M3-квадрат

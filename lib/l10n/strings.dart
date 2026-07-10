@@ -76,6 +76,11 @@ const Map<String, Map<String, String>> _strings = {
   'news_recent': {'ru': 'только что', 'en': 'just now'},
   'news_hours_ago': {'ru': '{n} ч назад', 'en': '{n}h ago'},
   'news_days_ago': {'ru': '{n} дн назад', 'en': '{n}d ago'},
+  'tv_mode': {'ru': 'TV-режим', 'en': 'TV mode'},
+  'tv_mode_sub': {
+    'ru': 'Интерфейс под пульт (авто на Android TV)',
+    'en': 'Remote-friendly UI (auto on Android TV)'
+  },
   'undo': {'ru': 'Отменить', 'en': 'Undo'},
   'save': {'ru': 'Сохранить', 'en': 'Save'},
   'delete': {'ru': 'Удалить', 'en': 'Delete'},
