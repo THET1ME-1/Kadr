@@ -264,12 +264,12 @@ const Map<String, Map<String, String>> _strings = {
   'tmdb_key_field': {'ru': 'TMDB Read Access Token', 'en': 'TMDB Read Access Token'},
   'tmdb_key_hint': {'ru': 'eyJ…', 'en': 'eyJ…'},
   'kinopoisk_key_field': {
-    'ru': 'Ключ kinopoisk.dev (необязательно)',
-    'en': 'kinopoisk.dev key (optional)'
+    'ru': 'Ключ ПоискКино (необязательно)',
+    'en': 'PoiskKino key (optional)'
   },
   'kinopoisk_key_hint': {
-    'ru': 'Только если хочешь источник «Кинопоиск»',
-    'en': 'Only if you want the "Kinopoisk" source'
+    'ru': 'Только если хочешь источник «ПоискКино»',
+    'en': 'Only if you want the "PoiskKino" source'
   },
   'tmdb_key_save_go': {'ru': 'Сохранить и продолжить', 'en': 'Save and continue'},
   'tmdb_key_empty': {'ru': 'Вставь токен', 'en': 'Paste a token'},
@@ -284,8 +284,8 @@ const Map<String, Map<String, String>> _strings = {
   },
   'api_keys_title': {'ru': 'API-ключи (TMDB)', 'en': 'API keys (TMDB)'},
   'api_keys_sub': {
-    'ru': 'Свой токен TMDB / kinopoisk',
-    'en': 'Your TMDB / kinopoisk key'
+    'ru': 'Свой токен TMDB / PoiskKino',
+    'en': 'Your TMDB / PoiskKino key'
   },
   'support_authors': {'ru': 'Поддержать авторов', 'en': 'Support the authors'},
   'support_authors_sub': {
@@ -538,7 +538,7 @@ const Map<String, Map<String, String>> _strings = {
   },
   'ob3_title': {'ru': 'Русский и постеры', 'en': 'Russian & posters'},
   'ob3_sub': {
-    'ru': 'Названия и обложки подтягиваются автоматически из TMDB и Кинопоиска.',
+    'ru': 'Названия и обложки подтягиваются автоматически из TMDB и ПоискКино.',
     'en': 'Titles and posters are fetched automatically from TMDB.'
   },
   'ob4_title': {'ru': 'Статистика и списки', 'en': 'Stats & lists'},
@@ -593,7 +593,7 @@ const Map<String, Map<String, String>> _strings = {
   'stat_by_weekday': {'ru': 'По дням недели', 'en': 'By weekday'},
   'stat_by_decade': {'ru': 'Годы выхода', 'en': 'Release years'},
   'stat_split': {'ru': 'Фильмы и сериалы', 'en': 'Movies & series'},
-  'stat_vs_kp': {'ru': 'Ты и Кинопоиск', 'en': 'You vs Kinopoisk'},
+  'stat_vs_kp': {'ru': 'Ты и ПоискКино', 'en': 'You vs PoiskKino'},
   'stat_vs_kp_higher': {
     'ru': 'Ты оцениваешь выше КП на {d}',
     'en': "You rate higher than KP by {d}"
@@ -644,8 +644,8 @@ const Map<String, Map<String, String>> _strings = {
   'drawer_about': {'ru': 'О приложении', 'en': 'About'},
   'version': {'ru': 'Версия', 'en': 'Version'},
   'about_attribution': {
-    'ru': 'Данные о фильмах — TMDB и Кинопоиск. Продукт использует API TMDB, но не одобрен и не сертифицирован TMDB.',
-    'en': 'Movie data by TMDB and Kinopoisk. This product uses the TMDB API but is not endorsed or certified by TMDB.'
+    'ru': 'Данные о фильмах — TMDB и ПоискКино. Продукт использует API TMDB, но не одобрен и не сертифицирован TMDB.',
+    'en': 'Movie data by TMDB and PoiskKino. This product uses the TMDB API but is not endorsed or certified by TMDB.'
   },
   'search_hint': {'ru': 'Фильмы и сериалы…', 'en': 'Movies and series…'},
   'search_all_hint': {
@@ -848,7 +848,7 @@ const Map<String, Map<String, String>> _strings = {
   'mark_watched': {'ru': 'Отметить просмотр', 'en': 'Log a watch'},
   'add_watchlist': {'ru': 'Буду смотреть', 'en': 'Watchlist'},
   'in_watchlist': {'ru': 'В списке', 'en': 'In watchlist'},
-  'kp_rating': {'ru': 'Кинопоиск', 'en': 'Kinopoisk'},
+  'kp_rating': {'ru': 'ПоискКино', 'en': 'PoiskKino'},
 
   // ---------------------- Когда посмотрели ----------------------
   'when_today': {'ru': 'Сегодня', 'en': 'Today'},
@@ -1317,9 +1317,9 @@ const Map<String, Map<String, String>> _strings = {
   },
   'close': {'ru': 'Закрыть', 'en': 'Close'},
   'kp_limit_hit': {
-    'ru': 'Лимит kinopoisk.dev на сегодня исчерпан (200 запросов/сутки). '
+    'ru': 'Лимит ПоискКино на сегодня исчерпан (200 запросов/сутки). '
         'Постеры и поиск дозагрузятся позже.',
-    'en': 'kinopoisk.dev daily limit reached (200 requests/day). '
+    'en': 'PoiskKino daily limit reached (200 requests/day). '
         'Posters and search will resume later.',
   },
   'kp_limit_switch': {'ru': 'На TMDB', 'en': 'Use TMDB'},

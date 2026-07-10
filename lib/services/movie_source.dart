@@ -9,7 +9,7 @@ extension MovieSourceX on MovieSource {
   String get id => name;
   String get label => switch (this) {
         MovieSource.tmdb => 'TMDB',
-        MovieSource.kinopoisk => 'kinopoisk.dev',
+        MovieSource.kinopoisk => 'ПоискКино',
         MovieSource.tvdb => 'TheTVDB',
       };
   String get note => switch (this) {

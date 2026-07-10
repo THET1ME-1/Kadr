@@ -674,11 +674,11 @@ class _MovieScreenState extends State<MovieScreen> {
     // лимит API) — открываем поиск Кинопоиска по названию+году, чтобы ссылка
     // была ВСЕГДА, ведь сам фильм на КП обычно есть.
     if (m.kinopoiskId != null) {
-      add('Кинопоиск', const Color(0xFFFF6600),
+      add('ПоискКино', const Color(0xFFFF6600),
           'https://www.kinopoisk.ru/film/${m.kinopoiskId}/');
     } else {
       final q = [m.displayTitle, if (m.year != null) '${m.year}'].join(' ');
-      add('Кинопоиск', const Color(0xFFFF6600),
+      add('ПоискКино', const Color(0xFFFF6600),
           'https://www.kinopoisk.ru/index.php?kp_query=${Uri.encodeQueryComponent(q)}');
     }
     if (_details?.imdbId != null) {

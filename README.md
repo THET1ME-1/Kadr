@@ -31,7 +31,7 @@
 
 ### Stack
 - **Flutter** (Material 3 Expressive, dynamic color / Material You)
-- **Content sources** (selectable in Settings): [TMDB](https://www.themoviedb.org/) · [Kinopoisk](https://kinopoisk.dev/) · [TheTVDB](https://www.thetvdb.com/). Each user brings their **own key** — except **TheTVDB**, which uses one project key (free for projects under **$50k/yr**, attribution required). The library stores cross-source IDs (imdb / tmdb / tvdb), so switching or dropping a source never loses your data.
+- **Content sources** (selectable in Settings): [TMDB](https://www.themoviedb.org/) · [PoiskKino](https://poiskkino.dev/) · [TheTVDB](https://www.thetvdb.com/). Each user brings their **own key** — except **TheTVDB**, which uses one project key (free for projects under **$50k/yr**, attribution required). The library stores cross-source IDs (imdb / tmdb / tvdb), so switching or dropping a source never loses your data.
 - **Data**: local-first + JSON backup + sync (WebDAV / P2P)
 - **Backend** (social / friends): Cloudflare Workers + D1 + R2 — entirely on the **free tier**
   (10 GB R2 with zero egress, $0). No secrets are stored in this repo.
@@ -94,7 +94,7 @@ Roadmap & status — see [PLAN.md](PLAN.md).
 
 ### Стек
 - **Flutter** (Material 3 Expressive, dynamic color / Material You)
-- **Источники данных** (на выбор в настройках): [TMDB](https://www.themoviedb.org/) · [Кинопоиск](https://kinopoisk.dev/) · [TheTVDB](https://www.thetvdb.com/). Каждый вводит **свой ключ** — кроме **TheTVDB** (один ключ проекта: бесплатно для проектов до **$50k/год**, с атрибуцией). Библиотека хранит перекрёстные ID (imdb / tmdb / tvdb), поэтому смена или отключение источника не теряет данные.
+- **Источники данных** (на выбор в настройках): [TMDB](https://www.themoviedb.org/) · [ПоискКино](https://poiskkino.dev/) · [TheTVDB](https://www.thetvdb.com/). Каждый вводит **свой ключ** — кроме **TheTVDB** (один ключ проекта: бесплатно для проектов до **$50k/год**, с атрибуцией). Библиотека хранит перекрёстные ID (imdb / tmdb / tvdb), поэтому смена или отключение источника не теряет данные.
 - **Данные**: локально-первично + JSON-бэкап + синхронизация (WebDAV / P2P)
 - **Бэкенд** (соц-слой / друзья): Cloudflare Workers + D1 + R2 — целиком на **бесплатном тарифе**
   (10 ГБ R2, нулевой исходящий трафик, $0). Секретов в репозитории нет.
