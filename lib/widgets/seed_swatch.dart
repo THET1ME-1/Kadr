@@ -1,25 +1,34 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 /// Кружок-превью цветовой схемы: 4 квадранта из тонов, сгенерированных из
 /// seed-цвета (как в пикере Material You), вместо скучной одноцветной точки.
 class SeedSwatch extends StatelessWidget {
   final Color seed;
   final bool selected;
   final double size;
+  final bool vibrant;
   final VoidCallback? onTap;
   const SeedSwatch({
     super.key,
     required this.seed,
     this.selected = false,
     this.size = 44,
+    this.vibrant = true,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     // Схема из seed (светлая — пастельные, читаемые тона на любом фоне, как в
-    // системном пикере). Совпадает с тем, как тему строит AppTheme.
-    final s = ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.light);
+    // системном пикере). Совпадает с тем, как тему строит AppTheme, включая
+    // выбранную насыщенность (Сочно/Точь-в-точь).
+    final s = ColorScheme.fromSeed(
+      seedColor: seed,
+      brightness: Brightness.light,
+      dynamicSchemeVariant: AppTheme.variantFor(vibrant),
+    );
     final scheme = Theme.of(context).colorScheme;
     final quads = <Color>[
       s.primaryContainer, // ↖ светлый

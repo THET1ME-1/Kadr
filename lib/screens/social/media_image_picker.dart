@@ -25,8 +25,21 @@ class _MediaResult {
 /// Открывает поиск по TMDB, затем — выбор конкретного КАДРА (backdrop) или
 /// ПОСТЕРА выбранного фильма/сериала из нескольких вариантов. Возвращает URL
 /// выбранной картинки. [backdrop] = false → постер (аватар); true → кадр (баннер).
+///
+/// Если задан [initialTmdbId], пикер сразу открывается на картинках этого
+/// тайтла (без поиска) — например, чтобы выбрать другой официальный постер
+/// конкретного фильма/сериала. Кнопка «назад» всё равно ведёт к поиску.
 Future<String?> showMediaImagePicker(BuildContext context,
-    {required bool backdrop}) {
+    {required bool backdrop,
+    int? initialTmdbId,
+    bool initialIsTv = false,
+    String? initialTitle}) {
+  final initial = initialTmdbId == null
+      ? null
+      : _MediaResult(
+          id: initialTmdbId,
+          isTv: initialIsTv,
+          title: initialTitle ?? '');
   return showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
@@ -34,13 +47,16 @@ Future<String?> showMediaImagePicker(BuildContext context,
     backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-    builder: (ctx) => _MediaPickerSheet(backdrop: backdrop),
+    builder: (ctx) => _MediaPickerSheet(backdrop: backdrop, initial: initial),
   );
 }
 
 class _MediaPickerSheet extends StatefulWidget {
   final bool backdrop;
-  const _MediaPickerSheet({required this.backdrop});
+
+  /// Предвыбранный тайтл — пикер сразу показывает его картинки.
+  final _MediaResult? initial;
+  const _MediaPickerSheet({required this.backdrop, this.initial});
 
   @override
   State<_MediaPickerSheet> createState() => _MediaPickerSheetState();
@@ -57,6 +73,20 @@ class _MediaPickerSheetState extends State<_MediaPickerSheet> {
   _MediaResult? _selected;
   List<String> _images = const [];
   bool _loadingImages = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Открыты для конкретного тайтла — сразу показываем уровень картинок
+    // (спиннер), минуя поиск и всплытие клавиатуры, и грузим постеры.
+    if (widget.initial != null) {
+      _selected = widget.initial;
+      _loadingImages = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openImages(widget.initial!);
+      });
+    }
+  }
 
   @override
   void dispose() {

@@ -28,6 +28,7 @@ import '../widgets/score_pad.dart';
 import '../widgets/user_avatar.dart';
 import 'browse_screens.dart';
 import 'social/auth_screen.dart';
+import 'social/media_image_picker.dart';
 import 'share_card_sheet.dart';
 import 'when_watched_sheet.dart';
 
@@ -816,9 +817,9 @@ class _MovieScreenState extends State<MovieScreen> {
         ),
       );
 
-  /// Копирует текст в буфер обмена (по удержанию названия/описания).
-  /// Локальная замена постера фильма своим изображением (долгое нажатие на
-  /// постер). Меняется в одном месте — отображается везде.
+  /// Замена постера фильма: выбор из галереи, из официальных постеров TMDB или
+  /// сброс к оригиналу (долгое нажатие на постер). Меняется в одном месте —
+  /// отображается везде.
   Future<void> _editMoviePoster(LibraryMovie m) async {
     final scheme = Theme.of(context).colorScheme;
     final action = await showModalBottomSheet<String>(
@@ -829,8 +830,13 @@ class _MovieScreenState extends State<MovieScreen> {
           children: [
             ListTile(
               leading: Icon(Icons.image_rounded, color: scheme.primary),
-              title: Text(tr('poster_change')),
+              title: Text(tr('banner_choose')),
               onTap: () => Navigator.pop(ctx, 'pick'),
+            ),
+            ListTile(
+              leading: Icon(Icons.movie_filter_rounded, color: scheme.primary),
+              title: Text(tr('pick_from_poster')),
+              onTap: () => Navigator.pop(ctx, 'tmdb'),
             ),
             if (m.posterFile != null)
               ListTile(
@@ -847,6 +853,24 @@ class _MovieScreenState extends State<MovieScreen> {
     if (action == 'reset') {
       await _repo.clearMoviePosterLocal(m.uuid);
       if (mounted) setState(() {});
+      return;
+    }
+    if (action == 'tmdb') {
+      final url = await showMediaImagePicker(
+        context,
+        backdrop: false,
+        initialTmdbId: m.tmdbId,
+        initialIsTv: false,
+        initialTitle: m.title,
+      );
+      if (!mounted || url == null) return;
+      final ok = await _repo.setMoviePosterFromUrl(m.uuid, url);
+      if (!mounted) return;
+      if (ok) {
+        setState(() {});
+      } else {
+        _snack(tr('poster_load_failed'));
+      }
       return;
     }
     try {

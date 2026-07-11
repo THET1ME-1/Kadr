@@ -28,6 +28,10 @@ const Map<String, Map<String, String>> _strings = {
   'app_name': {'ru': 'Kadr', 'en': 'Kadr'},
   'cancel': {'ru': 'Отмена', 'en': 'Cancel'},
   'poster_change': {'ru': 'Изменить постер', 'en': 'Change poster'},
+  'poster_load_failed': {
+    'ru': 'Не удалось загрузить постер',
+    'en': 'Failed to load poster'
+  },
   'poster_reset': {'ru': 'Вернуть оригинал', 'en': 'Restore original'},
   'disc_hide_section': {'ru': 'Скрывать в Обзоре', 'en': 'Hide in Discover'},
   'disc_hide_watched_movies': {
@@ -810,6 +814,9 @@ const Map<String, Map<String, String>> _strings = {
   'theme_presets': {'ru': 'Палитры', 'en': 'Palettes'},
   'theme_color': {'ru': 'Цвет оформления', 'en': 'Theme color'},
   'theme_color_custom': {'ru': 'Свой цвет', 'en': 'Custom color'},
+  'theme_intensity': {'ru': 'Насыщенность', 'en': 'Intensity'},
+  'theme_vibrant': {'ru': 'Сочно', 'en': 'Vivid'},
+  'theme_faithful': {'ru': 'Точь-в-точь', 'en': 'Exact'},
   'movies_section': {'ru': 'Фильмы', 'en': 'Movies'},
   'movie_source': {'ru': 'Источник поиска', 'en': 'Search source'},
   'movie_source_sub': {

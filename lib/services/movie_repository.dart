@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import '../l10n/locale_controller.dart';
@@ -2118,5 +2119,33 @@ class MovieRepository extends ChangeNotifier {
     s.posterFile = null;
     notifyListeners();
     await _persist();
+  }
+
+  /// Ставит фильму постер из сетевого URL (официальный постер TMDB): скачивает
+  /// картинку и сохраняет её как локальный постер — устойчиво к обновлению
+  /// сетевого `posterUrl` при следующем обогащении. Возвращает true при успехе.
+  Future<bool> setMoviePosterFromUrl(String uuid, String url) async {
+    final bytes = await _downloadImage(url);
+    if (bytes == null) return false;
+    return setMoviePosterLocal(uuid, bytes);
+  }
+
+  /// Ставит сериалу постер из сетевого URL (см. [setMoviePosterFromUrl]).
+  Future<bool> setSeriesPosterFromUrl(String id, String url) async {
+    final bytes = await _downloadImage(url);
+    if (bytes == null) return false;
+    return setSeriesPosterLocal(id, bytes);
+  }
+
+  Future<Uint8List?> _downloadImage(String url) async {
+    try {
+      final resp = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 20));
+      if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+        return resp.bodyBytes;
+      }
+    } catch (_) {/* нет сети/битый URL — вернём null, экран покажет ошибку */}
+    return null;
   }
 }

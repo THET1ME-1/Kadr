@@ -26,6 +26,7 @@ import '../widgets/score_pad.dart';
 import 'browse_screens.dart';
 import 'delete_helpers.dart';
 import 'social/friend_pick_sheet.dart';
+import 'social/media_image_picker.dart';
 
 /// Экран сериала (M3 Expressive): крупная шапка с бэкдропом, оценка всего
 /// сериала, выбор сезона, отметка «весь сезон разом», а у каждой серии —
@@ -686,7 +687,8 @@ class _SeriesScreenState extends State<SeriesScreen> {
 
   // ----------------------- действия (оценка/избранное) -----------------------
 
-  /// Локальная замена постера сериала своим изображением (долгое нажатие).
+  /// Замена постера сериала: выбор из галереи, из официальных постеров TMDB
+  /// или сброс к оригиналу (долгое нажатие на постер).
   Future<void> _editSeriesPoster(LibrarySeries s) async {
     final scheme = Theme.of(context).colorScheme;
     final action = await showModalBottomSheet<String>(
@@ -697,8 +699,13 @@ class _SeriesScreenState extends State<SeriesScreen> {
           children: [
             ListTile(
               leading: Icon(Icons.image_rounded, color: scheme.primary),
-              title: Text(tr('poster_change')),
+              title: Text(tr('banner_choose')),
               onTap: () => Navigator.pop(ctx, 'pick'),
+            ),
+            ListTile(
+              leading: Icon(Icons.movie_filter_rounded, color: scheme.primary),
+              title: Text(tr('pick_from_poster')),
+              onTap: () => Navigator.pop(ctx, 'tmdb'),
             ),
             if (s.posterFile != null)
               ListTile(
@@ -715,6 +722,24 @@ class _SeriesScreenState extends State<SeriesScreen> {
     if (action == 'reset') {
       await _repo.clearSeriesPosterLocal(s.tvShowId);
       if (mounted) setState(() {});
+      return;
+    }
+    if (action == 'tmdb') {
+      final url = await showMediaImagePicker(
+        context,
+        backdrop: false,
+        initialTmdbId: _tmdbId ?? s.tmdbId,
+        initialIsTv: true,
+        initialTitle: s.title,
+      );
+      if (!mounted || url == null) return;
+      final ok = await _repo.setSeriesPosterFromUrl(s.tvShowId, url);
+      if (!mounted) return;
+      if (ok) {
+        setState(() {});
+      } else {
+        _snack(tr('poster_load_failed'));
+      }
       return;
     }
     try {

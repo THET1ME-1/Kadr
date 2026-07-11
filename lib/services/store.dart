@@ -33,6 +33,13 @@ class Store {
   Future<void> setAmoledEnabled(bool v) async =>
       (await _p).setBool('amoled', v);
 
+  /// Насыщенность схемы: true — «Сочно» (vibrant), false — «Точь-в-точь»
+  /// (fidelity). По умолчанию сочно.
+  Future<bool> vibrantSchemeEnabled() async =>
+      (await _p).getBool('vibrantScheme') ?? true;
+  Future<void> setVibrantSchemeEnabled(bool v) async =>
+      (await _p).setBool('vibrantScheme', v);
+
   // ------------------------------- Язык -------------------------------
   Future<String?> languageCode() async => (await _p).getString('lang');
   Future<void> setLanguageCode(String v) async =>

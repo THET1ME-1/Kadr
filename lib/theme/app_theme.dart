@@ -22,14 +22,34 @@ class AppTheme {
   static const Curve emphasized = Cubic(0.2, 0.0, 0.0, 1.0);
   static const Curve emphasizedDecelerate = Cubic(0.05, 0.7, 0.1, 1.0);
 
-  static ThemeData light(Color seed) =>
-      fromScheme(ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.light));
+  /// Вариант генерации схемы из seed-цвета.
+  ///
+  /// [vibrant] = «Сочно»: [DynamicSchemeVariant.vibrant] — максимальная
+  /// насыщенность, темы резко различаются между собой, акцент — яркая версия
+  /// выбранного оттенка. Иначе «Точь-в-точь»: [DynamicSchemeVariant.fidelity] —
+  /// primary держится ровно у выбранного цвета (что выбрал, то и видишь).
+  ///
+  /// Дефолт по умолчанию `tonalSpot` (в старых версиях) специально «пастелит» —
+  /// срезает насыщенность до фиксированного низкого уровня, из-за чего любой
+  /// выбранный цвет выходил приглушённым, а разные пресеты выглядели похоже.
+  static DynamicSchemeVariant variantFor(bool vibrant) =>
+      vibrant ? DynamicSchemeVariant.vibrant : DynamicSchemeVariant.fidelity;
+
+  static ThemeData light(Color seed, {bool vibrant = true}) =>
+      fromScheme(ColorScheme.fromSeed(
+        seedColor: seed,
+        brightness: Brightness.light,
+        dynamicSchemeVariant: variantFor(vibrant),
+      ));
 
   /// Тёмная тема. При [amoled] фон становится чисто чёрным, а контейнеры —
   /// очень тёмными (но различимыми), чтобы блоки оставались видны.
-  static ThemeData dark(Color seed, {bool amoled = false}) {
-    var scheme =
-        ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark);
+  static ThemeData dark(Color seed, {bool amoled = false, bool vibrant = true}) {
+    var scheme = ColorScheme.fromSeed(
+      seedColor: seed,
+      brightness: Brightness.dark,
+      dynamicSchemeVariant: variantFor(vibrant),
+    );
     if (amoled) {
       scheme = scheme.copyWith(
         surface: const Color(0xFF000000),

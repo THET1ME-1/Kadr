@@ -831,6 +831,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 for (final c in _kAccentPalette)
                   SeedSwatch(
                     seed: c,
+                    vibrant: theme.vibrantScheme,
                     selected: theme.seedColor.toARGB32() == c.toARGB32(),
                     onTap: () {
                       HapticFeedback.selectionClick();
@@ -840,6 +841,39 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 // Свой цвет — живой колор-пикер (HSV-колесо + HEX).
                 _customColorButton(scheme, theme),
               ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              tr('theme_intensity'),
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontSize: 12,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<bool>(
+                showSelectedIcon: false,
+                segments: [
+                  ButtonSegment(
+                    value: true,
+                    icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                    label: Text(tr('theme_vibrant')),
+                  ),
+                  ButtonSegment(
+                    value: false,
+                    icon: const Icon(Icons.gps_fixed_rounded, size: 18),
+                    label: Text(tr('theme_faithful')),
+                  ),
+                ],
+                selected: {theme.vibrantScheme},
+                onSelectionChanged: (s) {
+                  HapticFeedback.selectionClick();
+                  theme.setVibrantScheme(s.first);
+                },
+              ),
             ),
           ],
         ],
