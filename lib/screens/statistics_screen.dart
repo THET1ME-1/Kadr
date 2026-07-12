@@ -6,6 +6,7 @@ import '../models/library_entry.dart';
 import '../services/app_prefs.dart';
 import '../services/movie_repository.dart';
 import '../theme/app_theme.dart';
+import '../widgets/diary_sheet.dart' show kDiaryPlaces;
 import '../utils/format.dart';
 import '../utils/score.dart';
 import '../widgets/poster.dart';
@@ -104,6 +105,7 @@ class StatisticsScreen extends StatelessWidget {
                       const SizedBox(height: 20),
                       _emotions(context, s),
                     ],
+                    _diaryCard(context),
                     if (s.topRated.isNotEmpty) ...[
                       const SizedBox(height: 24),
                       _section(context, tr('stat_top')),
@@ -134,6 +136,162 @@ class StatisticsScreen extends StatelessWidget {
   // ------------------------------ шапка-итог ------------------------------
 
   /// Как ты оцениваешь кино РАЗНЫХ лет ВЫХОДА (фильмы+сериалы), по десятилетиям.
+  // ------------------------------ дневник ------------------------------
+
+  /// Анализ дневника: настроения, места, самая короткая/длинная заметка.
+  Widget _diaryCard(BuildContext context) {
+    if (!AppPrefs.instance.diaryEnabled) return const SizedBox.shrink();
+    final repo = MovieRepository.instance;
+    final moods = <String, int>{};
+    final places = <String, int>{};
+    final notes = <(String, String)>[]; // (текст заметки, название)
+    void add(DiaryEntry d, String title) {
+      for (final m in d.moods) {
+        moods[m] = (moods[m] ?? 0) + 1;
+      }
+      if (d.place != null) places[d.place!] = (places[d.place!] ?? 0) + 1;
+      final n = d.note?.trim() ?? '';
+      if (n.isNotEmpty) notes.add((n, title));
+    }
+
+    for (final mv in repo.watched) {
+      for (final v in mv.viewings) {
+        if (v.diary?.isNotEmpty ?? false) add(v.diary!, mv.displayTitle);
+      }
+    }
+    for (final s in repo.series) {
+      for (final e in s.episodes) {
+        if (e.diary?.isNotEmpty ?? false) add(e.diary!, s.displayTitle);
+        for (final rv in e.rewatchViews) {
+          if (rv.diary?.isNotEmpty ?? false) add(rv.diary!, s.displayTitle);
+        }
+      }
+    }
+    if (moods.isEmpty && places.isEmpty && notes.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    notes.sort((a, b) => a.$1.length.compareTo(b.$1.length));
+    final scheme = Theme.of(context).colorScheme;
+    final moodSorted = moods.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final placeSorted = places.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    Widget subLabel(String text) => Text(text,
+        style: TextStyle(
+            fontFamily: AppTheme.bodyFont,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: scheme.onSurfaceVariant));
+
+    Widget noteBlock(String labelKey, (String, String) n) => Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(14)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${tr(labelKey)} · ${n.$2}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 11,
+                      color: scheme.primary)),
+              const SizedBox(height: 4),
+              Text('«${n.$1}»',
+                  style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 13,
+                      height: 1.35,
+                      color: scheme.onSurface)),
+            ],
+          ),
+        );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: _card(
+        context,
+        tr('stat_diary'),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (moodSorted.isNotEmpty) ...[
+              subLabel(tr('diary_mood')),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final e in moodSorted)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(14)),
+                      child: Text('${e.key} ${e.value}',
+                          style: const TextStyle(
+                              fontFamily: AppTheme.bodyFont, fontSize: 14)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+            if (placeSorted.isNotEmpty) ...[
+              subLabel(tr('diary_where')),
+              const SizedBox(height: 8),
+              for (final e in placeSorted)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Icon(_placeIcon(e.key), size: 18, color: scheme.primary),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: Text(_placeLabel(e.key),
+                              style: const TextStyle(
+                                  fontFamily: AppTheme.bodyFont, fontSize: 14))),
+                      Text('${e.value}',
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                              color: scheme.onSurface)),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 10),
+            ],
+            if (notes.isNotEmpty) ...[
+              subLabel(trf('stat_diary_notes_n', {'n': notes.length})),
+              noteBlock('stat_diary_shortest', notes.first),
+              if (notes.length > 1) noteBlock('stat_diary_longest', notes.last),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _placeIcon(String code) {
+    for (final p in kDiaryPlaces) {
+      if (p.$1 == code) return p.$2;
+    }
+    return Icons.place_rounded;
+  }
+
+  String _placeLabel(String code) {
+    for (final p in kDiaryPlaces) {
+      if (p.$1 == code) return tr(p.$3);
+    }
+    return code;
+  }
+
   Widget _ratingsByReleaseYearCard(BuildContext context) {
     final repo = MovieRepository.instance;
     final sum = <int, double>{}, cnt = <int, int>{};

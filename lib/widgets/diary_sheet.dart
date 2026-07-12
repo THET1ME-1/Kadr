@@ -18,6 +18,7 @@ const List<String> kDiaryMoods = [
 const List<(String, IconData, String)> kDiaryPlaces = [
   ('home', Icons.home_rounded, 'diary_place_home'),
   ('cinema', Icons.theaters_rounded, 'diary_place_cinema'),
+  ('guest', Icons.weekend_rounded, 'diary_place_guest'),
   ('trip', Icons.luggage_rounded, 'diary_place_trip'),
 ];
 

@@ -204,6 +204,18 @@ class SocialApi {
         return b['status'] as String? ?? 'pending';
       });
 
+  /// Поиск пользователей по нику (для добавления в друзья).
+  Future<List<SocialUser>> searchUsers(String token, String query) =>
+      _guard(() async {
+        final r = await _get(
+            '/users/search?q=${Uri.encodeQueryComponent(query)}', token);
+        final list = _decode(r)['users'] as List? ?? [];
+        return [
+          for (final e in list)
+            SocialUser.fromJson((e as Map).cast<String, dynamic>())
+        ];
+      });
+
   Future<void> respondFriend(String token,
           {required String userId, required String action}) =>
       _guard(() async {

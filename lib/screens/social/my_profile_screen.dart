@@ -13,6 +13,7 @@ import '../../models/social.dart';
 import '../../services/movie_repository.dart';
 import '../../services/social/avatar_util.dart';
 import '../../services/backup_service.dart';
+import '../../services/social/social_api.dart';
 import '../../services/social/social_controller.dart';
 import '../../services/store.dart';
 import '../../services/update_service.dart';
@@ -1692,7 +1693,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   void _addFriendSheet() {
     final scheme = Theme.of(context).colorScheme;
     final c = TextEditingController();
+    final search = TextEditingController();
     bool busy = false;
+    bool searching = false;
+    List<SocialUser> results = [];
+    Timer? debounce;
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1703,110 +1709,201 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: StatefulBuilder(
-          builder: (ctx, setSheet) => SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: scheme.outlineVariant,
-                        borderRadius: BorderRadius.circular(2),
+          builder: (ctx, setSheet) {
+            void runSearch(String q) {
+              debounce?.cancel();
+              final query = q.trim();
+              if (query.length < 2) {
+                setSheet(() {
+                  results = [];
+                  searching = false;
+                });
+                return;
+              }
+              setSheet(() => searching = true);
+              debounce = Timer(const Duration(milliseconds: 350), () async {
+                final token = SocialController.instance.token;
+                if (token == null) return;
+                try {
+                  final r = await SocialApi.instance.searchUsers(token, query);
+                  if (ctx.mounted) {
+                    setSheet(() {
+                      results = r;
+                      searching = false;
+                    });
+                  }
+                } catch (_) {
+                  if (ctx.mounted) {
+                    setSheet(() {
+                      results = [];
+                      searching = false;
+                    });
+                  }
+                }
+              });
+            }
+
+            Future<void> add({String? code, String? userId}) async {
+              setSheet(() => busy = true);
+              try {
+                final status = await SocialController.instance
+                    .addFriend(code: code, userId: userId);
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(status == 'accepted'
+                          ? tr('social_now_friends')
+                          : tr('social_request_sent'))));
+                }
+              } catch (e) {
+                setSheet(() => busy = false);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
+              }
+            }
+
+            return SafeArea(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: scheme.outlineVariant,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    tr('social_add_friend'),
-                    style: TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
-                      color: scheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    tr('profile_add_hint'),
-                    style: TextStyle(
-                      fontFamily: AppTheme.bodyFont,
-                      fontSize: 13,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: c,
-                    autofocus: true,
-                    textCapitalization: TextCapitalization.characters,
-                    style: const TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: tr('profile_friend_code'),
-                      prefixIcon: const Icon(Icons.tag_rounded),
-                      filled: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        borderSide: BorderSide.none,
+                      const SizedBox(height: 16),
+                      Text(tr('social_add_friend'),
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                              color: scheme.onSurface)),
+                      const SizedBox(height: 12),
+                      // Поиск по нику.
+                      TextField(
+                        controller: search,
+                        autofocus: true,
+                        onChanged: runSearch,
+                        style: const TextStyle(fontFamily: AppTheme.bodyFont),
+                        decoration: InputDecoration(
+                          hintText: tr('profile_search_hint'),
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          suffixIcon: searching
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2)))
+                              : null,
+                          filled: true,
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: BorderSide.none),
+                        ),
                       ),
-                    ),
+                      if (results.isNotEmpty)
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 260),
+                          child: ListView(
+                            shrinkWrap: true,
+                            padding: const EdgeInsets.only(top: 8),
+                            children: [
+                              for (final u in results)
+                                ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: UserAvatar(user: u, size: 42),
+                                  title: Text(u.displayName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontFamily: AppTheme.bodyFont,
+                                          fontWeight: FontWeight.w600)),
+                                  subtitle: Text('#${u.friendCode}',
+                                      style: TextStyle(
+                                          fontFamily: AppTheme.bodyFont,
+                                          fontSize: 12,
+                                          color: scheme.onSurfaceVariant)),
+                                  trailing: FilledButton.tonal(
+                                    onPressed:
+                                        busy ? null : () => add(userId: u.id),
+                                    child: Text(tr('profile_add_btn')),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        )
+                      else if (search.text.trim().length >= 2 && !searching)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Text(tr('profile_search_none'),
+                              style: TextStyle(
+                                  fontFamily: AppTheme.bodyFont,
+                                  fontSize: 13,
+                                  color: scheme.onSurfaceVariant)),
+                        ),
+                      const SizedBox(height: 18),
+                      // Или по коду друга.
+                      Text(tr('profile_or_code'),
+                          style: TextStyle(
+                              fontFamily: AppTheme.bodyFont,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: scheme.onSurfaceVariant)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: c,
+                        textCapitalization: TextCapitalization.characters,
+                        style: const TextStyle(
+                            fontFamily: AppTheme.displayFont,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2),
+                        decoration: InputDecoration(
+                          labelText: tr('profile_friend_code'),
+                          prefixIcon: const Icon(Icons.tag_rounded),
+                          filled: true,
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: BorderSide.none),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: busy
+                              ? null
+                              : () {
+                                  final code = c.text.trim().toUpperCase();
+                                  if (code.isEmpty) return;
+                                  add(code: code);
+                                },
+                          child: busy
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2.2))
+                              : Text(tr('social_send_request')),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: busy
-                          ? null
-                          : () async {
-                              final code = c.text.trim().toUpperCase();
-                              if (code.isEmpty) return;
-                              setSheet(() => busy = true);
-                              try {
-                                final status = await SocialController.instance
-                                    .addFriend(code: code);
-                                if (ctx.mounted) Navigator.pop(ctx);
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        status == 'accepted'
-                                            ? tr('social_now_friends')
-                                            : tr('social_request_sent'),
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                setSheet(() => busy = false);
-                                if (!mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(socialErrorText(e))),
-                                );
-                              }
-                            },
-                      child: busy
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                              ),
-                            )
-                          : Text(tr('social_send_request')),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

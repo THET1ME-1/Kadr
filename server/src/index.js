@@ -584,6 +584,31 @@ async function requestFriend(request, env, me) {
   return json({ status: 'pending', friend: publicUser(target) });
 }
 
+// GET /users/search?q= — поиск пользователей по нику (для добавления в друзья).
+async function searchUsers(request, env, me) {
+  const url = new URL(request.url);
+  const q = (url.searchParams.get('q') || '').trim();
+  if (q.length < 2) return json({ users: [] });
+  // Экранируем wildcard'ы LIKE, ищем подстроку без учёта регистра.
+  const like = `%${q.replace(/[%_\\]/g, '')}%`;
+  const rows = (
+    await env.DB.prepare(
+      `SELECT id, display_name, friend_code, avatar_updated FROM users
+       WHERE display_name LIKE ? AND id != ? ORDER BY display_name LIMIT 20`,
+    )
+      .bind(like, me.id)
+      .all()
+  ).results;
+  return json({
+    users: rows.map((r) => ({
+      id: r.id,
+      displayName: r.display_name,
+      friendCode: r.friend_code,
+      avatar: r.avatar_updated || 0,
+    })),
+  });
+}
+
 // Ответ на входящую заявку: accept | decline.
 async function respondFriend(request, env, me) {
   let body;
@@ -1285,6 +1310,7 @@ export default {
 
       if (path === '/friends' && method === 'GET') return listFriends(env, me);
       if (path === '/friends/request' && method === 'POST') return requestFriend(request, env, me);
+      if (path === '/users/search' && method === 'GET') return searchUsers(request, env, me);
       if (path === '/friends/respond' && method === 'POST') return respondFriend(request, env, me);
 
       if (path === '/library' && method === 'PUT') return putLibrary(request, env, me);

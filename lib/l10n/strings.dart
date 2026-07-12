@@ -1729,6 +1729,7 @@ const Map<String, Map<String, String>> _strings = {
   'diary_where': {'ru': 'Где', 'en': 'Where'},
   'diary_place_home': {'ru': 'Дом', 'en': 'Home'},
   'diary_place_cinema': {'ru': 'Кино', 'en': 'Cinema'},
+  'diary_place_guest': {'ru': 'В гостях', 'en': 'At a friend’s'},
   'diary_place_trip': {'ru': 'Поездка', 'en': 'Trip'},
   'diary_with': {'ru': 'С кем', 'en': 'With whom'},
   'diary_with_hint': {'ru': 'Имя или ник', 'en': 'Name or nickname'},
@@ -1739,4 +1740,14 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Пара слов об этом просмотре…',
     'en': 'A few words about this watch…'
   },
+  'stat_diary': {'ru': 'Дневник', 'en': 'Diary'},
+  'stat_diary_notes_n': {'ru': 'Заметок: {n}', 'en': '{n} notes'},
+  'stat_diary_shortest': {'ru': 'Самая короткая', 'en': 'Shortest'},
+  'stat_diary_longest': {'ru': 'Самая длинная', 'en': 'Longest'},
+
+  // --- Поиск друзей по нику ---
+  'profile_search_hint': {'ru': 'Поиск по нику', 'en': 'Search by nickname'},
+  'profile_search_none': {'ru': 'Никого не нашлось', 'en': 'No one found'},
+  'profile_add_btn': {'ru': 'Добавить', 'en': 'Add'},
+  'profile_or_code': {'ru': 'Или по коду друга', 'en': 'Or by friend code'},
 };
