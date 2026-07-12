@@ -10,6 +10,7 @@
 [![Downloads](https://img.shields.io/github/downloads/THET1ME-1/Kadr/total?style=for-the-badge&color=334B4F)](https://github.com/THET1ME-1/Kadr/releases)
 [![License](https://img.shields.io/github/license/THET1ME-1/Kadr?style=for-the-badge&color=334B4F)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/THET1ME-1/Kadr?style=for-the-badge&color=00B5C7)](https://github.com/THET1ME-1/Kadr/stargazers)
+[![Website](https://img.shields.io/badge/Website-Live-00B5C7?style=for-the-badge&logo=googlechrome&logoColor=white)](https://thet1me-1.github.io/Kadr/)
 
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)
@@ -21,7 +22,7 @@
 
 🇬🇧 🇷🇺 🇩🇪 🇫🇷 🇪🇸 🇮🇹 🇵🇹 · 7 languages
 
-[**⬇ Download**](https://github.com/THET1ME-1/Kadr/releases/latest) · [English](#english) · [Русский](#-kadr-русский)
+[**🌐 Website**](https://thet1me-1.github.io/Kadr/) · [**⬇ Download**](https://github.com/THET1ME-1/Kadr/releases/latest) · [English](#english) · [Русский](#-kadr-русский)
 
 <br>
 
