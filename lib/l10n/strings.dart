@@ -1546,4 +1546,118 @@ const Map<String, Map<String, String>> _strings = {
         'Posters and search will resume later.',
   },
   'kp_limit_switch': {'ru': 'На TMDB', 'en': 'Use TMDB'},
+
+  // --- Импорт из TV Time ---
+  'tvtime_title': {'ru': 'Импорт из TV Time', 'en': 'Import from TV Time'},
+  'tvtime_settings_sub': {
+    'ru': 'Перенести фильмы, сериалы и просмотры',
+    'en': 'Move movies, series and watch history'
+  },
+  'tvtime_headline': {
+    'ru': 'Перенеси свою историю из TV Time',
+    'en': 'Bring your history from TV Time'
+  },
+  'tvtime_sub': {
+    'ru':
+        'TV Time закрывается 15 июля 2026 — забери свою библиотеку в Kadr: '
+        'фильмы, сериалы и все просмотры с датами.',
+    'en':
+        'TV Time shuts down on July 15, 2026 — move your library to Kadr: '
+        'movies, series and every watch with dates.'
+  },
+  'tvtime_what_movies': {
+    'ru': 'Фильмы: просмотрено, оценки, «буду смотреть»',
+    'en': 'Movies: watched, ratings, watchlist'
+  },
+  'tvtime_what_series': {
+    'ru': 'Сериалы и все серии — с датами просмотра',
+    'en': 'Series and every episode — with watch dates'
+  },
+  'tvtime_what_ratings': {
+    'ru': 'Оценки из реакций-эмоций',
+    'en': 'Ratings from your emotion reactions'
+  },
+  'tvtime_what_watchlist': {
+    'ru': 'Список «Буду смотреть»',
+    'en': 'Your watchlist'
+  },
+  'tvtime_what_lists': {'ru': 'Свои списки', 'en': 'Your custom lists'},
+  'tvtime_how': {
+    'ru':
+        'Как получить файл: в TV Time → Настройки → Аккаунт → «Скачать мои '
+        'данные» (GDPR). На почту придёт gdpr-data.zip — выбери его здесь.',
+    'en':
+        'How to get the file: in TV Time → Settings → Account → “Download my '
+        'data” (GDPR). You’ll get gdpr-data.zip by email — pick it here.'
+  },
+  'tvtime_pick': {
+    'ru': 'Выбрать gdpr-data.zip',
+    'en': 'Choose gdpr-data.zip'
+  },
+  'tvtime_st_unzip': {
+    'ru': 'Распаковываю архив…',
+    'en': 'Unpacking the archive…'
+  },
+  'tvtime_st_read': {
+    'ru': 'Читаю фильмы и сериалы…',
+    'en': 'Reading movies and series…'
+  },
+  'tvtime_st_import': {
+    'ru': 'Переношу в библиотеку…',
+    'en': 'Adding to your library…'
+  },
+  'tvtime_st_finish': {'ru': 'Почти готово…', 'en': 'Almost done…'},
+  'tvtime_done_title': {'ru': 'Готово!', 'en': 'All set!'},
+  'tvtime_done_sub': {
+    'ru': 'Библиотека перенесена. Постеры подтянутся сами.',
+    'en': 'Your library is imported. Posters will load automatically.'
+  },
+  'tvtime_stat_movies': {'ru': 'Фильмов', 'en': 'Movies'},
+  'tvtime_stat_series': {'ru': 'Сериалов', 'en': 'Series'},
+  'tvtime_stat_episodes': {'ru': 'Просмотров серий', 'en': 'Episode watches'},
+  'tvtime_stat_rated': {'ru': 'С оценкой', 'en': 'Rated'},
+  'tvtime_posters_note': {
+    'ru':
+        'Постеры, названия на твоём языке и детали подтягиваются в фоне по мере '
+        'лимита TMDB.',
+    'en':
+        'Posters, localized titles and details load in the background within '
+        'your TMDB limit.'
+  },
+  'tvtime_continue': {'ru': 'Продолжить', 'en': 'Continue'},
+  'tvtime_error': {'ru': 'Не удалось импортировать', 'en': 'Import failed'},
+  'tvtime_error_sub': {
+    'ru': 'Проверь, что выбран gdpr-data.zip из экспорта TV Time.',
+    'en': 'Make sure you picked gdpr-data.zip from your TV Time export.'
+  },
+  'tvtime_retry': {'ru': 'Попробовать снова', 'en': 'Try again'},
+
+  // --- Онбординг: перенос из TV Time ---
+  'ob5_title': {'ru': 'Пришёл из TV Time?', 'en': 'Coming from TV Time?'},
+  'ob5_sub': {
+    'ru':
+        'Перенеси свою историю просмотров за пару касаний — фильмы, сериалы и '
+        'даты.',
+    'en':
+        'Bring your watch history in a couple of taps — movies, series and '
+        'dates.'
+  },
+
+  // --- Вход без ключа TMDB ---
+  'tmdb_key_skip': {'ru': 'Войти без ключа', 'en': 'Continue without a key'},
+  'tmdb_skip_title': {
+    'ru': 'Войти без ключа TMDB?',
+    'en': 'Enter without a TMDB key?'
+  },
+  'tmdb_skip_body': {
+    'ru':
+        'Без ключа не будет постеров, поиска и деталей — приложение почти '
+        'пустое. Импорт из TV Time и ручные записи работают. Ключ можно '
+        'добавить позже в Настройках.',
+    'en':
+        'Without a key there are no posters, search or details — the app is '
+        'nearly empty. TV Time import and manual entries still work. You can '
+        'add a key later in Settings.'
+  },
+  'tmdb_skip_confirm': {'ru': 'Всё равно войти', 'en': 'Enter anyway'},
 };

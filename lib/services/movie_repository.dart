@@ -523,6 +523,101 @@ class MovieRepository extends ChangeNotifier {
     return (added, updated);
   }
 
+  /// Импорт сериалов (TV Time и др.). Дедуп по tmdbId, иначе по названию —
+  /// эпизоды сливаются по (сезон, номер): первый просмотр в watchedAt, повторы
+  /// в rewatchViews (даты не дублируются). Постеры дотягиваются в фоне.
+  Future<(int, int)> importSeries(List<LibrarySeries> incoming) async {
+    String norm(String s) => s.toLowerCase().trim();
+    final byTitle = <String, LibrarySeries>{};
+    final byTmdb = <int, LibrarySeries>{};
+    for (final s in _series) {
+      byTitle[norm(s.title)] = s;
+      if (s.ruTitle != null) byTitle[norm(s.ruTitle!)] = s;
+      if (s.tmdbId != null) byTmdb[s.tmdbId!] = s;
+    }
+    var added = 0, updated = 0;
+    for (final inc in incoming) {
+      LibrarySeries? existing;
+      if (inc.tmdbId != null) existing = byTmdb[inc.tmdbId];
+      existing ??= byTitle[norm(inc.title)];
+      if (existing != null) {
+        _mergeEpisodes(existing, inc.episodes);
+        existing.favorite = existing.favorite || inc.favorite;
+        existing.review ??= inc.review;
+        existing.year ??= inc.year;
+        updated++;
+      } else {
+        _series.add(inc);
+        byTitle[norm(inc.title)] = inc;
+        added++;
+      }
+    }
+    if (added > 0 || updated > 0) {
+      notifyListeners();
+      await _persist();
+      startEnrichSweep();
+    }
+    return (added, updated);
+  }
+
+  /// Слить входящие эпизоды в существующий сериал: совпавшие по (сезон, номер)
+  /// добавляют недостающие даты как повторы, новые — добавляются целиком.
+  void _mergeEpisodes(LibrarySeries s, List<Episode> incoming) {
+    for (final ep in incoming) {
+      final existing = s.watchedEpisode(ep.season, ep.number);
+      if (existing == null) {
+        s.episodes.add(ep);
+        continue;
+      }
+      final have = <DateTime?>{
+        existing.watchedAt,
+        for (final v in existing.rewatchViews) v.date,
+      };
+      for (final v in [
+        Viewing(date: ep.watchedAt, score: ep.score),
+        ...ep.rewatchViews,
+      ]) {
+        if (!have.contains(v.date)) {
+          existing.rewatchViews.add(v);
+          have.add(v.date);
+        }
+      }
+      existing.runtimeMin ??= ep.runtimeMin;
+    }
+  }
+
+  /// Импорт пользовательских списков (TV Time). По имени: новый добавляется,
+  /// существующий пополняется недостающими uuid. Возвращает число новых списков.
+  Future<int> importLists(List<MovieList> incoming) async {
+    var n = 0;
+    for (final inc in incoming) {
+      if (inc.name.trim().isEmpty) continue;
+      MovieList? existing;
+      for (final l in _lists) {
+        if (l.name == inc.name) {
+          existing = l;
+          break;
+        }
+      }
+      if (existing == null) {
+        _lists.add(MovieList(
+            name: inc.name,
+            movieUuids: [...inc.movieUuids],
+            public: inc.public));
+        n++;
+      } else {
+        for (final u in inc.movieUuids) {
+          if (!existing.movieUuids.contains(u)) existing.movieUuids.add(u);
+        }
+      }
+    }
+    if (n > 0) {
+      notifyListeners();
+      await _persist();
+    }
+    return n;
+  }
+
   // ------------------------------ выборки ------------------------------
 
   /// Просмотренные — по убыванию последнего просмотра.

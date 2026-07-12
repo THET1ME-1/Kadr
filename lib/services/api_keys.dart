@@ -12,12 +12,22 @@ class ApiKeys {
 
   static const _kTmdb = 'tmdbToken';
   static const _kKinopoisk = 'kinopoiskKey';
+  static const _kGateSkipped = 'tmdbGateSkipped';
 
   static String tmdbToken = '';
   static String kinopoiskKey = '';
 
+  /// Пользователь осознанно вошёл в приложение БЕЗ ключа TMDB (на свой страх и
+  /// риск). Тогда стартовый гейт пропускает экран ключа. Ключ можно ввести
+  /// позже в Настройках.
+  static bool gateSkipped = false;
+
   /// Есть ли рабочий TMDB-токен (без него приложение почти не функционирует).
   static bool get hasTmdb => tmdbToken.trim().isNotEmpty;
+
+  /// Можно ли пускать в приложение со стартового гейта (есть ключ или вход без
+  /// ключа уже подтверждён).
+  static bool get canEnter => hasTmdb || gateSkipped;
 
   /// Загрузка при старте: введённый пользователем ключ имеет приоритет над
   /// вшитым при сборке.
@@ -26,6 +36,13 @@ class ApiKeys {
     final k = (await Store.instance.getString(_kKinopoisk))?.trim() ?? '';
     tmdbToken = t.isNotEmpty ? t : ApiConfig.tmdbTokenEnv.trim();
     kinopoiskKey = k.isNotEmpty ? k : ApiConfig.kinopoiskKeyEnv.trim();
+    gateSkipped = await Store.instance.getBool(_kGateSkipped);
+  }
+
+  /// Отметить осознанный вход без ключа (см. [gateSkipped]).
+  static Future<void> setGateSkipped(bool v) async {
+    gateSkipped = v;
+    await Store.instance.setBool(_kGateSkipped, v);
   }
 
   static Future<void> setTmdbToken(String v) async {

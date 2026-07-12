@@ -114,7 +114,7 @@ class KadrApp extends StatelessWidget {
               // ввода своего ключа (после онбординга).
               home: !onboarded
                   ? const OnboardingScreen()
-                  : (ApiKeys.hasTmdb
+                  : (ApiKeys.canEnter
                       ? const HomeShell()
                       : const TmdbKeyScreen(gate: true)),
             );

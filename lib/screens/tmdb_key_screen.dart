@@ -238,10 +238,90 @@ class _TmdbKeyScreenState extends State<TmdbKeyScreen> {
                             fontSize: 15)),
               ),
             ),
+            // Первый запуск: можно войти без ключа — на свой страх и риск.
+            if (widget.gate) ...[
+              const SizedBox(height: 6),
+              TextButton(
+                onPressed: _busy ? null : _enterWithoutKey,
+                child: Text(tr('tmdb_key_skip')),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  /// Вход без ключа TMDB: M3-предупреждение снизу экрана, при подтверждении —
+  /// в приложение (ключ можно добавить позже в Настройках).
+  Future<void> _enterWithoutKey() async {
+    final scheme = Theme.of(context).colorScheme;
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  color: scheme.errorContainer, shape: BoxShape.circle),
+              child: Icon(Icons.warning_amber_rounded,
+                  color: scheme.onErrorContainer, size: 30),
+            ),
+            const SizedBox(height: 16),
+            Text(tr('tmdb_skip_title'),
+                style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                    color: scheme.onSurface)),
+            const SizedBox(height: 10),
+            Text(tr('tmdb_skip_body'),
+                style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontSize: 14,
+                    height: 1.45,
+                    color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14)),
+                    child: Text(tr('cancel')),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: FilledButton.styleFrom(
+                        backgroundColor: scheme.error,
+                        foregroundColor: scheme.onError,
+                        padding: const EdgeInsets.symmetric(vertical: 14)),
+                    child: Text(tr('tmdb_skip_confirm')),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await ApiKeys.setGateSkipped(true);
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomeShell()));
   }
 
   Widget _step(ColorScheme scheme, String n, String text) => Padding(

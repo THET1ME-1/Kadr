@@ -24,6 +24,7 @@ import 'drawer_customize_screen.dart';
 import 'trakt_screen.dart';
 import 'sync_screen.dart';
 import 'tmdb_key_screen.dart';
+import 'tvtime_import_screen.dart';
 
 /// Экран настроек в духе Material 3 Expressive (перенос из ScoreMaster):
 /// внешний вид (тема, цвет, палитры, Material You, AMOLED), язык (7 языков),
@@ -349,6 +350,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: tr('sync_backup'),
                       subtitle: tr('sync_backup_sub'),
                       onTap: _backupSheet,
+                    ),
+                    _divider(),
+                    _tile(
+                      icon: Icons.move_to_inbox_rounded,
+                      title: tr('tvtime_title'),
+                      subtitle: tr('tvtime_settings_sub'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const TvTimeImportScreen()),
+                      ),
                     ),
                     _divider(),
                     _tile(

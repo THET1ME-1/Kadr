@@ -32,6 +32,7 @@ dependencies:
   path_provider: ^2.1.4
   file_picker: ^10.2.0
   share_plus: ^10.1.4
+  archive: ^3.6.1 # распаковка GDPR-экспорта TV Time (.zip) при импорте
   # Автобекап в выбранную папку через Storage Access Framework
   # (без MANAGE_EXTERNAL_STORAGE — совместимо с Google Play).
   saf_util: ^2.2.0
