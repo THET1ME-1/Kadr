@@ -678,6 +678,52 @@ const Map<String, Map<String, String>> kTranslations = {
     'kp_limit_hit':
         'Tageslimit von PoiskKino erreicht (200 Anfragen/Tag). Poster und Suche werden später fortgesetzt.',
     'kp_limit_switch': 'TMDB verwenden',
+    'tvtime_title': 'Aus TV Time importieren',
+    'tvtime_settings_sub': 'Filme, Serien und Verlauf übernehmen',
+    'tvtime_headline': 'Hol deinen Verlauf aus TV Time',
+    'tvtime_sub':
+        'TV Time wird am 15. Juli 2026 eingestellt — hol deine Mediathek zu '
+            'Kadr: Filme, Serien und jede Ansicht mit Datum.',
+    'tvtime_what_movies': 'Filme: gesehen, Bewertungen, Merkliste',
+    'tvtime_what_series': 'Serien und jede Folge — mit Ansichtsdaten',
+    'tvtime_what_ratings': 'Bewertungen aus deinen Emotions-Reaktionen',
+    'tvtime_what_watchlist': 'Deine Merkliste',
+    'tvtime_what_lists': 'Deine eigenen Listen',
+    'tvtime_how':
+        'So bekommst du die Datei: in TV Time → Einstellungen → Konto → '
+            '„Meine Daten herunterladen“ (GDPR). Du erhältst gdpr-data.zip per '
+            'E-Mail — wähle sie hier.',
+    'tvtime_pick': 'gdpr-data.zip auswählen',
+    'tvtime_st_unzip': 'Archiv wird entpackt…',
+    'tvtime_st_read': 'Filme und Serien werden gelesen…',
+    'tvtime_st_import': 'Wird zur Mediathek hinzugefügt…',
+    'tvtime_st_finish': 'Fast fertig…',
+    'tvtime_done_title': 'Fertig!',
+    'tvtime_done_sub':
+        'Deine Mediathek ist importiert. Poster werden automatisch geladen.',
+    'tvtime_stat_movies': 'Filme',
+    'tvtime_stat_series': 'Serien',
+    'tvtime_stat_episodes': 'Folgen-Ansichten',
+    'tvtime_stat_rated': 'Bewertet',
+    'tvtime_posters_note':
+        'Poster, Titel in deiner Sprache und Details werden im Hintergrund im '
+            'Rahmen deines TMDB-Limits geladen.',
+    'tvtime_continue': 'Weiter',
+    'tvtime_error': 'Import fehlgeschlagen',
+    'tvtime_error_sub':
+        'Stelle sicher, dass du gdpr-data.zip aus deinem TV-Time-Export '
+            'gewählt hast.',
+    'tvtime_retry': 'Erneut versuchen',
+    'ob5_title': 'Kommst du von TV Time?',
+    'ob5_sub':
+        'Übernimm deinen Verlauf mit wenigen Tipps — Filme, Serien und Daten.',
+    'tmdb_key_skip': 'Ohne Schlüssel fortfahren',
+    'tmdb_skip_title': 'Ohne TMDB-Schlüssel starten?',
+    'tmdb_skip_body':
+        'Ohne Schlüssel gibt es keine Poster, Suche oder Details — die App ist '
+            'fast leer. TV-Time-Import und manuelle Einträge funktionieren. Du '
+            'kannst den Schlüssel später in den Einstellungen hinzufügen.',
+    'tmdb_skip_confirm': 'Trotzdem starten',
   },
   'fr': {
     'app_name': 'Kadr',
@@ -1351,6 +1397,52 @@ const Map<String, Map<String, String>> kTranslations = {
     'kp_limit_hit':
         'Limite quotidienne de PoiskKino atteinte (200 requêtes/jour). Les affiches et la recherche reprendront plus tard.',
     'kp_limit_switch': 'Utiliser TMDB',
+    'tvtime_title': 'Importer depuis TV Time',
+    'tvtime_settings_sub': 'Transférer films, séries et historique',
+    'tvtime_headline': 'Récupère ton historique de TV Time',
+    'tvtime_sub':
+        'TV Time ferme le 15 juillet 2026 — récupère ta bibliothèque dans '
+            'Kadr : films, séries et chaque visionnage avec dates.',
+    'tvtime_what_movies': 'Films : vus, notes, à voir',
+    'tvtime_what_series': 'Séries et chaque épisode — avec dates',
+    'tvtime_what_ratings': 'Notes issues de tes réactions-émotions',
+    'tvtime_what_watchlist': 'Ta liste « à voir »',
+    'tvtime_what_lists': 'Tes listes personnalisées',
+    'tvtime_how':
+        'Comment obtenir le fichier : dans TV Time → Réglages → Compte → '
+            '« Télécharger mes données » (RGPD). Tu recevras gdpr-data.zip par '
+            'e-mail — sélectionne-le ici.',
+    'tvtime_pick': 'Choisir gdpr-data.zip',
+    'tvtime_st_unzip': 'Décompression de l’archive…',
+    'tvtime_st_read': 'Lecture des films et séries…',
+    'tvtime_st_import': 'Ajout à ta bibliothèque…',
+    'tvtime_st_finish': 'Presque terminé…',
+    'tvtime_done_title': 'Terminé !',
+    'tvtime_done_sub':
+        'Ta bibliothèque est importée. Les affiches se chargeront '
+            'automatiquement.',
+    'tvtime_stat_movies': 'Films',
+    'tvtime_stat_series': 'Séries',
+    'tvtime_stat_episodes': 'Visionnages d’épisodes',
+    'tvtime_stat_rated': 'Notés',
+    'tvtime_posters_note':
+        'Les affiches, les titres dans ta langue et les détails se chargent en '
+            'arrière-plan selon ta limite TMDB.',
+    'tvtime_continue': 'Continuer',
+    'tvtime_error': 'Échec de l’import',
+    'tvtime_error_sub':
+        'Vérifie que tu as choisi gdpr-data.zip de ton export TV Time.',
+    'tvtime_retry': 'Réessayer',
+    'ob5_title': 'Tu viens de TV Time ?',
+    'ob5_sub':
+        'Récupère ton historique en quelques touches — films, séries et dates.',
+    'tmdb_key_skip': 'Continuer sans clé',
+    'tmdb_skip_title': 'Entrer sans clé TMDB ?',
+    'tmdb_skip_body':
+        'Sans clé, pas d’affiches, de recherche ni de détails — l’appli est '
+            'presque vide. L’import TV Time et les ajouts manuels fonctionnent. '
+            'Tu peux ajouter une clé plus tard dans les Réglages.',
+    'tmdb_skip_confirm': 'Entrer quand même',
   },
   'es': {
     'app_name': 'Kadr',
@@ -2019,6 +2111,52 @@ const Map<String, Map<String, String>> kTranslations = {
     'kp_limit_hit':
         'Se alcanzó el límite diario de PoiskKino (200 solicitudes/día). Los pósteres y la búsqueda se reanudarán más tarde.',
     'kp_limit_switch': 'Usar TMDB',
+    'tvtime_title': 'Importar desde TV Time',
+    'tvtime_settings_sub': 'Trasladar películas, series e historial',
+    'tvtime_headline': 'Trae tu historial de TV Time',
+    'tvtime_sub':
+        'TV Time cierra el 15 de julio de 2026 — lleva tu biblioteca a Kadr: '
+            'películas, series y cada visionado con fechas.',
+    'tvtime_what_movies': 'Películas: vistas, valoraciones, pendientes',
+    'tvtime_what_series': 'Series y cada episodio — con fechas',
+    'tvtime_what_ratings': 'Valoraciones a partir de tus reacciones',
+    'tvtime_what_watchlist': 'Tu lista de pendientes',
+    'tvtime_what_lists': 'Tus listas personalizadas',
+    'tvtime_how':
+        'Cómo obtener el archivo: en TV Time → Ajustes → Cuenta → «Descargar '
+            'mis datos» (RGPD). Recibirás gdpr-data.zip por correo — elígelo '
+            'aquí.',
+    'tvtime_pick': 'Elegir gdpr-data.zip',
+    'tvtime_st_unzip': 'Descomprimiendo el archivo…',
+    'tvtime_st_read': 'Leyendo películas y series…',
+    'tvtime_st_import': 'Añadiendo a tu biblioteca…',
+    'tvtime_st_finish': 'Casi listo…',
+    'tvtime_done_title': '¡Listo!',
+    'tvtime_done_sub':
+        'Tu biblioteca se ha importado. Los pósteres se cargarán '
+            'automáticamente.',
+    'tvtime_stat_movies': 'Películas',
+    'tvtime_stat_series': 'Series',
+    'tvtime_stat_episodes': 'Visionados de episodios',
+    'tvtime_stat_rated': 'Valoradas',
+    'tvtime_posters_note':
+        'Los pósteres, los títulos en tu idioma y los detalles se cargan en '
+            'segundo plano según tu límite de TMDB.',
+    'tvtime_continue': 'Continuar',
+    'tvtime_error': 'Error al importar',
+    'tvtime_error_sub':
+        'Asegúrate de elegir gdpr-data.zip de tu exportación de TV Time.',
+    'tvtime_retry': 'Reintentar',
+    'ob5_title': '¿Vienes de TV Time?',
+    'ob5_sub':
+        'Trae tu historial en un par de toques: películas, series y fechas.',
+    'tmdb_key_skip': 'Entrar sin clave',
+    'tmdb_skip_title': '¿Entrar sin clave de TMDB?',
+    'tmdb_skip_body':
+        'Sin clave no hay pósteres, búsqueda ni detalles — la app está casi '
+            'vacía. La importación de TV Time y las entradas manuales '
+            'funcionan. Puedes añadir una clave más tarde en Ajustes.',
+    'tmdb_skip_confirm': 'Entrar igualmente',
   },
   'it': {
     'app_name': 'Kadr',
@@ -2686,6 +2824,51 @@ const Map<String, Map<String, String>> kTranslations = {
     'kp_limit_hit':
         'Limite giornaliero di PoiskKino raggiunto (200 richieste/giorno). Locandine e ricerca riprenderanno più tardi.',
     'kp_limit_switch': 'Usa TMDB',
+    'tvtime_title': 'Importa da TV Time',
+    'tvtime_settings_sub': 'Trasferisci film, serie e cronologia',
+    'tvtime_headline': 'Porta la tua cronologia da TV Time',
+    'tvtime_sub':
+        'TV Time chiude il 15 luglio 2026 — porta la tua libreria su Kadr: '
+            'film, serie e ogni visione con le date.',
+    'tvtime_what_movies': 'Film: visti, voti, da vedere',
+    'tvtime_what_series': 'Serie e ogni episodio — con le date',
+    'tvtime_what_ratings': 'Voti dalle tue reazioni-emozioni',
+    'tvtime_what_watchlist': 'La tua lista «da vedere»',
+    'tvtime_what_lists': 'Le tue liste personalizzate',
+    'tvtime_how':
+        'Come ottenere il file: in TV Time → Impostazioni → Account → '
+            '«Scarica i miei dati» (GDPR). Riceverai gdpr-data.zip via email — '
+            'selezionalo qui.',
+    'tvtime_pick': 'Scegli gdpr-data.zip',
+    'tvtime_st_unzip': 'Estrazione dell’archivio…',
+    'tvtime_st_read': 'Lettura di film e serie…',
+    'tvtime_st_import': 'Aggiunta alla libreria…',
+    'tvtime_st_finish': 'Quasi fatto…',
+    'tvtime_done_title': 'Fatto!',
+    'tvtime_done_sub':
+        'La tua libreria è stata importata. I poster si caricheranno da soli.',
+    'tvtime_stat_movies': 'Film',
+    'tvtime_stat_series': 'Serie',
+    'tvtime_stat_episodes': 'Visioni episodi',
+    'tvtime_stat_rated': 'Con voto',
+    'tvtime_posters_note':
+        'Poster, titoli nella tua lingua e dettagli vengono caricati in '
+            'background nei limiti del tuo TMDB.',
+    'tvtime_continue': 'Continua',
+    'tvtime_error': 'Importazione non riuscita',
+    'tvtime_error_sub':
+        'Assicurati di aver scelto gdpr-data.zip dall’esportazione di TV Time.',
+    'tvtime_retry': 'Riprova',
+    'ob5_title': 'Vieni da TV Time?',
+    'ob5_sub':
+        'Porta la tua cronologia in pochi tocchi — film, serie e date.',
+    'tmdb_key_skip': 'Entra senza chiave',
+    'tmdb_skip_title': 'Entrare senza chiave TMDB?',
+    'tmdb_skip_body':
+        'Senza chiave niente poster, ricerca o dettagli — l’app è quasi vuota. '
+            'L’import da TV Time e le voci manuali funzionano. Puoi aggiungere '
+            'una chiave più tardi nelle Impostazioni.',
+    'tmdb_skip_confirm': 'Entra comunque',
   },
   'pt': {
     'app_name': 'Kadr',
@@ -3352,5 +3535,51 @@ const Map<String, Map<String, String>> kTranslations = {
     'kp_limit_hit':
         'Limite diário do PoiskKino atingido (200 requisições/dia). Pôsteres e busca voltarão mais tarde.',
     'kp_limit_switch': 'Usar TMDB',
+    'tvtime_title': 'Importar do TV Time',
+    'tvtime_settings_sub': 'Transferir filmes, séries e histórico',
+    'tvtime_headline': 'Traga o seu histórico do TV Time',
+    'tvtime_sub':
+        'O TV Time encerra em 15 de julho de 2026 — leve a sua biblioteca para '
+            'o Kadr: filmes, séries e cada exibição com datas.',
+    'tvtime_what_movies': 'Filmes: assistidos, notas, para ver',
+    'tvtime_what_series': 'Séries e cada episódio — com datas',
+    'tvtime_what_ratings': 'Notas a partir das suas reações',
+    'tvtime_what_watchlist': 'A sua lista «para ver»',
+    'tvtime_what_lists': 'As suas listas personalizadas',
+    'tvtime_how':
+        'Como obter o arquivo: no TV Time → Configurações → Conta → «Baixar '
+            'meus dados» (GDPR). Você receberá gdpr-data.zip por e-mail — '
+            'selecione-o aqui.',
+    'tvtime_pick': 'Escolher gdpr-data.zip',
+    'tvtime_st_unzip': 'Descompactando o arquivo…',
+    'tvtime_st_read': 'Lendo filmes e séries…',
+    'tvtime_st_import': 'Adicionando à sua biblioteca…',
+    'tvtime_st_finish': 'Quase pronto…',
+    'tvtime_done_title': 'Pronto!',
+    'tvtime_done_sub':
+        'A sua biblioteca foi importada. Os pôsteres serão carregados '
+            'automaticamente.',
+    'tvtime_stat_movies': 'Filmes',
+    'tvtime_stat_series': 'Séries',
+    'tvtime_stat_episodes': 'Exibições de episódios',
+    'tvtime_stat_rated': 'Com nota',
+    'tvtime_posters_note':
+        'Pôsteres, títulos no seu idioma e detalhes carregam em segundo plano '
+            'dentro do seu limite do TMDB.',
+    'tvtime_continue': 'Continuar',
+    'tvtime_error': 'Falha na importação',
+    'tvtime_error_sub':
+        'Verifique se escolheu gdpr-data.zip da sua exportação do TV Time.',
+    'tvtime_retry': 'Tentar novamente',
+    'ob5_title': 'Veio do TV Time?',
+    'ob5_sub':
+        'Traga o seu histórico em poucos toques — filmes, séries e datas.',
+    'tmdb_key_skip': 'Entrar sem chave',
+    'tmdb_skip_title': 'Entrar sem chave do TMDB?',
+    'tmdb_skip_body':
+        'Sem chave não há pôsteres, busca ou detalhes — o app fica quase '
+            'vazio. A importação do TV Time e as entradas manuais funcionam. '
+            'Você pode adicionar uma chave depois nas Configurações.',
+    'tmdb_skip_confirm': 'Entrar mesmo assim',
   },
 };
