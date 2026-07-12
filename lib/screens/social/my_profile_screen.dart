@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../l10n/locale_controller.dart';
 import '../../l10n/strings.dart';
@@ -14,11 +15,13 @@ import '../../services/social/avatar_util.dart';
 import '../../services/backup_service.dart';
 import '../../services/social/social_controller.dart';
 import '../../services/store.dart';
+import '../../services/update_service.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_controller.dart';
 import '../../widgets/color_picker_sheet.dart';
 import '../../widgets/profile_banner.dart';
 import '../../widgets/seed_swatch.dart';
+import '../../widgets/update_sheet.dart';
 import '../../widgets/user_avatar.dart';
 import '../auto_backup_screen.dart';
 import '../statistics_screen.dart';
@@ -186,6 +189,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         _sectionLabel(tr('sync_backup')),
         const SizedBox(height: 12),
         _dataCard(context),
+        const SizedBox(height: 12),
+        _updateTile(context),
         const SizedBox(height: 24),
         _sectionLabel(tr('drawer_stats')),
         const SizedBox(height: 12),
@@ -233,6 +238,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 _sectionLabel(tr('sync_backup')),
                 const SizedBox(height: 12),
                 _dataCard(context),
+                const SizedBox(height: 12),
+                _updateTile(context),
                 const SizedBox(height: 24),
                 _sectionLabel(tr('drawer_stats')),
                 const SizedBox(height: 12),
@@ -1169,6 +1176,94 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         content: Text(tr(ok ? 'backup_import_ok' : 'backup_import_fail')),
       ),
     );
+  }
+
+  /// Пункт «Проверить обновления» — вынесен в профиль для удобства (та же логика,
+  /// что в Настройках): ищет релиз новее на GitHub и показывает меню обновления.
+  Widget _updateTile(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(22),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _checkUpdates,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Row(
+            children: [
+              Icon(
+                Icons.system_update_rounded,
+                color: scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('check_updates'),
+                      style: const TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      tr('check_updates_sub'),
+                      style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 12.5,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: scheme.onSurfaceVariant,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _checkUpdates() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(tr('checking_updates')),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    final current = (await PackageInfo.fromPlatform()).version;
+    try {
+      final info = await UpdateService.checkForUpdate(current);
+      if (!mounted) return;
+      if (info == null) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(tr('up_to_date')),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        await UpdateSheet.show(context, info, current);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(tr('update_check_failed')),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   // ------------------------------ действия ------------------------------
