@@ -272,6 +272,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Store.instance.setBool('restrictUnaired', v);
                       },
                     ),
+                    _divider(),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.auto_stories_rounded),
+                      title: Text(tr('diary_settings_title')),
+                      subtitle: Text(tr('diary_settings_sub')),
+                      value: _prefs.diaryEnabled,
+                      onChanged: (v) {
+                        _prefs.setDiaryEnabled(v);
+                        setState(() {});
+                      },
+                    ),
                   ]),
                 ],
               ),

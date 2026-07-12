@@ -1448,6 +1448,13 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
+  /// Сохранить изменения дневника просмотра (диари мутируется на объекте
+  /// Viewing/Episode по ссылке — здесь фиксируем и уведомляем UI).
+  Future<void> saveDiary() async {
+    notifyListeners();
+    await _persist();
+  }
+
   /// Своя рецензия на фильм (пустая строка → убрать). Бэкапится и синкается.
   Future<void> setReview(String uuid, String? text) async {
     final m = byUuid(uuid);

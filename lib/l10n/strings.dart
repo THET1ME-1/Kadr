@@ -1714,4 +1714,29 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Applied {n} watches'
   },
   'scrobble_check_fail': {'ru': 'Не удалось проверить', 'en': 'Check failed'},
+
+  // --- Дневник просмотров ---
+  'diary_settings_title': {
+    'ru': 'Дневник просмотров',
+    'en': 'Watch diary'
+  },
+  'diary_settings_sub': {
+    'ru': 'Настроение, с кем, где и фото у каждого просмотра',
+    'en': 'Mood, who with, where and a photo for each watch'
+  },
+  'diary_title': {'ru': 'Дневник просмотра', 'en': 'Diary entry'},
+  'diary_mood': {'ru': 'Настроение', 'en': 'Mood'},
+  'diary_where': {'ru': 'Где', 'en': 'Where'},
+  'diary_place_home': {'ru': 'Дом', 'en': 'Home'},
+  'diary_place_cinema': {'ru': 'Кино', 'en': 'Cinema'},
+  'diary_place_trip': {'ru': 'Поездка', 'en': 'Trip'},
+  'diary_with': {'ru': 'С кем', 'en': 'With whom'},
+  'diary_with_hint': {'ru': 'Имя или ник', 'en': 'Name or nickname'},
+  'diary_photo': {'ru': 'Фото', 'en': 'Photo'},
+  'diary_photo_add': {'ru': 'Добавить фото', 'en': 'Add a photo'},
+  'diary_note': {'ru': 'Заметка', 'en': 'Note'},
+  'diary_note_hint': {
+    'ru': 'Пара слов об этом просмотре…',
+    'en': 'A few words about this watch…'
+  },
 };

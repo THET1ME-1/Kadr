@@ -10,6 +10,7 @@ import '../services/store.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/score.dart';
+import '../widgets/diary_sheet.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/movie_cards.dart' show droppedBadge;
 import '../widgets/poster.dart';
@@ -1095,7 +1096,15 @@ class _LibraryTabState extends State<LibraryTab> {
     final key = _keyOf(e);
     final tag = 'poster-$key'; // уникальный тег shared-element (Hero)
     final sel = _selected.contains(key);
+    // Режим «Дневник»: доступен в СВОЕЙ библиотеке (не read-only друга).
+    final diaryOn = AppPrefs.instance.diaryEnabled && !widget.readOnly;
     if (e.session != null) {
+      // Сессия в ленте — из копий эпизодов; дневник вешаем на РЕАЛЬНУЮ первую серию.
+      final firstEp =
+          e.session!.episodes.isNotEmpty ? e.session!.episodes.first : null;
+      final realEp = firstEp == null
+          ? null
+          : e.session!.series.watchedEpisode(firstEp.season, firstEp.number);
       return _SeriesSessionCard(
         session: e.session!,
         selecting: _selecting,
@@ -1106,6 +1115,15 @@ class _LibraryTabState extends State<LibraryTab> {
         revealGroup: _revealed,
         revealId: key,
         heroTag: tag,
+        diary: realEp?.diary,
+        onDiary: (diaryOn && realEp != null)
+            ? () => _editDiary(
+                  current: realEp.diary,
+                  photoKey:
+                      'ep-${e.session!.series.tvShowId}-${firstEp!.season}-${firstEp.number}',
+                  apply: (d) => realEp.diary = d,
+                )
+            : null,
       );
     }
     if (e.seriesItem != null) {
@@ -1131,7 +1149,37 @@ class _LibraryTabState extends State<LibraryTab> {
       revealGroup: _revealed,
       revealId: key,
       heroTag: tag,
+      diary: e.viewing?.diary,
+      onDiary: (diaryOn && e.viewing != null)
+          ? () => _editDiary(
+                current: e.viewing!.diary,
+                photoKey:
+                    '${e.movie!.uuid}-${e.viewing!.date?.millisecondsSinceEpoch ?? 0}',
+                apply: (d) => e.viewing!.diary = d,
+              )
+          : null,
     );
+  }
+
+  /// Открыть панель дневника, применить результат к просмотру и сохранить.
+  Future<void> _editDiary({
+    required DiaryEntry? current,
+    required String photoKey,
+    required void Function(DiaryEntry?) apply,
+  }) async {
+    final init = DiaryEntry(
+      moods: current == null ? null : [...current.moods],
+      withWhom: current?.withWhom,
+      friendIds: current == null ? null : [...current.friendIds],
+      place: current?.place,
+      photoFile: current?.photoFile,
+      note: current?.note,
+    );
+    final result =
+        await showDiarySheet(context, initial: init, photoKey: photoKey);
+    if (result == null || !mounted) return; // отменили
+    apply(result.isEmpty ? null : result);
+    await MovieRepository.instance.saveDiary();
   }
 
   Widget _posterFor(_LibEntry e, double w) {
@@ -2053,6 +2101,10 @@ class _SeriesSessionCard extends StatelessWidget {
   final Set<Object>? revealGroup;
   final Object? revealId;
   final String? heroTag;
+
+  /// Дневник этой сессии просмотра + открытие панели (режим «Дневник»).
+  final DiaryEntry? diary;
+  final VoidCallback? onDiary;
   const _SeriesSessionCard({
     required this.session,
     this.selecting = false,
@@ -2063,6 +2115,8 @@ class _SeriesSessionCard extends StatelessWidget {
     this.revealGroup,
     this.revealId,
     this.heroTag,
+    this.diary,
+    this.onDiary,
   });
 
   LibrarySeries get s => session.series;
@@ -2114,6 +2168,12 @@ class _SeriesSessionCard extends StatelessWidget {
                             ),
                           ),
                           if (selecting) _selectOverlay(scheme, selected, 12),
+                          if (!selecting && onDiary != null)
+                            Positioned(
+                                left: 2,
+                                bottom: 2,
+                                child:
+                                    _DiaryBadge(diary: diary, onTap: onDiary!)),
                         ],
                       ),
                       const SizedBox(width: 14),
@@ -2476,6 +2536,10 @@ class _MovieRow extends StatelessWidget {
   final Object? revealId;
   final String? heroTag;
 
+  /// Дневник этого просмотра + открытие панели (режим «Дневник»). null — выкл.
+  final DiaryEntry? diary;
+  final VoidCallback? onDiary;
+
   const _MovieRow({
     required this.movie,
     this.viewing,
@@ -2487,6 +2551,8 @@ class _MovieRow extends StatelessWidget {
     this.revealGroup,
     this.revealId,
     this.heroTag,
+    this.diary,
+    this.onDiary,
   });
 
   @override
@@ -2527,6 +2593,11 @@ class _MovieRow extends StatelessWidget {
                           width: 58,
                           heroTag: heroTag),
                       if (selecting) _selectOverlay(scheme, selected, 12),
+                      if (!selecting && onDiary != null)
+                        Positioned(
+                            left: 2,
+                            bottom: 2,
+                            child: _DiaryBadge(diary: diary, onTap: onDiary!)),
                     ],
                   ),
                   const SizedBox(width: 14),
@@ -2627,6 +2698,42 @@ Widget _rewatchChip(ColorScheme scheme, int n) => Container(
         ],
       ),
     );
+
+/// Маленький бейдж дневника в углу постера в ленте «Просмотрено»: пусто — тусклая
+/// иконка (тап → добавить запись); есть запись — эмодзи настроения (тап → правка).
+class _DiaryBadge extends StatelessWidget {
+  final DiaryEntry? diary;
+  final VoidCallback onTap;
+  const _DiaryBadge({this.diary, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final has = diary != null && diary!.isNotEmpty;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        width: 24,
+        height: 24,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: has ? scheme.primary : scheme.surface.withValues(alpha: 0.82),
+          shape: BoxShape.circle,
+          border: Border.all(color: scheme.surface, width: 1.5),
+          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 3)],
+        ),
+        child: has && diary!.moods.isNotEmpty
+            ? Text(diary!.moods.first, style: const TextStyle(fontSize: 12))
+            : Icon(
+                has ? Icons.auto_stories_rounded : Icons.edit_note_rounded,
+                size: 14,
+                color: has ? scheme.onPrimary : scheme.onSurfaceVariant,
+              ),
+      ),
+    );
+  }
+}
 
 /// Строка сериала в списке «Буду смотреть» (постер + название + тап → экран сериала).
 class _WatchlistSeriesRow extends StatelessWidget {

@@ -85,6 +85,10 @@ class AppPrefs extends ChangeNotifier {
   /// Числовой формат дат в разделителях («18.10.2023» вместо «18 октября 2023»).
   bool numericDates = false;
 
+  /// Режим «Дневник просмотров»: в ленте «Просмотрено» у каждого просмотра можно
+  /// добавить настроение/с кем/где/фото/заметку. По умолчанию включён.
+  bool diaryEnabled = true;
+
   /// Какой экран открывать при старте.
   StartScreen startScreen = StartScreen.watchlist;
 
@@ -131,6 +135,7 @@ class AppPrefs extends ChangeNotifier {
 
   Future<void> load() async {
     numericDates = await Store.instance.getBool('numericDates');
+    diaryEnabled = await Store.instance.getBool('diaryEnabled', def: true);
     final raw = await Store.instance.getString('startScreen');
     startScreen = _parse(raw);
     fabPosition = _parseFab(await Store.instance.getString('fabPosition'));
@@ -206,6 +211,12 @@ class AppPrefs extends ChangeNotifier {
     }
     await Store.instance.setString(
         'favActors', jsonEncode([for (final x in favoriteActors) x.toJson()]));
+    notifyListeners();
+  }
+
+  Future<void> setDiaryEnabled(bool v) async {
+    diaryEnabled = v;
+    await Store.instance.setBool('diaryEnabled', v);
     notifyListeners();
   }
 

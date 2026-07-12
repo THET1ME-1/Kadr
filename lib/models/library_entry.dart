@@ -29,6 +29,55 @@ class MovieEmotion {
       {'id': id, 'label': label, 'emoji': emoji, 'score': score};
 }
 
+/// Запись «дневника просмотра»: настроение, с кем, где, фото, заметка. Личная и
+/// приватная — фото хранится ЛОКАЛЬНО (PosterStore), на сервер/друзьям не уходит.
+/// Привязана к конкретному просмотру ([Viewing]) или серии ([Episode]).
+class DiaryEntry {
+  List<String> moods; // эмодзи настроения (мультивыбор)
+  String? withWhom; // «с кем» — свободный текст
+  List<String> friendIds; // id друзей (для связи и авто-co-watch)
+  String? place; // home | cinema | trip
+  String? photoFile; // локальный файл фото (билет/зал)
+  String? note; // короткая заметка на этот просмотр
+
+  DiaryEntry({
+    List<String>? moods,
+    this.withWhom,
+    List<String>? friendIds,
+    this.place,
+    this.photoFile,
+    this.note,
+  })  : moods = moods ?? [],
+        friendIds = friendIds ?? [];
+
+  bool get isEmpty =>
+      moods.isEmpty &&
+      (withWhom == null || withWhom!.isEmpty) &&
+      friendIds.isEmpty &&
+      place == null &&
+      photoFile == null &&
+      (note == null || note!.isEmpty);
+  bool get isNotEmpty => !isEmpty;
+
+  factory DiaryEntry.fromJson(Map<String, dynamic> j) => DiaryEntry(
+        moods: (j['moods'] as List? ?? []).map((e) => '$e').toList(),
+        withWhom: j['withWhom'] as String?,
+        friendIds: (j['friendIds'] as List? ?? []).map((e) => '$e').toList(),
+        place: j['place'] as String?,
+        photoFile: j['photoFile'] as String?,
+        note: j['note'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (moods.isNotEmpty) 'moods': moods,
+        if (withWhom != null && withWhom!.isNotEmpty) 'withWhom': withWhom,
+        if (friendIds.isNotEmpty) 'friendIds': friendIds,
+        if (place != null) 'place': place,
+        if (photoFile != null) 'photoFile': photoFile,
+        if (note != null && note!.isNotEmpty) 'note': note,
+      };
+}
+
 /// Один просмотр фильма: дата (может быть неизвестна) и СВОЯ оценка 1.0–10.0.
 /// Мнение может меняться при пересмотре — поэтому оценка у каждого просмотра
 /// отдельная.
@@ -36,7 +85,10 @@ class Viewing {
   DateTime? date;
   double? score;
 
-  Viewing({this.date, this.score});
+  /// Дневник этого просмотра (настроение/с кем/где/фото/заметка) — опционально.
+  DiaryEntry? diary;
+
+  Viewing({this.date, this.score, this.diary});
 
   bool get hasDate => date != null;
 
@@ -54,13 +106,19 @@ class Viewing {
       return Viewing(
         date: _parseDate(j['date']),
         score: (j['score'] as num?)?.toDouble(),
+        diary: j['diary'] is Map
+            ? DiaryEntry.fromJson((j['diary'] as Map).cast<String, dynamic>())
+            : null,
       );
     }
     return Viewing(date: _parseDate(j));
   }
 
-  Map<String, dynamic> toJson() =>
-      {'date': date?.toIso8601String(), 'score': score};
+  Map<String, dynamic> toJson() => {
+        'date': date?.toIso8601String(),
+        'score': score,
+        if (diary != null && diary!.isNotEmpty) 'diary': diary!.toJson(),
+      };
 }
 
 enum LibraryStatus { watched, watchlist, library, dropped }
@@ -330,6 +388,9 @@ class Episode {
   /// (1 — первый, 2 — второй…); нужен, чтобы показать «2-й просмотр» как у фильмов.
   int rewatchOrdinal = 0;
 
+  /// Дневник просмотра этой серии (настроение/с кем/где/фото/заметка).
+  DiaryEntry? diary;
+
   Episode({
     this.season,
     this.number,
@@ -339,6 +400,7 @@ class Episode {
     this.epId,
     this.rewatchCount = 0,
     List<Viewing>? rewatchViews,
+    this.diary,
   }) : rewatchViews = rewatchViews ?? [];
 
   /// Все просмотры серии как список (первый = watchedAt+score, затем повторы) —
@@ -372,6 +434,7 @@ class Episode {
         runtimeMin: runtimeMin,
         score: v.score ?? score,
         epId: epId,
+        diary: v.diary ?? diary,
       );
 
   /// Метка «S1E5» / «Серия 5» / «Эпизод».
@@ -407,6 +470,9 @@ class Episode {
       epId: j['epId'] as String?,
       rewatchCount: rc,
       rewatchViews: rv,
+      diary: j['diary'] is Map
+          ? DiaryEntry.fromJson((j['diary'] as Map).cast<String, dynamic>())
+          : null,
     );
   }
 
@@ -435,6 +501,7 @@ class Episode {
         'rewatchCount': rewatchCount,
         if (rewatchViews.isNotEmpty)
           'rewatchViews': [for (final v in rewatchViews) v.toJson()],
+        if (diary != null && diary!.isNotEmpty) 'diary': diary!.toJson(),
       };
 }
 
