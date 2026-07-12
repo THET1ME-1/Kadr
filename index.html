@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kadr — трекер фильмов и сериалов · Material 3</title>
+<meta name="description" content="Kadr — open-source трекер фильмов и сериалов в стиле Material 3 Expressive. Дневник просмотров, друзья, Material You, 7 языков. Локально, без рекламы.">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0&display=block">
+<link rel="icon" type="image/png" href="assets/icon.png">
+
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        bg: 'var(--bg)', surface: 'var(--surface-1)', surface2: 'var(--surface-2)', surface3: 'var(--surface-3)',
+        ink: 'var(--on-surface)', inkdim: 'var(--on-surface-var)', outline: 'var(--outline)',
+        primary: 'var(--primary)', onprimary: 'var(--on-primary)',
+        pcont: 'var(--primary-container)', onpcont: 'var(--on-primary-container)',
+        secondary: 'var(--secondary)', tertiary: 'var(--tertiary)', gold: 'var(--gold)',
+      },
+      fontFamily: {
+        display: ['Outfit', 'system-ui', 'sans-serif'],
+        sans: ['Manrope', 'system-ui', 'sans-serif'],
+      },
+      borderRadius: { '4xl': '2rem', '5xl': '2.75rem', '6xl': '3.5rem' },
+    }
+  }
+}
+</script>
+
+<style>
+  :root{
+    --ease-emph: cubic-bezier(.2, 0, 0, 1);
+    --ease-spring: cubic-bezier(.34, 1.4, .5, 1);
+    --colorT: background-color .55s var(--ease-emph), color .55s var(--ease-emph), border-color .55s var(--ease-emph), fill .55s var(--ease-emph), box-shadow .55s var(--ease-emph);
+  }
+  html{ scroll-behavior:smooth; }
+  body{ background:var(--bg); color:var(--on-surface); transition:var(--colorT); overflow-x:hidden; }
+  ::selection{ background:var(--primary); color:var(--on-primary); }
+
+  .material-symbols-rounded{ font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24; line-height:1; }
+  .icn-outline{ font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+
+  /* recolor transition on themed elements */
+  .themed, .themed *{ transition:var(--colorT); }
+
+  /* M3 buttons: pill + shape-morph on press + state layer */
+  .btn{ position:relative; overflow:hidden; border-radius:999px; transition:transform .28s var(--ease-spring), border-radius .28s var(--ease-spring), background-color .4s var(--ease-emph), box-shadow .4s var(--ease-emph); isolation:isolate; }
+  .btn::after{ content:''; position:absolute; inset:0; background:currentColor; opacity:0; transition:opacity .3s var(--ease-emph); z-index:-1; }
+  .btn:hover::after{ opacity:.09; }
+  .btn:active{ transform:scale(.94); border-radius:1.1rem; }
+
+  /* scroll reveal */
+  .reveal{ opacity:0; transform:translateY(30px); transition:opacity .8s var(--ease-emph), transform .8s var(--ease-emph); }
+  .reveal.in{ opacity:1; transform:none; }
+
+  /* hero glow */
+  .glow{ background:radial-gradient(60% 55% at 50% 0%, var(--glow) 0%, transparent 70%); }
+
+  /* device frame */
+  .device{ border-radius:2.6rem; padding:.55rem; background:linear-gradient(160deg, var(--surface-3), var(--surface-1)); box-shadow: 0 40px 90px -30px rgba(0,0,0,.65), 0 0 0 1px color-mix(in oklab, var(--outline) 40%, transparent); }
+  .device-screen{ border-radius:2.1rem; overflow:hidden; background:var(--bg); }
+  .device img{ display:block; width:100%; }
+
+  /* swatch */
+  .swatch{ flex:0 0 auto; box-sizing:border-box; width:44px; height:44px; min-width:44px; border-radius:50%; cursor:pointer; transition:transform .3s var(--ease-spring), box-shadow .3s; position:relative; border:2px solid transparent; padding:0; }
+  .swatch:hover{ transform:scale(1.12); }
+  .swatch.sel{ box-shadow:0 0 0 3px var(--bg), 0 0 0 5px var(--primary); }
+  .swatch.sel::after{ content:'check'; font-family:'Material Symbols Rounded'; position:absolute; inset:0; display:grid; place-items:center; color:#fff; font-size:22px; text-shadow:0 1px 3px rgba(0,0,0,.5); }
+
+  @keyframes floaty{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-14px) } }
+  .floaty{ animation:floaty 6s ease-in-out infinite; }
+  @keyframes floaty2{ 0%,100%{ transform:translateY(-8px) } 50%{ transform:translateY(8px) } }
+  .floaty2{ animation:floaty2 7s ease-in-out infinite; }
+
+  .marquee{ display:flex; gap:2.5rem; animation:scrollx 26s linear infinite; }
+  @keyframes scrollx{ from{ transform:translateX(0) } to{ transform:translateX(-50%) } }
+
+  /* language menu */
+  .lang-menu{ opacity:0; visibility:hidden; transform:translateY(8px) scale(.97); transform-origin:top right; transition:.24s var(--ease-emph); }
+  .lang-menu.open{ opacity:1; visibility:visible; transform:none; }
+
+  @media (prefers-reduced-motion: reduce){ *{ animation:none !important; } .reveal{ transition:none; opacity:1; transform:none; } }
+</style>
+</head>
+
+<body class="font-sans antialiased selection:text-onprimary">
+
+<!-- ===================== NAV ===================== -->
+<header class="fixed top-0 inset-x-0 z-50">
+  <nav class="mx-auto max-w-7xl px-4 sm:px-6">
+    <div class="mt-3 flex items-center gap-3 rounded-full border border-outline/30 bg-surface/70 px-3 py-2 backdrop-blur-xl themed" style="border-color:color-mix(in oklab,var(--outline) 35%,transparent)">
+      <a href="#top" class="flex items-center gap-2.5 pl-1 pr-2 shrink-0">
+        <img src="assets/icon.png" alt="Kadr" class="h-9 w-9 rounded-xl">
+        <span class="font-display text-xl font-bold tracking-tight text-ink">Kadr</span>
+      </a>
+      <div class="hidden md:flex items-center gap-1 ml-2 text-sm font-medium text-inkdim">
+        <a href="#features" class="btn px-4 py-2 hover:text-ink" data-i18n="nav_features">Возможности</a>
+        <a href="#design" class="btn px-4 py-2 hover:text-ink" data-i18n="nav_design">Оформление</a>
+        <a href="#gallery" class="btn px-4 py-2 hover:text-ink" data-i18n="nav_screens">Экраны</a>
+        <a href="#download" class="btn px-4 py-2 hover:text-ink" data-i18n="nav_download">Установка</a>
+      </div>
+      <div class="ml-auto flex items-center gap-1.5">
+        <!-- language -->
+        <div class="relative">
+          <button id="langBtn" class="btn flex items-center gap-1 px-3 py-2 text-sm font-semibold text-ink">
+            <span class="material-symbols-rounded icn-outline text-[20px]">language</span>
+            <span id="langLabel" class="hidden sm:inline">RU</span>
+            <span class="material-symbols-rounded icn-outline text-[18px]">expand_more</span>
+          </button>
+          <div id="langMenu" class="lang-menu absolute right-0 mt-2 w-44 rounded-3xl border border-outline/30 bg-surface2 p-2 shadow-2xl themed" style="border-color:color-mix(in oklab,var(--outline) 35%,transparent)"></div>
+        </div>
+        <!-- theme mode -->
+        <button id="modeBtn" title="Тема" class="btn grid h-10 w-10 place-items-center text-ink">
+          <span id="modeIcon" class="material-symbols-rounded text-[21px]">dark_mode</span>
+        </button>
+        <!-- github -->
+        <a href="https://github.com/THET1ME-1/Kadr" target="_blank" rel="noopener" class="btn hidden sm:flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-bold text-onprimary">
+          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.5v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17 4.6 18 4.9 18 4.9c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.6.8.5 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<a id="top"></a>
+
+<!-- ===================== HERO ===================== -->
+<section class="relative overflow-hidden pt-36 pb-20 sm:pt-44 sm:pb-28">
+  <div class="glow pointer-events-none absolute inset-0 -top-20 h-[600px]"></div>
+  <div class="relative mx-auto max-w-7xl px-5 sm:px-6 grid lg:grid-cols-2 gap-12 items-center">
+    <!-- copy -->
+    <div>
+      <div class="reveal inline-flex items-center gap-2 rounded-full border border-outline/40 bg-surface px-4 py-1.5 text-xs font-semibold text-inkdim" style="border-color:color-mix(in oklab,var(--outline) 40%,transparent)">
+        <span class="material-symbols-rounded text-[16px] text-primary">auto_awesome</span>
+        <span data-i18n="hero_badge">Material 3 Expressive · Open source</span>
+      </div>
+      <h1 class="reveal mt-6 font-display text-6xl sm:text-7xl xl:text-8xl font-black leading-[.9] tracking-tight text-ink">
+        Kadr
+      </h1>
+      <p class="reveal mt-4 font-display text-2xl sm:text-3xl font-semibold text-ink" data-i18n="hero_tagline">Твой трекер фильмов и сериалов</p>
+      <p class="reveal mt-4 max-w-md text-lg text-inkdim leading-relaxed" data-i18n="hero_desc">Отмечай просмотренное, открывай новое и делись с друзьями — в выразительном дизайне Material 3. Локально, без рекламы, с открытым кодом.</p>
+      <div class="reveal mt-8 flex flex-wrap items-center gap-3">
+        <a href="#download" class="btn flex items-center gap-2 rounded-full bg-primary px-7 py-4 text-base font-bold text-onprimary shadow-lg">
+          <span class="material-symbols-rounded text-[20px]">download</span>
+          <span data-i18n="hero_cta_get">Установить</span>
+        </a>
+        <a href="https://github.com/THET1ME-1/Kadr" target="_blank" rel="noopener" class="btn flex items-center gap-2 rounded-full bg-surface2 px-7 py-4 text-base font-bold text-ink border border-outline/40" style="border-color:color-mix(in oklab,var(--outline) 40%,transparent)">
+          <span class="material-symbols-rounded text-[20px]">code</span>
+          <span data-i18n="hero_cta_src">Исходный код</span>
+        </a>
+      </div>
+      <p class="reveal mt-5 text-sm font-medium text-inkdim" data-i18n="hero_free">Бесплатно · Без рекламы · GPL-3.0 · v0.15.4</p>
+    </div>
+
+    <!-- live recolorable mockup -->
+    <div class="reveal relative flex justify-center lg:justify-end">
+      <div class="absolute -inset-8 glow pointer-events-none opacity-70"></div>
+      <div class="floaty relative w-[300px] sm:w-[330px] device themed">
+        <div class="device-screen">
+          <!-- ==== Watched mock ==== -->
+          <div class="px-4 pt-3 pb-2 text-[11px] flex justify-between text-inkdim font-semibold">
+            <span>20:40</span>
+            <span class="flex gap-1 items-center"><span class="material-symbols-rounded icn-outline text-[13px]">bluetooth</span><span class="material-symbols-rounded icn-outline text-[13px]">wifi</span><span class="material-symbols-rounded text-[13px]">battery_full</span></span>
+          </div>
+          <div class="px-4 flex items-center justify-between">
+            <span class="material-symbols-rounded icn-outline text-[22px] text-ink">menu</span>
+            <span class="font-display font-bold text-lg text-ink" data-i18n="mock_watched">Просмотрено</span>
+            <span class="material-symbols-rounded icn-outline text-[20px] text-inkdim">grid_view</span>
+          </div>
+          <div class="mx-4 mt-3 flex items-center gap-2 rounded-full bg-surface2 px-4 py-2.5 text-sm text-inkdim">
+            <span class="material-symbols-rounded icn-outline text-[18px]">search</span>
+            <span data-i18n="mock_search">Фильмы и сериалы…</span>
+          </div>
+          <div class="mx-4 mt-3 flex items-center gap-2 text-xs font-semibold">
+            <span class="rounded-full bg-surface2 px-3 py-1.5 text-inkdim" data-i18n="mock_all">Все</span>
+            <span class="rounded-full bg-primary px-3 py-1.5 text-onprimary" data-i18n="mock_movies">Фильмы</span>
+            <span class="rounded-full bg-surface2 px-3 py-1.5 text-inkdim" data-i18n="mock_series">Сериалы</span>
+            <span class="ml-auto material-symbols-rounded icn-outline text-[18px] text-inkdim">tune</span>
+          </div>
+          <p class="mx-4 mt-3 text-[11px] text-inkdim">Total: 1395</p>
+          <p class="mx-4 mt-1 font-display font-bold text-ink">Watched · July 2026</p>
+          <!-- list rows -->
+          <div class="mx-4 mt-2 space-y-2 pb-4">
+            <div class="flex items-center gap-3 rounded-3xl bg-surface2 p-2.5">
+              <div class="h-14 w-11 shrink-0 rounded-xl bg-gradient-to-br from-tertiary to-primary grid place-items-center"><span class="material-symbols-rounded text-[18px] text-onprimary">movie</span></div>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-bold text-ink">Scary Movie 3</p>
+                <p class="text-[11px] text-inkdim">2003 · 1h 24m</p>
+              </div>
+              <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gold text-sm font-bold text-black">9.0</div>
+            </div>
+            <div class="flex items-center gap-3 rounded-3xl bg-surface2 p-2.5">
+              <div class="h-14 w-11 shrink-0 rounded-xl bg-gradient-to-br from-primary to-secondary grid place-items-center"><span class="material-symbols-rounded text-[18px] text-onprimary">movie</span></div>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-bold text-ink">Scary Movie 2</p>
+                <p class="text-[11px] text-inkdim">2001 · 1h 23m</p>
+              </div>
+              <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gold text-sm font-bold text-black">9.3</div>
+            </div>
+            <div class="flex items-center gap-3 rounded-3xl bg-surface2 p-2.5">
+              <div class="h-14 w-11 shrink-0 rounded-xl bg-gradient-to-br from-secondary to-tertiary grid place-items-center"><span class="material-symbols-rounded text-[18px] text-onprimary">movie</span></div>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-bold text-ink">Scary Movie</p>
+                <p class="text-[11px] text-inkdim">2000 · 1h 28m</p>
+              </div>
+              <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gold text-sm font-bold text-black">9.7</div>
+            </div>
+          </div>
+          <!-- bottom nav -->
+          <div class="flex items-center justify-around border-t border-outline/20 bg-surface px-2 py-2 text-inkdim" style="border-color:color-mix(in oklab,var(--outline) 20%,transparent)">
+            <span class="material-symbols-rounded icn-outline text-[22px]">bookmark</span>
+            <span class="flex items-center gap-1 rounded-full bg-pcont px-4 py-1.5 text-onpcont"><span class="material-symbols-rounded text-[20px]">check_circle</span></span>
+            <span class="material-symbols-rounded icn-outline text-[22px]">explore</span>
+            <span class="material-symbols-rounded icn-outline text-[22px]">person</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- data sources marquee -->
+  <div class="relative mx-auto max-w-7xl px-6 mt-16 sm:mt-20">
+    <p class="text-center text-xs font-semibold uppercase tracking-widest text-inkdim mb-5" data-i18n="sources">Данные из открытых источников</p>
+    <div class="flex flex-wrap justify-center gap-3 text-sm font-bold text-inkdim">
+      <span class="rounded-full border border-outline/30 px-5 py-2" style="border-color:color-mix(in oklab,var(--outline) 30%,transparent)">TMDB</span>
+      <span class="rounded-full border border-outline/30 px-5 py-2" style="border-color:color-mix(in oklab,var(--outline) 30%,transparent)">PoiskKino</span>
+      <span class="rounded-full border border-outline/30 px-5 py-2" style="border-color:color-mix(in oklab,var(--outline) 30%,transparent)">TheTVDB</span>
+      <span class="rounded-full border border-outline/30 px-5 py-2" style="border-color:color-mix(in oklab,var(--outline) 30%,transparent)">Trakt</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FEATURES ===================== -->
+<section id="features" class="mx-auto max-w-7xl px-5 sm:px-6 py-20 sm:py-28">
+  <div class="reveal max-w-2xl">
+    <p class="text-sm font-bold uppercase tracking-widest text-primary" data-i18n="features_kicker">Возможности</p>
+    <h2 class="mt-3 font-display text-4xl sm:text-5xl font-extrabold tracking-tight text-ink" data-i18n="features_title">Всё для киномана — в одном приложении</h2>
+    <p class="mt-4 text-lg text-inkdim" data-i18n="features_sub">Дневник, открытия, статистика и социальный слой. Быстро, приватно и красиво.</p>
+  </div>
+
+  <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" id="featGrid">
+    <!-- cards injected pattern; static markup -->
+    <div class="reveal group rounded-5xl bg-surface p-7 border border-outline/15 hover:-translate-y-1 transition-transform duration-500" style="border-color:color-mix(in oklab,var(--outline) 15%,transparent)">
+      <div class="grid h-12 w-12 place-items-center rounded-2xl bg-pcont text-onpcont"><span class="material-symbols-rounded text-[26px]">checklist</span></div>
+      <h3 class="mt-5 font-display text-xl font-bold text-ink" data-i18n="f1_t">Дневник просмотров</h3>
+      <p class="mt-2 text-inkdim leading-relaxed" data-i18n="f1_d">Отмечай фильмы и серии, ставь оценки по настроению, смотри всё по месяцам и веди статистику.</p>
+    </div>
+    <div class="reveal group rounded-5xl bg-surface p-7 border border-outline/15 hover:-translate-y-1 transition-transform duration-500" style="border-color:color-mix(in oklab,var(--outline) 15%,transparent)">
+      <div class="grid h-12 w-12 place-items-center rounded-2xl bg-pcont text-onpcont"><span class="material-symbols-rounded text-[26px]">explore</span></div>
+      <h3 class="mt-5 font-display text-xl font-bold text-ink" data-i18n="f2_t">Открывай новое</h3>
+      <p class="mt-2 text-inkdim leading-relaxed" data-i18n="f2_d">Персональные подборки «Для тебя», новинки в кино, поиск по всей базе фильмов и сериалов.</p>
+    </div>
+    <div class="reveal group rounded-5xl bg-surface p-7 border border-outline/15 hover:-translate-y-1 transition-transform duration-500" style="border-color:color-mix(in oklab,var(--outline) 15%,transparent)">
+      <div class="grid h-12 w-12 place-items-center rounded-2xl bg-pcont text-onpcont"><span class="material-symbols-rounded text-[26px]">group</span></div>
+      <h3 class="mt-5 font-display text-xl font-bold text-ink" data-i18n="f3_t">Друзья и совместное</h3>
+      <p class="mt-2 text-inkdim leading-relaxed" data-i18n="f3_d">Добавляй друзей, смотрите вместе, делись профилем с баннером и кодом, получай рекомендации.</p>
+    </div>
+    <div class="reveal group rounded-5xl bg-surface p-7 border border-outline/15 hover:-translate-y-1 transition-transform duration-500" style="border-color:color-mix(in oklab,var(--outline) 15%,transparent)">
+      <div class="grid h-12 w-12 place-items-center rounded-2xl bg-pcont text-onpcont"><span class="material-symbols-rounded text-[26px]">sync</span></div>
+      <h3 class="mt-5 font-display text-xl font-bold text-ink" data-i18n="f4_t">Синхронизация Trakt</h3>
+      <p class="mt-2 text-inkdim leading-relaxed" data-i18n="f4_d">Двусторонний синк с Trakt, где Kadr — источник истины. Резервные копии по WebDAV и P2P.</p>
+    </div>
+    <div class="reveal group rounded-5xl bg-surface p-7 border border-outline/15 hover:-translate-y-1 transition-transform duration-500" style="border-color:color-mix(in oklab,var(--outline) 15%,transparent)">
+      <div class="grid h-12 w-12 place-items-center rounded-2xl bg-pcont text-onpcont"><span class="material-symbols-rounded text-[26px]">tv</span></div>
+      <h3 class="mt-5 font-display text-xl font-bold text-ink" data-i18n="f5_t">Android TV</h3>
+      <p class="mt-2 text-inkdim leading-relaxed" data-i18n="f5_d">Полноценный интерфейс для телевизора с навигацией пультом (D-pad). Твоя коллекция — на большом экране.</p>
+    </div>
+    <div class="reveal group rounded-5xl bg-surface p-7 border border-outline/15 hover:-translate-y-1 transition-transform duration-500" style="border-color:color-mix(in oklab,var(--outline) 15%,transparent)">
+      <div class="grid h-12 w-12 place-items-center rounded-2xl bg-pcont text-onpcont"><span class="material-symbols-rounded text-[26px]">lock</span></div>
+      <h3 class="mt-5 font-display text-xl font-bold text-ink" data-i18n="f6_t">Локально и приватно</h3>
+      <p class="mt-2 text-inkdim leading-relaxed" data-i18n="f6_d">Данные живут на устройстве. Local-first, без рекламы и трекеров, открытый исходный код GPL-3.0.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== DESIGN / MATERIAL YOU ===================== -->
+<section id="design" class="relative overflow-hidden py-20 sm:py-28">
+  <div class="glow pointer-events-none absolute inset-0 opacity-60"></div>
+  <div class="relative mx-auto max-w-7xl px-5 sm:px-6 grid lg:grid-cols-2 gap-14 items-center">
+    <div>
+      <p class="reveal text-sm font-bold uppercase tracking-widest text-primary" data-i18n="design_kicker">Оформление</p>
+      <h2 class="reveal mt-3 font-display text-4xl sm:text-5xl font-extrabold tracking-tight text-ink" data-i18n="design_title">Material You. Твой цвет — везде.</h2>
+      <p class="reveal mt-4 text-lg text-inkdim leading-relaxed" data-i18n="design_desc">Выбери цвет темы — и вся палитра пересоберётся, точь-в-точь как в приложении. Восемь готовых тем, пипетка для своего оттенка, светлая и тёмная, AMOLED. Попробуй прямо здесь 👇</p>
+
+      <!-- picker -->
+      <div class="reveal mt-8 rounded-5xl bg-surface p-6 border border-outline/20 themed" style="border-color:color-mix(in oklab,var(--outline) 20%,transparent)">
+        <div class="flex items-center justify-between">
+          <p class="text-sm font-bold uppercase tracking-wider text-primary" data-i18n="design_pick">Цвет темы</p>
+          <!-- mode segmented -->
+          <div class="flex rounded-full bg-surface2 p-1 text-inkdim">
+            <button data-mode="light" class="modeSeg grid h-9 w-10 place-items-center rounded-full transition"><span class="material-symbols-rounded text-[19px]">light_mode</span></button>
+            <button data-mode="dark" class="modeSeg grid h-9 w-10 place-items-center rounded-full transition"><span class="material-symbols-rounded text-[19px]">dark_mode</span></button>
+          </div>
+        </div>
+        <div id="swatches" class="mt-5 flex flex-wrap gap-3"></div>
+        <label class="mt-4 flex items-center gap-3 rounded-full bg-surface2 px-4 py-2.5 cursor-pointer w-max">
+          <span class="material-symbols-rounded text-[20px] text-primary">colorize</span>
+          <span class="text-sm font-semibold text-ink" data-i18n="design_custom">Свой цвет</span>
+          <input type="color" id="customColor" value="#1d9db0" class="h-7 w-7 cursor-pointer rounded-full border-0 bg-transparent p-0">
+        </label>
+      </div>
+    </div>
+
+    <!-- two live mockups -->
+    <div class="reveal relative flex justify-center gap-4 sm:gap-6">
+      <div class="floaty2 w-[210px] sm:w-[240px] device themed mt-10">
+        <div class="device-screen">
+          <div class="p-4 space-y-3">
+            <p class="text-sm font-bold uppercase tracking-wider text-primary" data-i18n="mock_appearance">Оформление</p>
+            <div class="flex rounded-full bg-surface2 p-1 text-inkdim">
+              <span class="grid flex-1 place-items-center rounded-full py-1.5"><span class="material-symbols-rounded text-[18px]">light_mode</span></span>
+              <span class="grid flex-1 place-items-center rounded-full bg-pcont py-1.5 text-onpcont"><span class="material-symbols-rounded text-[18px]">dark_mode</span></span>
+              <span class="grid flex-1 place-items-center rounded-full py-1.5 text-xs font-bold">A</span>
+              <span class="grid flex-1 place-items-center rounded-full py-1.5"><span class="material-symbols-rounded text-[18px]">schedule</span></span>
+            </div>
+            <div class="grid grid-cols-4 gap-2.5 pt-1 items-center">
+              <div class="aspect-square w-full rounded-full overflow-hidden grid grid-cols-2 grid-rows-2 themed"><span style="background:var(--primary-container)"></span><span style="background:var(--primary)"></span><span style="background:var(--secondary)"></span><span style="background:var(--tertiary)"></span></div>
+              <div class="aspect-square w-full rounded-full overflow-hidden grid grid-cols-2 grid-rows-2 themed"><span style="background:var(--primary)"></span><span style="background:var(--tertiary)"></span><span style="background:var(--primary-container)"></span><span style="background:var(--secondary)"></span></div>
+              <div class="aspect-square w-full rounded-full overflow-hidden grid grid-cols-2 grid-rows-2 themed"><span style="background:var(--secondary)"></span><span style="background:var(--primary-container)"></span><span style="background:var(--tertiary)"></span><span style="background:var(--primary)"></span></div>
+              <div class="aspect-square w-full rounded-full bg-surface2 grid place-items-center"><span class="material-symbols-rounded text-[16px] text-inkdim">colorize</span></div>
+            </div>
+            <div class="rounded-3xl bg-surface2 p-3 flex items-center gap-3">
+              <span class="material-symbols-rounded text-[20px] text-primary">auto_awesome</span>
+              <div class="flex-1"><p class="text-xs font-bold text-ink" data-i18n="mock_matyou">Material You</p></div>
+              <div class="h-5 w-9 rounded-full bg-primary relative"><span class="absolute right-0.5 top-0.5 h-4 w-4 rounded-full bg-onprimary"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="floaty w-[210px] sm:w-[240px] device themed">
+        <div class="device-screen">
+          <div class="p-3 space-y-2.5">
+            <div class="flex gap-2">
+              <div class="h-24 flex-1 rounded-2xl bg-gradient-to-br from-primary to-tertiary"></div>
+              <div class="h-24 flex-1 rounded-2xl bg-gradient-to-br from-secondary to-primary"></div>
+            </div>
+            <div class="rounded-2xl bg-surface2 p-3">
+              <p class="text-xs font-bold text-ink" data-i18n="mock_foryou">Для тебя</p>
+              <div class="mt-2 flex gap-1.5">
+                <span class="rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold text-onprimary" data-i18n="mock_movies">Фильмы</span>
+                <span class="rounded-full bg-surface3 px-2.5 py-1 text-[10px] font-semibold text-inkdim" data-i18n="mock_series">Сериалы</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 rounded-full bg-pcont px-3 py-2">
+              <span class="material-symbols-rounded text-[18px] text-onpcont">favorite</span>
+              <span class="text-[11px] font-bold text-onpcont" data-i18n="mock_fav">В избранном</span>
+            </div>
+            <div class="flex items-center justify-around rounded-full bg-surface2 py-2 text-inkdim">
+              <span class="material-symbols-rounded text-[19px]">bookmark</span>
+              <span class="material-symbols-rounded text-[19px] text-primary">check_circle</span>
+              <span class="material-symbols-rounded text-[19px]">explore</span>
+              <span class="material-symbols-rounded text-[19px]">person</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SCREENSHOTS ===================== -->
+<section id="gallery" class="mx-auto max-w-7xl px-5 sm:px-6 py-20 sm:py-28">
+  <div class="reveal max-w-2xl mb-12">
+    <p class="text-sm font-bold uppercase tracking-widest text-primary" data-i18n="gallery_kicker">Интерфейс</p>
+    <h2 class="mt-3 font-display text-4xl sm:text-5xl font-extrabold tracking-tight text-ink" data-i18n="gallery_title">Красиво в каждом кадре</h2>
+  </div>
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+    <figure class="reveal">
+      <div class="device themed"><div class="device-screen"><img src="assets/shot1.png" alt="Watched" loading="lazy"></div></div>
+      <figcaption class="mt-4 text-center text-sm font-semibold text-inkdim" data-i18n="cap1">Просмотрено</figcaption>
+    </figure>
+    <figure class="reveal" style="transition-delay:.1s">
+      <div class="device themed"><div class="device-screen"><img src="assets/shot2.png" alt="Discover" loading="lazy"></div></div>
+      <figcaption class="mt-4 text-center text-sm font-semibold text-inkdim" data-i18n="cap2">Обзор</figcaption>
+    </figure>
+    <figure class="reveal" style="transition-delay:.2s">
+      <div class="device themed"><div class="device-screen"><img src="assets/shot3.png" alt="Profile" loading="lazy"></div></div>
+      <figcaption class="mt-4 text-center text-sm font-semibold text-inkdim" data-i18n="cap3">Профиль</figcaption>
+    </figure>
+    <figure class="reveal" style="transition-delay:.3s">
+      <div class="device themed"><div class="device-screen"><img src="assets/shot4.png" alt="Settings" loading="lazy"></div></div>
+      <figcaption class="mt-4 text-center text-sm font-semibold text-inkdim" data-i18n="cap4">Настройки</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== SOCIAL ===================== -->
+<section class="mx-auto max-w-7xl px-5 sm:px-6 py-20 sm:py-28">
+  <div class="rounded-6xl bg-surface p-8 sm:p-14 border border-outline/15 themed" style="border-color:color-mix(in oklab,var(--outline) 15%,transparent)">
+    <div class="grid lg:grid-cols-2 gap-12 items-center">
+      <div>
+        <p class="reveal text-sm font-bold uppercase tracking-widest text-primary" data-i18n="social_kicker">Вместе</p>
+        <h2 class="reveal mt-3 font-display text-4xl sm:text-5xl font-extrabold tracking-tight text-ink" data-i18n="social_title">Смотрите вместе с друзьями</h2>
+        <p class="reveal mt-4 text-lg text-inkdim leading-relaxed" data-i18n="social_desc">Добавляй друзей по коду, следи за их просмотрами и желаниями, отмечай «смотрели вместе» — просмотр засчитается обоим.</p>
+        <ul class="reveal mt-8 space-y-4">
+          <li class="flex gap-4"><span class="material-symbols-rounded text-primary">person_add</span><div><p class="font-bold text-ink" data-i18n="s1_t">Друзья по коду</p><p class="text-inkdim" data-i18n="s1_d">Уникальный код профиля — делись и добавляй в одно касание.</p></div></li>
+          <li class="flex gap-4"><span class="material-symbols-rounded text-primary">groups</span><div><p class="font-bold text-ink" data-i18n="s2_t">Смотрели вместе</p><p class="text-inkdim" data-i18n="s2_d">Один просмотр — засчитывается тебе и другу, с уведомлением.</p></div></li>
+          <li class="flex gap-4"><span class="material-symbols-rounded text-primary">wallpaper</span><div><p class="font-bold text-ink" data-i18n="s3_t">Профиль с баннером</p><p class="text-inkdim" data-i18n="s3_d">Свой баннер, аватар и приватность: скрывай оценки и точные даты.</p></div></li>
+        </ul>
+      </div>
+      <div class="reveal flex justify-center">
+        <div class="floaty2 w-[280px] device themed"><div class="device-screen"><img src="assets/shot3.png" alt="Profile" loading="lazy"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== LANGUAGES ===================== -->
+<section class="mx-auto max-w-7xl px-5 sm:px-6 py-16 text-center">
+  <p class="reveal text-sm font-bold uppercase tracking-widest text-primary" data-i18n="langs_kicker">Языки</p>
+  <h2 class="reveal mt-3 font-display text-3xl sm:text-4xl font-extrabold tracking-tight text-ink" data-i18n="langs_title">Говорит на 7 языках</h2>
+  <p class="reveal mt-3 text-inkdim" data-i18n="langs_desc">Приложение и этот сайт переведены полностью. Переключи язык в шапке 👆</p>
+  <div class="reveal mt-8 flex flex-wrap justify-center gap-3" id="langChips"></div>
+</section>
+
+<!-- ===================== DOWNLOAD ===================== -->
+<section id="download" class="mx-auto max-w-5xl px-5 sm:px-6 py-20 sm:py-28">
+  <div class="relative overflow-hidden rounded-6xl bg-surface p-8 sm:p-16 text-center border border-outline/20 themed" style="border-color:color-mix(in oklab,var(--outline) 25%,transparent)">
+    <div class="glow pointer-events-none absolute inset-0 opacity-80"></div>
+    <div class="relative">
+      <img src="assets/icon.png" alt="Kadr" class="mx-auto h-20 w-20 rounded-3xl shadow-xl">
+      <p class="mt-6 text-sm font-bold uppercase tracking-widest text-primary" data-i18n="dl_kicker">Установка</p>
+      <h2 class="mt-3 font-display text-4xl sm:text-5xl font-extrabold tracking-tight text-ink" data-i18n="dl_title">Поставь Kadr</h2>
+      <p class="mt-4 max-w-xl mx-auto text-lg text-inkdim" data-i18n="dl_desc">Только GitHub Releases и Obtainium — с автообновлением. Без Google Play, без слежки.</p>
+      <div class="mt-8 flex flex-col sm:flex-row justify-center gap-3">
+        <a href="https://github.com/THET1ME-1/Kadr/releases/latest" target="_blank" rel="noopener" class="btn flex items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-base font-bold text-onprimary shadow-lg">
+          <span class="material-symbols-rounded text-[20px]">android</span>
+          <span data-i18n="dl_apk">Скачать APK</span>
+        </a>
+        <a href="https://github.com/THET1ME-1/Kadr" target="_blank" rel="noopener" class="btn flex items-center justify-center gap-2 rounded-full bg-surface2 px-8 py-4 text-base font-bold text-ink border border-outline/40" style="border-color:color-mix(in oklab,var(--outline) 40%,transparent)">
+          <span class="material-symbols-rounded text-[20px]">sync</span>
+          <span data-i18n="dl_obt">Через Obtainium</span>
+        </a>
+      </div>
+      <p class="mt-6 text-sm text-inkdim" data-i18n="dl_note">Android · v0.15.4 · GPL-3.0 · F-Droid и RuStore — в планах</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer class="border-t border-outline/15 themed" style="border-color:color-mix(in oklab,var(--outline) 15%,transparent)">
+  <div class="mx-auto max-w-7xl px-5 sm:px-6 py-12">
+    <img src="assets/banner.png" alt="Kadr — Movie & TV tracker" class="w-full max-w-xl rounded-3xl">
+    <div class="mt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+      <div>
+        <p class="text-inkdim text-sm" data-i18n="foot_made">Сделано на Flutter · Дизайн Material 3 Expressive</p>
+        <p class="mt-1 text-inkdim text-sm">© <span id="year"></span> S&amp;T Company · <span data-i18n="foot_license">Лицензия GPL-3.0</span></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="https://github.com/THET1ME-1/Kadr" target="_blank" rel="noopener" class="btn flex items-center gap-2 rounded-full bg-surface2 px-5 py-3 text-sm font-bold text-ink">
+          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.5v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17 4.6 18 4.9 18 4.9c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.6.8.5 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/></svg>
+          THET1ME-1/Kadr
+        </a>
+      </div>
+    </div>
+    <p class="mt-8 text-xs text-inkdim/70" data-i18n="foot_disc">Kadr не связан с TMDB, Trakt, TheTVDB или Google. Все постеры и данные принадлежат их владельцам. Неофициальный фан-проект.</p>
+  </div>
+</footer>
+
+<script>
+/* ============ M3 COLOR ENGINE (seed → OKLCH tokens) ============ */
+function hexToRgb(h){h=h.replace('#','');return [0,2,4].map(i=>parseInt(h.substr(i,2),16)/255);}
+function lin(c){return c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4);}
+function seedHC(hex){
+  const [r,g,b]=hexToRgb(hex); const R=lin(r),G=lin(g),B=lin(b);
+  const l=Math.cbrt(0.4122214708*R+0.5363325363*G+0.0514459929*B);
+  const m=Math.cbrt(0.2119034982*R+0.6806995451*G+0.1073969566*B);
+  const s=Math.cbrt(0.0883024619*R+0.2817188376*G+0.6299787005*B);
+  const a=1.9779984951*l-2.4285922050*m+0.4505937099*s;
+  const bb=0.0259040371*l+0.7827717662*m-0.8086757660*s;
+  let H=Math.atan2(bb,a)*180/Math.PI; if(H<0)H+=360;
+  return {H, C:Math.sqrt(a*a+bb*bb)};
+}
+let CUR_SEED = localStorage.getItem('kadr_seed') || '#1d9db0';
+let CUR_MODE = localStorage.getItem('kadr_mode') || 'dark';
+
+function buildTokens(hex, mode){
+  const {H,C}=seedHC(hex);
+  const c=Math.min(C,0.16);
+  const o=(L,ch,h=H)=>`oklch(${L} ${ch} ${h})`;
+  const t = mode==='dark' ? {
+    '--bg':o(.155,.012),'--surface-1':o(.202,.016),'--surface-2':o(.246,.02),'--surface-3':o(.29,.024),
+    '--on-surface':o(.945,.008),'--on-surface-var':o(.76,.016),'--outline':o(.52,.016),
+    '--primary':o(.83,Math.min(c,.13)),'--on-primary':o(.26,.07),
+    '--primary-container':o(.4,Math.min(c,.1)),'--on-primary-container':o(.92,.06),
+    '--secondary':o(.8,.05),'--tertiary':o(.84,.1,H+55),
+    '--gold':'oklch(.83 .13 84)','--glow':o(.83,Math.min(c,.13))+''
+  } : {
+    '--bg':o(.986,.005),'--surface-1':o(.955,.009),'--surface-2':o(.925,.014),'--surface-3':o(.895,.02),
+    '--on-surface':o(.2,.02),'--on-surface-var':o(.42,.02),'--outline':o(.62,.018),
+    '--primary':o(.54,Math.min(c,.16)),'--on-primary':o(.99,.008),
+    '--primary-container':o(.9,Math.min(c,.08)),'--on-primary-container':o(.28,.11),
+    '--secondary':o(.47,.06),'--tertiary':o(.5,.1,H+55),
+    '--gold':'oklch(.72 .13 78)','--glow':o(.54,Math.min(c,.16))+''
+  };
+  return t;
+}
+function applyTheme(){
+  const t=buildTokens(CUR_SEED,CUR_MODE);
+  for(const k in t) document.documentElement.style.setProperty(k,t[k]);
+  // glow alpha
+  const {H,C}=seedHC(CUR_SEED);
+  document.documentElement.style.setProperty('--glow',`oklch(${CUR_MODE==='dark'?.83:.6} ${Math.min(C,.13)} ${H} / .16)`);
+  document.documentElement.classList.toggle('dark',CUR_MODE==='dark');
+  document.getElementById('modeIcon').textContent = CUR_MODE==='dark'?'light_mode':'dark_mode';
+  document.querySelectorAll('.modeSeg').forEach(b=>{
+    const on=b.dataset.mode===CUR_MODE;
+    b.classList.toggle('bg-primary',on); b.classList.toggle('text-onprimary',on);
+  });
+  document.querySelectorAll('.swatch').forEach(s=>s.classList.toggle('sel', s.dataset.hex.toLowerCase()===CUR_SEED.toLowerCase()));
+  localStorage.setItem('kadr_seed',CUR_SEED); localStorage.setItem('kadr_mode',CUR_MODE);
+}
+function setSeed(h){ CUR_SEED=h; document.getElementById('customColor').value=h; applyTheme(); }
+function setMode(m){ CUR_MODE=m; applyTheme(); }
+
+/* presets (like the app's 8 palettes) — each swatch = 4 theme tones in quadrants */
+const PRESETS=['#1d9db0','#7c6bd8','#d98cc0','#d9a441','#b0553f','#7f9a4e','#4f7fd9','#d97a7a'];
+const sw=document.getElementById('swatches');
+function swatchColors(hex){
+  const {H,C}=seedHC(hex); const c=Math.min(C,0.14);
+  const o=(L,ch,h=H)=>`oklch(${L} ${ch} ${h})`;
+  return [ o(.88,c*.4), o(.60,c), o(.92,c*.28,H+55), o(.55,c*.7,H+25) ];
+}
+PRESETS.forEach(h=>{
+  const b=document.createElement('button');
+  b.className='swatch'; b.dataset.hex=h; b.setAttribute('aria-label','theme '+h);
+  b.style.cssText='flex:0 0 auto;width:44px;height:44px;min-width:44px;border-radius:50%;overflow:hidden;padding:0;border:0';
+  const grid=document.createElement('span');
+  grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;width:100%;height:100%';
+  swatchColors(h).forEach(col=>{ const cell=document.createElement('span'); cell.style.background=col; grid.appendChild(cell); });
+  b.appendChild(grid);
+  b.onclick=()=>setSeed(h);
+  sw.appendChild(b);
+});
+document.getElementById('customColor').addEventListener('input',e=>setSeed(e.target.value));
+document.querySelectorAll('.modeSeg').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+document.getElementById('modeBtn').onclick=()=>setMode(CUR_MODE==='dark'?'light':'dark');
+
+/* ============ i18n (7 languages) ============ */
+const I18N={
+ ru:{nav_features:'Возможности',nav_design:'Оформление',nav_screens:'Экраны',nav_download:'Установка',
+   hero_badge:'Material 3 Expressive · Открытый код',hero_tagline:'Твой трекер фильмов и сериалов',
+   hero_desc:'Отмечай просмотренное, открывай новое и делись с друзьями — в выразительном дизайне Material 3. Локально, без рекламы, с открытым кодом.',
+   hero_cta_get:'Установить',hero_cta_src:'Исходный код',hero_free:'Бесплатно · Без рекламы · GPL-3.0 · v0.15.4',
+   sources:'Данные из открытых источников',
+   mock_watched:'Просмотрено',mock_search:'Фильмы и сериалы…',mock_all:'Все',mock_movies:'Фильмы',mock_series:'Сериалы',
+   mock_appearance:'Оформление',mock_matyou:'Material You',mock_foryou:'Для тебя',mock_fav:'В избранном',
+   features_kicker:'Возможности',features_title:'Всё для киномана — в одном приложении',features_sub:'Дневник, открытия, статистика и социальный слой. Быстро, приватно и красиво.',
+   f1_t:'Дневник просмотров',f1_d:'Отмечай фильмы и серии, ставь оценки по настроению, смотри всё по месяцам и веди статистику.',
+   f2_t:'Открывай новое',f2_d:'Персональные подборки «Для тебя», новинки в кино, поиск по всей базе фильмов и сериалов.',
+   f3_t:'Друзья и совместное',f3_d:'Добавляй друзей, смотрите вместе, делись профилем с баннером и кодом, получай рекомендации.',
+   f4_t:'Синхронизация Trakt',f4_d:'Двусторонний синк с Trakt, где Kadr — источник истины. Резервные копии по WebDAV и P2P.',
+   f5_t:'Android TV',f5_d:'Полноценный интерфейс для телевизора с навигацией пультом (D-pad). Твоя коллекция — на большом экране.',
+   f6_t:'Локально и приватно',f6_d:'Данные живут на устройстве. Local-first, без рекламы и трекеров, открытый код GPL-3.0.',
+   design_kicker:'Оформление',design_title:'Material You. Твой цвет — везде.',design_desc:'Выбери цвет темы — и вся палитра пересоберётся, точь-в-точь как в приложении. Восемь готовых тем, пипетка, светлая и тёмная, AMOLED. Попробуй прямо здесь 👇',
+   design_pick:'Цвет темы',design_custom:'Свой цвет',
+   gallery_kicker:'Интерфейс',gallery_title:'Красиво в каждом кадре',cap1:'Просмотрено',cap2:'Обзор',cap3:'Профиль',cap4:'Настройки',
+   social_kicker:'Вместе',social_title:'Смотрите вместе с друзьями',social_desc:'Добавляй друзей по коду, следи за их просмотрами и желаниями, отмечай «смотрели вместе» — просмотр засчитается обоим.',
+   s1_t:'Друзья по коду',s1_d:'Уникальный код профиля — делись и добавляй в одно касание.',s2_t:'Смотрели вместе',s2_d:'Один просмотр — засчитывается тебе и другу, с уведомлением.',s3_t:'Профиль с баннером',s3_d:'Свой баннер, аватар и приватность: скрывай оценки и точные даты.',
+   langs_kicker:'Языки',langs_title:'Говорит на 7 языках',langs_desc:'Приложение и этот сайт переведены полностью. Переключи язык в шапке 👆',
+   dl_kicker:'Установка',dl_title:'Поставь Kadr',dl_desc:'Только GitHub Releases и Obtainium — с автообновлением. Без Google Play, без слежки.',dl_apk:'Скачать APK',dl_obt:'Через Obtainium',dl_note:'Android · v0.15.4 · GPL-3.0 · F-Droid и RuStore — в планах',
+   foot_made:'Сделано на Flutter · Дизайн Material 3 Expressive',foot_license:'Лицензия GPL-3.0',foot_disc:'Kadr не связан с TMDB, Trakt, TheTVDB или Google. Все постеры и данные принадлежат их владельцам. Неофициальный фан-проект.'},
+
+ en:{nav_features:'Features',nav_design:'Design',nav_screens:'Screens',nav_download:'Get it',
+   hero_badge:'Material 3 Expressive · Open source',hero_tagline:'Your movie & TV tracker',
+   hero_desc:'Log what you watch, discover what’s next and share with friends — in expressive Material 3 design. Local, ad-free, open source.',
+   hero_cta_get:'Install',hero_cta_src:'Source code',hero_free:'Free · No ads · GPL-3.0 · v0.15.4',
+   sources:'Data from open sources',
+   mock_watched:'Watched',mock_search:'Movies and series…',mock_all:'All',mock_movies:'Movies',mock_series:'Series',
+   mock_appearance:'Appearance',mock_matyou:'Material You',mock_foryou:'For you',mock_fav:'Favorites',
+   features_kicker:'Features',features_title:'Everything a film lover needs — in one app',features_sub:'A watch log, discovery, statistics and a social layer. Fast, private and beautiful.',
+   f1_t:'Watch log',f1_d:'Log movies and episodes, rate by mood, browse everything by month and keep your stats.',
+   f2_t:'Discover',f2_d:'Personal “For you” picks, what’s in theaters, and search across the whole movie & TV database.',
+   f3_t:'Friends & together',f3_d:'Add friends, watch together, share a profile with banner and code, get recommendations.',
+   f4_t:'Trakt sync',f4_d:'Two-way Trakt sync with Kadr as the source of truth. Backups over WebDAV and P2P.',
+   f5_t:'Android TV',f5_d:'A full TV interface with remote (D-pad) navigation. Your collection on the big screen.',
+   f6_t:'Local & private',f6_d:'Your data stays on device. Local-first, no ads or trackers, open source GPL-3.0.',
+   design_kicker:'Design',design_title:'Material You. Your color, everywhere.',design_desc:'Pick a theme color and the whole palette regenerates, exactly like in the app. Eight ready themes, an eyedropper, light and dark, AMOLED. Try it right here 👇',
+   design_pick:'Theme color',design_custom:'Custom color',
+   gallery_kicker:'Interface',gallery_title:'Beautiful in every frame',cap1:'Watched',cap2:'Discover',cap3:'Profile',cap4:'Settings',
+   social_kicker:'Together',social_title:'Watch together with friends',social_desc:'Add friends by code, follow their watches and wishlist, mark “watched together” — it counts for both.',
+   s1_t:'Friends by code',s1_d:'A unique profile code — share and add in one tap.',s2_t:'Watched together',s2_d:'One watch counts for you and your friend, with a notification.',s3_t:'Profile with banner',s3_d:'Your banner, avatar and privacy: hide ratings and exact dates.',
+   langs_kicker:'Languages',langs_title:'Speaks 7 languages',langs_desc:'The app and this page are fully translated. Switch language in the header 👆',
+   dl_kicker:'Get it',dl_title:'Install Kadr',dl_desc:'GitHub Releases and Obtainium only — with auto-updates. No Google Play, no tracking.',dl_apk:'Download APK',dl_obt:'Via Obtainium',dl_note:'Android · v0.15.4 · GPL-3.0 · F-Droid & RuStore planned',
+   foot_made:'Built with Flutter · Material 3 Expressive design',foot_license:'GPL-3.0 License',foot_disc:'Kadr is not affiliated with TMDB, Trakt, TheTVDB or Google. All posters and data belong to their owners. Unofficial fan project.'},
+
+ de:{nav_features:'Funktionen',nav_design:'Design',nav_screens:'Screens',nav_download:'Holen',
+   hero_badge:'Material 3 Expressive · Open Source',hero_tagline:'Dein Film- & Serien-Tracker',
+   hero_desc:'Notiere Gesehenes, entdecke Neues und teile mit Freunden — im ausdrucksstarken Material-3-Design. Lokal, werbefrei, quelloffen.',
+   hero_cta_get:'Installieren',hero_cta_src:'Quellcode',hero_free:'Kostenlos · Werbefrei · GPL-3.0 · v0.15.4',
+   sources:'Daten aus offenen Quellen',
+   mock_watched:'Gesehen',mock_search:'Filme und Serien…',mock_all:'Alle',mock_movies:'Filme',mock_series:'Serien',
+   mock_appearance:'Darstellung',mock_matyou:'Material You',mock_foryou:'Für dich',mock_fav:'Favoriten',
+   features_kicker:'Funktionen',features_title:'Alles für Filmfans — in einer App',features_sub:'Tagebuch, Entdeckungen, Statistiken und soziale Ebene. Schnell, privat und schön.',
+   f1_t:'Seh-Tagebuch',f1_d:'Filme und Folgen erfassen, nach Stimmung bewerten, alles nach Monat ansehen und Statistiken führen.',
+   f2_t:'Entdecken',f2_d:'Persönliche „Für dich“-Tipps, Kinostarts und Suche in der gesamten Film- & Seriendatenbank.',
+   f3_t:'Freunde & gemeinsam',f3_d:'Freunde hinzufügen, gemeinsam schauen, Profil mit Banner und Code teilen, Empfehlungen erhalten.',
+   f4_t:'Trakt-Sync',f4_d:'Zwei-Wege-Sync mit Trakt, Kadr als Quelle der Wahrheit. Backups über WebDAV und P2P.',
+   f5_t:'Android TV',f5_d:'Vollständige TV-Oberfläche mit Fernbedienung (D-Pad). Deine Sammlung auf dem großen Bildschirm.',
+   f6_t:'Lokal & privat',f6_d:'Deine Daten bleiben auf dem Gerät. Local-first, keine Werbung oder Tracker, Open Source GPL-3.0.',
+   design_kicker:'Design',design_title:'Material You. Deine Farbe, überall.',design_desc:'Wähle eine Themenfarbe und die ganze Palette wird neu erzeugt, genau wie in der App. Acht Themes, Pipette, hell und dunkel, AMOLED. Probier es hier 👇',
+   design_pick:'Themenfarbe',design_custom:'Eigene Farbe',
+   gallery_kicker:'Oberfläche',gallery_title:'Schön in jedem Bild',cap1:'Gesehen',cap2:'Entdecken',cap3:'Profil',cap4:'Einstellungen',
+   social_kicker:'Gemeinsam',social_title:'Schaut gemeinsam mit Freunden',social_desc:'Freunde per Code hinzufügen, ihre Ansichten und Wunschliste verfolgen, „gemeinsam gesehen“ markieren — zählt für beide.',
+   s1_t:'Freunde per Code',s1_d:'Ein eindeutiger Profilcode — teilen und mit einem Tipp hinzufügen.',s2_t:'Gemeinsam gesehen',s2_d:'Ein Ansehen zählt für dich und deinen Freund, mit Benachrichtigung.',s3_t:'Profil mit Banner',s3_d:'Dein Banner, Avatar und Privatsphäre: Bewertungen und genaue Daten verbergen.',
+   langs_kicker:'Sprachen',langs_title:'Spricht 7 Sprachen',langs_desc:'App und Seite sind vollständig übersetzt. Sprache oben umschalten 👆',
+   dl_kicker:'Holen',dl_title:'Kadr installieren',dl_desc:'Nur GitHub Releases und Obtainium — mit Auto-Updates. Kein Google Play, kein Tracking.',dl_apk:'APK laden',dl_obt:'Über Obtainium',dl_note:'Android · v0.15.4 · GPL-3.0 · F-Droid & RuStore geplant',
+   foot_made:'Mit Flutter gebaut · Material 3 Expressive Design',foot_license:'GPL-3.0-Lizenz',foot_disc:'Kadr steht in keiner Verbindung zu TMDB, Trakt, TheTVDB oder Google. Alle Poster und Daten gehören ihren Eigentümern. Inoffizielles Fan-Projekt.'},
+
+ fr:{nav_features:'Fonctions',nav_design:'Design',nav_screens:'Écrans',nav_download:'Obtenir',
+   hero_badge:'Material 3 Expressive · Open source',hero_tagline:'Ton tracker de films et séries',
+   hero_desc:'Note ce que tu regardes, découvre la suite et partage avec tes amis — dans un design Material 3 expressif. Local, sans pub, open source.',
+   hero_cta_get:'Installer',hero_cta_src:'Code source',hero_free:'Gratuit · Sans pub · GPL-3.0 · v0.15.4',
+   sources:'Données de sources ouvertes',
+   mock_watched:'Vus',mock_search:'Films et séries…',mock_all:'Tous',mock_movies:'Films',mock_series:'Séries',
+   mock_appearance:'Apparence',mock_matyou:'Material You',mock_foryou:'Pour toi',mock_fav:'Favoris',
+   features_kicker:'Fonctions',features_title:'Tout pour les cinéphiles — dans une appli',features_sub:'Un journal, des découvertes, des stats et une couche sociale. Rapide, privé et beau.',
+   f1_t:'Journal de visionnage',f1_d:'Note les films et épisodes, évalue selon l’humeur, parcours tout par mois et suis tes stats.',
+   f2_t:'Découvrir',f2_d:'Sélections « Pour toi », sorties en salle et recherche dans toute la base de films et séries.',
+   f3_t:'Amis & ensemble',f3_d:'Ajoute des amis, regardez ensemble, partage un profil avec bannière et code, reçois des recommandations.',
+   f4_t:'Sync Trakt',f4_d:'Synchro bidirectionnelle avec Trakt, Kadr comme source de vérité. Sauvegardes via WebDAV et P2P.',
+   f5_t:'Android TV',f5_d:'Interface TV complète avec navigation à la télécommande (D-pad). Ta collection sur grand écran.',
+   f6_t:'Local & privé',f6_d:'Tes données restent sur l’appareil. Local-first, sans pub ni traceurs, open source GPL-3.0.',
+   design_kicker:'Design',design_title:'Material You. Ta couleur, partout.',design_desc:'Choisis une couleur de thème et toute la palette se régénère, comme dans l’appli. Huit thèmes, pipette, clair et sombre, AMOLED. Essaie ici 👇',
+   design_pick:'Couleur du thème',design_custom:'Couleur perso',
+   gallery_kicker:'Interface',gallery_title:'Beau dans chaque image',cap1:'Vus',cap2:'Découvrir',cap3:'Profil',cap4:'Réglages',
+   social_kicker:'Ensemble',social_title:'Regardez ensemble entre amis',social_desc:'Ajoute des amis par code, suis leurs visionnages et envies, marque « vu ensemble » — ça compte pour les deux.',
+   s1_t:'Amis par code',s1_d:'Un code de profil unique — partage et ajoute en un geste.',s2_t:'Vu ensemble',s2_d:'Un visionnage compte pour toi et ton ami, avec notification.',s3_t:'Profil avec bannière',s3_d:'Ta bannière, ton avatar et ta confidentialité : masque notes et dates exactes.',
+   langs_kicker:'Langues',langs_title:'Parle 7 langues',langs_desc:'L’appli et cette page sont entièrement traduites. Change de langue en haut 👆',
+   dl_kicker:'Obtenir',dl_title:'Installer Kadr',dl_desc:'GitHub Releases et Obtainium uniquement — avec mises à jour auto. Sans Google Play, sans pistage.',dl_apk:'Télécharger l’APK',dl_obt:'Via Obtainium',dl_note:'Android · v0.15.4 · GPL-3.0 · F-Droid & RuStore prévus',
+   foot_made:'Fait avec Flutter · Design Material 3 Expressive',foot_license:'Licence GPL-3.0',foot_disc:'Kadr n’est pas affilié à TMDB, Trakt, TheTVDB ou Google. Affiches et données appartiennent à leurs propriétaires. Projet de fans non officiel.'},
+
+ es:{nav_features:'Funciones',nav_design:'Diseño',nav_screens:'Pantallas',nav_download:'Obtener',
+   hero_badge:'Material 3 Expressive · Código abierto',hero_tagline:'Tu tracker de películas y series',
+   hero_desc:'Registra lo que ves, descubre lo siguiente y comparte con amigos — en un diseño Material 3 expresivo. Local, sin anuncios, de código abierto.',
+   hero_cta_get:'Instalar',hero_cta_src:'Código fuente',hero_free:'Gratis · Sin anuncios · GPL-3.0 · v0.15.4',
+   sources:'Datos de fuentes abiertas',
+   mock_watched:'Visto',mock_search:'Películas y series…',mock_all:'Todo',mock_movies:'Películas',mock_series:'Series',
+   mock_appearance:'Apariencia',mock_matyou:'Material You',mock_foryou:'Para ti',mock_fav:'Favoritos',
+   features_kicker:'Funciones',features_title:'Todo para los cinéfilos — en una app',features_sub:'Diario, descubrimiento, estadísticas y capa social. Rápido, privado y bonito.',
+   f1_t:'Diario de visionado',f1_d:'Registra películas y episodios, puntúa por estado de ánimo, mira todo por mes y lleva tus estadísticas.',
+   f2_t:'Descubrir',f2_d:'Selecciones «Para ti», estrenos en cines y búsqueda en toda la base de películas y series.',
+   f3_t:'Amigos y en común',f3_d:'Añade amigos, vean juntos, comparte un perfil con banner y código, recibe recomendaciones.',
+   f4_t:'Sincronización Trakt',f4_d:'Sincronización bidireccional con Trakt, con Kadr como fuente de verdad. Copias por WebDAV y P2P.',
+   f5_t:'Android TV',f5_d:'Interfaz de TV completa con mando a distancia (D-pad). Tu colección en la pantalla grande.',
+   f6_t:'Local y privado',f6_d:'Tus datos permanecen en el dispositivo. Local-first, sin anuncios ni rastreadores, código abierto GPL-3.0.',
+   design_kicker:'Diseño',design_title:'Material You. Tu color, en todas partes.',design_desc:'Elige un color de tema y toda la paleta se regenera, igual que en la app. Ocho temas, cuentagotas, claro y oscuro, AMOLED. Pruébalo aquí 👇',
+   design_pick:'Color del tema',design_custom:'Color propio',
+   gallery_kicker:'Interfaz',gallery_title:'Bonito en cada fotograma',cap1:'Visto',cap2:'Descubrir',cap3:'Perfil',cap4:'Ajustes',
+   social_kicker:'Juntos',social_title:'Vean juntos con amigos',social_desc:'Añade amigos por código, sigue sus visionados y su lista de deseos, marca «visto juntos» — cuenta para ambos.',
+   s1_t:'Amigos por código',s1_d:'Un código de perfil único — comparte y añade con un toque.',s2_t:'Visto juntos',s2_d:'Un visionado cuenta para ti y tu amigo, con notificación.',s3_t:'Perfil con banner',s3_d:'Tu banner, avatar y privacidad: oculta puntuaciones y fechas exactas.',
+   langs_kicker:'Idiomas',langs_title:'Habla 7 idiomas',langs_desc:'La app y esta página están totalmente traducidas. Cambia de idioma arriba 👆',
+   dl_kicker:'Obtener',dl_title:'Instalar Kadr',dl_desc:'Solo GitHub Releases y Obtainium — con auto-actualizaciones. Sin Google Play, sin rastreo.',dl_apk:'Descargar APK',dl_obt:'Con Obtainium',dl_note:'Android · v0.15.4 · GPL-3.0 · F-Droid y RuStore en camino',
+   foot_made:'Hecho con Flutter · Diseño Material 3 Expressive',foot_license:'Licencia GPL-3.0',foot_disc:'Kadr no está afiliado a TMDB, Trakt, TheTVDB ni Google. Los pósters y datos pertenecen a sus dueños. Proyecto de fans no oficial.'},
+
+ it:{nav_features:'Funzioni',nav_design:'Design',nav_screens:'Schermate',nav_download:'Scarica',
+   hero_badge:'Material 3 Expressive · Open source',hero_tagline:'Il tuo tracker di film e serie',
+   hero_desc:'Segna cosa guardi, scopri cosa vedere e condividi con gli amici — in un design Material 3 espressivo. Locale, senza pubblicità, open source.',
+   hero_cta_get:'Installa',hero_cta_src:'Codice sorgente',hero_free:'Gratis · Senza pubblicità · GPL-3.0 · v0.15.4',
+   sources:'Dati da fonti aperte',
+   mock_watched:'Visti',mock_search:'Film e serie…',mock_all:'Tutti',mock_movies:'Film',mock_series:'Serie',
+   mock_appearance:'Aspetto',mock_matyou:'Material You',mock_foryou:'Per te',mock_fav:'Preferiti',
+   features_kicker:'Funzioni',features_title:'Tutto per gli amanti del cinema — in un’app',features_sub:'Diario, scoperte, statistiche e livello social. Veloce, privato e bello.',
+   f1_t:'Diario di visione',f1_d:'Segna film ed episodi, vota in base all’umore, sfoglia tutto per mese e tieni le statistiche.',
+   f2_t:'Scopri',f2_d:'Selezioni «Per te», novità al cinema e ricerca in tutto il database di film e serie.',
+   f3_t:'Amici e insieme',f3_d:'Aggiungi amici, guardate insieme, condividi un profilo con banner e codice, ricevi consigli.',
+   f4_t:'Sincronizzazione Trakt',f4_d:'Sincronizzazione bidirezionale con Trakt, con Kadr come fonte di verità. Backup via WebDAV e P2P.',
+   f5_t:'Android TV',f5_d:'Interfaccia TV completa con navigazione da telecomando (D-pad). La tua collezione sul grande schermo.',
+   f6_t:'Locale e privato',f6_d:'I tuoi dati restano sul dispositivo. Local-first, senza pubblicità né tracker, open source GPL-3.0.',
+   design_kicker:'Design',design_title:'Material You. Il tuo colore, ovunque.',design_desc:'Scegli un colore tema e l’intera palette si rigenera, proprio come nell’app. Otto temi, contagocce, chiaro e scuro, AMOLED. Provalo qui 👇',
+   design_pick:'Colore del tema',design_custom:'Colore personale',
+   gallery_kicker:'Interfaccia',gallery_title:'Bello in ogni fotogramma',cap1:'Visti',cap2:'Scopri',cap3:'Profilo',cap4:'Impostazioni',
+   social_kicker:'Insieme',social_title:'Guardate insieme con gli amici',social_desc:'Aggiungi amici tramite codice, segui le loro visioni e la wishlist, segna «visto insieme» — conta per entrambi.',
+   s1_t:'Amici tramite codice',s1_d:'Un codice profilo unico — condividi e aggiungi con un tocco.',s2_t:'Visto insieme',s2_d:'Una visione conta per te e per il tuo amico, con notifica.',s3_t:'Profilo con banner',s3_d:'Il tuo banner, avatar e privacy: nascondi voti e date esatte.',
+   langs_kicker:'Lingue',langs_title:'Parla 7 lingue',langs_desc:'App e pagina sono tradotte completamente. Cambia lingua in alto 👆',
+   dl_kicker:'Scarica',dl_title:'Installa Kadr',dl_desc:'Solo GitHub Releases e Obtainium — con aggiornamenti automatici. Niente Google Play, niente tracciamento.',dl_apk:'Scarica APK',dl_obt:'Con Obtainium',dl_note:'Android · v0.15.4 · GPL-3.0 · F-Droid e RuStore in arrivo',
+   foot_made:'Realizzato con Flutter · Design Material 3 Expressive',foot_license:'Licenza GPL-3.0',foot_disc:'Kadr non è affiliato a TMDB, Trakt, TheTVDB o Google. Poster e dati appartengono ai rispettivi proprietari. Progetto amatoriale non ufficiale.'},
+
+ pt:{nav_features:'Recursos',nav_design:'Design',nav_screens:'Telas',nav_download:'Baixar',
+   hero_badge:'Material 3 Expressive · Código aberto',hero_tagline:'Seu tracker de filmes e séries',
+   hero_desc:'Registre o que assiste, descubra o próximo e compartilhe com amigos — num design Material 3 expressivo. Local, sem anúncios, código aberto.',
+   hero_cta_get:'Instalar',hero_cta_src:'Código-fonte',hero_free:'Grátis · Sem anúncios · GPL-3.0 · v0.15.4',
+   sources:'Dados de fontes abertas',
+   mock_watched:'Assistidos',mock_search:'Filmes e séries…',mock_all:'Todos',mock_movies:'Filmes',mock_series:'Séries',
+   mock_appearance:'Aparência',mock_matyou:'Material You',mock_foryou:'Para você',mock_fav:'Favoritos',
+   features_kicker:'Recursos',features_title:'Tudo para o cinéfilo — num só app',features_sub:'Diário, descobertas, estatísticas e camada social. Rápido, privado e bonito.',
+   f1_t:'Diário de exibição',f1_d:'Marque filmes e episódios, avalie por humor, veja tudo por mês e acompanhe suas estatísticas.',
+   f2_t:'Descobrir',f2_d:'Seleções «Para você», estreias nos cinemas e busca em toda a base de filmes e séries.',
+   f3_t:'Amigos e em conjunto',f3_d:'Adicione amigos, assistam juntos, compartilhe um perfil com banner e código, receba recomendações.',
+   f4_t:'Sincronização Trakt',f4_d:'Sincronização bidirecional com o Trakt, com o Kadr como fonte da verdade. Backups por WebDAV e P2P.',
+   f5_t:'Android TV',f5_d:'Interface de TV completa com navegação por controle (D-pad). Sua coleção na tela grande.',
+   f6_t:'Local e privado',f6_d:'Seus dados ficam no dispositivo. Local-first, sem anúncios nem rastreadores, código aberto GPL-3.0.',
+   design_kicker:'Design',design_title:'Material You. Sua cor, em tudo.',design_desc:'Escolha uma cor de tema e toda a paleta se regenera, igual ao app. Oito temas, conta-gotas, claro e escuro, AMOLED. Experimente aqui 👇',
+   design_pick:'Cor do tema',design_custom:'Cor própria',
+   gallery_kicker:'Interface',gallery_title:'Bonito em cada quadro',cap1:'Assistidos',cap2:'Descobrir',cap3:'Perfil',cap4:'Ajustes',
+   social_kicker:'Juntos',social_title:'Assistam juntos com amigos',social_desc:'Adicione amigos por código, acompanhe o que veem e a lista de desejos, marque «assistido juntos» — conta para os dois.',
+   s1_t:'Amigos por código',s1_d:'Um código de perfil único — compartilhe e adicione num toque.',s2_t:'Assistido juntos',s2_d:'Uma exibição conta para você e seu amigo, com notificação.',s3_t:'Perfil com banner',s3_d:'Seu banner, avatar e privacidade: oculte notas e datas exatas.',
+   langs_kicker:'Idiomas',langs_title:'Fala 7 idiomas',langs_desc:'O app e esta página estão totalmente traduzidos. Troque o idioma no topo 👆',
+   dl_kicker:'Baixar',dl_title:'Instalar o Kadr',dl_desc:'Somente GitHub Releases e Obtainium — com atualizações automáticas. Sem Google Play, sem rastreamento.',dl_apk:'Baixar APK',dl_obt:'Pelo Obtainium',dl_note:'Android · v0.15.4 · GPL-3.0 · F-Droid e RuStore planejados',
+   foot_made:'Feito com Flutter · Design Material 3 Expressive',foot_license:'Licença GPL-3.0',foot_disc:'O Kadr não é afiliado a TMDB, Trakt, TheTVDB ou Google. Pôsteres e dados pertencem aos seus donos. Projeto de fãs não oficial.'}
+};
+const LANGS=[['ru','Русский'],['en','English'],['de','Deutsch'],['fr','Français'],['es','Español'],['it','Italiano'],['pt','Português']];
+let CUR_LANG=localStorage.getItem('kadr_lang')|| (navigator.language||'ru').slice(0,2);
+if(!I18N[CUR_LANG]) CUR_LANG='ru';
+
+function setLang(code){
+  CUR_LANG=code; const dict=I18N[code]||I18N.ru;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ const k=el.getAttribute('data-i18n'); if(dict[k]!==undefined) el.textContent=dict[k]; });
+  document.documentElement.lang=code;
+  document.getElementById('langLabel').textContent=code.toUpperCase();
+  localStorage.setItem('kadr_lang',code);
+  document.querySelectorAll('#langMenu button').forEach(b=>b.classList.toggle('text-primary', b.dataset.code===code));
+}
+// build language menu + chips
+const lm=document.getElementById('langMenu'), lc=document.getElementById('langChips');
+LANGS.forEach(([c,n])=>{
+  const b=document.createElement('button'); b.dataset.code=c;
+  b.className='btn w-full text-left px-4 py-2.5 rounded-2xl text-sm font-semibold text-ink hover:bg-surface3';
+  b.innerHTML=`<span class="inline-block w-8 text-inkdim">${c.toUpperCase()}</span> ${n}`;
+  b.onclick=()=>{ setLang(c); lm.classList.remove('open'); };
+  lm.appendChild(b);
+  const chip=document.createElement('button'); chip.dataset.code=c;
+  chip.className='btn rounded-full bg-surface px-5 py-2.5 text-sm font-bold text-ink border border-outline/25';
+  chip.style.borderColor='color-mix(in oklab,var(--outline) 25%,transparent)';
+  chip.textContent=n; chip.onclick=()=>setLang(c);
+  lc.appendChild(chip);
+});
+document.getElementById('langBtn').onclick=e=>{ e.stopPropagation(); lm.classList.toggle('open'); };
+document.addEventListener('click',()=>lm.classList.remove('open'));
+
+/* ============ reveal on scroll ============ */
+const io=new IntersectionObserver((es)=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* ============ init ============ */
+document.getElementById('year').textContent = new Date().getFullYear();
+applyTheme();
+setLang(CUR_LANG);
+</script>
+</body>
+</html>
