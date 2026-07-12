@@ -366,4 +366,26 @@ class SocialApi {
         _decode(await _post(
             '/lists/$id/members', {'code': ?code, 'userId': ?userId}, token));
       });
+
+  // ----------------------------- скробблинг -----------------------------
+
+  /// Персональный токен вебхука скробблинга (сервер создаёт при первом запросе).
+  Future<String> scrobbleToken(String token) => _guard(() async {
+        final r = await _get('/me/scrobble', token);
+        return _decode(r)['token'] as String? ?? '';
+      });
+
+  /// Очередь скробблов от Plex/Jellyfin (клиент отмечает локально и подтверждает).
+  Future<List<Map<String, dynamic>>> pendingScrobbles(String token) =>
+      _guard(() async {
+        final r = await _get('/scrobbles', token);
+        final list = _decode(r)['scrobbles'] as List? ?? [];
+        return [for (final e in list) (e as Map).cast<String, dynamic>()];
+      });
+
+  /// Подтвердить (удалить) обработанные скробблы по id.
+  Future<void> ackScrobbles(String token, List<String> ids) =>
+      _guard(() async {
+        _decode(await _post('/scrobbles/ack', {'ids': ids}, token));
+      });
 }

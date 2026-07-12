@@ -23,6 +23,7 @@ import 'auto_backup_screen.dart';
 import 'drawer_customize_screen.dart';
 import 'trakt_screen.dart';
 import 'sync_screen.dart';
+import 'scrobble_screen.dart';
 import 'tmdb_key_screen.dart';
 import 'tvtime_import_screen.dart';
 
@@ -359,6 +360,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
                             builder: (_) => const TvTimeImportScreen()),
+                      ),
+                    ),
+                    _divider(),
+                    _tile(
+                      icon: Icons.sensors_rounded,
+                      title: tr('scrobble_title'),
+                      subtitle: tr('scrobble_settings_sub'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const ScrobbleScreen()),
                       ),
                     ),
                     _divider(),

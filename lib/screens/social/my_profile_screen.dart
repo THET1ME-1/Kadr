@@ -24,6 +24,7 @@ import '../../widgets/seed_swatch.dart';
 import '../../widgets/update_sheet.dart';
 import '../../widgets/user_avatar.dart';
 import '../auto_backup_screen.dart';
+import '../scrobble_screen.dart';
 import '../statistics_screen.dart';
 import '../sync_screen.dart';
 import '../tvtime_import_screen.dart';
@@ -191,6 +192,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         _dataCard(context),
         const SizedBox(height: 12),
         _updateTile(context),
+        const SizedBox(height: 12),
+        _scrobbleTile(context),
         const SizedBox(height: 24),
         _sectionLabel(tr('drawer_stats')),
         const SizedBox(height: 12),
@@ -240,6 +243,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 _dataCard(context),
                 const SizedBox(height: 12),
                 _updateTile(context),
+                const SizedBox(height: 12),
+                _scrobbleTile(context),
                 const SizedBox(height: 24),
                 _sectionLabel(tr('drawer_stats')),
                 const SizedBox(height: 12),
@@ -1212,6 +1217,58 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     const SizedBox(height: 2),
                     Text(
                       tr('check_updates_sub'),
+                      style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 12.5,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: scheme.onSurfaceVariant,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Пункт «Скробблинг» — авто-отметка просмотров из Plex/Jellyfin/Kodi.
+  Widget _scrobbleTile(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(22),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ScrobbleScreen())),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Row(
+            children: [
+              Icon(Icons.sensors_rounded, color: scheme.onSurfaceVariant),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('scrobble_title'),
+                      style: const TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      tr('scrobble_settings_sub'),
                       style: TextStyle(
                         fontFamily: AppTheme.bodyFont,
                         fontSize: 12.5,

@@ -724,6 +724,31 @@ const Map<String, Map<String, String>> kTranslations = {
             'fast leer. TV-Time-Import und manuelle Einträge funktionieren. Du '
             'kannst den Schlüssel später in den Einstellungen hinzufügen.',
     'tmdb_skip_confirm': 'Trotzdem starten',
+    'scrobble_title': 'Scrobbling',
+    'scrobble_settings_sub': 'Auto-Eintrag aus Plex, Jellyfin, Kodi',
+    'scrobble_need_account': 'Konto erforderlich',
+    'scrobble_need_account_sub':
+        'Scrobbling verknüpft Ansichten mit deinem Konto. Melde dich an, um es '
+            'zu aktivieren.',
+    'scrobble_intro':
+        'Schau in Plex, Jellyfin oder Kodi — Kadr markiert Folgen und Filme '
+            'automatisch als gesehen, mit Datum. Webhook einmal einrichten.',
+    'scrobble_enable': 'Scrobbling aktivieren',
+    'scrobble_enable_sub': 'Ansichten beim Öffnen der App abrufen',
+    'scrobble_url_label': 'Deine Webhook-URL',
+    'scrobble_url_error': 'URL konnte nicht geladen werden — später erneut versuchen',
+    'scrobble_copy': 'Kopieren',
+    'scrobble_copied': 'URL kopiert',
+    'scrobble_plex_steps':
+        'Plex-Einstellungen → Konto → Webhooks → Add Webhook → URL oben '
+            'einfügen. Plex Pass erforderlich.',
+    'scrobble_jellyfin_steps':
+        'Webhook-Plugin installieren → Add Generic Destination → URL einfügen, '
+            'Playback Stop und Item Marked Played aktivieren, für Episodes und '
+            'Movies.',
+    'scrobble_check_now': 'Jetzt prüfen',
+    'scrobble_checked': '{n} Ansichten übernommen',
+    'scrobble_check_fail': 'Prüfung fehlgeschlagen',
   },
   'fr': {
     'app_name': 'Kadr',
@@ -1443,6 +1468,30 @@ const Map<String, Map<String, String>> kTranslations = {
             'presque vide. L’import TV Time et les ajouts manuels fonctionnent. '
             'Tu peux ajouter une clé plus tard dans les Réglages.',
     'tmdb_skip_confirm': 'Entrer quand même',
+    'scrobble_title': 'Scrobbling',
+    'scrobble_settings_sub': 'Journal auto depuis Plex, Jellyfin, Kodi',
+    'scrobble_need_account': 'Compte requis',
+    'scrobble_need_account_sub':
+        'Le scrobbling lie les visionnages à ton compte. Connecte-toi pour '
+            'l’activer.',
+    'scrobble_intro':
+        'Regarde dans Plex, Jellyfin ou Kodi — Kadr marque épisodes et films '
+            'comme vus automatiquement, avec dates. Configure le webhook une fois.',
+    'scrobble_enable': 'Activer le scrobbling',
+    'scrobble_enable_sub': 'Récupérer les visionnages à l’ouverture de l’appli',
+    'scrobble_url_label': 'Ton URL de webhook',
+    'scrobble_url_error': 'Impossible de charger l’URL — réessaie plus tard',
+    'scrobble_copy': 'Copier',
+    'scrobble_copied': 'URL copiée',
+    'scrobble_plex_steps':
+        'Réglages Plex → Compte → Webhooks → Add Webhook → colle l’URL '
+            'ci-dessus. Plex Pass requis.',
+    'scrobble_jellyfin_steps':
+        'Installe le plugin Webhook → Add Generic Destination → colle l’URL, '
+            'active Playback Stop et Item Marked Played, pour Episodes et Movies.',
+    'scrobble_check_now': 'Vérifier maintenant',
+    'scrobble_checked': '{n} visionnages appliqués',
+    'scrobble_check_fail': 'Échec de la vérification',
   },
   'es': {
     'app_name': 'Kadr',
@@ -2157,6 +2206,30 @@ const Map<String, Map<String, String>> kTranslations = {
             'vacía. La importación de TV Time y las entradas manuales '
             'funcionan. Puedes añadir una clave más tarde en Ajustes.',
     'tmdb_skip_confirm': 'Entrar igualmente',
+    'scrobble_title': 'Scrobbling',
+    'scrobble_settings_sub': 'Registro automático de Plex, Jellyfin, Kodi',
+    'scrobble_need_account': 'Cuenta necesaria',
+    'scrobble_need_account_sub':
+        'El scrobbling vincula lo que ves a tu cuenta. Inicia sesión para '
+            'activarlo.',
+    'scrobble_intro':
+        'Mira en Plex, Jellyfin o Kodi — Kadr marca episodios y películas como '
+            'vistos automáticamente, con fechas. Configura el webhook una vez.',
+    'scrobble_enable': 'Activar scrobbling',
+    'scrobble_enable_sub': 'Traer lo visto al abrir la app',
+    'scrobble_url_label': 'Tu URL de webhook',
+    'scrobble_url_error': 'No se pudo cargar la URL — inténtalo más tarde',
+    'scrobble_copy': 'Copiar',
+    'scrobble_copied': 'URL copiada',
+    'scrobble_plex_steps':
+        'Ajustes de Plex → Cuenta → Webhooks → Add Webhook → pega la URL de '
+            'arriba. Requiere Plex Pass.',
+    'scrobble_jellyfin_steps':
+        'Instala el plugin Webhook → Add Generic Destination → pega la URL, '
+            'activa Playback Stop e Item Marked Played, para Episodes y Movies.',
+    'scrobble_check_now': 'Comprobar ahora',
+    'scrobble_checked': '{n} visionados aplicados',
+    'scrobble_check_fail': 'Error al comprobar',
   },
   'it': {
     'app_name': 'Kadr',
@@ -2869,6 +2942,29 @@ const Map<String, Map<String, String>> kTranslations = {
             'L’import da TV Time e le voci manuali funzionano. Puoi aggiungere '
             'una chiave più tardi nelle Impostazioni.',
     'tmdb_skip_confirm': 'Entra comunque',
+    'scrobble_title': 'Scrobbling',
+    'scrobble_settings_sub': 'Registro automatico da Plex, Jellyfin, Kodi',
+    'scrobble_need_account': 'Account richiesto',
+    'scrobble_need_account_sub':
+        'Lo scrobbling collega le visioni al tuo account. Accedi per attivarlo.',
+    'scrobble_intro':
+        'Guarda in Plex, Jellyfin o Kodi — Kadr segna episodi e film come visti '
+            'automaticamente, con le date. Configura il webhook una volta.',
+    'scrobble_enable': 'Attiva lo scrobbling',
+    'scrobble_enable_sub': 'Recupera le visioni all’apertura dell’app',
+    'scrobble_url_label': 'Il tuo URL webhook',
+    'scrobble_url_error': 'Impossibile caricare l’URL — riprova più tardi',
+    'scrobble_copy': 'Copia',
+    'scrobble_copied': 'URL copiato',
+    'scrobble_plex_steps':
+        'Impostazioni Plex → Account → Webhooks → Add Webhook → incolla l’URL '
+            'sopra. Richiede Plex Pass.',
+    'scrobble_jellyfin_steps':
+        'Installa il plugin Webhook → Add Generic Destination → incolla l’URL, '
+            'attiva Playback Stop e Item Marked Played, per Episodes e Movies.',
+    'scrobble_check_now': 'Controlla ora',
+    'scrobble_checked': '{n} visioni applicate',
+    'scrobble_check_fail': 'Controllo non riuscito',
   },
   'pt': {
     'app_name': 'Kadr',
@@ -3581,5 +3677,29 @@ const Map<String, Map<String, String>> kTranslations = {
             'vazio. A importação do TV Time e as entradas manuais funcionam. '
             'Você pode adicionar uma chave depois nas Configurações.',
     'tmdb_skip_confirm': 'Entrar mesmo assim',
+    'scrobble_title': 'Scrobbling',
+    'scrobble_settings_sub': 'Registro automático de Plex, Jellyfin, Kodi',
+    'scrobble_need_account': 'Conta necessária',
+    'scrobble_need_account_sub':
+        'O scrobbling vincula o que você assiste à sua conta. Entre para ativar.',
+    'scrobble_intro':
+        'Assista no Plex, Jellyfin ou Kodi — o Kadr marca episódios e filmes '
+            'como assistidos automaticamente, com datas. Configure o webhook '
+            'uma vez.',
+    'scrobble_enable': 'Ativar scrobbling',
+    'scrobble_enable_sub': 'Buscar o que foi assistido ao abrir o app',
+    'scrobble_url_label': 'Seu URL de webhook',
+    'scrobble_url_error': 'Não foi possível carregar o URL — tente mais tarde',
+    'scrobble_copy': 'Copiar',
+    'scrobble_copied': 'URL copiado',
+    'scrobble_plex_steps':
+        'Configurações do Plex → Conta → Webhooks → Add Webhook → cole o URL '
+            'acima. Requer Plex Pass.',
+    'scrobble_jellyfin_steps':
+        'Instale o plugin Webhook → Add Generic Destination → cole o URL, ative '
+            'Playback Stop e Item Marked Played, para Episodes e Movies.',
+    'scrobble_check_now': 'Verificar agora',
+    'scrobble_checked': '{n} visionamentos aplicados',
+    'scrobble_check_fail': 'Falha na verificação',
   },
 };

@@ -1660,4 +1660,58 @@ const Map<String, Map<String, String>> _strings = {
         'add a key later in Settings.'
   },
   'tmdb_skip_confirm': {'ru': 'Всё равно войти', 'en': 'Enter anyway'},
+
+  // --- Скробблинг Plex/Jellyfin ---
+  'scrobble_title': {'ru': 'Скробблинг', 'en': 'Scrobbling'},
+  'scrobble_settings_sub': {
+    'ru': 'Авто-отметка из Plex, Jellyfin, Kodi',
+    'en': 'Auto-log from Plex, Jellyfin, Kodi'
+  },
+  'scrobble_need_account': {'ru': 'Нужен аккаунт', 'en': 'Account required'},
+  'scrobble_need_account_sub': {
+    'ru': 'Скробблинг привязывает просмотры к твоему аккаунту. Войди, чтобы '
+        'включить.',
+    'en': 'Scrobbling links watches to your account. Log in to enable it.'
+  },
+  'scrobble_intro': {
+    'ru': 'Смотри в Plex, Jellyfin или Kodi — Kadr сам отметит серии и фильмы '
+        'просмотренными, с датой. Настрой вебхук один раз.',
+    'en': 'Watch in Plex, Jellyfin or Kodi — Kadr marks episodes and movies '
+        'watched automatically, with dates. Set up the webhook once.'
+  },
+  'scrobble_enable': {
+    'ru': 'Включить скробблинг',
+    'en': 'Enable scrobbling'
+  },
+  'scrobble_enable_sub': {
+    'ru': 'Забирать просмотры при открытии приложения',
+    'en': 'Fetch watches when the app opens'
+  },
+  'scrobble_url_label': {'ru': 'Твой адрес вебхука', 'en': 'Your webhook URL'},
+  'scrobble_url_error': {
+    'ru': 'Не удалось получить адрес — зайди позже',
+    'en': 'Could not load the URL — try again later'
+  },
+  'scrobble_copy': {'ru': 'Скопировать', 'en': 'Copy'},
+  'scrobble_copied': {'ru': 'Адрес скопирован', 'en': 'URL copied'},
+  'scrobble_plex_steps': {
+    'ru': 'Настройки Plex → Аккаунт → Webhooks → Add Webhook → вставь адрес '
+        'выше. Требуется Plex Pass.',
+    'en': 'Plex Settings → Account → Webhooks → Add Webhook → paste the URL '
+        'above. Plex Pass required.'
+  },
+  'scrobble_jellyfin_steps': {
+    'ru': 'Установи плагин Webhook → Add Generic Destination → вставь адрес, '
+        'включи события Playback Stop и Item Marked Played, для Episodes и '
+        'Movies.',
+    'en': 'Install the Webhook plugin → Add Generic Destination → paste the '
+        'URL, enable Playback Stop and Item Marked Played, for Episodes and '
+        'Movies.'
+  },
+  'scrobble_check_now': {'ru': 'Проверить сейчас', 'en': 'Check now'},
+  'scrobble_checked': {
+    'ru': 'Применено просмотров: {n}',
+    'en': 'Applied {n} watches'
+  },
+  'scrobble_check_fail': {'ru': 'Не удалось проверить', 'en': 'Check failed'},
 };
