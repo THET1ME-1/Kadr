@@ -1091,6 +1091,150 @@ async function tvdbToken(request, env) {
   return traktPass(r, await r.text());
 }
 
+// ======================= Скробблинг (Plex / Jellyfin) =======================
+
+/// Разбор вебхука плеера → {kind, title, year, season, episode, source} или null,
+/// если это НЕ событие «досмотрел / отметил просмотренным». Чистая функция —
+/// тестируется отдельно (test/scrobble_parse.test.mjs).
+export function parseScrobble(payload) {
+  if (!payload || typeof payload !== 'object') return null;
+
+  // --- Plex --- (event + Metadata). Просмотр = 'media.scrobble' (~90% серии/фильма).
+  if (payload.Metadata && (payload.event || payload.Metadata.type)) {
+    if (payload.event && payload.event !== 'media.scrobble') return null;
+    const m = payload.Metadata;
+    if (m.type === 'episode') {
+      const title = m.grandparentTitle || m.parentTitle || '';
+      if (!title) return null;
+      return {
+        kind: 'episode',
+        title,
+        year: null,
+        season: numOrNull(m.parentIndex),
+        episode: numOrNull(m.index),
+        source: 'plex',
+      };
+    }
+    if (m.type === 'movie') {
+      if (!m.title) return null;
+      return { kind: 'movie', title: m.title, year: numOrNull(m.year), season: null, episode: null, source: 'plex' };
+    }
+    return null;
+  }
+
+  // --- Jellyfin --- (NotificationType + ItemType). Просмотр = PlaybackStop с
+  // PlayedToCompletion, либо явная отметка просмотренным.
+  if (payload.ItemType || payload.NotificationType) {
+    const nt = payload.NotificationType;
+    const completed =
+      (nt === 'PlaybackStop' && truthy(payload.PlayedToCompletion)) ||
+      nt === 'MarkPlayed' ||
+      (nt === 'UserDataSaved' && truthy(payload.Played));
+    if (!completed) return null;
+    if (payload.ItemType === 'Episode') {
+      const title = payload.SeriesName || '';
+      if (!title) return null;
+      return {
+        kind: 'episode',
+        title,
+        year: null,
+        season: numOrNull(payload.SeasonNumber ?? payload.ParentIndexNumber),
+        episode: numOrNull(payload.EpisodeNumber ?? payload.IndexNumber),
+        source: 'jellyfin',
+      };
+    }
+    if (payload.ItemType === 'Movie') {
+      const title = payload.Name || '';
+      if (!title) return null;
+      return { kind: 'movie', title, year: numOrNull(payload.Year ?? payload.ProductionYear), season: null, episode: null, source: 'jellyfin' };
+    }
+    return null;
+  }
+
+  return null;
+}
+
+function numOrNull(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = parseInt(v, 10);
+  return Number.isNaN(n) ? null : n;
+}
+function truthy(v) {
+  return v === true || v === 'true' || v === 1 || v === '1';
+}
+
+// GET /me/scrobble — персональный токен вебхука (создаётся при первом запросе).
+async function scrobbleInfo(env, me) {
+  let token = me.scrobble_token;
+  if (!token) {
+    token = randomHex(24);
+    await env.DB.prepare('UPDATE users SET scrobble_token = ? WHERE id = ?').bind(token, me.id).run();
+  }
+  return json({ token });
+}
+
+// POST /scrobble/:token — приём вебхука Plex/Jellyfin (без авторизации, токен в URL).
+async function receiveScrobble(request, env, token) {
+  const user = await env.DB.prepare('SELECT id FROM users WHERE scrobble_token = ?').bind(token).first();
+  if (!user) return err('unauthorized', 401);
+  if (!(await rateLimit(env, `scr:${user.id}`, 600, 60 * 60 * 1000))) return err('rate_limited', 429);
+
+  let payload = null;
+  const ct = (request.headers.get('Content-Type') || '').toLowerCase();
+  try {
+    if (ct.includes('multipart/form-data')) {
+      // Plex шлёт multipart с полем payload=<JSON>.
+      const form = await request.formData();
+      const raw = form.get('payload');
+      if (raw) payload = JSON.parse(typeof raw === 'string' ? raw : await raw.text());
+    } else {
+      payload = JSON.parse(await request.text());
+    }
+  } catch {
+    return json({ ok: true, ignored: 'bad_payload' });
+  }
+
+  const ev = parseScrobble(payload);
+  // Возвращаем 200 даже если событие не подходит — плеер не должен ретраить.
+  if (!ev) return json({ ok: true, ignored: true });
+
+  await env.DB.prepare(
+    'INSERT INTO scrobbles (id, user_id, kind, title, year, season, episode, source, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  )
+    .bind(crypto.randomUUID(), user.id, ev.kind, ev.title, ev.year, ev.season, ev.episode, ev.source, now())
+    .run();
+  return json({ ok: true, queued: true });
+}
+
+// GET /scrobbles — очередь скробблов текущего пользователя (клиент забирает и отмечает).
+async function listScrobbles(env, me) {
+  const rows = (
+    await env.DB.prepare(
+      'SELECT id, kind, title, year, season, episode, source, created_at FROM scrobbles WHERE user_id = ? ORDER BY created_at ASC LIMIT 500',
+    )
+      .bind(me.id)
+      .all()
+  ).results;
+  return json({ scrobbles: rows });
+}
+
+// POST /scrobbles/ack — удалить обработанные скробблы (body {ids:[...]}).
+async function ackScrobbles(request, env, me) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err('bad_json');
+  }
+  const ids = Array.isArray(body.ids) ? body.ids.slice(0, 500).map(String) : [];
+  if (ids.length === 0) return json({ ok: true, deleted: 0 });
+  const placeholders = ids.map(() => '?').join(',');
+  await env.DB.prepare(`DELETE FROM scrobbles WHERE user_id = ? AND id IN (${placeholders})`)
+    .bind(me.id, ...ids)
+    .run();
+  return json({ ok: true, deleted: ids.length });
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
@@ -1118,6 +1262,10 @@ export default {
       const banMatch = path.match(/^\/banners\/([^/?]+)$/);
       if (banMatch && method === 'GET') return getBanner(env, decodeURIComponent(banMatch[1]));
 
+      // Вебхук скробблинга Plex/Jellyfin — по персональному токену в URL (без авторизации).
+      const scrMatch = path.match(/^\/scrobble\/([^/]+)$/);
+      if (scrMatch && method === 'POST') return receiveScrobble(request, env, decodeURIComponent(scrMatch[1]));
+
       // Дальше — только с валидным токеном.
       const me = await authenticate(request, env);
       if (!me) return err('unauthorized', 401);
@@ -1129,6 +1277,11 @@ export default {
       if (path === '/me/banner' && method === 'PUT') return uploadBanner(request, env, me);
       if (path === '/me/banner' && method === 'DELETE') return deleteBanner(env, me);
       if (path === '/me/recovery' && method === 'POST') return regenerateRecovery(env, me);
+
+      // --- скробблинг Plex/Jellyfin ---
+      if (path === '/me/scrobble' && method === 'GET') return scrobbleInfo(env, me);
+      if (path === '/scrobbles' && method === 'GET') return listScrobbles(env, me);
+      if (path === '/scrobbles/ack' && method === 'POST') return ackScrobbles(request, env, me);
 
       if (path === '/friends' && method === 'GET') return listFriends(env, me);
       if (path === '/friends/request' && method === 'POST') return requestFriend(request, env, me);
@@ -1188,6 +1341,10 @@ export default {
     await env.DB.prepare('DELETE FROM tokens WHERE expires_at < ?').bind(ts).run();
     await env.DB.prepare('DELETE FROM rate_limits WHERE window_start < ?')
       .bind(ts - 24 * 60 * 60 * 1000)
+      .run();
+    // Незабранные скроббы старше 30 дней (клиент давно не заходил) — чистим.
+    await env.DB.prepare('DELETE FROM scrobbles WHERE created_at < ?')
+      .bind(ts - 30 * 24 * 60 * 60 * 1000)
       .run();
   },
 };
