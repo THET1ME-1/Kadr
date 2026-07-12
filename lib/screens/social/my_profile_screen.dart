@@ -23,6 +23,7 @@ import '../../widgets/user_avatar.dart';
 import '../auto_backup_screen.dart';
 import '../statistics_screen.dart';
 import '../sync_screen.dart';
+import '../tvtime_import_screen.dart';
 import 'auth_screen.dart';
 import 'friend_profile_screen.dart';
 import 'media_image_picker.dart';
@@ -1056,6 +1057,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
         children: [
+          _tvtimeTile(scheme),
+          const Divider(height: 1, indent: 16, endIndent: 16),
           _dataTile(
             scheme,
             Icons.ios_share_rounded,
@@ -1092,6 +1095,35 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             ).push(MaterialPageRoute(builder: (_) => const AutoBackupScreen())),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Импорт из TV Time — продублирован в профиле и подсвечен фирменным жёлтым
+  /// TV Time (#FFD403), чтобы «беженцы» сразу его замечали.
+  Widget _tvtimeTile(ColorScheme scheme) {
+    const gold = Color(0xFFFFD403);
+    return ListTile(
+      leading: const Icon(Icons.move_to_inbox_rounded, color: gold),
+      title: Text(
+        tr('tvtime_title'),
+        style: const TextStyle(
+          fontFamily: AppTheme.bodyFont,
+          fontWeight: FontWeight.w700,
+          color: gold,
+        ),
+      ),
+      subtitle: Text(
+        tr('tvtime_settings_sub'),
+        style: TextStyle(
+          fontFamily: AppTheme.bodyFont,
+          fontSize: 12,
+          color: scheme.onSurfaceVariant,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right_rounded, color: gold),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const TvTimeImportScreen()),
       ),
     );
   }
