@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_bg_graphite">#0E1316</color>
     <color name="ic_bg_ink">#00B5C7</color>
+    <color name="ic_bg_graphite">#0E1316</color>
     <color name="ic_bg_white">#00B5C7</color>
 </resources>

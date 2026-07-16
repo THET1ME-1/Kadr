@@ -39,20 +39,20 @@ class AppIconService extends ChangeNotifier {
 
   static const _channel = MethodChannel('app_icon');
   static const _storeKey = 'appIconId';
-  static const defaultId = 'graphite';
+  static const defaultId = 'ink';
 
   static const options = <AppIconOption>[
-    AppIconOption(
-      id: 'graphite',
-      nameKey: 'app_icon_graphite',
-      mark: Color(0xFF00B5C7),
-      background: Color(0xFF0E1316),
-    ),
     AppIconOption(
       id: 'ink',
       nameKey: 'app_icon_ink',
       mark: Color(0xFF0E1316),
       background: Color(0xFF00B5C7),
+    ),
+    AppIconOption(
+      id: 'graphite',
+      nameKey: 'app_icon_graphite',
+      mark: Color(0xFF00B5C7),
+      background: Color(0xFF0E1316),
     ),
     AppIconOption(
       id: 'white',

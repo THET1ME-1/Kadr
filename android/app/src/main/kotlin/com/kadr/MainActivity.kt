@@ -19,11 +19,11 @@ class MainActivity : FlutterActivity() {
 
         /** id колеровки → activity-alias в манифесте. Ключи совпадают с AppIconService. */
         private val ICON_ALIASES = mapOf(
-            "graphite" to ".IconGraphite",
             "ink" to ".IconInk",
+            "graphite" to ".IconGraphite",
             "white" to ".IconWhite",
         )
-        private const val DEFAULT_ICON = "graphite"
+        private const val DEFAULT_ICON = "ink"
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

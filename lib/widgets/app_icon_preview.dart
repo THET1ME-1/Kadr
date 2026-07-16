@@ -58,13 +58,14 @@ class AppIconPreview extends StatelessWidget {
 /// Рендерит знак в PNG для закрепляемого ярлыка.
 ///
 /// Канва — вся картинка (adaptive-битмап: маску наложит лаунчер), знак ужат до
-/// [scale], чтобы уместиться в безопасный круг ⌀66dp из 108dp. Те же числа, что
-/// у `FG_SCALE` в `tool/gen_icons.py`.
+/// [scale]. Значение совпадает с `FG_SCALE` в `tool/gen_icons.py`: знак сам
+/// сквиркл, и при большем размере он распирает маску лаунчера — фон вырождается
+/// в кайму, а срезанный угол режется краем круглой маски.
 Future<Uint8List?> renderIconPng({
   required Color mark,
   required Color background,
   int size = 432,
-  double scale = 0.68,
+  double scale = 0.56,
 }) async {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
