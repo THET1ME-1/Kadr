@@ -118,8 +118,11 @@ def main():
     banner(1024, 307, f"{OUT}/site-banner.png",
            mark_size=128, pad=76, title_px=83, sub_px=22)
 
-    render_mark(256).convert("RGB").save(f"{OUT}/site-icon.png")
-    print("  site-icon.png — 256×256")
+    # RGBA обязателен: у сквиркла углы прозрачные. convert("RGB") зальёт их
+    # чёрным — на тёмном сайте это незаметно, но favicon на светлой вкладке
+    # получит чёрную кайму вокруг знака.
+    render_mark(256).save(f"{OUT}/site-icon.png")
+    print("  site-icon.png — 256×256 (RGBA)")
 
 
 if __name__ == "__main__":
