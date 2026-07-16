@@ -59,13 +59,14 @@ class AppIconPreview extends StatelessWidget {
 ///
 /// Канва — вся картинка (adaptive-битмап: маску наложит лаунчер), знак ужат до
 /// [scale]. Значение совпадает с `FG_SCALE` в `tool/gen_icons.py`: знак сам
-/// сквиркл, и при большем размере он распирает маску лаунчера — фон вырождается
-/// в кайму, а срезанный угол режется краем круглой маски.
+/// сквиркл, и при большем размере он распирает маску — фон вырождается в кайму,
+/// срезанный угол режется краем круглой маски, а тёмная подложка на тёмных
+/// обоях пропадает совсем.
 Future<Uint8List?> renderIconPng({
   required Color mark,
   required Color background,
   int size = 432,
-  double scale = 0.56,
+  double scale = 0.46,
 }) async {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
@@ -81,14 +82,15 @@ class _ZasechkaPainter extends CustomPainter {
   const _ZasechkaPainter({
     required this.mark,
     required this.background,
-    this.scale = 0.78,
+    this.scale = 0.69,
   });
 
   final Color mark;
   final Color background;
 
-  /// Знак внутри подложки. 0.78 — как LEGACY_SCALE в генераторе; для adaptive
-  /// берётся 0.68 (запас под маску лаунчера).
+  /// Знак внутри подложки. 0.69 — как LEGACY_SCALE в `tool/gen_icons.py`;
+  /// для adaptive-битмапа ярлыка берётся 0.46 (та же видимая доля при 108dp
+  /// канвы и 72dp видимой зоны).
   final double scale;
 
   @override

@@ -36,7 +36,7 @@ MUTED = (125, 141, 145)
 BRAND_MARK, BRAND_BG = INK, TEAL
 
 
-def sign_svg(fill, bg, scale=0.78):
+def sign_svg(fill, bg, scale=0.69):  # = LEGACY_SCALE в gen_icons.py
     """Знак на подложке-сквиркле — та же геометрия, что у launcher-иконки."""
     src = open(f"{ROOT}/docs/logo/E-zasechka.svg").read()
     inner = re.search(r"<svg[^>]*>(.*)</svg>", src, re.S).group(1).strip()
