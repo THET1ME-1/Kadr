@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'l10n/locale_controller.dart';
 import 'services/api_keys.dart';
+import 'services/app_icon_service.dart';
 import 'services/app_prefs.dart';
 import 'services/auto_backup_service.dart';
 import 'services/movie_repository.dart';
@@ -27,6 +28,7 @@ Future<void> main() async {
   await SourceController.instance.load();
   await ApiKeys.load(); // персональные API-ключи (TMDB/kinopoisk)
   await AppPrefs.instance.load();
+  await AppIconService.instance.load(); // какая колеровка иконки включена
   await PosterStore.instance.init(); // папка локальных постеров (для displayPoster)
   await MovieRepository.instance.load();
   await AutoBackupService.instance.load();

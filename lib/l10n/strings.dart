@@ -785,6 +785,53 @@ const Map<String, Map<String, String>> _strings = {
   'appearance': {'ru': 'Внешний вид', 'en': 'Appearance'},
   'general': {'ru': 'Общее', 'en': 'General'},
   'start_screen': {'ru': 'Экран при запуске', 'en': 'Start screen'},
+  // --------------------------- Иконка приложения ---------------------------
+  'app_icon': {'ru': 'Иконка приложения', 'en': 'App icon'},
+  'app_icon_hint': {
+    'ru': 'Иконка на рабочем столе обновится за пару секунд. '
+        'Некоторые оболочки показывают новую только после перезапуска.',
+    'en': 'The home screen icon updates within a couple of seconds. '
+        'Some launchers show it only after a restart.',
+  },
+  'app_icon_graphite': {'ru': 'Бирюза на графите', 'en': 'Teal on graphite'},
+  'app_icon_ink': {'ru': 'Тёмный на бирюзе', 'en': 'Dark on teal'},
+  'app_icon_white': {'ru': 'Белый на бирюзе', 'en': 'White on teal'},
+  'app_icon_changed': {'ru': 'Иконка изменена', 'en': 'Icon changed'},
+  'app_icon_failed': {
+    'ru': 'Не удалось сменить иконку',
+    'en': 'Could not change the icon',
+  },
+  'custom_icon': {'ru': 'Своя иконка', 'en': 'Custom icon'},
+  'custom_icon_sub': {
+    'ru': 'Любые цвета — ярлыком на рабочий стол',
+    'en': 'Any colours — as a home screen shortcut',
+  },
+  'custom_icon_warning': {
+    'ru': 'Это НЕ замена иконки приложения, а новый ярлык на рабочем столе: '
+        'произвольный цвет Android разрешает только ярлыкам. Обычная иконка '
+        'останется на месте — её колеровка выбирается выше.',
+    'en': 'This does NOT replace the app icon — it adds a new home screen '
+        'shortcut: Android allows custom colours only for shortcuts. The regular '
+        'icon stays as it is; pick its colourway above.',
+  },
+  'custom_icon_bg': {'ru': 'Цвет фона', 'en': 'Background colour'},
+  'custom_icon_mark': {'ru': 'Цвет знака', 'en': 'Mark colour'},
+  'custom_icon_pin': {
+    'ru': 'Добавить ярлык на стол',
+    'en': 'Add shortcut to home screen',
+  },
+  'custom_icon_sent': {
+    'ru': 'Запрос отправлен — подтвердите в лаунчере',
+    'en': 'Request sent — confirm it in your launcher',
+  },
+  'custom_icon_failed': {
+    'ru': 'Не удалось добавить ярлык',
+    'en': 'Could not add the shortcut',
+  },
+  'custom_icon_unsupported': {
+    'ru': 'Лаунчер не умеет добавлять ярлыки — на нём эта функция недоступна',
+    'en': 'Your launcher does not support pinned shortcuts',
+  },
   'fab_position': {'ru': 'Кнопка «+»', 'en': 'The + button'},
   'fab_center': {'ru': 'По центру', 'en': 'Center'},
   'fab_left': {'ru': 'Слева', 'en': 'Left'},

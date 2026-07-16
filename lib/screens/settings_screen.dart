@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../l10n/locale_controller.dart';
 import '../l10n/strings.dart';
+import '../services/app_icon_service.dart';
 import '../services/app_prefs.dart';
 import '../services/backup_service.dart';
 import '../services/import_service.dart';
@@ -17,9 +18,11 @@ import '../services/store.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../theme/theme_controller.dart';
+import '../widgets/app_icon_preview.dart';
 import '../widgets/appearance_card.dart';
 import 'about_screen.dart';
 import 'auto_backup_screen.dart';
+import 'custom_icon_screen.dart';
 import 'drawer_customize_screen.dart';
 import 'trakt_screen.dart';
 import 'sync_screen.dart';
@@ -42,6 +45,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _locale = LocaleController.instance;
   final _source = SourceController.instance;
   final _prefs = AppPrefs.instance;
+  final _appIcon = AppIconService.instance;
   bool _notifyInApp = true;
   bool _notifyPush = false;
   bool _sequential = true;
@@ -72,7 +76,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_theme, _locale, _source, _prefs]),
+      listenable: Listenable.merge([_theme, _locale, _source, _prefs, _appIcon]),
       builder: (context, _) {
         return Scaffold(
           appBar: AppBar(title: Text(tr('settings_title'))),
@@ -102,6 +106,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         subtitle: Text(tr('amoled_sub')),
                         value: _theme.amoled,
                         onChanged: _theme.setAmoled,
+                      ),
+                    ],
+                    if (_appIcon.isSupported) ...[
+                      _divider(),
+                      ListTile(
+                        leading: AppIconPreview(
+                          option: _appIcon.currentOption,
+                          size: 40,
+                        ),
+                        title: Text(
+                          tr('app_icon'),
+                          style: const TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(tr(_appIcon.currentOption.nameKey)),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: _pickAppIcon,
+                      ),
+                      _divider(),
+                      _tile(
+                        icon: Icons.color_lens_rounded,
+                        title: tr('custom_icon'),
+                        subtitle: tr('custom_icon_sub'),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const CustomIconScreen(),
+                          ),
+                        ),
                       ),
                     ],
                   ]),
@@ -756,6 +790,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // Дотянуть необогащённые фильмы через новый источник.
                 MovieRepository.instance.retryUnmatched();
                 Navigator.pop(context);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Выбор иконки приложения. Превью рисуются кодом (mipmap-ассеты лаунчера
+  /// из Flutter не видны), поэтому в пикере ровно то, что встанет на стол.
+  void _pickAppIcon() {
+    _bottomSheet(
+      title: tr('app_icon'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Text(
+              tr('app_icon_hint'),
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          for (final o in AppIconService.options)
+            ListTile(
+              leading: AppIconPreview(option: o, size: 48),
+              title: Text(
+                tr(o.nameKey),
+                style: const TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              trailing: _appIcon.current == o.id
+                  ? Icon(
+                      Icons.check_circle_rounded,
+                      color: Theme.of(context).colorScheme.primary,
+                    )
+                  : null,
+              onTap: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(context);
+                final already = _appIcon.current == o.id;
+                final ok = await _appIcon.setIcon(o.id);
+                navigator.pop();
+                if (already) return;
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(ok ? tr('app_icon_changed') : tr('app_icon_failed')),
+                  ),
+                );
               },
             ),
         ],

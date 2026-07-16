@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512" role="img" aria-label="Kadr">
+  <rect x="0" y="0" width="100" height="100" fill="#00B5C7"/>
+  <g transform="translate(10.00 10.00) scale(0.8)">
+<defs>
+  <clipPath id="n"><path d="M 0 0 L 52 0 L 100 48 L 100 100 L 0 100 Z"/></clipPath>
+  </defs>
+  <path fill="#FFFFFF" fill-rule="evenodd" d="M 92 50 C 92 88.18, 88.18 92, 50 92 C 11.82 92, 8 88.18, 8 50 C 8 11.82, 11.82 8, 50 8 C 88.18 8, 92 11.82, 92 50 Z M 74.05 58.86 L 49.45 73.06 A 3.3 3.3 0 0 1 44.5 70.2 L 44.5 41.8 A 3.3 3.3 0 0 1 49.45 38.94 L 74.05 53.14 A 3.3 3.3 0 0 1 74.05 58.86 Z M 13 43.5 A 3.5 3.5 0 0 1 20 43.5 L 20 48.5 A 3.5 3.5 0 0 1 13 48.5 Z M 13 63.5 A 3.5 3.5 0 0 1 20 63.5 L 20 68.5 A 3.5 3.5 0 0 1 13 68.5 Z" clip-path="url(#n)"/>
+  </g>
+</svg>
