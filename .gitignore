@@ -45,3 +45,7 @@ app.*.map.json
 /android/app/release
 tool/personal_seed_backup.json
 assets/seed/*.bak
+
+# Личная память для Claude Code (не для публичного репозитория)
+CLAUDE.md
+CLAUDE.local.md
