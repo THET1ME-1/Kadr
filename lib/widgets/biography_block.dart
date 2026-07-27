@@ -178,15 +178,27 @@ class _BiographyBlockState extends State<BiographyBlock> {
         ),
       );
 
-  Widget _year(ColorScheme scheme, int? year, Color accent) => SizedBox(
-        width: 76,
-        child: Text(year?.toString() ?? '',
-            style: TextStyle(
-                fontFamily: AppTheme.displayFont,
-                fontWeight: FontWeight.w800,
-                fontSize: 25,
-                height: 1.05,
-                color: accent.withValues(alpha: 0.45))),
+  /// Год всегда в одну строку: Unbounded широкий, и «1994» в узкую колонку не
+  /// влезало — ломалось на «199» и «4». Ширины хватает с запасом, а FittedBox
+  /// подстрахует на крупном системном шрифте.
+  Widget _year(ColorScheme scheme, int? year, Color accent) => Padding(
+        padding: const EdgeInsets.only(right: 14),
+        child: SizedBox(
+          width: 92,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(year?.toString() ?? '',
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 25,
+                    height: 1.05,
+                    color: accent.withValues(alpha: 0.45))),
+          ),
+        ),
       );
 
   Widget _trivia(ColorScheme scheme, String text) => Padding(

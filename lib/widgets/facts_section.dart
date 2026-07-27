@@ -138,16 +138,24 @@ class _FactsSectionState extends State<FactsSection> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Номер в одну строку: с десятого факта две цифры Unbounded в
+            // прежние 46 точек не помещались.
             SizedBox(
-              width: 46,
-              child: Text('$number',
-                  style: TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 34,
-                      height: 1.0,
-                      color: (blooper ? scheme.tertiary : scheme.primary)
-                          .withValues(alpha: 0.45))),
+              width: 58,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text('$number',
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 34,
+                        height: 1.0,
+                        color: (blooper ? scheme.tertiary : scheme.primary)
+                            .withValues(alpha: 0.45))),
+              ),
             ),
             Expanded(
               child: Column(
