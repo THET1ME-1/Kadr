@@ -9,8 +9,9 @@ import '../theme/app_theme.dart';
 
 /// Блок «Знаете ли вы»: интересные факты и киноляпы с ПоискКино.
 ///
-/// Крупная цифра слева, текст справа, между фактами тонкая линия. Удержание
-/// копирует факт. Спойлеры размыты, пока по ним не нажали.
+/// Крупная цифра слева, текст справа. Разделителей между фактами нет: ритм
+/// держат цифры и воздух. Удержание копирует факт, спойлеры размыты, пока по
+/// ним не нажали.
 ///
 /// Ничего не рисует, пока фактов нет: без ключа ПоискКино, при исчерпанном
 /// лимите и для фильмов, которых у КП нет, блок просто отсутствует.
@@ -74,10 +75,8 @@ class _FactsSectionState extends State<FactsSection> {
                   height: 1.1,
                   color: scheme.onSurface)),
           const SizedBox(height: 14),
-          for (var i = 0; i < shown.length; i++) ...[
+          for (var i = 0; i < shown.length; i++)
             _factRow(scheme, shown[i], i + 1, i),
-            if (i < shown.length - 1) _divider(scheme),
-          ],
           if (hidden > 0) ...[
             const SizedBox(height: 4),
             Align(
@@ -104,10 +103,8 @@ class _FactsSectionState extends State<FactsSection> {
               ],
             ),
             const SizedBox(height: 12),
-            for (var i = 0; i < bloopers.length; i++) ...[
+            for (var i = 0; i < bloopers.length; i++)
               _factRow(scheme, bloopers[i], i + 1, 1000 + i, blooper: true),
-              if (i < bloopers.length - 1) _divider(scheme),
-            ],
           ],
           const SizedBox(height: 12),
           Text(tr('facts_source'),
@@ -119,12 +116,6 @@ class _FactsSectionState extends State<FactsSection> {
       ),
     );
   }
-
-  Widget _divider(ColorScheme scheme) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Divider(
-            height: 1, thickness: 1, color: scheme.outlineVariant),
-      );
 
   Widget _factRow(ColorScheme scheme, KpFact fact, int number, int key,
       {bool blooper = false}) {
@@ -141,52 +132,56 @@ class _FactsSectionState extends State<FactsSection> {
       onLongPress: hidden ? null : () => _copy(fact.text),
       onTap: hidden ? () => setState(() => _revealed.add(key)) : null,
       behavior: HitTestBehavior.opaque,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 46,
-            child: Text('$number',
-                style: TextStyle(
-                    fontFamily: AppTheme.displayFont,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 34,
-                    height: 1.0,
-                    color: (blooper ? scheme.tertiary : scheme.primary)
-                        .withValues(alpha: 0.45))),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (hidden)
-                  // Текст на месте, но нечитаем: размытие снимается тапом.
-                  ImageFiltered(
-                    imageFilter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                    child: text,
-                  )
-                else
-                  text,
-                if (hidden) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.lock_outline_rounded,
-                          size: 15, color: scheme.onSurfaceVariant),
-                      const SizedBox(width: 6),
-                      Text(tr('facts_spoiler'),
-                          style: TextStyle(
-                              fontFamily: AppTheme.bodyFont,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: scheme.onSurfaceVariant)),
-                    ],
-                  ),
-                ],
-              ],
+      child: Padding(
+        // Воздух вместо линий: строки разделяет отступ, а не разделитель.
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 46,
+              child: Text('$number',
+                  style: TextStyle(
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 34,
+                      height: 1.0,
+                      color: (blooper ? scheme.tertiary : scheme.primary)
+                          .withValues(alpha: 0.45))),
             ),
-          ),
-        ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (hidden)
+                    // Текст на месте, но нечитаем: размытие снимается тапом.
+                    ImageFiltered(
+                      imageFilter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                      child: text,
+                    )
+                  else
+                    text,
+                  if (hidden) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.lock_outline_rounded,
+                            size: 15, color: scheme.onSurfaceVariant),
+                        const SizedBox(width: 6),
+                        Text(tr('facts_spoiler'),
+                            style: TextStyle(
+                                fontFamily: AppTheme.bodyFont,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: scheme.onSurfaceVariant)),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

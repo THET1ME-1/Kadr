@@ -56,18 +56,12 @@ class _BiographyBlockState extends State<BiographyBlock> {
               if (_bio.awards.isNotEmpty) ...[
                 _sectionHead(scheme, Icons.emoji_events_rounded,
                     tr('bio_awards'), scheme.primary),
-                for (var i = 0; i < _bio.awards.length; i++) ...[
-                  _awardRow(scheme, _bio.awards[i]),
-                  if (i < _bio.awards.length - 1) _line(scheme),
-                ],
+                for (final a in _bio.awards) _awardRow(scheme, a),
               ],
               if (_bio.works.isNotEmpty) ...[
                 _sectionHead(scheme, Icons.local_movies_rounded,
                     tr('bio_works'), scheme.tertiary),
-                for (var i = 0; i < _bio.works.length; i++) ...[
-                  _workRow(scheme, _bio.works[i]),
-                  if (i < _bio.works.length - 1) _line(scheme),
-                ],
+                for (final w in _bio.works) _workRow(scheme, w),
               ],
               if (_bio.trivia != null) _trivia(scheme, _bio.trivia!),
             ],
@@ -135,9 +129,10 @@ class _BiographyBlockState extends State<BiographyBlock> {
         ),
       );
 
-  /// Год крупной цифрой слева, премия и фильм-ссылка справа.
+  /// Год крупной цифрой слева, премия и фильм-ссылка справа. Разделителей
+  /// между строками нет: ритм держат крупные цифры и воздух.
   Widget _awardRow(ColorScheme scheme, BioAward a) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -167,7 +162,7 @@ class _BiographyBlockState extends State<BiographyBlock> {
       );
 
   Widget _workRow(ColorScheme scheme, BioWork w) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -193,9 +188,6 @@ class _BiographyBlockState extends State<BiographyBlock> {
                 height: 1.05,
                 color: accent.withValues(alpha: 0.45))),
       );
-
-  Widget _line(ColorScheme scheme) =>
-      Divider(height: 1, thickness: 1, color: scheme.outlineVariant);
 
   Widget _trivia(ColorScheme scheme, String text) => Padding(
         padding: const EdgeInsets.only(top: 18),
