@@ -528,6 +528,72 @@ class TmdbService {
     }, requirePoster: false);
   }
 
+  /// Ищет название сразу среди фильмов и сериалов (`/search/multi`).
+  ///
+  /// Нужно для ссылок внутри биографии: из текста известно только название, а
+  /// «Острые козырьки» должны открыться экраном сериала, а не карточкой фильма.
+  /// [year] лишь подсказка — у наград год вручения не совпадает с годом фильма,
+  /// поэтому точное совпадение названия важнее.
+  static Future<({TmdbMovie? movie, TmdbSeries? series})> searchAny(
+      String query,
+      {int? year}) async {
+    final q = query.trim();
+    if (q.isEmpty) return (movie: null, series: null);
+    try {
+      final uri = Uri.parse('${ApiConfig.tmdbBase}/search/multi').replace(
+          queryParameters: {
+            'language': LocaleController.instance.tmdbLanguage,
+            'include_adult': 'true',
+            'query': q,
+            'page': '1',
+          });
+      final resp = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 12));
+      if (resp.statusCode != 200) return (movie: null, series: null);
+      final j = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      final results = (j['results'] as List? ?? []).cast<Map<String, dynamic>>();
+
+      String norm(String s) =>
+          s.toLowerCase().replaceAll('ё', 'е').replaceAll(RegExp(r'[^0-9a-zа-я]+'), '');
+      final wanted = norm(q);
+
+      Map<String, dynamic>? best;
+      var bestScore = -1;
+      for (final r in results) {
+        final type = r['media_type'] as String?;
+        if (type != 'movie' && type != 'tv') continue;
+        final names = {
+          norm(r['title'] as String? ?? ''),
+          norm(r['name'] as String? ?? ''),
+          norm(r['original_title'] as String? ?? ''),
+          norm(r['original_name'] as String? ?? ''),
+        }..remove('');
+        final date =
+            (r['release_date'] ?? r['first_air_date']) as String? ?? '';
+        final y = date.length >= 4 ? int.tryParse(date.substring(0, 4)) : null;
+        var score = 0;
+        if (names.contains(wanted)) score += 6;
+        if (names.any((n) => n.contains(wanted) || wanted.contains(n))) {
+          score += 2;
+        }
+        if (year != null && y != null && (y - year).abs() <= 1) score += 3;
+        if (r['poster_path'] != null) score += 1;
+        if (score > bestScore) {
+          bestScore = score;
+          best = r;
+        }
+      }
+      if (best == null || bestScore <= 0) return (movie: null, series: null);
+      return best['media_type'] == 'tv'
+          ? (movie: null, series: TmdbSeries.fromJson(best))
+          : (movie: TmdbMovie.fromJson(best), series: null);
+    } catch (e) {
+      debugPrint('tmdb searchAny "$q": $e');
+      return (movie: null, series: null);
+    }
+  }
+
   static String get _today =>
       DateTime.now().toIso8601String().split('T').first;
 

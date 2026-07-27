@@ -1,6 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
@@ -10,6 +9,7 @@ import '../services/movie_repository.dart';
 import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
+import '../widgets/biography_block.dart';
 import '../widgets/facts_section.dart';
 import '../widgets/infinite_grid.dart';
 import '../widgets/movie_cards.dart';
@@ -61,7 +61,6 @@ class _PersonScreenState extends State<PersonScreen> {
   List<TmdbMovie>? _movies;
   TmdbPerson? _person;
   bool _error = false;
-  bool _bioExpanded = false;
 
   @override
   void initState() {
@@ -204,7 +203,8 @@ class _PersonScreenState extends State<PersonScreen> {
               slivers: [
                 SliverToBoxAdapter(child: _hero(scheme, movies.length, seen)),
                 if (_person?.biography != null)
-                  SliverToBoxAdapter(child: _bio(scheme)),
+                  SliverToBoxAdapter(
+                      child: BiographyBlock(biography: _person!.biography!)),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -336,59 +336,6 @@ class _PersonScreenState extends State<PersonScreen> {
                 fontWeight: FontWeight.w600,
                 color: fg ?? Colors.white)),
       );
-
-  /// Биография: четыре строки, дальше — по кнопке.
-  Widget _bio(ColorScheme scheme) {
-    final text = _person!.biography!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-      child: Material(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(28),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: AppTheme.emphasized,
-                alignment: Alignment.topCenter,
-                child: GestureDetector(
-                  onLongPress: () {
-                    Clipboard.setData(ClipboardData(text: text));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(tr('copied'))));
-                  },
-                  child: Text(
-                    text,
-                    maxLines: _bioExpanded ? null : 4,
-                    overflow: _bioExpanded
-                        ? TextOverflow.clip
-                        : TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontFamily: AppTheme.bodyFont,
-                        fontSize: 14,
-                        height: 1.5,
-                        color: scheme.onSurfaceVariant),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 2),
-              TextButton(
-                onPressed: () => setState(() => _bioExpanded = !_bioExpanded),
-                style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    minimumSize: const Size(0, 36),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                child: Text(_bioExpanded ? tr('read_less') : tr('read_more')),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   /// Заглушка вместо фото: инициалы на приглушённом фоне.
   Widget _noPhoto(ColorScheme scheme) {
