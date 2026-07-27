@@ -847,10 +847,14 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
-  /// Сериалы в «Буду смотреть»: помечены и ещё не начаты (нет просмотренных серий).
-  List<LibrarySeries> get watchlistSeries => _series
-      .where((s) => s.watchlist && s.episodes.isEmpty && !s.dropped)
-      .toList();
+  /// Сериалы в «Буду смотреть»: те, что пользователь пометил сам.
+  ///
+  /// Начатые не отсеиваем. Раньше условие `episodes.isEmpty` выбрасывало из
+  /// списка любой сериал с отмеченной серией — на экране сериала кнопка горела
+  /// «В списке», а вкладка оставалась пустой (в базе из импорта TV Time серии
+  /// есть почти у всех).
+  List<LibrarySeries> get watchlistSeries =>
+      _series.where((s) => s.watchlist && !s.dropped).toList();
 
   /// Оценка конкретного эпизода сериала.
   Future<void> setEpisodeScore(

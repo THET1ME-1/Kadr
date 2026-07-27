@@ -2756,6 +2756,15 @@ class _WatchlistSeriesRow extends StatelessWidget {
     this.heroTag,
   });
 
+  /// Начатый сериал показывает прогресс, ещё не начатый — «Буду смотреть».
+  String _subtitle(LibrarySeries s) {
+    if (s.episodes.isEmpty) return tr('act_watchlist');
+    final total = s.totalEpisodes ?? 0;
+    return total > 0
+        ? trf('seen_of', {'n': s.episodes.length, 'm': total})
+        : trf('episodes_n', {'n': s.episodes.length});
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -2826,7 +2835,7 @@ class _WatchlistSeriesRow extends StatelessWidget {
                                 child: Icon(Icons.favorite_rounded,
                                     size: 15, color: scheme.primary),
                               ),
-                            Text(tr('act_watchlist'),
+                            Text(_subtitle(series),
                                 style: TextStyle(
                                     fontFamily: AppTheme.bodyFont,
                                     fontSize: 13,

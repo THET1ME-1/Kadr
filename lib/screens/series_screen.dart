@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
 import '../models/social.dart';
+import '../services/facts_service.dart';
 import '../services/movie_repository.dart';
 import '../services/social/social_controller.dart';
 import '../services/store.dart';
@@ -15,6 +16,7 @@ import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/score.dart';
+import '../widgets/facts_section.dart';
 import '../widgets/pop_icon.dart';
 import '../widgets/poster.dart';
 import '../widgets/poster_viewer.dart';
@@ -416,8 +418,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 SliverToBoxAdapter(child: _errorCard(context))
               else ...[
                 SliverToBoxAdapter(child: _actions(scheme)),
-                // «Буду смотреть» — пока сериал не начат (нет просмотренных серий).
-                if (s.episodes.isEmpty)
+                // «Буду смотреть» — у ещё не начатых сериалов и у тех, что уже
+                // помечены: иначе отметку некуда снять, когда серии пошли.
+                if (s.episodes.isEmpty || s.watchlist)
                   SliverToBoxAdapter(child: _watchlistButton(scheme)),
                 SliverToBoxAdapter(child: _droppedButton(scheme)),
                 SliverToBoxAdapter(child: _reviewTile(scheme)),
@@ -443,6 +446,20 @@ class _SeriesScreenState extends State<SeriesScreen> {
                   ),
                 if (_extra?.cast.isNotEmpty ?? false)
                   SliverToBoxAdapter(child: _castSection(scheme)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: FactsSection(
+                      key: ValueKey('facts-series-${s.tvShowId}'),
+                      loader: () => FactsService.forMovie(
+                        kinopoiskId: s.kinopoiskId,
+                        imdbId: s.imdbId,
+                        title: s.displayTitle,
+                        year: s.year,
+                      ),
+                    ),
+                  ),
+                ),
                 const SliverToBoxAdapter(child: SizedBox(height: 40)),
               ],
             ],
