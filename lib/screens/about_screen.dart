@@ -13,6 +13,10 @@ final Uri kBoostyUrl = Uri.parse('https://boosty.to/sntcompany');
 final Uri kDonationAlertsUrl =
     Uri.parse('https://www.donationalerts.com/r/thet1me');
 
+/// Lava.top — разовый перевод внутри страны.
+final Uri kLavaDonateUrl =
+    Uri.parse('https://app.lava.top/togetherly-store?tabId=donate');
+
 /// Почта поддержки — куда писать пользователям.
 const String kSupportEmail = 'stgroup.dev@gmail.com';
 
@@ -29,6 +33,10 @@ Future<void> openSupportAuthors() async {
 
 Future<void> openDonationAlerts() async {
   await launchUrl(kDonationAlertsUrl, mode: LaunchMode.externalApplication);
+}
+
+Future<void> openLavaDonate() async {
+  await launchUrl(kLavaDonateUrl, mode: LaunchMode.externalApplication);
 }
 
 Future<void> openSupportEmail() async {
@@ -109,6 +117,21 @@ class AboutScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 13)),
                   icon: const Icon(Icons.card_giftcard_rounded, size: 18),
                   label: const Text('DonationAlerts',
+                      style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonalIcon(
+                  onPressed: openLavaDonate,
+                  style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13)),
+                  icon: const Icon(Icons.bolt_rounded, size: 18),
+                  label: const Text('Lava.top',
                       style: TextStyle(
                           fontFamily: AppTheme.displayFont,
                           fontWeight: FontWeight.w700,

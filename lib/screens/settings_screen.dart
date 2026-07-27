@@ -678,6 +678,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 10),
+            FilledButton.tonalIcon(
+              onPressed: openLavaDonate,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 13),
+              ),
+              icon: const Icon(Icons.bolt_rounded, size: 19),
+              label: const Text(
+                'Lava.top',
+                style: TextStyle(
+                  fontFamily: AppTheme.displayFont,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+            ),
           ],
         ),
       ),
