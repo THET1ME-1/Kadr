@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
 import '../models/social.dart';
+import '../services/facts_service.dart';
 import '../services/movie_repository.dart';
 import '../services/social/social_controller.dart';
 import '../services/tmdb_service.dart';
@@ -23,6 +24,7 @@ import '../widgets/poster.dart';
 import '../widgets/poster_viewer.dart';
 import '../widgets/pressable.dart';
 import '../widgets/rating_slider.dart';
+import '../widgets/facts_section.dart';
 import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
 import '../widgets/user_avatar.dart';
@@ -631,6 +633,15 @@ class _MovieScreenState extends State<MovieScreen> {
         const SizedBox(height: 16),
         ...facts,
       ],
+      FactsSection(
+        key: ValueKey('facts-${m.uuid}'),
+        loader: () => FactsService.forMovie(
+          kinopoiskId: m.kinopoiskId,
+          imdbId: m.imdbId ?? d.imdbId,
+          title: m.displayTitle,
+          year: m.year,
+        ),
+      ),
       if (links.isNotEmpty) ...[
         const SizedBox(height: 16),
         ...links,
