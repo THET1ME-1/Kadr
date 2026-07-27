@@ -23,6 +23,9 @@ class ApiConfig {
   static const String tmdbBackdropBase = 'https://image.tmdb.org/t/p/w780';
   static const String tmdbProfileBase = 'https://image.tmdb.org/t/p/w185';
 
+  /// Крупное фото персоны — для шапки экрана актёра (w185 там мылит).
+  static const String tmdbProfileLargeBase = 'https://image.tmdb.org/t/p/h632';
+
   /// Бэкенд соц-слоя (профили/друзья/публичная проекция) — Cloudflare Worker.
   /// Переопределить: `--dart-define=SOCIAL_BASE=...`.
   static const String socialBase = String.fromEnvironment(

@@ -169,6 +169,74 @@ const Map<String, String> kCountryRu = {
   'IL': 'Израиль', 'IS': 'Исландия', 'HU': 'Венгрия', 'RO': 'Румыния',
 };
 
+/// Карточка персоны для шапки экрана актёра: фото, биография, даты жизни.
+class TmdbPerson {
+  final int id;
+  final String name;
+  final String? biography;
+  final String? photoUrl;
+  final DateTime? birthday;
+  final DateTime? deathday;
+  final String? placeOfBirth;
+
+  /// Крупное фото для шапки (h632). null, если фото у TMDB нет.
+  final String? largePhotoUrl;
+
+  /// Написания имени на других языках (`also_known_as`) — по ним ищем человека
+  /// в базах, где имя записано иначе.
+  final List<String> aliases;
+
+  /// Основной род занятий из TMDB: `Acting`, `Directing`, `Writing`, …
+  final String? department;
+
+  const TmdbPerson({
+    required this.id,
+    required this.name,
+    this.biography,
+    this.photoUrl,
+    this.birthday,
+    this.deathday,
+    this.placeOfBirth,
+    this.largePhotoUrl,
+    this.aliases = const [],
+    this.department,
+  });
+
+  /// Полных лет на сегодня, а для умерших — на день смерти. null, если даты нет.
+  int? get age {
+    final b = birthday;
+    if (b == null) return null;
+    final end = deathday ?? DateTime.now();
+    var years = end.year - b.year;
+    final hadBirthday =
+        end.month > b.month || (end.month == b.month && end.day >= b.day);
+    if (!hadBirthday) years--;
+    return years >= 0 ? years : null;
+  }
+
+  factory TmdbPerson.fromJson(Map<String, dynamic> j) {
+    final profile = j['profile_path'] as String?;
+    final bio = (j['biography'] as String?)?.trim();
+    return TmdbPerson(
+      id: (j['id'] as num).toInt(),
+      name: j['name'] as String? ?? '',
+      biography: bio?.isNotEmpty == true ? bio : null,
+      photoUrl:
+          profile != null ? '${ApiConfig.tmdbProfileBase}$profile' : null,
+      largePhotoUrl:
+          profile != null ? '${ApiConfig.tmdbProfileLargeBase}$profile' : null,
+      birthday: DateTime.tryParse(j['birthday'] as String? ?? ''),
+      deathday: DateTime.tryParse(j['deathday'] as String? ?? ''),
+      placeOfBirth: (j['place_of_birth'] as String?)?.trim(),
+      aliases: [
+        for (final a in (j['also_known_as'] as List? ?? []))
+          if (a is String && a.trim().isNotEmpty) a.trim()
+      ],
+      department: j['known_for_department'] as String?,
+    );
+  }
+}
+
 /// Доп. данные сериала для шапки экрана: бэкдроп, описание, жанры.
 class TmdbTvExtra {
   final String? backdropUrl;
@@ -515,6 +583,58 @@ class TmdbService {
       if (byRating) 'vote_count.gte': '150',
       if (byDate) 'first_air_date.lte': _today,
     });
+  }
+
+  /// Кэш карточек персон в памяти (на сессию).
+  static final Map<int, TmdbPerson?> _personCache = {};
+
+  /// Карточка персоны: фото, биография, даты жизни.
+  ///
+  /// На своём языке биографии у TMDB часто нет — тогда добираем английскую,
+  /// пустая шапка хуже английского текста.
+  static Future<TmdbPerson?> personDetails(int personId) async {
+    if (_personCache.containsKey(personId)) return _personCache[personId];
+    try {
+      Future<Map<String, dynamic>?> fetch(String lang) async {
+        final uri = Uri.parse('${ApiConfig.tmdbBase}/person/$personId')
+            .replace(queryParameters: {'language': lang});
+        final resp = await http
+            .get(uri, headers: _headers)
+            .timeout(const Duration(seconds: 12));
+        if (resp.statusCode != 200) return null;
+        return jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      }
+
+      final lang = LocaleController.instance.tmdbLanguage;
+      final j = await fetch(lang);
+      if (j == null) return null;
+      var person = TmdbPerson.fromJson(j);
+      if (person.biography == null && !lang.startsWith('en')) {
+        final en = await fetch('en-US');
+        if (en != null) {
+          final fallback = TmdbPerson.fromJson(en);
+          if (fallback.biography != null) {
+            person = TmdbPerson(
+              id: person.id,
+              name: person.name,
+              biography: fallback.biography,
+              photoUrl: person.photoUrl,
+              birthday: person.birthday,
+              deathday: person.deathday,
+              placeOfBirth: person.placeOfBirth ?? fallback.placeOfBirth,
+              largePhotoUrl: person.largePhotoUrl,
+              aliases: {...person.aliases, ...fallback.aliases}.toList(),
+              department: person.department,
+            );
+          }
+        }
+      }
+      _personCache[personId] = person;
+      return person;
+    } catch (e) {
+      debugPrint('tmdb person $personId error: $e');
+      return null;
+    }
   }
 
   /// Фильмография персоны (актёр/режиссёр) — все фильмы, где участвовал.

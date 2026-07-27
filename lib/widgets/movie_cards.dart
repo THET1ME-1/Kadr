@@ -10,6 +10,60 @@ import '../utils/score.dart';
 import 'poster.dart';
 import 'pressable.dart';
 
+/// Кружок справа в строке фильма из TMDB: ваша оценка цветом шкалы, а если
+/// фильм просмотрен без оценки — галочка. При повторных просмотрах в углу
+/// приписка «×N».
+class _WatchedBadge extends StatelessWidget {
+  final LibraryMovie movie;
+  const _WatchedBadge({required this.movie});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final score = movie.currentScore;
+    final views = movie.viewings.length;
+    final circle = Container(
+      width: 42,
+      height: 42,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+          color: score != null ? scoreColor(score) : scheme.primary,
+          shape: BoxShape.circle),
+      child: score != null
+          ? Text(score.toStringAsFixed(1),
+              style: TextStyle(
+                  fontFamily: AppTheme.displayFont,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  color: onScoreColor(score)))
+          : Icon(Icons.check_rounded, size: 22, color: scheme.onPrimary),
+    );
+    if (views < 2) return circle;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        circle,
+        Positioned(
+          right: -2,
+          bottom: -2,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(20)),
+            child: Text('×$views',
+                style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 9.5,
+                    color: scheme.onSurfaceVariant)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Бейдж «Брошено» — мягко-красный кружок с надломленным сердцем.
 Widget droppedBadge() => Container(
       padding: const EdgeInsets.all(5),
@@ -346,17 +400,11 @@ class TmdbMovieRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Быстрое действие: отмечено — галочка; иначе тап = «Буду смотреть».
+                // Быстрое действие: просмотренный показывает вашу оценку
+                // (галочка — только когда оценки нет), остальные тапом уходят
+                // в «Буду смотреть».
                 if (watched)
-                  Container(
-                    width: 42,
-                    height: 42,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                        color: scheme.primary, shape: BoxShape.circle),
-                    child: Icon(Icons.check_rounded,
-                        size: 22, color: scheme.onPrimary),
-                  )
+                  _WatchedBadge(movie: lib!)
                 else
                   IconButton(
                     onPressed: () {
