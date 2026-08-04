@@ -506,6 +506,27 @@ const Map<String, Map<String, String>> kTranslations = {
     'season_rewatched': 'Staffel erneut markiert ({c} Episoden)',
     'episode_mark_when': 'Wann hast du diese Episode gesehen?',
     'share': 'Teilen',
+    'share_card_title': 'Karte teilen',
+    'share_style_poster': 'Plakat',
+    'share_style_ticket': 'Ticket',
+    'share_style_story': 'Story',
+    'share_style_quiet': 'Ruhig',
+    'share_texture_frame': 'Filmbild',
+    'share_texture_film': 'Filmstreifen',
+    'share_texture_letters': 'Schrift',
+    'share_texture_title': 'Hintergrund',
+    'share_hint_size': 'Wird als PNG mit {w} px Breite gespeichert',
+    'share_hint_texture': 'Stil gedrückt halten, um den Hintergrund zu wählen',
+    'share_ticket_watched': 'Gesehen',
+    'share_ticket_planned': 'Geplant',
+    'share_field_score': 'Bewertung',
+    'share_field_date': 'Datum',
+    'share_field_view': 'Mal',
+    'share_view_nth': '{n}. Mal',
+    'share_view_short': '{n}.',
+    'share_in_list': 'Auf der Liste',
+    'share_my_score': 'Meine Bewertung',
+    'share_failed': 'Bild konnte nicht erstellt werden',
     'delete_from_base': 'Aus Bibliothek löschen',
     'delete_from_base_confirm':
         '„{title}“ wird dauerhaft entfernt. Du kannst es gleich danach rückgängig machen.',
@@ -697,7 +718,7 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_headline': 'Hol deinen Verlauf aus TV Time',
     'tvtime_sub':
         'TV Time wird am 15. Juli 2026 eingestellt — hol deine Mediathek zu '
-            'Kadr: Filme, Serien und jede Ansicht mit Datum.',
+        'Kadr: Filme, Serien und jede Ansicht mit Datum.',
     'tvtime_what_movies': 'Filme: gesehen, Bewertungen, Merkliste',
     'tvtime_what_series': 'Serien und jede Folge — mit Ansichtsdaten',
     'tvtime_what_ratings': 'Bewertungen aus deinen Emotions-Reaktionen',
@@ -705,8 +726,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_what_lists': 'Deine eigenen Listen',
     'tvtime_how':
         'So bekommst du die Datei: in TV Time → Einstellungen → Konto → '
-            '„Meine Daten herunterladen“ (GDPR). Du erhältst gdpr-data.zip per '
-            'E-Mail — wähle sie hier.',
+        '„Meine Daten herunterladen“ (GDPR). Du erhältst gdpr-data.zip per '
+        'E-Mail — wähle sie hier.',
     'tvtime_pick': 'gdpr-data.zip auswählen',
     'tvtime_st_unzip': 'Archiv wird entpackt…',
     'tvtime_st_read': 'Filme und Serien werden gelesen…',
@@ -721,12 +742,12 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_stat_rated': 'Bewertet',
     'tvtime_posters_note':
         'Poster, Titel in deiner Sprache und Details werden im Hintergrund im '
-            'Rahmen deines TMDB-Limits geladen.',
+        'Rahmen deines TMDB-Limits geladen.',
     'tvtime_continue': 'Weiter',
     'tvtime_error': 'Import fehlgeschlagen',
     'tvtime_error_sub':
         'Stelle sicher, dass du gdpr-data.zip aus deinem TV-Time-Export '
-            'gewählt hast.',
+        'gewählt hast.',
     'tvtime_retry': 'Erneut versuchen',
     'ob5_title': 'Kommst du von TV Time?',
     'ob5_sub':
@@ -735,31 +756,32 @@ const Map<String, Map<String, String>> kTranslations = {
     'tmdb_skip_title': 'Ohne TMDB-Schlüssel starten?',
     'tmdb_skip_body':
         'Ohne Schlüssel gibt es keine Poster, Suche oder Details — die App ist '
-            'fast leer. TV-Time-Import und manuelle Einträge funktionieren. Du '
-            'kannst den Schlüssel später in den Einstellungen hinzufügen.',
+        'fast leer. TV-Time-Import und manuelle Einträge funktionieren. Du '
+        'kannst den Schlüssel später in den Einstellungen hinzufügen.',
     'tmdb_skip_confirm': 'Trotzdem starten',
     'scrobble_title': 'Scrobbling',
     'scrobble_settings_sub': 'Auto-Eintrag aus Plex, Jellyfin, Kodi',
     'scrobble_need_account': 'Konto erforderlich',
     'scrobble_need_account_sub':
         'Scrobbling verknüpft Ansichten mit deinem Konto. Melde dich an, um es '
-            'zu aktivieren.',
+        'zu aktivieren.',
     'scrobble_intro':
         'Schau in Plex, Jellyfin oder Kodi — Kadr markiert Folgen und Filme '
-            'automatisch als gesehen, mit Datum. Webhook einmal einrichten.',
+        'automatisch als gesehen, mit Datum. Webhook einmal einrichten.',
     'scrobble_enable': 'Scrobbling aktivieren',
     'scrobble_enable_sub': 'Ansichten beim Öffnen der App abrufen',
     'scrobble_url_label': 'Deine Webhook-URL',
-    'scrobble_url_error': 'URL konnte nicht geladen werden — später erneut versuchen',
+    'scrobble_url_error':
+        'URL konnte nicht geladen werden — später erneut versuchen',
     'scrobble_copy': 'Kopieren',
     'scrobble_copied': 'URL kopiert',
     'scrobble_plex_steps':
         'Plex-Einstellungen → Konto → Webhooks → Add Webhook → URL oben '
-            'einfügen. Plex Pass erforderlich.',
+        'einfügen. Plex Pass erforderlich.',
     'scrobble_jellyfin_steps':
         'Webhook-Plugin installieren → Add Generic Destination → URL einfügen, '
-            'Playback Stop und Item Marked Played aktivieren, für Episodes und '
-            'Movies.',
+        'Playback Stop und Item Marked Played aktivieren, für Episodes und '
+        'Movies.',
     'scrobble_check_now': 'Jetzt prüfen',
     'scrobble_checked': '{n} Ansichten übernommen',
     'scrobble_check_fail': 'Prüfung fehlgeschlagen',
@@ -1287,6 +1309,27 @@ const Map<String, Map<String, String>> kTranslations = {
     'season_rewatched': 'Saison marquée à nouveau ({c} épisodes)',
     'episode_mark_when': 'Quand avez-vous regardé cet épisode ?',
     'share': 'Partager',
+    'share_card_title': 'Partager une carte',
+    'share_style_poster': 'Affiche',
+    'share_style_ticket': 'Billet',
+    'share_style_story': 'Story',
+    'share_style_quiet': 'Sobre',
+    'share_texture_frame': 'Image du film',
+    'share_texture_film': 'Pellicule',
+    'share_texture_letters': 'Lettrage',
+    'share_texture_title': 'Arrière-plan',
+    'share_hint_size': 'Enregistré en PNG, {w} px de large',
+    'share_hint_texture': 'Maintenez un style pour choisir le fond',
+    'share_ticket_watched': 'Vu',
+    'share_ticket_planned': 'Prévu',
+    'share_field_score': 'Note',
+    'share_field_date': 'Date',
+    'share_field_view': 'Visionnage',
+    'share_view_nth': '{n}e visionnage',
+    'share_view_short': '{n}e',
+    'share_in_list': 'Dans la liste',
+    'share_my_score': 'Ma note',
+    'share_failed': "Impossible de créer l'image",
     'delete_from_base': 'Supprimer de la bibliothèque',
     'delete_from_base_confirm':
         '« {title} » sera supprimé définitivement. Vous pourrez annuler juste après.',
@@ -1478,7 +1521,7 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_headline': 'Récupère ton historique de TV Time',
     'tvtime_sub':
         'TV Time ferme le 15 juillet 2026 — récupère ta bibliothèque dans '
-            'Kadr : films, séries et chaque visionnage avec dates.',
+        'Kadr : films, séries et chaque visionnage avec dates.',
     'tvtime_what_movies': 'Films : vus, notes, à voir',
     'tvtime_what_series': 'Séries et chaque épisode — avec dates',
     'tvtime_what_ratings': 'Notes issues de tes réactions-émotions',
@@ -1486,8 +1529,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_what_lists': 'Tes listes personnalisées',
     'tvtime_how':
         'Comment obtenir le fichier : dans TV Time → Réglages → Compte → '
-            '« Télécharger mes données » (RGPD). Tu recevras gdpr-data.zip par '
-            'e-mail — sélectionne-le ici.',
+        '« Télécharger mes données » (RGPD). Tu recevras gdpr-data.zip par '
+        'e-mail — sélectionne-le ici.',
     'tvtime_pick': 'Choisir gdpr-data.zip',
     'tvtime_st_unzip': 'Décompression de l’archive…',
     'tvtime_st_read': 'Lecture des films et séries…',
@@ -1496,14 +1539,14 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_done_title': 'Terminé !',
     'tvtime_done_sub':
         'Ta bibliothèque est importée. Les affiches se chargeront '
-            'automatiquement.',
+        'automatiquement.',
     'tvtime_stat_movies': 'Films',
     'tvtime_stat_series': 'Séries',
     'tvtime_stat_episodes': 'Visionnages d’épisodes',
     'tvtime_stat_rated': 'Notés',
     'tvtime_posters_note':
         'Les affiches, les titres dans ta langue et les détails se chargent en '
-            'arrière-plan selon ta limite TMDB.',
+        'arrière-plan selon ta limite TMDB.',
     'tvtime_continue': 'Continuer',
     'tvtime_error': 'Échec de l’import',
     'tvtime_error_sub':
@@ -1516,18 +1559,18 @@ const Map<String, Map<String, String>> kTranslations = {
     'tmdb_skip_title': 'Entrer sans clé TMDB ?',
     'tmdb_skip_body':
         'Sans clé, pas d’affiches, de recherche ni de détails — l’appli est '
-            'presque vide. L’import TV Time et les ajouts manuels fonctionnent. '
-            'Tu peux ajouter une clé plus tard dans les Réglages.',
+        'presque vide. L’import TV Time et les ajouts manuels fonctionnent. '
+        'Tu peux ajouter une clé plus tard dans les Réglages.',
     'tmdb_skip_confirm': 'Entrer quand même',
     'scrobble_title': 'Scrobbling',
     'scrobble_settings_sub': 'Journal auto depuis Plex, Jellyfin, Kodi',
     'scrobble_need_account': 'Compte requis',
     'scrobble_need_account_sub':
         'Le scrobbling lie les visionnages à ton compte. Connecte-toi pour '
-            'l’activer.',
+        'l’activer.',
     'scrobble_intro':
         'Regarde dans Plex, Jellyfin ou Kodi — Kadr marque épisodes et films '
-            'comme vus automatiquement, avec dates. Configure le webhook une fois.',
+        'comme vus automatiquement, avec dates. Configure le webhook une fois.',
     'scrobble_enable': 'Activer le scrobbling',
     'scrobble_enable_sub': 'Récupérer les visionnages à l’ouverture de l’appli',
     'scrobble_url_label': 'Ton URL de webhook',
@@ -1536,10 +1579,10 @@ const Map<String, Map<String, String>> kTranslations = {
     'scrobble_copied': 'URL copiée',
     'scrobble_plex_steps':
         'Réglages Plex → Compte → Webhooks → Add Webhook → colle l’URL '
-            'ci-dessus. Plex Pass requis.',
+        'ci-dessus. Plex Pass requis.',
     'scrobble_jellyfin_steps':
         'Installe le plugin Webhook → Add Generic Destination → colle l’URL, '
-            'active Playback Stop et Item Marked Played, pour Episodes et Movies.',
+        'active Playback Stop et Item Marked Played, pour Episodes et Movies.',
     'scrobble_check_now': 'Vérifier maintenant',
     'scrobble_checked': '{n} visionnages appliqués',
     'scrobble_check_fail': 'Échec de la vérification',
@@ -2064,6 +2107,27 @@ const Map<String, Map<String, String>> kTranslations = {
     'season_rewatched': 'Temporada marcada de nuevo ({c} episodios)',
     'episode_mark_when': '¿Cuándo viste este episodio?',
     'share': 'Compartir',
+    'share_card_title': 'Compartir una tarjeta',
+    'share_style_poster': 'Cartel',
+    'share_style_ticket': 'Entrada',
+    'share_style_story': 'Historia',
+    'share_style_quiet': 'Sobria',
+    'share_texture_frame': 'Fotograma',
+    'share_texture_film': 'Película',
+    'share_texture_letters': 'Tipografía',
+    'share_texture_title': 'Fondo',
+    'share_hint_size': 'Se guarda en PNG de {w} px de ancho',
+    'share_hint_texture': 'Mantén pulsado un estilo para elegir el fondo',
+    'share_ticket_watched': 'Visto',
+    'share_ticket_planned': 'Pendiente',
+    'share_field_score': 'Nota',
+    'share_field_date': 'Fecha',
+    'share_field_view': 'Visionado',
+    'share_view_nth': 'visionado n.º {n}',
+    'share_view_short': 'n.º {n}',
+    'share_in_list': 'En la lista',
+    'share_my_score': 'Mi nota',
+    'share_failed': 'No se pudo crear la imagen',
     'delete_from_base': 'Eliminar de la biblioteca',
     'delete_from_base_confirm':
         '"{title}" se eliminará permanentemente. Puedes deshacerlo justo después.',
@@ -2253,7 +2317,7 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_headline': 'Trae tu historial de TV Time',
     'tvtime_sub':
         'TV Time cierra el 15 de julio de 2026 — lleva tu biblioteca a Kadr: '
-            'películas, series y cada visionado con fechas.',
+        'películas, series y cada visionado con fechas.',
     'tvtime_what_movies': 'Películas: vistas, valoraciones, pendientes',
     'tvtime_what_series': 'Series y cada episodio — con fechas',
     'tvtime_what_ratings': 'Valoraciones a partir de tus reacciones',
@@ -2261,8 +2325,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_what_lists': 'Tus listas personalizadas',
     'tvtime_how':
         'Cómo obtener el archivo: en TV Time → Ajustes → Cuenta → «Descargar '
-            'mis datos» (RGPD). Recibirás gdpr-data.zip por correo — elígelo '
-            'aquí.',
+        'mis datos» (RGPD). Recibirás gdpr-data.zip por correo — elígelo '
+        'aquí.',
     'tvtime_pick': 'Elegir gdpr-data.zip',
     'tvtime_st_unzip': 'Descomprimiendo el archivo…',
     'tvtime_st_read': 'Leyendo películas y series…',
@@ -2271,14 +2335,14 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_done_title': '¡Listo!',
     'tvtime_done_sub':
         'Tu biblioteca se ha importado. Los pósteres se cargarán '
-            'automáticamente.',
+        'automáticamente.',
     'tvtime_stat_movies': 'Películas',
     'tvtime_stat_series': 'Series',
     'tvtime_stat_episodes': 'Visionados de episodios',
     'tvtime_stat_rated': 'Valoradas',
     'tvtime_posters_note':
         'Los pósteres, los títulos en tu idioma y los detalles se cargan en '
-            'segundo plano según tu límite de TMDB.',
+        'segundo plano según tu límite de TMDB.',
     'tvtime_continue': 'Continuar',
     'tvtime_error': 'Error al importar',
     'tvtime_error_sub':
@@ -2291,18 +2355,18 @@ const Map<String, Map<String, String>> kTranslations = {
     'tmdb_skip_title': '¿Entrar sin clave de TMDB?',
     'tmdb_skip_body':
         'Sin clave no hay pósteres, búsqueda ni detalles — la app está casi '
-            'vacía. La importación de TV Time y las entradas manuales '
-            'funcionan. Puedes añadir una clave más tarde en Ajustes.',
+        'vacía. La importación de TV Time y las entradas manuales '
+        'funcionan. Puedes añadir una clave más tarde en Ajustes.',
     'tmdb_skip_confirm': 'Entrar igualmente',
     'scrobble_title': 'Scrobbling',
     'scrobble_settings_sub': 'Registro automático de Plex, Jellyfin, Kodi',
     'scrobble_need_account': 'Cuenta necesaria',
     'scrobble_need_account_sub':
         'El scrobbling vincula lo que ves a tu cuenta. Inicia sesión para '
-            'activarlo.',
+        'activarlo.',
     'scrobble_intro':
         'Mira en Plex, Jellyfin o Kodi — Kadr marca episodios y películas como '
-            'vistos automáticamente, con fechas. Configura el webhook una vez.',
+        'vistos automáticamente, con fechas. Configura el webhook una vez.',
     'scrobble_enable': 'Activar scrobbling',
     'scrobble_enable_sub': 'Traer lo visto al abrir la app',
     'scrobble_url_label': 'Tu URL de webhook',
@@ -2311,10 +2375,10 @@ const Map<String, Map<String, String>> kTranslations = {
     'scrobble_copied': 'URL copiada',
     'scrobble_plex_steps':
         'Ajustes de Plex → Cuenta → Webhooks → Add Webhook → pega la URL de '
-            'arriba. Requiere Plex Pass.',
+        'arriba. Requiere Plex Pass.',
     'scrobble_jellyfin_steps':
         'Instala el plugin Webhook → Add Generic Destination → pega la URL, '
-            'activa Playback Stop e Item Marked Played, para Episodes y Movies.',
+        'activa Playback Stop e Item Marked Played, para Episodes y Movies.',
     'scrobble_check_now': 'Comprobar ahora',
     'scrobble_checked': '{n} visionados aplicados',
     'scrobble_check_fail': 'Error al comprobar',
@@ -2838,6 +2902,27 @@ const Map<String, Map<String, String>> kTranslations = {
     'season_rewatched': 'Stagione segnata di nuovo ({c} episodi)',
     'episode_mark_when': 'Quando hai visto questo episodio?',
     'share': 'Condividi',
+    'share_card_title': 'Condividi una scheda',
+    'share_style_poster': 'Locandina',
+    'share_style_ticket': 'Biglietto',
+    'share_style_story': 'Storia',
+    'share_style_quiet': 'Sobria',
+    'share_texture_frame': 'Fotogramma',
+    'share_texture_film': 'Pellicola',
+    'share_texture_letters': 'Lettering',
+    'share_texture_title': 'Sfondo',
+    'share_hint_size': 'Salvata in PNG, {w} px di larghezza',
+    'share_hint_texture': 'Tieni premuto uno stile per scegliere lo sfondo',
+    'share_ticket_watched': 'Visto',
+    'share_ticket_planned': 'In programma',
+    'share_field_score': 'Voto',
+    'share_field_date': 'Data',
+    'share_field_view': 'Visione',
+    'share_view_nth': '{n}ª visione',
+    'share_view_short': '{n}ª',
+    'share_in_list': 'In elenco',
+    'share_my_score': 'Il mio voto',
+    'share_failed': 'Impossibile creare l’immagine',
     'delete_from_base': 'Elimina dalla libreria',
     'delete_from_base_confirm':
         '"{title}" verrà rimosso definitivamente. Puoi annullare subito dopo.',
@@ -3027,7 +3112,7 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_headline': 'Porta la tua cronologia da TV Time',
     'tvtime_sub':
         'TV Time chiude il 15 luglio 2026 — porta la tua libreria su Kadr: '
-            'film, serie e ogni visione con le date.',
+        'film, serie e ogni visione con le date.',
     'tvtime_what_movies': 'Film: visti, voti, da vedere',
     'tvtime_what_series': 'Serie e ogni episodio — con le date',
     'tvtime_what_ratings': 'Voti dalle tue reazioni-emozioni',
@@ -3035,8 +3120,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_what_lists': 'Le tue liste personalizzate',
     'tvtime_how':
         'Come ottenere il file: in TV Time → Impostazioni → Account → '
-            '«Scarica i miei dati» (GDPR). Riceverai gdpr-data.zip via email — '
-            'selezionalo qui.',
+        '«Scarica i miei dati» (GDPR). Riceverai gdpr-data.zip via email — '
+        'selezionalo qui.',
     'tvtime_pick': 'Scegli gdpr-data.zip',
     'tvtime_st_unzip': 'Estrazione dell’archivio…',
     'tvtime_st_read': 'Lettura di film e serie…',
@@ -3051,21 +3136,20 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_stat_rated': 'Con voto',
     'tvtime_posters_note':
         'Poster, titoli nella tua lingua e dettagli vengono caricati in '
-            'background nei limiti del tuo TMDB.',
+        'background nei limiti del tuo TMDB.',
     'tvtime_continue': 'Continua',
     'tvtime_error': 'Importazione non riuscita',
     'tvtime_error_sub':
         'Assicurati di aver scelto gdpr-data.zip dall’esportazione di TV Time.',
     'tvtime_retry': 'Riprova',
     'ob5_title': 'Vieni da TV Time?',
-    'ob5_sub':
-        'Porta la tua cronologia in pochi tocchi — film, serie e date.',
+    'ob5_sub': 'Porta la tua cronologia in pochi tocchi — film, serie e date.',
     'tmdb_key_skip': 'Entra senza chiave',
     'tmdb_skip_title': 'Entrare senza chiave TMDB?',
     'tmdb_skip_body':
         'Senza chiave niente poster, ricerca o dettagli — l’app è quasi vuota. '
-            'L’import da TV Time e le voci manuali funzionano. Puoi aggiungere '
-            'una chiave più tardi nelle Impostazioni.',
+        'L’import da TV Time e le voci manuali funzionano. Puoi aggiungere '
+        'una chiave più tardi nelle Impostazioni.',
     'tmdb_skip_confirm': 'Entra comunque',
     'scrobble_title': 'Scrobbling',
     'scrobble_settings_sub': 'Registro automatico da Plex, Jellyfin, Kodi',
@@ -3074,7 +3158,7 @@ const Map<String, Map<String, String>> kTranslations = {
         'Lo scrobbling collega le visioni al tuo account. Accedi per attivarlo.',
     'scrobble_intro':
         'Guarda in Plex, Jellyfin o Kodi — Kadr segna episodi e film come visti '
-            'automaticamente, con le date. Configura il webhook una volta.',
+        'automaticamente, con le date. Configura il webhook una volta.',
     'scrobble_enable': 'Attiva lo scrobbling',
     'scrobble_enable_sub': 'Recupera le visioni all’apertura dell’app',
     'scrobble_url_label': 'Il tuo URL webhook',
@@ -3083,10 +3167,10 @@ const Map<String, Map<String, String>> kTranslations = {
     'scrobble_copied': 'URL copiato',
     'scrobble_plex_steps':
         'Impostazioni Plex → Account → Webhooks → Add Webhook → incolla l’URL '
-            'sopra. Richiede Plex Pass.',
+        'sopra. Richiede Plex Pass.',
     'scrobble_jellyfin_steps':
         'Installa il plugin Webhook → Add Generic Destination → incolla l’URL, '
-            'attiva Playback Stop e Item Marked Played, per Episodes e Movies.',
+        'attiva Playback Stop e Item Marked Played, per Episodes e Movies.',
     'scrobble_check_now': 'Controlla ora',
     'scrobble_checked': '{n} visioni applicate',
     'scrobble_check_fail': 'Controllo non riuscito',
@@ -3609,6 +3693,27 @@ const Map<String, Map<String, String>> kTranslations = {
     'season_rewatched': 'Temporada marcada de novo ({c} episódios)',
     'episode_mark_when': 'Quando você assistiu a este episódio?',
     'share': 'Compartilhar',
+    'share_card_title': 'Compartilhar um cartão',
+    'share_style_poster': 'Cartaz',
+    'share_style_ticket': 'Ingresso',
+    'share_style_story': 'Story',
+    'share_style_quiet': 'Sóbrio',
+    'share_texture_frame': 'Cena do filme',
+    'share_texture_film': 'Filme',
+    'share_texture_letters': 'Letras',
+    'share_texture_title': 'Fundo',
+    'share_hint_size': 'Salvo em PNG com {w} px de largura',
+    'share_hint_texture': 'Segure um estilo para escolher o fundo',
+    'share_ticket_watched': 'Assistido',
+    'share_ticket_planned': 'Planejado',
+    'share_field_score': 'Nota',
+    'share_field_date': 'Data',
+    'share_field_view': 'Sessão',
+    'share_view_nth': '{n}ª sessão',
+    'share_view_short': '{n}ª',
+    'share_in_list': 'Na lista',
+    'share_my_score': 'Minha nota',
+    'share_failed': 'Não foi possível criar a imagem',
     'delete_from_base': 'Excluir da biblioteca',
     'delete_from_base_confirm':
         '"{title}" será removido permanentemente. Você pode desfazer logo depois.',
@@ -3798,7 +3903,7 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_headline': 'Traga o seu histórico do TV Time',
     'tvtime_sub':
         'O TV Time encerra em 15 de julho de 2026 — leve a sua biblioteca para '
-            'o Kadr: filmes, séries e cada exibição com datas.',
+        'o Kadr: filmes, séries e cada exibição com datas.',
     'tvtime_what_movies': 'Filmes: assistidos, notas, para ver',
     'tvtime_what_series': 'Séries e cada episódio — com datas',
     'tvtime_what_ratings': 'Notas a partir das suas reações',
@@ -3806,8 +3911,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_what_lists': 'As suas listas personalizadas',
     'tvtime_how':
         'Como obter o arquivo: no TV Time → Configurações → Conta → «Baixar '
-            'meus dados» (GDPR). Você receberá gdpr-data.zip por e-mail — '
-            'selecione-o aqui.',
+        'meus dados» (GDPR). Você receberá gdpr-data.zip por e-mail — '
+        'selecione-o aqui.',
     'tvtime_pick': 'Escolher gdpr-data.zip',
     'tvtime_st_unzip': 'Descompactando o arquivo…',
     'tvtime_st_read': 'Lendo filmes e séries…',
@@ -3816,14 +3921,14 @@ const Map<String, Map<String, String>> kTranslations = {
     'tvtime_done_title': 'Pronto!',
     'tvtime_done_sub':
         'A sua biblioteca foi importada. Os pôsteres serão carregados '
-            'automaticamente.',
+        'automaticamente.',
     'tvtime_stat_movies': 'Filmes',
     'tvtime_stat_series': 'Séries',
     'tvtime_stat_episodes': 'Exibições de episódios',
     'tvtime_stat_rated': 'Com nota',
     'tvtime_posters_note':
         'Pôsteres, títulos no seu idioma e detalhes carregam em segundo plano '
-            'dentro do seu limite do TMDB.',
+        'dentro do seu limite do TMDB.',
     'tvtime_continue': 'Continuar',
     'tvtime_error': 'Falha na importação',
     'tvtime_error_sub':
@@ -3836,8 +3941,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'tmdb_skip_title': 'Entrar sem chave do TMDB?',
     'tmdb_skip_body':
         'Sem chave não há pôsteres, busca ou detalhes — o app fica quase '
-            'vazio. A importação do TV Time e as entradas manuais funcionam. '
-            'Você pode adicionar uma chave depois nas Configurações.',
+        'vazio. A importação do TV Time e as entradas manuais funcionam. '
+        'Você pode adicionar uma chave depois nas Configurações.',
     'tmdb_skip_confirm': 'Entrar mesmo assim',
     'scrobble_title': 'Scrobbling',
     'scrobble_settings_sub': 'Registro automático de Plex, Jellyfin, Kodi',
@@ -3846,8 +3951,8 @@ const Map<String, Map<String, String>> kTranslations = {
         'O scrobbling vincula o que você assiste à sua conta. Entre para ativar.',
     'scrobble_intro':
         'Assista no Plex, Jellyfin ou Kodi — o Kadr marca episódios e filmes '
-            'como assistidos automaticamente, com datas. Configure o webhook '
-            'uma vez.',
+        'como assistidos automaticamente, com datas. Configure o webhook '
+        'uma vez.',
     'scrobble_enable': 'Ativar scrobbling',
     'scrobble_enable_sub': 'Buscar o que foi assistido ao abrir o app',
     'scrobble_url_label': 'Seu URL de webhook',
@@ -3856,10 +3961,10 @@ const Map<String, Map<String, String>> kTranslations = {
     'scrobble_copied': 'URL copiado',
     'scrobble_plex_steps':
         'Configurações do Plex → Conta → Webhooks → Add Webhook → cole o URL '
-            'acima. Requer Plex Pass.',
+        'acima. Requer Plex Pass.',
     'scrobble_jellyfin_steps':
         'Instale o plugin Webhook → Add Generic Destination → cole o URL, ative '
-            'Playback Stop e Item Marked Played, para Episodes e Movies.',
+        'Playback Stop e Item Marked Played, para Episodes e Movies.',
     'scrobble_check_now': 'Verificar agora',
     'scrobble_checked': '{n} visionamentos aplicados',
     'scrobble_check_fail': 'Falha na verificação',

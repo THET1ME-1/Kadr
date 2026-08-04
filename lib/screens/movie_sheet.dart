@@ -36,11 +36,15 @@ import 'when_watched_sheet.dart';
 
 /// Открывает полноэкранную карточку фильма (как экран сериала — отдельная
 /// страница, а не выезжающая панель).
-Future<void> showMovieSheet(BuildContext context, LibraryMovie movie,
-    {String? heroTag}) {
+Future<void> showMovieSheet(
+  BuildContext context,
+  LibraryMovie movie, {
+  String? heroTag,
+}) {
   return Navigator.of(context).push(
     MaterialPageRoute(
-        builder: (_) => MovieScreen(movie: movie, heroTag: heroTag)),
+      builder: (_) => MovieScreen(movie: movie, heroTag: heroTag),
+    ),
   );
 }
 
@@ -98,10 +102,12 @@ class _MovieScreenState extends State<MovieScreen> {
     if (mounted && d != null) setState(() => _details = d);
     // Кэшируем жанры/страны/длительность в фильм (для фильтров и статистики).
     if (d != null) {
-      _repo.applyDetails(m.uuid,
-          genres: [for (final g in d.genres) g.name],
-          countries: d.countries,
-          runtimeMin: d.runtime);
+      _repo.applyDetails(
+        m.uuid,
+        genres: [for (final g in d.genres) g.name],
+        countries: d.countries,
+        runtimeMin: d.runtime,
+      );
     }
     // Части франшизы (несколько фильмов) — грузим отдельно.
     if (d?.collectionId != null) {
@@ -116,10 +122,9 @@ class _MovieScreenState extends State<MovieScreen> {
   }
 
   void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      behavior: SnackBarBehavior.floating,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+    );
   }
 
   @override
@@ -156,7 +161,10 @@ class _MovieScreenState extends State<MovieScreen> {
                 icon: const Icon(Icons.ios_share_rounded, color: Colors.white),
                 tooltip: tr('share'),
                 onPressed: () => showShareCardSheet(
-                    context, _repo.byUuid(widget.movie.uuid) ?? widget.movie),
+                  context,
+                  _repo.byUuid(widget.movie.uuid) ?? widget.movie,
+                  backdropUrl: _details?.backdropUrl,
+                ),
               ),
             ),
           ),
@@ -202,7 +210,8 @@ class _MovieScreenState extends State<MovieScreen> {
               alignment: Alignment.topCenter,
               // Декод под ширину экрана, а не под исходные ~1280px.
               memCacheWidth:
-                  (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context))
+                  (MediaQuery.sizeOf(context).width *
+                          MediaQuery.devicePixelRatioOf(context))
                       .round(),
               placeholder: (c, _) =>
                   Container(color: scheme.surfaceContainerHighest),
@@ -230,10 +239,12 @@ class _MovieScreenState extends State<MovieScreen> {
                 Pressable(
                   scale: 1,
                   haptic: false,
-                  onTap: () => openPosterViewer(context,
-                      title: m.displayTitle,
-                      url: m.displayPoster,
-                      heroTag: widget.heroTag ?? 'poster-${m.uuid}'),
+                  onTap: () => openPosterViewer(
+                    context,
+                    title: m.displayTitle,
+                    url: m.displayPoster,
+                    heroTag: widget.heroTag ?? 'poster-${m.uuid}',
+                  ),
                   onLongPress: () => _editMoviePoster(m),
                   child: Hero(
                     tag: widget.heroTag ?? 'poster-${m.uuid}',
@@ -242,10 +253,11 @@ class _MovieScreenState extends State<MovieScreen> {
                       borderRadius: BorderRadius.circular(16),
                       shadowColor: Colors.black54,
                       child: Poster(
-                          title: m.displayTitle,
-                          url: m.displayPoster,
-                          width: 104,
-                          radius: 16),
+                        title: m.displayTitle,
+                        url: m.displayPoster,
+                        width: 104,
+                        radius: 16,
+                      ),
                     ),
                   ),
                 ),
@@ -257,23 +269,29 @@ class _MovieScreenState extends State<MovieScreen> {
                     children: [
                       GestureDetector(
                         onLongPress: () => _copy(m.displayTitle),
-                        child: Text(m.displayTitle,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontFamily: AppTheme.displayFont,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 24,
-                                height: 1.05,
-                                color: Colors.white)),
+                        child: Text(
+                          m.displayTitle,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: AppTheme.displayFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 24,
+                            height: 1.05,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                       if (meta.isNotEmpty) ...[
                         const SizedBox(height: 8),
-                        Text(meta,
-                            style: TextStyle(
-                                fontFamily: AppTheme.bodyFont,
-                                fontSize: 13,
-                                color: Colors.white.withValues(alpha: 0.85))),
+                        Text(
+                          meta,
+                          style: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontSize: 13,
+                            color: Colors.white.withValues(alpha: 0.85),
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -287,14 +305,14 @@ class _MovieScreenState extends State<MovieScreen> {
   }
 
   Widget _gradientBg(ColorScheme scheme) => DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [scheme.primary, scheme.tertiary],
-          ),
-        ),
-      );
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [scheme.primary, scheme.tertiary],
+      ),
+    ),
+  );
 
   List<Widget> _content(BuildContext context, LibraryMovie m) {
     final scheme = Theme.of(context).colorScheme;
@@ -306,9 +324,12 @@ class _MovieScreenState extends State<MovieScreen> {
         children: [
           _statusChip(scheme, m),
           if (m.isRewatched)
-            _chip(scheme, Icons.repeat_rounded,
-                trf('rewatches_n', {'n': m.rewatchCount}),
-                tone: true),
+            _chip(
+              scheme,
+              Icons.repeat_rounded,
+              trf('rewatches_n', {'n': m.rewatchCount}),
+              tone: true,
+            ),
           if (m.kpRating != null && m.kpRating! > 0)
             _chip(scheme, Icons.star_rounded, m.kpRating!.toStringAsFixed(1)),
         ],
@@ -326,9 +347,13 @@ class _MovieScreenState extends State<MovieScreen> {
         child: FilledButton.icon(
           onPressed: () => showWhenWatchedSheet(context, m),
           icon: const Icon(Icons.add_task_rounded),
-          label: Text(tr(m.status == LibraryStatus.watched
-              ? 'watch_again'
-              : 'mark_watched')),
+          label: Text(
+            tr(
+              m.status == LibraryStatus.watched
+                  ? 'watch_again'
+                  : 'mark_watched',
+            ),
+          ),
         ),
       ),
       const SizedBox(height: 12),
@@ -410,12 +435,15 @@ class _MovieScreenState extends State<MovieScreen> {
       ],
       if (m.viewings.isNotEmpty) ...[
         const SizedBox(height: 22),
-        Text(tr('per_viewing_scores'),
-            style: TextStyle(
-                fontFamily: AppTheme.displayFont,
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-                color: scheme.primary)),
+        Text(
+          tr('per_viewing_scores'),
+          style: TextStyle(
+            fontFamily: AppTheme.displayFont,
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+            color: scheme.primary,
+          ),
+        ),
         const SizedBox(height: 8),
         ..._viewingRows(scheme, m),
       ],
@@ -453,7 +481,11 @@ class _MovieScreenState extends State<MovieScreen> {
   }
 
   Widget _partCard(
-      ColorScheme scheme, TmdbMovie part, int order, int? currentTmdbId) {
+    ColorScheme scheme,
+    TmdbMovie part,
+    int order,
+    int? currentTmdbId,
+  ) {
     // Матчим и по названию+году: у импортированных просмотренных фильмов часто
     // ещё нет tmdbId — иначе статус (галочка) не показывался бы до открытия.
     final lib = _repo.findMovieForTmdb(part);
@@ -470,10 +502,11 @@ class _MovieScreenState extends State<MovieScreen> {
             Stack(
               children: [
                 Poster(
-                    title: part.title,
-                    url: part.posterUrl,
-                    width: 120,
-                    radius: 14),
+                  title: part.title,
+                  url: part.posterUrl,
+                  width: 120,
+                  radius: 14,
+                ),
                 // Порядковый номер части.
                 Positioned(
                   top: 6,
@@ -483,13 +516,18 @@ class _MovieScreenState extends State<MovieScreen> {
                     height: 24,
                     alignment: Alignment.center,
                     decoration: const BoxDecoration(
-                        color: Colors.black54, shape: BoxShape.circle),
-                    child: Text('$order',
-                        style: const TextStyle(
-                            fontFamily: AppTheme.displayFont,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                            color: Colors.white)),
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '$order',
+                      style: const TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
                 Positioned(top: 6, right: 6, child: statusBadges(scheme, lib)),
@@ -505,21 +543,27 @@ class _MovieScreenState extends State<MovieScreen> {
               ],
             ),
             const SizedBox(height: 6),
-            Text(part.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontFamily: AppTheme.displayFont,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12.5,
-                    height: 1.1,
-                    color: scheme.onSurface)),
+            Text(
+              part.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: AppTheme.displayFont,
+                fontWeight: FontWeight.w700,
+                fontSize: 12.5,
+                height: 1.1,
+                color: scheme.onSurface,
+              ),
+            ),
             if (part.year != null)
-              Text('${part.year}',
-                  style: TextStyle(
-                      fontFamily: AppTheme.bodyFont,
-                      fontSize: 11.5,
-                      color: scheme.onSurfaceVariant)),
+              Text(
+                '${part.year}',
+                style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontSize: 11.5,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
           ],
         ),
       ),
@@ -534,23 +578,35 @@ class _MovieScreenState extends State<MovieScreen> {
     }
     final facts = <Widget>[
       if (d.director != null && d.director!.isNotEmpty)
-        _personFact(scheme, Icons.movie_creation_rounded, tr('director'),
-            d.director!, d.directorId),
+        _personFact(
+          scheme,
+          Icons.movie_creation_rounded,
+          tr('director'),
+          d.director!,
+          d.directorId,
+        ),
       if (d.budget != null && d.budget! > 0)
         _fact(scheme, Icons.payments_rounded, tr('budget'), _money(d.budget!)),
       if (d.revenue != null && d.revenue! > 0)
-        _fact(scheme, Icons.trending_up_rounded, tr('revenue'),
-            _money(d.revenue!)),
+        _fact(
+          scheme,
+          Icons.trending_up_rounded,
+          tr('revenue'),
+          _money(d.revenue!),
+        ),
     ];
     return [
       if (d.tagline != null) ...[
         const SizedBox(height: 18),
-        Text('«${d.tagline!.replaceAll(RegExp(r'^[«»"\s]+|[«»"\s]+$'), '')}»',
-            style: TextStyle(
-                fontFamily: AppTheme.bodyFont,
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-                color: scheme.onSurfaceVariant)),
+        Text(
+          '«${d.tagline!.replaceAll(RegExp(r'^[«»"\s]+|[«»"\s]+$'), '')}»',
+          style: TextStyle(
+            fontFamily: AppTheme.bodyFont,
+            fontSize: 14,
+            fontStyle: FontStyle.italic,
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
       ],
       if (d.overview != null && d.overview!.isNotEmpty) ...[
         const SizedBox(height: 18),
@@ -558,12 +614,15 @@ class _MovieScreenState extends State<MovieScreen> {
         const SizedBox(height: 6),
         GestureDetector(
           onLongPress: () => _copy(d.overview!),
-          child: Text(d.overview!,
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontSize: 14,
-                  height: 1.45,
-                  color: scheme.onSurface)),
+          child: Text(
+            d.overview!,
+            style: TextStyle(
+              fontFamily: AppTheme.bodyFont,
+              fontSize: 14,
+              height: 1.45,
+              color: scheme.onSurface,
+            ),
+          ),
         ),
       ],
       if (d.genres.isNotEmpty) ...[
@@ -578,18 +637,28 @@ class _MovieScreenState extends State<MovieScreen> {
                 borderRadius: BorderRadius.circular(20),
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
                       builder: (_) => GenreScreen(
-                          genreId: g.id, genreName: capitalize(g.name)))),
+                        genreId: g.id,
+                        genreName: capitalize(g.name),
+                      ),
+                    ),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    child: Text(capitalize(g.name),
-                        style: TextStyle(
-                            fontFamily: AppTheme.bodyFont,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: scheme.onSecondaryContainer)),
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    child: Text(
+                      capitalize(g.name),
+                      style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: scheme.onSecondaryContainer,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -615,11 +684,15 @@ class _MovieScreenState extends State<MovieScreen> {
                 scale: 1,
                 haptic: false,
                 onTap: d.cast[i].id > 0
-                    ? () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => PersonScreen(
+                    ? () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PersonScreen(
                             personId: d.cast[i].id,
                             personName: d.cast[i].name,
-                            personPhoto: d.cast[i].photoUrl)))
+                            personPhoto: d.cast[i].photoUrl,
+                          ),
+                        ),
+                      )
                     : null,
                 onLongPress: () =>
                     promptFavoriteCharacter(context, d.cast[i], m.displayTitle),
@@ -629,10 +702,7 @@ class _MovieScreenState extends State<MovieScreen> {
           ),
         ),
       ],
-      if (facts.isNotEmpty) ...[
-        const SizedBox(height: 16),
-        ...facts,
-      ],
+      if (facts.isNotEmpty) ...[const SizedBox(height: 16), ...facts],
       FactsSection(
         key: ValueKey('facts-${m.uuid}'),
         loader: () => FactsService.forMovie(
@@ -642,10 +712,7 @@ class _MovieScreenState extends State<MovieScreen> {
           year: m.year,
         ),
       ),
-      if (links.isNotEmpty) ...[
-        const SizedBox(height: 16),
-        ...links,
-      ],
+      if (links.isNotEmpty) ...[const SizedBox(height: 16), ...links],
     ];
   }
 
@@ -653,32 +720,40 @@ class _MovieScreenState extends State<MovieScreen> {
   List<Widget> _links(LibraryMovie m) {
     final items = <Widget>[];
     void add(String label, Color color, String url) {
-      items.add(Material(
-        color: color,
-        borderRadius: BorderRadius.circular(14),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () =>
-              launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(label,
+      items.add(
+        Material(
+          color: color,
+          borderRadius: BorderRadius.circular(14),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () =>
+                launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
                     style: const TextStyle(
-                        fontFamily: AppTheme.bodyFont,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        color: Colors.white)),
-                const SizedBox(width: 5),
-                const Icon(Icons.open_in_new_rounded,
-                    size: 14, color: Colors.white),
-              ],
+                      fontFamily: AppTheme.bodyFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  const Icon(
+                    Icons.open_in_new_rounded,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ));
+      );
     }
 
     // Кинопоиск: если есть точный id — прямая ссылка на страницу фильма; иначе
@@ -686,31 +761,46 @@ class _MovieScreenState extends State<MovieScreen> {
     // лимит API) — открываем поиск Кинопоиска по названию+году, чтобы ссылка
     // была ВСЕГДА, ведь сам фильм на КП обычно есть.
     if (m.kinopoiskId != null) {
-      add('ПоискКино', const Color(0xFFFF6600),
-          'https://www.kinopoisk.ru/film/${m.kinopoiskId}/');
+      add(
+        'ПоискКино',
+        const Color(0xFFFF6600),
+        'https://www.kinopoisk.ru/film/${m.kinopoiskId}/',
+      );
     } else {
       final q = [m.displayTitle, if (m.year != null) '${m.year}'].join(' ');
-      add('ПоискКино', const Color(0xFFFF6600),
-          'https://www.kinopoisk.ru/index.php?kp_query=${Uri.encodeQueryComponent(q)}');
+      add(
+        'ПоискКино',
+        const Color(0xFFFF6600),
+        'https://www.kinopoisk.ru/index.php?kp_query=${Uri.encodeQueryComponent(q)}',
+      );
     }
     if (_details?.imdbId != null) {
-      add('IMDb', const Color(0xFFD8A800),
-          'https://www.imdb.com/title/${_details!.imdbId}/');
+      add(
+        'IMDb',
+        const Color(0xFFD8A800),
+        'https://www.imdb.com/title/${_details!.imdbId}/',
+      );
     }
     if (m.tmdbId != null) {
-      add('TMDb', const Color(0xFF01B4E4),
-          'https://www.themoviedb.org/movie/${m.tmdbId}');
+      add(
+        'TMDb',
+        const Color(0xFF01B4E4),
+        'https://www.themoviedb.org/movie/${m.tmdbId}',
+      );
     }
     if (items.isEmpty) return [];
     return [Wrap(spacing: 8, runSpacing: 8, children: items)];
   }
 
-  Widget _sectionTitle(ColorScheme scheme, String title) => Text(title,
-      style: TextStyle(
-          fontFamily: AppTheme.displayFont,
-          fontWeight: FontWeight.w700,
-          fontSize: 15,
-          color: scheme.primary));
+  Widget _sectionTitle(ColorScheme scheme, String title) => Text(
+    title,
+    style: TextStyle(
+      fontFamily: AppTheme.displayFont,
+      fontWeight: FontWeight.w700,
+      fontSize: 15,
+      color: scheme.primary,
+    ),
+  );
 
   Widget _castCard(ColorScheme scheme, TmdbCast c) {
     return SizedBox(
@@ -730,34 +820,46 @@ class _MovieScreenState extends State<MovieScreen> {
                 ? CachedNetworkImage(
                     imageUrl: c.photoUrl!,
                     fit: BoxFit.cover,
-                    memCacheWidth:
-                        (72 * MediaQuery.devicePixelRatioOf(context)).round(),
-                    errorWidget: (ctx, u, e) => Icon(Icons.person_rounded,
-                        color: scheme.onSurfaceVariant, size: 34),
+                    memCacheWidth: (72 * MediaQuery.devicePixelRatioOf(context))
+                        .round(),
+                    errorWidget: (ctx, u, e) => Icon(
+                      Icons.person_rounded,
+                      color: scheme.onSurfaceVariant,
+                      size: 34,
+                    ),
                   )
-                : Icon(Icons.person_rounded,
-                    color: scheme.onSurfaceVariant, size: 34),
+                : Icon(
+                    Icons.person_rounded,
+                    color: scheme.onSurfaceVariant,
+                    size: 34,
+                  ),
           ),
           const SizedBox(height: 6),
-          Text(c.name,
-              maxLines: 2,
+          Text(
+            c.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: AppTheme.bodyFont,
+              fontWeight: FontWeight.w600,
+              fontSize: 11.5,
+              height: 1.1,
+              color: scheme.onSurface,
+            ),
+          ),
+          if (c.character != null && c.character!.isNotEmpty)
+            Text(
+              c.character!,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11.5,
-                  height: 1.1,
-                  color: scheme.onSurface)),
-          if (c.character != null && c.character!.isNotEmpty)
-            Text(c.character!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontSize: 10.5,
-                    color: scheme.onSurfaceVariant)),
+                fontFamily: AppTheme.bodyFont,
+                fontSize: 10.5,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
         ],
       ),
     );
@@ -771,62 +873,81 @@ class _MovieScreenState extends State<MovieScreen> {
           children: [
             Icon(icon, size: 20, color: scheme.onSurfaceVariant),
             const SizedBox(width: 12),
-            Text('$label: ',
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontSize: 14,
-                    color: scheme.onSurfaceVariant)),
+            Text(
+              '$label: ',
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontSize: 14,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
             Expanded(
-              child: Text(value,
-                  style: TextStyle(
-                      fontFamily: AppTheme.bodyFont,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: scheme.onSurface)),
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: scheme.onSurface,
+                ),
+              ),
             ),
           ],
         ),
       );
 
   /// Факт-ссылка на персону (режиссёр): имя-ссылка ведёт в фильмографию.
-  Widget _personFact(ColorScheme scheme, IconData icon, String label,
-          String name, int? personId) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 20, color: scheme.onSurfaceVariant),
-            const SizedBox(width: 12),
-            Text('$label: ',
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontSize: 14,
-                    color: scheme.onSurfaceVariant)),
-            Expanded(
-              child: GestureDetector(
-                onTap: personId != null && personId > 0
-                    ? () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) =>
-                            PersonScreen(personId: personId, personName: name)))
+  Widget _personFact(
+    ColorScheme scheme,
+    IconData icon,
+    String label,
+    String name,
+    int? personId,
+  ) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: scheme.onSurfaceVariant),
+        const SizedBox(width: 12),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontFamily: AppTheme.bodyFont,
+            fontSize: 14,
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+        Expanded(
+          child: GestureDetector(
+            onTap: personId != null && personId > 0
+                ? () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          PersonScreen(personId: personId, personName: name),
+                    ),
+                  )
+                : null,
+            child: Text(
+              name,
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                decoration: personId != null && personId > 0
+                    ? TextDecoration.underline
                     : null,
-                child: Text(name,
-                    style: TextStyle(
-                        fontFamily: AppTheme.bodyFont,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        decoration: personId != null && personId > 0
-                            ? TextDecoration.underline
-                            : null,
-                        decorationColor: scheme.primary,
-                        color: personId != null && personId > 0
-                            ? scheme.primary
-                            : scheme.onSurface)),
+                decorationColor: scheme.primary,
+                color: personId != null && personId > 0
+                    ? scheme.primary
+                    : scheme.onSurface,
               ),
             ),
-          ],
+          ),
         ),
-      );
+      ],
+    ),
+  );
 
   /// Замена постера фильма: выбор из галереи, из официальных постеров TMDB или
   /// сброс к оригиналу (долгое нажатие на постер). Меняется в одном месте —
@@ -851,8 +972,10 @@ class _MovieScreenState extends State<MovieScreen> {
             ),
             if (m.posterFile != null)
               ListTile(
-                leading: Icon(Icons.restore_rounded,
-                    color: scheme.onSurfaceVariant),
+                leading: Icon(
+                  Icons.restore_rounded,
+                  color: scheme.onSurfaceVariant,
+                ),
                 title: Text(tr('poster_reset')),
                 onTap: () => Navigator.pop(ctx, 'reset'),
               ),
@@ -885,16 +1008,21 @@ class _MovieScreenState extends State<MovieScreen> {
       return;
     }
     try {
-      final res = await FilePicker.platform
-          .pickFiles(type: FileType.image, withData: true);
+      final res = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
       if (res == null || res.files.isEmpty) return;
       final f = res.files.single;
-      final raw = f.bytes ??
+      final raw =
+          f.bytes ??
           (f.path != null ? await File(f.path!).readAsBytes() : null);
       if (raw == null) return;
       final ok = await _repo.setMoviePosterLocal(m.uuid, raw);
       if (mounted && ok) setState(() {});
-    } catch (_) {/* отмена/ошибка выбора файла — игнорируем */}
+    } catch (_) {
+      /* отмена/ошибка выбора файла — игнорируем */
+    }
   }
 
   void _copy(String text) {
@@ -923,85 +1051,100 @@ class _MovieScreenState extends State<MovieScreen> {
       final isRewatch = i > 0; // первый добавленный просмотр — не повтор
       // Эффективная оценка просмотра (с учётом общей) — согласуется с верхней.
       final sc = m.scoreOf(v);
-      rows.add(Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => _editViewing(context, m, v, i + 1),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-            child: Row(
-              children: [
-                Icon(isRewatch ? Icons.repeat_rounded : Icons.event_rounded,
-                    size: 20, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        v.hasDate
-                            ? dateExactWithTime(v.date!)
-                            : tr('when_unknown'),
-                        style: TextStyle(
+      rows.add(
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => _editViewing(context, m, v, i + 1),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    isRewatch ? Icons.repeat_rounded : Icons.event_rounded,
+                    size: 20,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          v.hasDate
+                              ? dateExactWithTime(v.date!)
+                              : tr('when_unknown'),
+                          style: TextStyle(
                             fontFamily: AppTheme.bodyFont,
                             fontSize: 14,
-                            color: scheme.onSurface),
-                      ),
-                      if (isRewatch)
-                        Text(trf('viewing_n', {'n': i + 1}),
+                            color: scheme.onSurface,
+                          ),
+                        ),
+                        if (isRewatch)
+                          Text(
+                            trf('viewing_n', {'n': i + 1}),
                             style: TextStyle(
-                                fontFamily: AppTheme.bodyFont,
-                                fontSize: 11.5,
-                                color: scheme.onSurfaceVariant
-                                    .withValues(alpha: 0.8))),
-                    ],
+                              fontFamily: AppTheme.bodyFont,
+                              fontSize: 11.5,
+                              color: scheme.onSurfaceVariant.withValues(
+                                alpha: 0.8,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: sc != null
-                        ? scoreColor(sc)
-                        : scheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: sc != null
+                          ? scoreColor(sc)
+                          : scheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
                           sc != null
                               ? Icons.star_rounded
                               : Icons.star_border_rounded,
                           size: 16,
                           color: sc != null
                               ? onScoreColor(sc)
-                              : scheme.onSurfaceVariant),
-                      const SizedBox(width: 4),
-                      Text(
-                        sc != null ? sc.toStringAsFixed(1) : tr('not_rated'),
-                        style: TextStyle(
-                          fontFamily: AppTheme.displayFont,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: sc != null
-                              ? onScoreColor(sc)
                               : scheme.onSurfaceVariant,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Text(
+                          sc != null ? sc.toStringAsFixed(1) : tr('not_rated'),
+                          style: TextStyle(
+                            fontFamily: AppTheme.displayFont,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: sc != null
+                                ? onScoreColor(sc)
+                                : scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                Icon(Icons.edit_rounded,
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.edit_rounded,
                     size: 17,
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.7)),
-              ],
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ));
+      );
     }
     return rows;
   }
@@ -1014,8 +1157,8 @@ class _MovieScreenState extends State<MovieScreen> {
     final verdict = delta.abs() < 0.05
         ? tr('cmp_same')
         : (delta > 0
-            ? trf('cmp_improved', {'d': delta.toStringAsFixed(1)})
-            : trf('cmp_dropped', {'d': (-delta).toStringAsFixed(1)}));
+              ? trf('cmp_improved', {'d': delta.toStringAsFixed(1)})
+              : trf('cmp_dropped', {'d': (-delta).toStringAsFixed(1)}));
     final verdictColor = delta.abs() < 0.05
         ? scheme.onSurfaceVariant
         : (delta > 0 ? const Color(0xFF2E9B57) : const Color(0xFFD0433B));
@@ -1029,19 +1172,23 @@ class _MovieScreenState extends State<MovieScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(tr('score_comparison'),
-              style: TextStyle(
-                  fontFamily: AppTheme.displayFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: scheme.onSurface)),
+          Text(
+            tr('score_comparison'),
+            style: TextStyle(
+              fontFamily: AppTheme.displayFont,
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              color: scheme.onSurface,
+            ),
+          ),
           const SizedBox(height: 14),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
                 for (var i = 0; i < rated.length; i++) ...[
-                  if (i > 0) _arrow(scheme, rated[i].score! - rated[i - 1].score!),
+                  if (i > 0)
+                    _arrow(scheme, rated[i].score! - rated[i - 1].score!),
                   _scorePill(scheme, rated[i], i),
                 ],
               ],
@@ -1051,20 +1198,24 @@ class _MovieScreenState extends State<MovieScreen> {
           Row(
             children: [
               Icon(
-                  delta.abs() < 0.05
-                      ? Icons.drag_handle_rounded
-                      : (delta > 0
+                delta.abs() < 0.05
+                    ? Icons.drag_handle_rounded
+                    : (delta > 0
                           ? Icons.trending_up_rounded
                           : Icons.trending_down_rounded),
-                  size: 18,
-                  color: verdictColor),
+                size: 18,
+                color: verdictColor,
+              ),
               const SizedBox(width: 6),
-              Text(verdict,
-                  style: TextStyle(
-                      fontFamily: AppTheme.bodyFont,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13.5,
-                      color: verdictColor)),
+              Text(
+                verdict,
+                style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13.5,
+                  color: verdictColor,
+                ),
+              ),
             ],
           ),
         ],
@@ -1073,30 +1224,36 @@ class _MovieScreenState extends State<MovieScreen> {
   }
 
   Widget _scorePill(ColorScheme scheme, Viewing v, int i) => Column(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-                color: scoreColor(v.score!), shape: BoxShape.circle),
-            child: Text(v.score!.toStringAsFixed(1),
-                style: TextStyle(
-                    fontFamily: AppTheme.displayFont,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    color: onScoreColor(v.score!))),
+    children: [
+      Container(
+        width: 52,
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: scoreColor(v.score!),
+          shape: BoxShape.circle,
+        ),
+        child: Text(
+          v.score!.toStringAsFixed(1),
+          style: TextStyle(
+            fontFamily: AppTheme.displayFont,
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            color: onScoreColor(v.score!),
           ),
-          const SizedBox(height: 4),
-          Text(
-            v.hasDate ? numericDate(v.date!) : tr('when_unknown'),
-            style: TextStyle(
-                fontFamily: AppTheme.bodyFont,
-                fontSize: 10.5,
-                color: scheme.onSurfaceVariant),
-          ),
-        ],
-      );
+        ),
+      ),
+      const SizedBox(height: 4),
+      Text(
+        v.hasDate ? numericDate(v.date!) : tr('when_unknown'),
+        style: TextStyle(
+          fontFamily: AppTheme.bodyFont,
+          fontSize: 10.5,
+          color: scheme.onSurfaceVariant,
+        ),
+      ),
+    ],
+  );
 
   Widget _arrow(ColorScheme scheme, double d) {
     final up = d > 0.05, down = d < -0.05;
@@ -1109,12 +1266,15 @@ class _MovieScreenState extends State<MovieScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.arrow_forward_rounded, size: 18, color: c),
-          Text(d == 0 ? '' : '${d > 0 ? '+' : ''}${d.toStringAsFixed(1)}',
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 10,
-                  color: c)),
+          Text(
+            d == 0 ? '' : '${d > 0 ? '+' : ''}${d.toStringAsFixed(1)}',
+            style: TextStyle(
+              fontFamily: AppTheme.bodyFont,
+              fontWeight: FontWeight.w700,
+              fontSize: 10,
+              color: c,
+            ),
+          ),
         ],
       ),
     );
@@ -1122,7 +1282,11 @@ class _MovieScreenState extends State<MovieScreen> {
 
   // ---- полный редактор просмотра: дата + оценка + удаление ----
   void _editViewing(
-      BuildContext context, LibraryMovie m, Viewing v, int ordinal) {
+    BuildContext context,
+    LibraryMovie m,
+    Viewing v,
+    int ordinal,
+  ) {
     DateTime? date = v.date;
     bool rated = m.scoreOf(v) != null;
     double val = m.scoreOf(v) ?? 1.0;
@@ -1139,10 +1303,11 @@ class _MovieScreenState extends State<MovieScreen> {
         builder: (sheetCtx, setSheet) => SafeArea(
           child: Padding(
             padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 14,
-                bottom: 20 + MediaQuery.of(sheetCtx).viewInsets.bottom),
+              left: 20,
+              right: 20,
+              top: 14,
+              bottom: 20 + MediaQuery.of(sheetCtx).viewInsets.bottom,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1150,19 +1315,23 @@ class _MovieScreenState extends State<MovieScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                      color: scheme.outlineVariant,
-                      borderRadius: BorderRadius.circular(2)),
+                    color: scheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
                 const SizedBox(height: 14),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    ordinal > 1 ? trf('viewing_n', {'n': ordinal}) : tr('edit_viewing'),
+                    ordinal > 1
+                        ? trf('viewing_n', {'n': ordinal})
+                        : tr('edit_viewing'),
                     style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                        color: scheme.onSurface),
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      color: scheme.onSurface,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1185,14 +1354,23 @@ class _MovieScreenState extends State<MovieScreen> {
                         context: sheetCtx,
                         initialTime: TimeOfDay.fromDateTime(date ?? now),
                       );
-                      setSheet(() => date = time == null
-                          ? DateTime(picked.year, picked.month, picked.day)
-                          : DateTime(picked.year, picked.month, picked.day,
-                              time.hour, time.minute));
+                      setSheet(
+                        () => date = time == null
+                            ? DateTime(picked.year, picked.month, picked.day)
+                            : DateTime(
+                                picked.year,
+                                picked.month,
+                                picked.day,
+                                time.hour,
+                                time.minute,
+                              ),
+                      );
                     },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                       child: Row(
                         children: [
                           Icon(Icons.event_rounded, color: scheme.primary),
@@ -1201,20 +1379,25 @@ class _MovieScreenState extends State<MovieScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(tr('date_time'),
-                                    style: TextStyle(
-                                        fontFamily: AppTheme.bodyFont,
-                                        fontSize: 12,
-                                        color: scheme.onSurfaceVariant)),
                                 Text(
-                                    date == null
-                                        ? tr('when_unknown')
-                                        : dateExactWithTime(date!),
-                                    style: TextStyle(
-                                        fontFamily: AppTheme.bodyFont,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 15,
-                                        color: scheme.onSurface)),
+                                  tr('date_time'),
+                                  style: TextStyle(
+                                    fontFamily: AppTheme.bodyFont,
+                                    fontSize: 12,
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                Text(
+                                  date == null
+                                      ? tr('when_unknown')
+                                      : dateExactWithTime(date!),
+                                  style: TextStyle(
+                                    fontFamily: AppTheme.bodyFont,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                    color: scheme.onSurface,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -1234,8 +1417,10 @@ class _MovieScreenState extends State<MovieScreen> {
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () async {
-                    final r = await showScorePad(sheetCtx,
-                        initial: rated ? val : null);
+                    final r = await showScorePad(
+                      sheetCtx,
+                      initial: rated ? val : null,
+                    );
                     if (r != null) {
                       setSheet(() {
                         val = r;
@@ -1246,25 +1431,34 @@ class _MovieScreenState extends State<MovieScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(rated ? val.toStringAsFixed(1) : '—',
-                          style: TextStyle(
-                              fontFamily: AppTheme.displayFont,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 46,
-                              color: rated
-                                  ? scoreColor(val)
-                                  : scheme.onSurfaceVariant)),
+                      Text(
+                        rated ? val.toStringAsFixed(1) : '—',
+                        style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 46,
+                          color: rated
+                              ? scoreColor(val)
+                              : scheme.onSurfaceVariant,
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      Icon(Icons.dialpad_rounded,
-                          size: 18, color: scheme.onSurfaceVariant),
+                      Icon(
+                        Icons.dialpad_rounded,
+                        size: 18,
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ],
                   ),
                 ),
-                Text(tr('rate_this_viewing'),
-                    style: TextStyle(
-                        fontFamily: AppTheme.bodyFont,
-                        fontSize: 12.5,
-                        color: scheme.onSurfaceVariant)),
+                Text(
+                  tr('rate_this_viewing'),
+                  style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontSize: 12.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 RatingSlider(
                   value: val,
@@ -1283,8 +1477,9 @@ class _MovieScreenState extends State<MovieScreen> {
                       },
                       icon: const Icon(Icons.delete_outline_rounded),
                       style: IconButton.styleFrom(
-                          backgroundColor: scheme.errorContainer,
-                          foregroundColor: scheme.onErrorContainer),
+                        backgroundColor: scheme.errorContainer,
+                        foregroundColor: scheme.onErrorContainer,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -1325,7 +1520,8 @@ class _MovieScreenState extends State<MovieScreen> {
       isScrollControlled: true,
       backgroundColor: scheme.surfaceContainer,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: SafeArea(
@@ -1335,14 +1531,17 @@ class _MovieScreenState extends State<MovieScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(trf('recommend_title', {'title': m.displayTitle}),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                        color: scheme.onSurface)),
+                Text(
+                  trf('recommend_title', {'title': m.displayTitle}),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: scheme.onSurface,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: noteCtl,
@@ -1358,11 +1557,14 @@ class _MovieScreenState extends State<MovieScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(tr('recommend_pick_friend'),
-                    style: TextStyle(
-                        fontFamily: AppTheme.bodyFont,
-                        fontSize: 12.5,
-                        color: scheme.onSurfaceVariant)),
+                Text(
+                  tr('recommend_pick_friend'),
+                  style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontSize: 12.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Flexible(
                   child: ListView(
@@ -1371,10 +1573,13 @@ class _MovieScreenState extends State<MovieScreen> {
                       for (final f in friends)
                         ListTile(
                           leading: UserAvatar(user: f.user, size: 40),
-                          title: Text(f.user.displayName,
-                              style: const TextStyle(
-                                  fontFamily: AppTheme.bodyFont,
-                                  fontWeight: FontWeight.w600)),
+                          title: Text(
+                            f.user.displayName,
+                            style: const TextStyle(
+                              fontFamily: AppTheme.bodyFont,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                           trailing: const Icon(Icons.send_rounded),
                           onTap: () {
                             Navigator.pop(ctx);
@@ -1393,7 +1598,10 @@ class _MovieScreenState extends State<MovieScreen> {
   }
 
   Future<void> _sendRecommendation(
-      LibraryMovie m, SocialUser to, String note) async {
+    LibraryMovie m,
+    SocialUser to,
+    String note,
+  ) async {
     try {
       await SocialController.instance.recommend(
         toUserId: to.id,
@@ -1404,13 +1612,17 @@ class _MovieScreenState extends State<MovieScreen> {
         note: note.isEmpty ? null : note,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(trf('recommend_sent', {'name': to.displayName}))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(trf('recommend_sent', {'name': to.displayName})),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(socialErrorText(e))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(socialErrorText(e))));
       }
     }
   }
@@ -1432,7 +1644,8 @@ class _MovieScreenState extends State<MovieScreen> {
           return SafeArea(
             child: Padding(
               padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+                bottom: MediaQuery.of(sheetCtx).viewInsets.bottom,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1441,19 +1654,23 @@ class _MovieScreenState extends State<MovieScreen> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                        color: scheme.outlineVariant,
-                        borderRadius: BorderRadius.circular(2)),
+                      color: scheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 14, 24, 6),
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: Text(tr('manage_lists'),
-                          style: TextStyle(
-                              fontFamily: AppTheme.displayFont,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 18,
-                              color: scheme.onSurface)),
+                      child: Text(
+                        tr('manage_lists'),
+                        style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          color: scheme.onSurface,
+                        ),
+                      ),
                     ),
                   ),
                   Flexible(
@@ -1463,18 +1680,24 @@ class _MovieScreenState extends State<MovieScreen> {
                         if (lists.isEmpty)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
-                            child: Text(tr('no_lists_yet'),
-                                style: TextStyle(
-                                    fontFamily: AppTheme.bodyFont,
-                                    color: scheme.onSurfaceVariant)),
+                            child: Text(
+                              tr('no_lists_yet'),
+                              style: TextStyle(
+                                fontFamily: AppTheme.bodyFont,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
                           ),
                         for (final l in lists)
                           CheckboxListTile(
                             value: inLists.contains(l.name),
-                            title: Text(l.name,
-                                style: const TextStyle(
-                                    fontFamily: AppTheme.bodyFont,
-                                    fontWeight: FontWeight.w600)),
+                            title: Text(
+                              l.name,
+                              style: const TextStyle(
+                                fontFamily: AppTheme.bodyFont,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             onChanged: (_) {
                               _repo.toggleInList(l.name, m.uuid);
                               setSheet(() {});
@@ -1490,7 +1713,9 @@ class _MovieScreenState extends State<MovieScreen> {
                         Expanded(
                           child: TextField(
                             controller: ctl,
-                            decoration: InputDecoration(hintText: tr('new_list')),
+                            decoration: InputDecoration(
+                              hintText: tr('new_list'),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -1524,8 +1749,13 @@ class _MovieScreenState extends State<MovieScreen> {
     return _chip(scheme, icon, label, primary: true);
   }
 
-  Widget _chip(ColorScheme scheme, IconData icon, String label,
-      {bool primary = false, bool tone = false}) {
+  Widget _chip(
+    ColorScheme scheme,
+    IconData icon,
+    String label, {
+    bool primary = false,
+    bool tone = false,
+  }) {
     final bg = primary
         ? scheme.primaryContainer
         : (tone ? scheme.tertiaryContainer : scheme.surfaceContainerHighest);
@@ -1534,19 +1764,24 @@ class _MovieScreenState extends State<MovieScreen> {
         : (tone ? scheme.onTertiaryContainer : scheme.onSurfaceVariant);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration:
-          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 15, color: fg),
           const SizedBox(width: 5),
-          Text(label,
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12.5,
-                  color: fg)),
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: AppTheme.bodyFont,
+              fontWeight: FontWeight.w600,
+              fontSize: 12.5,
+              color: fg,
+            ),
+          ),
         ],
       ),
     );
@@ -1593,16 +1828,22 @@ class _MovieScreenState extends State<MovieScreen> {
         ),
         child: Column(
           children: [
-            Icon(Icons.star_border_rounded,
-                size: 34, color: scheme.onSurfaceVariant),
+            Icon(
+              Icons.star_border_rounded,
+              size: 34,
+              color: scheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 8),
-            Text(tr('rate_after_watch'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: scheme.onSurfaceVariant)),
+            Text(
+              tr('rate_after_watch'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       );
@@ -1621,62 +1862,74 @@ class _MovieScreenState extends State<MovieScreen> {
       ),
       child: Column(
         children: [
-          Text(tr('current_viewing_score'),
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12.5,
-                  color: scheme.onPrimaryContainer.withValues(alpha: 0.8))),
+          Text(
+            tr('current_viewing_score'),
+            style: TextStyle(
+              fontFamily: AppTheme.bodyFont,
+              fontWeight: FontWeight.w600,
+              fontSize: 12.5,
+              color: scheme.onPrimaryContainer.withValues(alpha: 0.8),
+            ),
+          ),
           const SizedBox(height: 2),
           // Тап по числу/«—» → калькулятор ручного ввода оценки.
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => _openScorePad(m),
             child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              // Плавно перетекающий цвет числа/звезды при изменении балла.
-              TweenAnimationBuilder<Color?>(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOut,
-                tween: ColorTween(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                // Плавно перетекающий цвет числа/звезды при изменении балла.
+                TweenAnimationBuilder<Color?>(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  tween: ColorTween(
                     end: rated
                         ? accent
-                        : scheme.onPrimaryContainer.withValues(alpha: 0.55)),
-                builder: (context, color, _) => Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Icon(rated ? Icons.star_rounded : Icons.star_border_rounded,
-                        color: color, size: 32),
-                    const SizedBox(width: 6),
-                    Text(
-                      rated ? val.toStringAsFixed(1) : '—',
-                      style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 48,
-                        height: 1,
+                        : scheme.onPrimaryContainer.withValues(alpha: 0.55),
+                  ),
+                  builder: (context, color, _) => Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Icon(
+                        rated ? Icons.star_rounded : Icons.star_border_rounded,
                         color: color,
+                        size: 32,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      Text(
+                        rated ? val.toStringAsFixed(1) : '—',
+                        style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 48,
+                          height: 1,
+                          color: color,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Text(' / 10',
+                Text(
+                  ' / 10',
                   style: TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 20,
-                      color: scheme.onPrimaryContainer.withValues(alpha: 0.7))),
-              const SizedBox(width: 8),
-              Icon(Icons.dialpad_rounded,
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                    color: scheme.onPrimaryContainer.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.dialpad_rounded,
                   size: 18,
-                  color: scheme.onPrimaryContainer.withValues(alpha: 0.55)),
-            ],
-          ),
+                  color: scheme.onPrimaryContainer.withValues(alpha: 0.55),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 6),
           RatingSlider(
@@ -1691,9 +1944,10 @@ class _MovieScreenState extends State<MovieScreen> {
           Text(
             rated ? tr('your_rating') : tr('no_rating_yet'),
             style: TextStyle(
-                fontFamily: AppTheme.bodyFont,
-                fontSize: 13,
-                color: scheme.onPrimaryContainer.withValues(alpha: 0.8)),
+              fontFamily: AppTheme.bodyFont,
+              fontSize: 13,
+              color: scheme.onPrimaryContainer.withValues(alpha: 0.8),
+            ),
           ),
         ],
       ),
@@ -1747,15 +2001,18 @@ class _MovieScreenState extends State<MovieScreen> {
               icon: const Icon(Icons.heart_broken_rounded),
               label: Text(tr('in_dropped')),
               style: FilledButton.styleFrom(
-                  backgroundColor: soft, foregroundColor: Colors.white),
+                backgroundColor: soft,
+                foregroundColor: Colors.white,
+              ),
             )
           : FilledButton.tonalIcon(
               onPressed: () => _repo.toggleDropped(m.uuid),
               icon: const Icon(Icons.heart_broken_outlined),
               label: Text(tr('mark_dropped')),
               style: FilledButton.styleFrom(
-                  backgroundColor: soft.withValues(alpha: 0.16),
-                  foregroundColor: soft),
+                backgroundColor: soft.withValues(alpha: 0.16),
+                foregroundColor: soft,
+              ),
             ),
     );
   }
@@ -1788,12 +2045,15 @@ class _MovieScreenState extends State<MovieScreen> {
               color: scheme.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Text(m.review!,
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontSize: 14,
-                    height: 1.45,
-                    color: scheme.onSurface)),
+            child: Text(
+              m.review!,
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontSize: 14,
+                height: 1.45,
+                color: scheme.onSurface,
+              ),
+            ),
           ),
         )
       else
@@ -1821,29 +2081,35 @@ class _MovieScreenState extends State<MovieScreen> {
       ),
       builder: (sheetCtx) => Padding(
         padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 14,
-            bottom: 20 + MediaQuery.of(sheetCtx).viewInsets.bottom),
+          left: 20,
+          right: 20,
+          top: 14,
+          bottom: 20 + MediaQuery.of(sheetCtx).viewInsets.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
               child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                      color: scheme.outlineVariant,
-                      borderRadius: BorderRadius.circular(2))),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: scheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
             ),
             const SizedBox(height: 14),
-            Text(tr('my_review'),
-                style: TextStyle(
-                    fontFamily: AppTheme.displayFont,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                    color: scheme.onSurface)),
+            Text(
+              tr('my_review'),
+              style: TextStyle(
+                fontFamily: AppTheme.displayFont,
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+                color: scheme.onSurface,
+              ),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: ctl,
@@ -1851,7 +2117,10 @@ class _MovieScreenState extends State<MovieScreen> {
               minLines: 4,
               maxLines: 10,
               textCapitalization: TextCapitalization.sentences,
-              style: const TextStyle(fontFamily: AppTheme.bodyFont, height: 1.4),
+              style: const TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                height: 1.4,
+              ),
               decoration: InputDecoration(
                 hintText: tr('review_hint'),
                 filled: true,

@@ -48,7 +48,7 @@ class AppIconPreview extends StatelessWidget {
         width: size,
         height: size,
         child: CustomPaint(
-          painter: _ZasechkaPainter(mark: m, background: b),
+          painter: ZasechkaPainter(mark: m, background: b),
         ),
       ),
     );
@@ -70,7 +70,7 @@ Future<Uint8List?> renderIconPng({
 }) async {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
-  _ZasechkaPainter(mark: mark, background: background, scale: scale)
+  ZasechkaPainter(mark: mark, background: background, scale: scale)
       .paint(canvas, Size(size.toDouble(), size.toDouble()));
   final image = await recorder.endRecording().toImage(size, size);
   final data = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -78,8 +78,11 @@ Future<Uint8List?> renderIconPng({
   return data?.buffer.asUint8List();
 }
 
-class _ZasechkaPainter extends CustomPainter {
-  const _ZasechkaPainter({
+/// Рисует знак «Засечка» — плита со срезанным углом, сквозной play и две
+/// перфорации. Публичный: тем же знаком подписывается карточка «Поделиться»
+/// (прозрачный [background] оставляет один знак, без подложки).
+class ZasechkaPainter extends CustomPainter {
+  const ZasechkaPainter({
     required this.mark,
     required this.background,
     this.scale = 0.69,
@@ -197,6 +200,6 @@ class _ZasechkaPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ZasechkaPainter old) =>
+  bool shouldRepaint(ZasechkaPainter old) =>
       old.mark != mark || old.background != background || old.scale != scale;
 }
