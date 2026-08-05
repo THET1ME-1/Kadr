@@ -250,23 +250,42 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
       return s != 0 ? s : (x.number ?? 0).compareTo(y.number ?? 0);
     });
 
+  // Дата добавления — ранняя из двух: тогда сериал и попал в библиотеку.
+  DateTime? added;
+  if (a.addedAt == null) {
+    added = b.addedAt;
+  } else if (b.addedAt == null) {
+    added = a.addedAt;
+  } else {
+    added = a.addedAt!.isBefore(b.addedAt!) ? a.addedAt : b.addedAt;
+  }
+
   return LibrarySeries(
     tvShowId: a.tvShowId,
     title: a.title.isNotEmpty ? a.title : b.title,
     ruTitle: a.ruTitle ?? b.ruTitle,
     titleLang: a.ruTitle != null ? a.titleLang : b.titleLang,
     episodes: episodes,
+    addedAt: added,
     favorite: a.favorite || b.favorite,
+    // Отметки пользователя объединяем. Раньше «Буду смотреть» и «Досмотрен»
+    // не переносились вовсе — сериал выпадал из списка после синхронизации.
+    watchlist: a.watchlist || b.watchlist,
     dropped: a.dropped || b.dropped,
+    finished: a.finished || b.finished,
     totalEpisodes: a.totalEpisodes ?? b.totalEpisodes,
+    year: a.year ?? b.year,
     score: a.score ?? b.score,
     review: (a.review != null && a.review!.trim().isNotEmpty)
         ? a.review
         : b.review,
     kinopoiskId: a.kinopoiskId ?? b.kinopoiskId,
     tmdbId: a.tmdbId ?? b.tmdbId,
+    tvdbId: a.tvdbId ?? b.tvdbId,
+    imdbId: a.imdbId ?? b.imdbId,
     kpRating: a.kpRating ?? b.kpRating,
     enrichTried: a.enrichTried || b.enrichTried,
     posterUrl: a.posterUrl ?? b.posterUrl,
+    posterFile: a.posterFile ?? b.posterFile,
   );
 }

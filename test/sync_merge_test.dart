@@ -119,6 +119,51 @@ void main() {
       expect(e1['score'], 9.0, reason: 'непустая оценка сохраняется');
     });
 
+    test('слияние сериала не теряет «Буду смотреть», год и досмотренность', () {
+      final local = {
+        'series': [
+          {
+            ...series('s1', episodes: [ep(1, 1)]),
+            'watchlist': true,
+            'year': 2022,
+            'imdbId': 'tt777',
+          }
+        ]
+      };
+      final remote = {
+        'series': [
+          {
+            ...series('s1', episodes: [ep(1, 2)]),
+            'finished': true,
+            'tvdbId': 555,
+          }
+        ]
+      };
+      final s = (mergeSnapshots(local, remote, SyncStats())['series'] as List)
+          .single as Map;
+      expect(s['watchlist'], true, reason: 'иначе сериал выпадает из списка');
+      expect(s['finished'], true);
+      expect(s['year'], 2022);
+      expect(s['imdbId'], 'tt777');
+      expect(s['tvdbId'], 555);
+    });
+
+    test('дата добавления сериала при слиянии берётся ранняя', () {
+      final local = {
+        'series': [
+          {...series('s1'), 'addedAt': '2026-03-01T00:00:00.000'}
+        ]
+      };
+      final remote = {
+        'series': [
+          {...series('s1'), 'addedAt': '2026-01-01T00:00:00.000'}
+        ]
+      };
+      final s = (mergeSnapshots(local, remote, SyncStats())['series'] as List)
+          .single as Map;
+      expect(s['addedAt'], '2026-01-01T00:00:00.000');
+    });
+
     test('слияние коммутативно по числу записей (A◁B == B◁A)', () {
       final a = {
         'movies': [movie('a'), movie('b')],

@@ -102,4 +102,21 @@ void main() {
     // Оценка при этом сохранена (скрывали только даты).
     expect(friend.watched.first.currentScore, 8.0);
   });
+
+  test('hideDates огрубляет и дату добавления сериала', () {
+    final repo = MovieRepository.detached({
+      'movies': const [],
+      'series': [
+        LibrarySeries(
+                tvShowId: 's1',
+                title: 'Сериал',
+                watchlist: true,
+                addedAt: DateTime(2026, 3, 17))
+            .toJson(),
+      ],
+    });
+    final friend =
+        MovieRepository.detached(repo.buildPublicProfile(hideDates: true));
+    expect(friend.watchlistSeries.single.addedAt, DateTime(2026, 3, 1));
+  });
 }

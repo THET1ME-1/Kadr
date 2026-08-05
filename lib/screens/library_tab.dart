@@ -9,6 +9,7 @@ import '../services/movie_repository.dart';
 import '../services/store.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
+import '../utils/library_sort.dart';
 import '../utils/score.dart';
 import '../widgets/diary_sheet.dart';
 import '../widgets/empty_state.dart';
@@ -30,7 +31,6 @@ enum LibraryViewMode { list, posters, banners }
 
 enum _WatchedFilter { all, movies, series }
 
-enum _LibSort { dateNew, dateOld, ratingHigh, titleAz, yearNew }
 
 /// Вкладка библиотеки: «Просмотрено» (карточка на каждый просмотр + сериалы, по
 /// месяцам) или «Буду смотреть» (по дате добавления). Поддерживает три режима
@@ -66,7 +66,7 @@ class LibraryTab extends StatefulWidget {
 
 class _LibraryTabState extends State<LibraryTab> {
   _WatchedFilter _filter = _WatchedFilter.all;
-  _LibSort _sort = _LibSort.dateNew;
+  LibSort _sort = LibSort.dateNew;
 
   /// Фильтр по жанрам (OR) и диапазону года выхода. Метаданные — только у
   /// фильмов, поэтому при активном фильтре сериалы скрываются.
@@ -88,7 +88,7 @@ class _LibraryTabState extends State<LibraryTab> {
   /// ленту → без фризов на большой базе).
   int _wmRev = -1;
   _WatchedFilter? _wmFilter;
-  _LibSort? _wmSort;
+  LibSort? _wmSort;
   String? _wmQuery;
   String? _wmFilterKey;
   List<_MonthSection>? _wmRender;
@@ -107,10 +107,11 @@ class _LibraryTabState extends State<LibraryTab> {
   /// фильтр). Иначе переключение вида/вкладок каждый раз заново фильтрует и
   /// сортирует список.
   int _wlRev = -1;
-  _LibSort? _wlSort;
+  LibSort? _wlSort;
   String? _wlQuery;
   String? _wlFilterKey;
-  List<LibraryMovie>? _wlItems;
+  _WatchedFilter? _wlKind;
+  List<_LibEntry>? _wlItems;
 
   /// id элементов, чья анимация появления уже проигралась. Живёт всё время
   /// жизни вкладки, чтобы при возврате карточки в зону видимости на скролле она
@@ -259,7 +260,7 @@ class _LibraryTabState extends State<LibraryTab> {
   /// Сортировка персистится отдельно на каждую вкладку.
   Future<void> _loadSort() async {
     final raw = await Store.instance.getString('libSort.${widget.mode.name}');
-    for (final s in _LibSort.values) {
+    for (final s in LibSort.values) {
       if (s.name == raw) {
         if (mounted) setState(() => _sort = s);
         return;
@@ -267,7 +268,7 @@ class _LibraryTabState extends State<LibraryTab> {
     }
   }
 
-  void _setSort(_LibSort s) {
+  void _setSort(LibSort s) {
     setState(() => _sort = s);
     Store.instance.setString('libSort.${widget.mode.name}', s.name);
   }
@@ -739,34 +740,37 @@ class _LibraryTabState extends State<LibraryTab> {
         _wlRev != rev ||
         _wlSort != _sort ||
         _wlQuery != _q ||
-        _wlFilterKey != _filterKey) {
-      _wlItems = _sortMovies(repo.watchlist.where(_matchMovie).toList());
+        _wlFilterKey != _filterKey ||
+        _wlKind != _filter) {
+      // Фильмы и сериалы сортируются ОДНИМ списком. Раньше сериалы дописывались
+      // в конец и у большой библиотеки прятались за сотнями фильмов.
+      _wlItems = sortLibrary([
+        if (_filter != _WatchedFilter.series)
+          for (final m in repo.watchlist.where(_matchMovie)) _LibEntry.movie(m),
+        if (_filter != _WatchedFilter.movies)
+          for (final s in repo.watchlistSeries.where(_matchSeries))
+            _LibEntry.series(s),
+      ], _sortKeys, _sort);
       _wlRev = rev;
       _wlSort = _sort;
       _wlQuery = _q;
       _wlFilterKey = _filterKey;
+      _wlKind = _filter;
     }
-    final items = _wlItems!;
-    // Сериалы в «Буду смотреть» (небольшой список — считаем на месте).
-    final seriesItems = repo.watchlistSeries.where(_matchSeries).toList()
-      ..sort((a, b) =>
-          a.displayTitle.toLowerCase().compareTo(b.displayTitle.toLowerCase()));
-    if (items.isEmpty && seriesItems.isEmpty) {
+    final entries = _wlItems!;
+    if (entries.isEmpty) {
       return _emptyView(EmptyState(
           icon: Icons.bookmark_rounded,
           title: tr('nav_watchlist'),
           subtitle: tr('lib_empty_watchlist')));
     }
-    final entries = [
-      for (final m in items) _LibEntry.movie(m),
-      for (final s in seriesItems) _LibEntry.series(s),
-    ];
     _indexEntries(entries);
     return LayoutBuilder(builder: (context, c) {
       final g = _grid(c.maxWidth);
       return CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(child: _header(context, entries.length)),
+          SliverToBoxAdapter(child: _filterBar()),
+          SliverToBoxAdapter(child: _countHeader(context, entries.length)),
           ..._entrySlivers(entries, g),
           const SliverToBoxAdapter(child: SizedBox(height: 96)),
         ],
@@ -774,25 +778,22 @@ class _LibraryTabState extends State<LibraryTab> {
     });
   }
 
-  List<LibraryMovie> _sortMovies(List<LibraryMovie> list) {
-    final l = [...list];
-    switch (_sort) {
-      case _LibSort.dateNew:
-        l.sort((a, b) =>
-            (b.addedAt ?? DateTime(0)).compareTo(a.addedAt ?? DateTime(0)));
-      case _LibSort.dateOld:
-        l.sort((a, b) =>
-            (a.addedAt ?? DateTime(0)).compareTo(b.addedAt ?? DateTime(0)));
-      case _LibSort.ratingHigh:
-        l.sort((a, b) => (b.kpRating ?? -1).compareTo(a.kpRating ?? -1));
-      case _LibSort.titleAz:
-        l.sort((a, b) => a.displayTitle
-            .toLowerCase()
-            .compareTo(b.displayTitle.toLowerCase()));
-      case _LibSort.yearNew:
-        l.sort((a, b) => (b.year ?? 0).compareTo(a.year ?? 0));
+  /// Поля сортировки записи — у фильма и сериала они называются по-разному.
+  SortKeys _sortKeys(_LibEntry e) {
+    final m = e.movie;
+    if (m != null) {
+      return SortKeys(
+          title: m.displayTitle,
+          year: m.year,
+          rating: m.kpRating,
+          addedAt: m.addedAt);
     }
-    return l;
+    final s = e.seriesItem!;
+    return SortKeys(
+        title: s.displayTitle,
+        year: s.year,
+        rating: s.kpRating,
+        addedAt: s.addedAt);
   }
 
   // ----------------------------- «Просмотрено» -----------------------------
@@ -949,15 +950,15 @@ class _LibraryTabState extends State<LibraryTab> {
 
     // По дате — помесячная разбивка (+ дни внутри месяца); иначе — плоский
     // отсортированный список без заголовков.
-    final grouped = _sort == _LibSort.dateNew || _sort == _LibSort.dateOld;
+    final grouped = _sort == LibSort.dateNew || _sort == LibSort.dateOld;
     if (grouped) {
       final gs = [
         for (final g in groups)
           MapEntry<DateTime, List<_LibEntry>>(
               g.key, [for (final e in g.value) _entry(e)])
       ];
-      final ordered = _sort == _LibSort.dateOld ? gs.reversed.toList() : gs;
-      if (_sort == _LibSort.dateOld) {
+      final ordered = _sort == LibSort.dateOld ? gs.reversed.toList() : gs;
+      if (_sort == LibSort.dateOld) {
         for (final g in ordered) {
           g.value.sort((a, b) =>
               (a.date ?? DateTime(0)).compareTo(b.date ?? DateTime(0)));
@@ -992,11 +993,11 @@ class _LibraryTabState extends State<LibraryTab> {
 
   void _sortEntries(List<_LibEntry> l) {
     switch (_sort) {
-      case _LibSort.ratingHigh:
+      case LibSort.ratingHigh:
         l.sort((a, b) => (b.score ?? -1).compareTo(a.score ?? -1));
-      case _LibSort.titleAz:
+      case LibSort.titleAz:
         l.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
-      case _LibSort.yearNew:
+      case LibSort.yearNew:
         l.sort((a, b) => (b.year ?? 0).compareTo(a.year ?? 0));
       default:
         break;
@@ -1355,12 +1356,12 @@ class _LibraryTabState extends State<LibraryTab> {
     );
   }
 
-  Widget _sortButton() => PopupMenuButton<_LibSort>(
+  Widget _sortButton() => PopupMenuButton<LibSort>(
         icon: const Icon(Icons.sort_rounded),
         tooltip: tr('sort'),
         onSelected: _setSort,
         itemBuilder: (context) => [
-          for (final s in _LibSort.values)
+          for (final s in LibSort.values)
             PopupMenuItem(
               value: s,
               child: Row(
@@ -1378,31 +1379,13 @@ class _LibraryTabState extends State<LibraryTab> {
         ],
       );
 
-  String _sortLabel(_LibSort s) => switch (s) {
-        _LibSort.dateNew => tr('sort_date_new'),
-        _LibSort.dateOld => tr('sort_date_old'),
-        _LibSort.ratingHigh => tr('sort_rating'),
-        _LibSort.titleAz => tr('sort_title'),
-        _LibSort.yearNew => tr('sort_year'),
+  String _sortLabel(LibSort s) => switch (s) {
+        LibSort.dateNew => tr('sort_date_new'),
+        LibSort.dateOld => tr('sort_date_old'),
+        LibSort.ratingHigh => tr('sort_rating'),
+        LibSort.titleAz => tr('sort_title'),
+        LibSort.yearNew => tr('sort_year'),
       };
-
-  Widget _header(BuildContext context, int n) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 6, 4, 2),
-        child: Row(
-          children: [
-            Text(
-              trf('lib_count', {'n': n}),
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
-            ),
-            const Spacer(),
-            _filterButton(),
-            _sortButton(),
-          ],
-        ),
-      );
 
   /// Кнопка фильтров с точкой-индикатором, когда фильтр активен.
   Widget _filterButton() {

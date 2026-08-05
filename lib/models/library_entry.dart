@@ -602,12 +602,18 @@ class LibrarySeries {
   /// Имя файла локального пользовательского постера (см. [LibraryMovie.posterFile]).
   String? posterFile;
 
+  /// Когда сериал попал в библиотеку — по ней «Буду смотреть» сортирует
+  /// сериалы вместе с фильмами. У импорта TV Time даты нет: такие записи
+  /// сортировка уводит вниз.
+  DateTime? addedAt;
+
   LibrarySeries({
     required this.tvShowId,
     required this.title,
     String? ruTitle,
     String? titleLang,
     List<Episode>? episodes,
+    this.addedAt,
     this.favorite = false,
     this.watchlist = false,
     this.dropped = false,
@@ -742,6 +748,8 @@ class LibrarySeries {
       titleLang: j['titleLang'] as String? ??
           ((j['ruTitle'] as String?)?.isNotEmpty == true ? 'ru' : null),
       episodes: eps,
+      addedAt:
+          j['addedAt'] == null ? null : DateTime.tryParse('${j['addedAt']}'),
       favorite: j['favorite'] == true,
       watchlist: j['watchlist'] == true,
       dropped: j['dropped'] == true,
@@ -767,6 +775,7 @@ class LibrarySeries {
         'ruTitle': ruTitle,
         'titleLang': titleLang,
         'episodes': [for (final e in episodes) e.toJson()],
+        if (addedAt != null) 'addedAt': addedAt!.toIso8601String(),
         'favorite': favorite,
         'watchlist': watchlist,
         'dropped': dropped,

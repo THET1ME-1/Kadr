@@ -253,6 +253,17 @@ class MovieRepository extends ChangeNotifier {
       ..clear()
       ..addAll((data['lists'] as List? ?? [])
           .map((e) => MovieList.fromJson(e as Map<String, dynamic>)));
+    _stampWatchlistDates();
+  }
+
+  /// Сериалы из импорта TV Time и версий до 0.20 лежат в «Буду смотреть» без
+  /// даты добавления. Сортировка «новые сверху» уводила их под все фильмы
+  /// списка — проставляем дату один раз, дальше её ведёт сам пользователь.
+  void _stampWatchlistDates() {
+    final now = DateTime.now();
+    for (final s in _series) {
+      if (s.watchlist && s.addedAt == null) s.addedAt = now;
+    }
   }
 
   Map<String, dynamic> toJson() => {
@@ -413,6 +424,7 @@ class MovieRepository extends ChangeNotifier {
 
     void stripSeries(Map s) {
       if (hideRatings) s['score'] = null;
+      if (hideDates) s['addedAt'] = coarse(s['addedAt']);
       for (final e in (s['episodes'] as List? ?? [])) {
         final em = e as Map;
         if (hideRatings) {
@@ -799,6 +811,7 @@ class MovieRepository extends ChangeNotifier {
       kpRating: t.rating,
       year: t.year,
       enrichTried: true,
+      addedAt: DateTime.now(),
     );
     _series.add(s);
     notifyListeners();
@@ -842,7 +855,12 @@ class MovieRepository extends ChangeNotifier {
     final s = seriesById(id);
     if (s == null) return;
     s.watchlist = !s.watchlist;
-    if (s.watchlist) s.dropped = false;
+    if (s.watchlist) {
+      s.dropped = false;
+      // Дата нужна сортировке «новые сверху»: без неё сериал уезжает в самый
+      // низ списка, за все фильмы.
+      s.addedAt ??= DateTime.now();
+    }
     notifyListeners();
     await _persist();
   }
