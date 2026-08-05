@@ -39,7 +39,7 @@ class GenreScreen extends StatelessWidget {
   }
 }
 
-/// Фильмография персоны (актёр/режиссёр). Список всех фильмов, где участвовал:
+/// Фильмография персоны (актёр/режиссёр). Фильмы и сериалы, где участвовал:
 /// просмотренные помечены галочкой, остальные можно добавить в «Буду смотреть».
 class PersonScreen extends StatefulWidget {
   final int personId;
@@ -59,8 +59,12 @@ class PersonScreen extends StatefulWidget {
 
 class _PersonScreenState extends State<PersonScreen> {
   List<TmdbMovie>? _movies;
+  List<TmdbSeries> _series = const [];
   TmdbPerson? _person;
   bool _error = false;
+
+  /// Что показывает список: фильмы или сериалы.
+  bool _showSeries = false;
 
   @override
   void initState() {
@@ -71,19 +75,26 @@ class _PersonScreenState extends State<PersonScreen> {
   Future<void> _load() async {
     setState(() {
       _movies = null;
+      _series = const [];
       _error = false;
     });
     // Карточка и фильмография грузятся разом: биография не должна ждать список.
     final results = await Future.wait([
       TmdbService.personDetails(widget.personId),
       TmdbService.personMovieCredits(widget.personId),
+      TmdbService.personTvCredits(widget.personId),
     ]);
     if (!mounted) return;
     final list = results[1] as List<TmdbMovie>;
+    final series = results[2] as List<TmdbSeries>;
     setState(() {
       _person = results[0] as TmdbPerson?;
       _movies = list;
-      _error = list.isEmpty && _person == null;
+      _series = series;
+      // У ведущих и актёров сериалов фильмов может не быть вовсе — тогда
+      // открываем сразу то, что есть.
+      _showSeries = list.isEmpty && series.isNotEmpty;
+      _error = list.isEmpty && series.isEmpty && _person == null;
     });
   }
 
@@ -194,14 +205,26 @@ class _PersonScreenState extends State<PersonScreen> {
           listenable: MovieRepository.instance,
           builder: (context, _) {
             final movies = _movies!;
+            final series = _series;
             final repo = MovieRepository.instance;
+            // Просмотренным считаем фильм с отметкой и сериал, у которого есть
+            // хотя бы одна отмеченная серия.
             final seen = movies
-                .where((m) =>
-                    repo.findMovieForTmdb(m)?.status == LibraryStatus.watched)
-                .length;
+                    .where((m) =>
+                        repo.findMovieForTmdb(m)?.status ==
+                        LibraryStatus.watched)
+                    .length +
+                series
+                    .where((s) =>
+                        repo.seriesByTmdb(s.id)?.episodes.isNotEmpty ?? false)
+                    .length;
+            final bothKinds = movies.isNotEmpty && series.isNotEmpty;
+            final showSeries = _showSeries && series.isNotEmpty;
+            final count = showSeries ? series.length : movies.length;
             return CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(child: _hero(scheme, movies.length, seen)),
+                SliverToBoxAdapter(
+                    child: _hero(scheme, movies.length, series.length, seen)),
                 if (_person?.biography != null)
                   SliverToBoxAdapter(
                       child: BiographyBlock(biography: _person!.biography!)),
@@ -217,24 +240,30 @@ class _PersonScreenState extends State<PersonScreen> {
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
-                    child: Text(
-                      trf('movies_count', {'n': movies.length}),
-                      style: TextStyle(
-                          fontFamily: AppTheme.bodyFont,
-                          fontSize: 13,
-                          color: scheme.onSurfaceVariant),
+                if (bothKinds)
+                  SliverToBoxAdapter(child: _kindSwitch(scheme))
+                else
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+                      child: Text(
+                        trf(showSeries ? 'series_count' : 'movies_count',
+                            {'n': count}),
+                        style: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontSize: 13,
+                            color: scheme.onSurfaceVariant),
+                      ),
                     ),
                   ),
-                ),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 96),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
-                      (context, i) => TmdbMovieRow(movie: movies[i]),
-                      childCount: movies.length,
+                      (context, i) => showSeries
+                          ? TmdbSeriesRow(series: series[i])
+                          : TmdbMovieRow(movie: movies[i]),
+                      childCount: count,
                     ),
                   ),
                 ),
@@ -246,8 +275,65 @@ class _PersonScreenState extends State<PersonScreen> {
     );
   }
 
+  /// Переключатель «Фильмы / Сериалы» — тот же вид, что на «Просмотрено»:
+  /// подложка без обводки, выбранная вкладка залита активным цветом темы.
+  Widget _kindSwitch(ColorScheme scheme) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 2),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _kindChip(scheme,
+                    label: '${tr('filter_movies')} · ${_movies!.length}',
+                    selected: !_showSeries,
+                    onTap: () => setState(() => _showSeries = false)),
+                _kindChip(scheme,
+                    label: '${tr('filter_series')} · ${_series.length}',
+                    selected: _showSeries,
+                    onTap: () => setState(() => _showSeries = true)),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Widget _kindChip(ColorScheme scheme,
+          {required String label,
+          required bool selected,
+          required VoidCallback onTap}) =>
+      GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? scheme.primaryContainer : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontFamily: AppTheme.bodyFont,
+              fontWeight: FontWeight.w700,
+              fontSize: 13.5,
+              color: selected
+                  ? scheme.onPrimaryContainer
+                  : scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+
   /// Шапка-афиша: фото во всю ширину, имя и чипы поверх затемнения.
-  Widget _hero(ColorScheme scheme, int total, int seen) {
+  Widget _hero(ColorScheme scheme, int movieCount, int seriesCount, int seen) {
     final photo = _photo;
     final life = _lifeLine;
     return SizedBox(
@@ -313,7 +399,10 @@ class _PersonScreenState extends State<PersonScreen> {
                           bg: scheme.primaryContainer,
                           fg: scheme.onPrimaryContainer),
                     if (_role != null) _chip(_role!),
-                    if (total > 0) _chip(trf('movies_count', {'n': total})),
+                    if (movieCount > 0)
+                      _chip(trf('movies_count', {'n': movieCount})),
+                    if (seriesCount > 0)
+                      _chip(trf('series_count', {'n': seriesCount})),
                   ],
                 ),
               ],

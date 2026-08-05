@@ -326,6 +326,136 @@ class DiscoverSeriesCard extends StatelessWidget {
   }
 }
 
+/// Строка сериала для списков (сериалография персоны): постер + название +
+/// счётчик просмотренных серий либо кнопка «Буду смотреть». Тап → экран серий.
+class TmdbSeriesRow extends StatelessWidget {
+  final TmdbSeries series;
+  const TmdbSeriesRow({super.key, required this.series});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final repo = MovieRepository.instance;
+    final lib = repo.seriesByTmdb(series.id);
+    final seen = lib?.episodes.length ?? 0;
+    final inWatchlist = lib?.watchlist ?? false;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+      child: Material(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {
+            final s = repo.ensureSeriesFromTmdb(series);
+            Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => SeriesScreen(series: s)));
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                Poster(title: series.title, url: series.posterUrl, width: 52),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(series.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              height: 1.1,
+                              color: scheme.onSurface)),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          if (lib != null && lib.favorite)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: Icon(Icons.favorite_rounded,
+                                  size: 14, color: scheme.primary),
+                            ),
+                          if (series.rating != null && series.rating! > 0) ...[
+                            Icon(Icons.star_rounded,
+                                size: 13, color: scheme.primary),
+                            const SizedBox(width: 2),
+                            Text(series.rating!.toStringAsFixed(1),
+                                style: TextStyle(
+                                    fontFamily: AppTheme.bodyFont,
+                                    fontSize: 12.5,
+                                    color: scheme.onSurfaceVariant)),
+                            const SizedBox(width: 8),
+                          ],
+                          if (series.year != null)
+                            Text('${series.year}',
+                                style: TextStyle(
+                                    fontFamily: AppTheme.bodyFont,
+                                    fontSize: 12.5,
+                                    color: scheme.onSurfaceVariant)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Начатый сериал показывает число просмотренных серий, остальные
+                // тапом уходят в «Буду смотреть» — как строка фильма.
+                if (seen > 0)
+                  Container(
+                    height: 42,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                        color: scheme.tertiary,
+                        borderRadius: BorderRadius.circular(21)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.live_tv_rounded,
+                            size: 15, color: scheme.onTertiary),
+                        const SizedBox(width: 4),
+                        Text('$seen',
+                            style: TextStyle(
+                                fontFamily: AppTheme.displayFont,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                                color: scheme.onTertiary)),
+                      ],
+                    ),
+                  )
+                else
+                  IconButton(
+                    onPressed: () {
+                      final s = repo.ensureSeriesFromTmdb(series);
+                      repo.toggleSeriesWatchlist(s.tvShowId);
+                    },
+                    style: IconButton.styleFrom(
+                      backgroundColor: inWatchlist
+                          ? scheme.secondaryContainer
+                          : scheme.surfaceContainerHighest,
+                      foregroundColor: inWatchlist
+                          ? scheme.onSecondaryContainer
+                          : scheme.onSurfaceVariant,
+                    ),
+                    icon: Icon(inWatchlist
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_add_outlined),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Строка фильма для списков (фильмография персоны): постер + название + быстрая
 /// кнопка «Буду смотреть»/«Просмотрено». Тап по строке → карточка фильма.
 class TmdbMovieRow extends StatelessWidget {

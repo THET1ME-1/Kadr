@@ -47,4 +47,40 @@ void main() {
   test('без даты рождения возраста нет', () {
     expect(TmdbPerson.fromJson({'id': 4, 'name': 'Никто'}).age, isNull);
   });
+
+  test('фильмография: каст и команда сливаются, свежие сверху', () {
+    final list = TmdbService.parsePersonMovies({
+      'cast': [
+        {'id': 10, 'title': 'Старый', 'release_date': '1999-03-01'},
+        {'id': 20, 'title': 'Свежий', 'release_date': '2024-07-15'},
+      ],
+      'crew': [
+        // Тот же фильм: снялся и спродюсировал — строка должна быть одна.
+        {'id': 20, 'title': 'Свежий', 'release_date': '2024-07-15', 'job': 'Producer'},
+        {'id': 30, 'title': 'Средний', 'release_date': '2010-01-01'},
+      ],
+    });
+    expect(list.map((m) => m.id).toList(), [20, 30, 10]);
+    expect(list.first.title, 'Свежий');
+  });
+
+  test('сериалография читается из tv_credits с полями сериала', () {
+    final list = TmdbService.parsePersonSeries({
+      'cast': [
+        {'id': 5, 'name': 'Сериал', 'first_air_date': '2015-09-10'},
+        {'id': 6, 'name': 'Новый сериал', 'first_air_date': '2023-01-05'},
+      ],
+      'crew': [
+        {'id': 5, 'name': 'Сериал', 'first_air_date': '2015-09-10', 'job': 'Director'},
+      ],
+    });
+    expect(list.map((s) => s.id).toList(), [6, 5]);
+    expect(list.last.title, 'Сериал');
+    expect(list.last.year, 2015);
+  });
+
+  test('пустой ответ фильмографии даёт пустой список, а не падение', () {
+    expect(TmdbService.parsePersonMovies(const {}), isEmpty);
+    expect(TmdbService.parsePersonSeries(const {}), isEmpty);
+  });
 }

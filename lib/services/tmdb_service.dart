@@ -705,37 +705,57 @@ class TmdbService {
 
   /// Фильмография персоны (актёр/режиссёр) — все фильмы, где участвовал.
   static Future<List<TmdbMovie>> personMovieCredits(int personId) async {
+    final data = await _personCredits(personId, 'movie_credits');
+    return data == null ? [] : parsePersonMovies(data);
+  }
+
+  /// Сериалография персоны — все сериалы, где участвовал.
+  static Future<List<TmdbSeries>> personTvCredits(int personId) async {
+    final data = await _personCredits(personId, 'tv_credits');
+    return data == null ? [] : parsePersonSeries(data);
+  }
+
+  static Future<Map<String, dynamic>?> _personCredits(
+      int personId, String kind) async {
     try {
-      final uri = Uri.parse('${ApiConfig.tmdbBase}/person/$personId/movie_credits')
+      final uri = Uri.parse('${ApiConfig.tmdbBase}/person/$personId/$kind')
           .replace(queryParameters: {'language': LocaleController.instance.tmdbLanguage});
       final resp = await http
           .get(uri, headers: _headers)
           .timeout(const Duration(seconds: 12));
-      if (resp.statusCode != 200) return [];
-      final data =
-          jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
-      final cast =
-          (data['cast'] as List? ?? []).cast<Map<String, dynamic>>();
-      final crew =
-          (data['crew'] as List? ?? []).cast<Map<String, dynamic>>();
-      // Уникальные фильмы (актёр мог быть и в команде), свежие/популярные сверху.
-      final byId = <int, Map<String, dynamic>>{};
-      for (final r in [...cast, ...crew]) {
-        final id = (r['id'] as num?)?.toInt();
-        if (id == null) continue;
-        byId.putIfAbsent(id, () => r);
-      }
-      final list = byId.values.map((r) => TmdbMovie.fromJson(r)).toList()
-        ..sort((a, b) {
-          final ay = a.year ?? 0, by = b.year ?? 0;
-          return by.compareTo(ay);
-        });
-      return list;
+      if (resp.statusCode != 200) return null;
+      return jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
     } catch (e) {
-      debugPrint('tmdb person credits $personId error: $e');
-      return [];
+      debugPrint('tmdb person $kind $personId error: $e');
+      return null;
     }
   }
+
+  static List<TmdbMovie> parsePersonMovies(Map<String, dynamic> data) =>
+      _byYearDesc(_uniqueCredits(data).map(TmdbMovie.fromJson).toList(),
+          (m) => m.year);
+
+  static List<TmdbSeries> parsePersonSeries(Map<String, dynamic> data) =>
+      _byYearDesc(_uniqueCredits(data).map(TmdbSeries.fromJson).toList(),
+          (s) => s.year);
+
+  /// Каст и команда в одном списке: персона могла и сняться, и спродюсировать —
+  /// строка при этом должна остаться одна.
+  static List<Map<String, dynamic>> _uniqueCredits(Map<String, dynamic> data) {
+    final cast = (data['cast'] as List? ?? []).cast<Map<String, dynamic>>();
+    final crew = (data['crew'] as List? ?? []).cast<Map<String, dynamic>>();
+    final byId = <int, Map<String, dynamic>>{};
+    for (final r in [...cast, ...crew]) {
+      final id = (r['id'] as num?)?.toInt();
+      if (id == null) continue;
+      byId.putIfAbsent(id, () => r);
+    }
+    return byId.values.toList();
+  }
+
+  /// Свежие сверху, без года — в самый низ.
+  static List<T> _byYearDesc<T>(List<T> list, int? Function(T) year) =>
+      list..sort((a, b) => (year(b) ?? 0).compareTo(year(a) ?? 0));
 
   static Future<List<TmdbMovie>> _list(
       String path, Map<String, String> query,
