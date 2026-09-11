@@ -10,17 +10,36 @@ import '../../services/social/social_controller.dart';
 import '../../services/tmdb_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/poster.dart';
+import '../../utils/roulette.dart';
 import '../movie_sheet.dart';
+import '../series_screen.dart';
 
-/// Кандидат рулетки: постер + название + (для открытия) фильм библиотеки либо
+/// Кандидат рулетки: постер + название + (для открытия) запись библиотеки либо
 /// tmdbId (для рекомендаций друзей).
 class _Cand {
   final String title;
   final String? poster;
   final int? year;
   final LibraryMovie? movie;
+  final LibrarySeries? series;
   final int? tmdbId;
-  _Cand(this.title, this.poster, this.year, {this.movie, this.tmdbId});
+  _Cand(
+    this.title,
+    this.poster,
+    this.year, {
+    this.movie,
+    this.series,
+    this.tmdbId,
+  });
+}
+
+/// Запись, переданная извне: уже отобранный список «Буду смотреть» с экрана
+/// библиотеки — с его фильтром, поиском и сегментом «Фильмы/Сериалы».
+class RoulettePick {
+  final LibraryMovie? movie;
+  final LibrarySeries? series;
+  const RoulettePick.movie(LibraryMovie this.movie) : series = null;
+  const RoulettePick.series(LibrarySeries this.series) : movie = null;
 }
 
 enum _Source { watchlist, friends }
@@ -28,7 +47,10 @@ enum _Source { watchlist, friends }
 /// Кинорулетка: случайный фильм из твоего вишлиста или из советов друзей.
 /// Барабан быстро прокручивает постеры и останавливается на выбранном.
 class RouletteScreen extends StatefulWidget {
-  const RouletteScreen({super.key});
+  /// Откуда брать «Мой вишлист». null — вся библиотека; список — то, что человек
+  /// видел на вкладке (фильтр и поиск уже применены).
+  final List<RoulettePick>? pool;
+  const RouletteScreen({super.key, this.pool});
 
   @override
   State<RouletteScreen> createState() => _RouletteScreenState();
@@ -50,10 +72,30 @@ class _RouletteScreenState extends State<RouletteScreen> {
   @override
   void initState() {
     super.initState();
-    _watchlist = [
-      for (final m in MovieRepository.instance.watchlist)
-        _Cand(m.displayTitle, m.posterUrl, m.year, movie: m),
-    ];
+    final outer = widget.pool;
+    _watchlist = outer != null
+        ? [
+            for (final p in outer)
+              if (p.movie != null)
+                _Cand(
+                  p.movie!.displayTitle,
+                  p.movie!.displayPoster,
+                  p.movie!.year,
+                  movie: p.movie,
+                )
+              else
+                _Cand(
+                  p.series!.displayTitle,
+                  p.series!.displayPoster,
+                  p.series!.year,
+                  series: p.series,
+                ),
+          ]
+        : [
+            for (final m in MovieRepository.instance.watchlist)
+              // displayPoster, а не posterUrl: свой постер должен побеждать.
+              _Cand(m.displayTitle, m.displayPoster, m.year, movie: m),
+          ];
   }
 
   @override
@@ -71,7 +113,7 @@ class _RouletteScreenState extends State<RouletteScreen> {
     final libs = await SocialController.instance.allFriendLibraries();
     final mineWatched = {
       for (final m in MovieRepository.instance.watched)
-        '${(m.ruTitle ?? m.title).toLowerCase().trim()}|${m.year ?? 0}'
+        '${(m.ruTitle ?? m.title).toLowerCase().trim()}|${m.year ?? 0}',
     };
     final byKey = <String, _Cand>{};
     for (final lib in libs) {
@@ -80,7 +122,9 @@ class _RouletteScreenState extends State<RouletteScreen> {
         final k = '${m.displayTitle.toLowerCase().trim()}|${m.year ?? 0}';
         if (sc != null && sc >= 8 && !mineWatched.contains(k)) {
           byKey.putIfAbsent(
-              k, () => _Cand(m.displayTitle, m.posterUrl, m.year, tmdbId: m.tmdbId));
+            k,
+            () => _Cand(m.displayTitle, m.posterUrl, m.year, tmdbId: m.tmdbId),
+          );
         }
       }
     }
@@ -99,7 +143,8 @@ class _RouletteScreenState extends State<RouletteScreen> {
       _spinning = true;
       _settled = false;
     });
-    final finalPick = pool[_rnd.nextInt(pool.length)];
+    // avoid: крутить дважды и получить то же самое — выглядит как поломка.
+    final finalPick = pickRandom(pool, avoid: _shown, rng: _rnd)!;
     var ticks = 0;
     // Кол-во кадров зависит от размера пула (но не слишком много).
     final total = 16 + _rnd.nextInt(8);
@@ -128,10 +173,18 @@ class _RouletteScreenState extends State<RouletteScreen> {
   void _open(_Cand c) {
     if (c.movie != null) {
       showMovieSheet(context, c.movie!);
+    } else if (c.series != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => SeriesScreen(series: c.series!)),
+      );
     } else if (c.tmdbId != null) {
       // Совет друга — открываем полную карточку через TMDB.
       final t = TmdbMovie(
-          id: c.tmdbId!, title: c.title, posterUrl: c.poster, year: c.year);
+        id: c.tmdbId!,
+        title: c.title,
+        posterUrl: c.poster,
+        year: c.year,
+      );
       showMovieSheet(context, MovieRepository.instance.ensureFromTmdb(t));
     }
   }
@@ -151,8 +204,8 @@ class _RouletteScreenState extends State<RouletteScreen> {
               child: _loadingFriends
                   ? const CircularProgressIndicator()
                   : pool.isEmpty
-                      ? _emptyPool(scheme)
-                      : _reel(scheme),
+                  ? _emptyPool(scheme)
+                  : _reel(scheme),
             ),
           ),
           Padding(
@@ -162,15 +215,21 @@ class _RouletteScreenState extends State<RouletteScreen> {
               child: FilledButton.icon(
                 onPressed: (pool.isEmpty || _spinning) ? null : _spin,
                 style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16)),
-                icon: Icon(_spinning
-                    ? Icons.hourglass_top_rounded
-                    : Icons.casino_rounded),
-                label: Text(_spinning ? tr('roulette_spinning') : tr('roulette_spin'),
-                    style: const TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16)),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                icon: Icon(
+                  _spinning
+                      ? Icons.hourglass_top_rounded
+                      : Icons.casino_rounded,
+                ),
+                label: Text(
+                  _spinning ? tr('roulette_spinning') : tr('roulette_spin'),
+                  style: const TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
               ),
             ),
           ),
@@ -200,14 +259,17 @@ class _RouletteScreenState extends State<RouletteScreen> {
               color: sel ? scheme.primaryContainer : Colors.transparent,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Text(label,
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13.5,
-                    color: sel
-                        ? scheme.onPrimaryContainer
-                        : scheme.onSurfaceVariant)),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontWeight: FontWeight.w700,
+                fontSize: 13.5,
+                color: sel
+                    ? scheme.onPrimaryContainer
+                    : scheme.onSurfaceVariant,
+              ),
+            ),
           ),
         ),
       );
@@ -217,8 +279,9 @@ class _RouletteScreenState extends State<RouletteScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(20)),
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Row(
         children: [
           seg(_Source.watchlist, tr('roulette_src_watchlist')),
@@ -229,24 +292,25 @@ class _RouletteScreenState extends State<RouletteScreen> {
   }
 
   Widget _emptyPool(ColorScheme scheme) => Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.casino_outlined,
-                size: 56, color: scheme.onSurfaceVariant),
-            const SizedBox(height: 14),
-            Text(
-                _source == _Source.watchlist
-                    ? tr('roulette_empty_watchlist')
-                    : tr('roulette_empty_friends'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    color: scheme.onSurfaceVariant)),
-          ],
+    padding: const EdgeInsets.all(32),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.casino_outlined, size: 56, color: scheme.onSurfaceVariant),
+        const SizedBox(height: 14),
+        Text(
+          _source == _Source.watchlist
+              ? tr('roulette_empty_watchlist')
+              : tr('roulette_empty_friends'),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: AppTheme.bodyFont,
+            color: scheme.onSurfaceVariant,
+          ),
         ),
-      );
+      ],
+    ),
+  );
 
   Widget _reel(ColorScheme scheme) {
     final c = _shown ?? _pool.first;
@@ -262,24 +326,30 @@ class _RouletteScreenState extends State<RouletteScreen> {
         const SizedBox(height: 18),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Text(c.title,
-              maxLines: 2,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontFamily: AppTheme.displayFont,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 20,
-                  height: 1.15,
-                  color: scheme.onSurface)),
+          child: Text(
+            c.title,
+            maxLines: 2,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: AppTheme.displayFont,
+              fontWeight: FontWeight.w800,
+              fontSize: 20,
+              height: 1.15,
+              color: scheme.onSurface,
+            ),
+          ),
         ),
         if (c.year != null) ...[
           const SizedBox(height: 4),
-          Text('${c.year}',
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontSize: 13,
-                  color: scheme.onSurfaceVariant)),
+          Text(
+            '${c.year}',
+            style: TextStyle(
+              fontFamily: AppTheme.bodyFont,
+              fontSize: 13,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
         ],
         if (_settled) ...[
           const SizedBox(height: 16),

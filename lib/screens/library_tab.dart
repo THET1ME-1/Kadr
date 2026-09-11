@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,9 +8,11 @@ import '../l10n/strings.dart';
 import '../models/library_entry.dart';
 import '../services/app_prefs.dart';
 import '../services/movie_repository.dart';
+import '../services/tmdb_service.dart';
 import '../services/store.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
+import '../utils/actor_filter.dart';
 import '../utils/library_sort.dart';
 import '../utils/score.dart';
 import '../widgets/diary_sheet.dart';
@@ -22,6 +26,7 @@ import '../widgets/score_pad.dart';
 import '../widgets/series_progress.dart';
 import 'movie_sheet.dart';
 import 'series_screen.dart';
+import 'social/roulette_screen.dart';
 import 'social/readonly_media.dart';
 
 enum LibraryMode { watched, watchlist }
@@ -30,7 +35,6 @@ enum LibraryMode { watched, watchlist }
 enum LibraryViewMode { list, posters, banners }
 
 enum _WatchedFilter { all, movies, series }
-
 
 /// Вкладка библиотеки: «Просмотрено» (карточка на каждый просмотр + сериалы, по
 /// месяцам) или «Буду смотреть» (по дате добавления). Поддерживает три режима
@@ -72,7 +76,14 @@ class _LibraryTabState extends State<LibraryTab> {
   /// фильмов, поэтому при активном фильтре сериалы скрываются.
   final Set<String> _genreFilter = {};
   RangeValues? _yearFilter;
-  bool get _hasMetaFilter => _genreFilter.isNotEmpty || _yearFilter != null;
+
+  /// Фильтр по актёру. В отличие от жанра и года работает и по сериалам:
+  /// совпадение ищется по `tmdbId` из фильмографии TMDB (см. [ActorFilter]).
+  ActorFilter? _actorFilter;
+
+  bool get _hasMovieMetaFilter =>
+      _genreFilter.isNotEmpty || _yearFilter != null;
+  bool get _hasAnyFilter => _hasMovieMetaFilter || _actorFilter != null;
 
   /// Режим множественного выделения (по долгому нажатию на карточку).
   bool _selecting = false;
@@ -163,9 +174,9 @@ class _LibraryTabState extends State<LibraryTab> {
   }
 
   void _exitSelect() => setState(() {
-        _selected.clear();
-        _selecting = false;
-      });
+    _selected.clear();
+    _selecting = false;
+  });
 
   Future<void> _confirmDeleteSelected() async {
     final n = _selected.length;
@@ -175,19 +186,25 @@ class _LibraryTabState extends State<LibraryTab> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(tr('delete_selected_title')),
-        content: Text(trf(
+        content: Text(
+          trf(
             widget.mode == LibraryMode.watchlist
                 ? 'delete_selected_watchlist'
                 : 'delete_selected_watched',
-            {'n': n})),
+            {'n': n},
+          ),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(tr('cancel'))),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(tr('cancel')),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
-                backgroundColor: kDroppedColor, foregroundColor: Colors.white),
+              backgroundColor: kDroppedColor,
+              foregroundColor: Colors.white,
+            ),
             child: Text(tr('delete')),
           ),
         ],
@@ -199,26 +216,30 @@ class _LibraryTabState extends State<LibraryTab> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        content: Text(trf('removed_n', {'n': n})),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: scheme.surfaceContainerHighest,
-        action: SnackBarAction(
-          label: tr('undo'),
-          onPressed: () => MovieRepository.instance
-              .restoreFromSnapshot(movieSnaps, seriesSnaps),
+      ..showSnackBar(
+        SnackBar(
+          content: Text(trf('removed_n', {'n': n})),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: scheme.surfaceContainerHighest,
+          action: SnackBarAction(
+            label: tr('undo'),
+            onPressed: () => MovieRepository.instance.restoreFromSnapshot(
+              movieSnaps,
+              seriesSnaps,
+            ),
+          ),
         ),
-      ));
+      );
   }
 
   /// Удаляет выделенное и возвращает JSON-снимок затронутых фильмов/сериалов,
   /// снятый ДО удаления, — для восстановления кнопкой «Отмена».
   Future<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)>
-      _deleteSelected() async {
+  _deleteSelected() async {
     final repo = MovieRepository.instance;
     final entries = [
       for (final k in _selected)
-        if (_entryByKey[k] != null) _entryByKey[k]!
+        if (_entryByKey[k] != null) _entryByKey[k]!,
     ];
     // Снимок ДО мутаций (объекты записи — те же инстансы, что в репозитории).
     final movieSnaps = <String, Map<String, dynamic>>{};
@@ -226,10 +247,14 @@ class _LibraryTabState extends State<LibraryTab> {
     for (final e in entries) {
       if (e.session != null) {
         seriesSnaps.putIfAbsent(
-            e.session!.series.tvShowId, () => e.session!.series.toJson());
+          e.session!.series.tvShowId,
+          () => e.session!.series.toJson(),
+        );
       } else if (e.seriesItem != null) {
         seriesSnaps.putIfAbsent(
-            e.seriesItem!.tvShowId, () => e.seriesItem!.toJson());
+          e.seriesItem!.tvShowId,
+          () => e.seriesItem!.toJson(),
+        );
       } else if (e.movie != null) {
         movieSnaps.putIfAbsent(e.movie!.uuid, () => e.movie!.toJson());
       }
@@ -262,7 +287,14 @@ class _LibraryTabState extends State<LibraryTab> {
     final raw = await Store.instance.getString('libSort.${widget.mode.name}');
     for (final s in LibSort.values) {
       if (s.name == raw) {
-        if (mounted) setState(() => _sort = s);
+        // До 0.21 один пункт «По оценке» значил разное: в «Просмотрено» — мою
+        // оценку, в «Буду смотреть» — рейтинг источника. Теперь это два разных
+        // пункта, поэтому сохранённый выбор ведём туда, где человек его видел.
+        final restored =
+            (s == LibSort.ratingHigh && widget.mode == LibraryMode.watched)
+            ? LibSort.scoreHigh
+            : s;
+        if (mounted) setState(() => _sort = restored);
         return;
       }
     }
@@ -281,7 +313,8 @@ class _LibraryTabState extends State<LibraryTab> {
     final genres = _genreFilter.isEmpty
         ? ''
         : (_genreFilter.toList()..sort()).join(',');
-    return '$genres|${_yearFilter?.start.round()}-${_yearFilter?.end.round()}';
+    return '$genres|${_yearFilter?.start.round()}-${_yearFilter?.end.round()}'
+        '|${_actorFilter?.personId ?? ''}';
   }
 
   bool _matchMovie(LibraryMovie m) {
@@ -293,6 +326,8 @@ class _LibraryTabState extends State<LibraryTab> {
     if (_genreFilter.isNotEmpty && !m.genres.any(_genreFilter.contains)) {
       return false;
     }
+    final actor = _actorFilter;
+    if (actor != null && !actor.matchesMovie(m.tmdbId)) return false;
     if (_yearFilter != null) {
       final y = m.year;
       if (y == null ||
@@ -305,11 +340,14 @@ class _LibraryTabState extends State<LibraryTab> {
   }
 
   bool _matchSeries(LibrarySeries s) {
-    if (_hasMetaFilter) return false; // жанр/год — метаданные фильмов
+    if (_hasMovieMetaFilter) return false; // жанр/год — метаданные фильмов
+    final actor = _actorFilter;
+    if (actor != null && !actor.matchesSeries(s.tmdbId)) return false;
     return _q.isEmpty ||
         s.displayTitle.toLowerCase().contains(_q) ||
         s.title.toLowerCase().contains(_q);
   }
+
   bool _matchEntry(WatchedEntry e) =>
       e.isSeries ? _matchSeries(e.session!.series) : _matchMovie(e.movie!);
 
@@ -368,24 +406,31 @@ class _LibraryTabState extends State<LibraryTab> {
             Text(
               trf('n_selected', {'n': _selected.length}),
               style: TextStyle(
-                  fontFamily: AppTheme.displayFont,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 17,
-                  color: scheme.onSurface),
+                fontFamily: AppTheme.displayFont,
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
+                color: scheme.onSurface,
+              ),
             ),
             const Spacer(),
             TextButton.icon(
               onPressed: empty ? null : _confirmDeleteSelected,
               icon: Icon(Icons.delete_outline_rounded, color: actionColor),
-              label: Text(tr('delete'),
-                  style: TextStyle(
-                      fontFamily: AppTheme.bodyFont,
-                      fontWeight: FontWeight.w700,
-                      color: actionColor)),
+              label: Text(
+                tr('delete'),
+                style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontWeight: FontWeight.w700,
+                  color: actionColor,
+                ),
+              ),
             ),
             PopupMenuButton<String>(
               enabled: !empty,
-              icon: Icon(Icons.more_vert_rounded, color: scheme.onSurfaceVariant),
+              icon: Icon(
+                Icons.more_vert_rounded,
+                color: scheme.onSurfaceVariant,
+              ),
               onSelected: (v) {
                 switch (v) {
                   case 'watched':
@@ -404,8 +449,11 @@ class _LibraryTabState extends State<LibraryTab> {
                     value: 'watched',
                     child: Row(
                       children: [
-                        Icon(Icons.check_circle_outline_rounded,
-                            size: 20, color: scheme.onSurfaceVariant),
+                        Icon(
+                          Icons.check_circle_outline_rounded,
+                          size: 20,
+                          color: scheme.onSurfaceVariant,
+                        ),
                         const SizedBox(width: 10),
                         Text(tr('mark_watched_selected')),
                       ],
@@ -415,8 +463,11 @@ class _LibraryTabState extends State<LibraryTab> {
                   value: 'list',
                   child: Row(
                     children: [
-                      Icon(Icons.playlist_add_rounded,
-                          size: 20, color: scheme.onSurfaceVariant),
+                      Icon(
+                        Icons.playlist_add_rounded,
+                        size: 20,
+                        color: scheme.onSurfaceVariant,
+                      ),
                       const SizedBox(width: 10),
                       Text(tr('add_to_list_selected')),
                     ],
@@ -427,8 +478,11 @@ class _LibraryTabState extends State<LibraryTab> {
                   value: 'base',
                   child: Row(
                     children: [
-                      Icon(Icons.delete_forever_rounded,
-                          size: 20, color: scheme.error),
+                      Icon(
+                        Icons.delete_forever_rounded,
+                        size: 20,
+                        color: scheme.error,
+                      ),
                       const SizedBox(width: 10),
                       Text(tr('delete_from_base')),
                     ],
@@ -455,12 +509,15 @@ class _LibraryTabState extends State<LibraryTab> {
         content: Text(trf('delete_from_base_n', {'n': n})),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(tr('cancel'))),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(tr('cancel')),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
-                backgroundColor: scheme.error, foregroundColor: scheme.onError),
+              backgroundColor: scheme.error,
+              foregroundColor: scheme.onError,
+            ),
             child: Text(tr('delete')),
           ),
         ],
@@ -500,15 +557,20 @@ class _LibraryTabState extends State<LibraryTab> {
     });
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text(trf('deleted_n_from_base',
-            {'n': movieSnaps.length + seriesSnaps.length})),
-        action: SnackBarAction(
-          label: tr('undo'),
-          onPressed: () => repo.restoreFromSnapshot(movieSnaps, seriesSnaps),
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(
+            trf('deleted_n_from_base', {
+              'n': movieSnaps.length + seriesSnaps.length,
+            }),
+          ),
+          action: SnackBarAction(
+            label: tr('undo'),
+            onPressed: () => repo.restoreFromSnapshot(movieSnaps, seriesSnaps),
+          ),
         ),
-      ));
+      );
   }
 
   /// Уникальные uuid ФИЛЬМОВ в выделении. Сериалы для групповых действий
@@ -528,8 +590,9 @@ class _LibraryTabState extends State<LibraryTab> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-          content: Text(text), behavior: SnackBarBehavior.floating));
+      ..showSnackBar(
+        SnackBar(content: Text(text), behavior: SnackBarBehavior.floating),
+      );
   }
 
   /// Групповая отметка «просмотрено сегодня» для выбранных фильмов. Без диалога —
@@ -558,14 +621,16 @@ class _LibraryTabState extends State<LibraryTab> {
     HapticFeedback.mediumImpact();
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text(trf('batch_marked_watched', {'n': uuids.length})),
-        action: SnackBarAction(
-          label: tr('undo'),
-          onPressed: () => repo.restoreFromSnapshot(snaps, const []),
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(trf('batch_marked_watched', {'n': uuids.length})),
+          action: SnackBarAction(
+            label: tr('undo'),
+            onPressed: () => repo.restoreFromSnapshot(snaps, const []),
+          ),
         ),
-      ));
+      );
   }
 
   /// Групповое добавление выбранных фильмов в список: нижняя панель с
@@ -584,14 +649,16 @@ class _LibraryTabState extends State<LibraryTab> {
       isScrollControlled: true,
       backgroundColor: scheme.surfaceContainer,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (sheetCtx) => StatefulBuilder(
         builder: (sheetCtx, setSheet) {
           final lists = repo.lists;
           return SafeArea(
             child: Padding(
               padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+                bottom: MediaQuery.of(sheetCtx).viewInsets.bottom,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -600,19 +667,23 @@ class _LibraryTabState extends State<LibraryTab> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                        color: scheme.outlineVariant,
-                        borderRadius: BorderRadius.circular(2)),
+                      color: scheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 14, 24, 6),
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: Text(tr('add_to_list_selected'),
-                          style: TextStyle(
-                              fontFamily: AppTheme.displayFont,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 18,
-                              color: scheme.onSurface)),
+                      child: Text(
+                        tr('add_to_list_selected'),
+                        style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          color: scheme.onSurface,
+                        ),
+                      ),
                     ),
                   ),
                   Flexible(
@@ -622,19 +693,27 @@ class _LibraryTabState extends State<LibraryTab> {
                         if (lists.isEmpty)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
-                            child: Text(tr('no_lists_yet'),
-                                style: TextStyle(
-                                    fontFamily: AppTheme.bodyFont,
-                                    color: scheme.onSurfaceVariant)),
+                            child: Text(
+                              tr('no_lists_yet'),
+                              style: TextStyle(
+                                fontFamily: AppTheme.bodyFont,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
                           ),
                         for (final l in lists)
                           ListTile(
-                            leading: Icon(Icons.playlist_add_check_rounded,
-                                color: scheme.primary),
-                            title: Text(l.name,
-                                style: const TextStyle(
-                                    fontFamily: AppTheme.bodyFont,
-                                    fontWeight: FontWeight.w600)),
+                            leading: Icon(
+                              Icons.playlist_add_check_rounded,
+                              color: scheme.primary,
+                            ),
+                            title: Text(
+                              l.name,
+                              style: const TextStyle(
+                                fontFamily: AppTheme.bodyFont,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             onTap: () {
                               Navigator.pop(sheetCtx);
                               _applyAddToList(l.name, uuids);
@@ -650,8 +729,9 @@ class _LibraryTabState extends State<LibraryTab> {
                         Expanded(
                           child: TextField(
                             controller: ctl,
-                            decoration:
-                                InputDecoration(hintText: tr('new_list')),
+                            decoration: InputDecoration(
+                              hintText: tr('new_list'),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -678,8 +758,11 @@ class _LibraryTabState extends State<LibraryTab> {
 
   /// Добавляет фильмы в список (создаёт при [create]); добавляет только тех,
   /// кого там ещё нет — чтобы не снять уже добавленных.
-  Future<void> _applyAddToList(String listName, List<String> uuids,
-      {bool create = false}) async {
+  Future<void> _applyAddToList(
+    String listName,
+    List<String> uuids, {
+    bool create = false,
+  }) async {
     final repo = MovieRepository.instance;
     if (create) await repo.createList(listName);
     for (final uuid in uuids) {
@@ -707,16 +790,22 @@ class _LibraryTabState extends State<LibraryTab> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.travel_explore_rounded,
-                size: 56, color: scheme.onSurfaceVariant),
+            Icon(
+              Icons.travel_explore_rounded,
+              size: 56,
+              color: scheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 14),
-            Text(trf('search_local_empty', {'q': widget.query.trim()}),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontSize: 14,
-                    height: 1.35,
-                    color: scheme.onSurfaceVariant)),
+            Text(
+              trf('search_local_empty', {'q': widget.query.trim()}),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontSize: 14,
+                height: 1.35,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: 18),
             FilledButton.icon(
               onPressed: widget.onSearchEverywhere,
@@ -744,13 +833,18 @@ class _LibraryTabState extends State<LibraryTab> {
         _wlKind != _filter) {
       // Фильмы и сериалы сортируются ОДНИМ списком. Раньше сериалы дописывались
       // в конец и у большой библиотеки прятались за сотнями фильмов.
-      _wlItems = sortLibrary([
-        if (_filter != _WatchedFilter.series)
-          for (final m in repo.watchlist.where(_matchMovie)) _LibEntry.movie(m),
-        if (_filter != _WatchedFilter.movies)
-          for (final s in repo.watchlistSeries.where(_matchSeries))
-            _LibEntry.series(s),
-      ], _sortKeys, _sort);
+      _wlItems = sortLibrary(
+        [
+          if (_filter != _WatchedFilter.series)
+            for (final m in repo.watchlist.where(_matchMovie))
+              _LibEntry.movie(m),
+          if (_filter != _WatchedFilter.movies)
+            for (final s in repo.watchlistSeries.where(_matchSeries))
+              _LibEntry.series(s),
+        ],
+        _sortKeys,
+        _sort,
+      );
       _wlRev = rev;
       _wlSort = _sort;
       _wlQuery = _q;
@@ -759,23 +853,28 @@ class _LibraryTabState extends State<LibraryTab> {
     }
     final entries = _wlItems!;
     if (entries.isEmpty) {
-      return _emptyView(EmptyState(
+      return _emptyView(
+        EmptyState(
           icon: Icons.bookmark_rounded,
           title: tr('nav_watchlist'),
-          subtitle: tr('lib_empty_watchlist')));
+          subtitle: tr('lib_empty_watchlist'),
+        ),
+      );
     }
     _indexEntries(entries);
-    return LayoutBuilder(builder: (context, c) {
-      final g = _grid(c.maxWidth);
-      return CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(child: _filterBar()),
-          SliverToBoxAdapter(child: _countHeader(context, entries.length)),
-          ..._entrySlivers(entries, g),
-          const SliverToBoxAdapter(child: SizedBox(height: 96)),
-        ],
-      );
-    });
+    return LayoutBuilder(
+      builder: (context, c) {
+        final g = _grid(c.maxWidth);
+        return CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _filterBar()),
+            SliverToBoxAdapter(child: _countHeader(context, entries.length)),
+            ..._entrySlivers(entries, g),
+            const SliverToBoxAdapter(child: SizedBox(height: 96)),
+          ],
+        );
+      },
+    );
   }
 
   /// Поля сортировки записи — у фильма и сериала они называются по-разному.
@@ -783,17 +882,23 @@ class _LibraryTabState extends State<LibraryTab> {
     final m = e.movie;
     if (m != null) {
       return SortKeys(
-          title: m.displayTitle,
-          year: m.year,
-          rating: m.kpRating,
-          addedAt: m.addedAt);
+        title: m.displayTitle,
+        year: m.year,
+        rating: m.kpRating,
+        score: m.currentScore,
+        runtimeMin: m.runtimeMin,
+        addedAt: m.addedAt,
+      );
     }
     final s = e.seriesItem!;
+    // Длительности у сериала нет — в сортировке по времени он уходит вниз.
     return SortKeys(
-        title: s.displayTitle,
-        year: s.year,
-        rating: s.kpRating,
-        addedAt: s.addedAt);
+      title: s.displayTitle,
+      year: s.year,
+      rating: s.kpRating,
+      score: s.displayScore,
+      addedAt: s.addedAt,
+    );
   }
 
   // ----------------------------- «Просмотрено» -----------------------------
@@ -817,36 +922,41 @@ class _LibraryTabState extends State<LibraryTab> {
     }
     final total = _wmTotal;
 
-    return LayoutBuilder(builder: (context, c) {
-      final g = _grid(c.maxWidth);
-      final rows = total == 0 ? const <_FeedRow>[] : _watchedRows(g.cols);
-      return CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(child: _filterBar()),
-          if (total == 0)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: _emptyView(EmptyState(
-                  icon: Icons.check_circle_rounded,
-                  title: tr('nav_watched'),
-                  subtitle: tr('lib_empty_watched'))),
-            )
-          else ...[
-            SliverToBoxAdapter(child: _countHeader(context, total)),
-            // ОДИН ленивый список на всю ленту: Flutter строит только видимые
-            // строки. Раньше на каждый день истории создавался отдельный sliver
-            // (сотни разом) — отсюда фризы при смене вида/вкладки на большой базе.
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, i) => _buildFeedRow(rows[i], g),
-                childCount: rows.length,
+    return LayoutBuilder(
+      builder: (context, c) {
+        final g = _grid(c.maxWidth);
+        final rows = total == 0 ? const <_FeedRow>[] : _watchedRows(g.cols);
+        return CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _filterBar()),
+            if (total == 0)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _emptyView(
+                  EmptyState(
+                    icon: Icons.check_circle_rounded,
+                    title: tr('nav_watched'),
+                    subtitle: tr('lib_empty_watched'),
+                  ),
+                ),
+              )
+            else ...[
+              SliverToBoxAdapter(child: _countHeader(context, total)),
+              // ОДИН ленивый список на всю ленту: Flutter строит только видимые
+              // строки. Раньше на каждый день истории создавался отдельный sliver
+              // (сотни разом) — отсюда фризы при смене вида/вкладки на большой базе.
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) => _buildFeedRow(rows[i], g),
+                  childCount: rows.length,
+                ),
               ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 96)),
+              const SliverToBoxAdapter(child: SizedBox(height: 96)),
+            ],
           ],
-        ],
-      );
-    });
+        );
+      },
+    );
   }
 
   /// Плоский список строк ленты (мемо по структуре/виду/колонкам).
@@ -892,8 +1002,7 @@ class _LibraryTabState extends State<LibraryTab> {
     return rows;
   }
 
-  Widget _buildFeedRow(
-      _FeedRow row, ({int cols, double w, double tileH}) g) {
+  Widget _buildFeedRow(_FeedRow row, ({int cols, double w, double tileH}) g) {
     switch (row) {
       case _FeedMonth(:final month):
         return _monthHeader(context, month);
@@ -904,7 +1013,10 @@ class _LibraryTabState extends State<LibraryTab> {
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Reveal(
-                group: _revealed, id: _keyOf(entry), child: _bannerFor(entry)),
+              group: _revealed,
+              id: _keyOf(entry),
+              child: _bannerFor(entry),
+            ),
           );
         }
         // list — карточки уже содержат свои отступы и Reveal внутри.
@@ -926,7 +1038,8 @@ class _LibraryTabState extends State<LibraryTab> {
                       ? Reveal(
                           group: _revealed,
                           id: _keyOf(entries[i]),
-                          child: _posterFor(entries[i], g.w))
+                          child: _posterFor(entries[i], g.w),
+                        )
                       : const SizedBox.shrink(),
                 ),
               ],
@@ -954,14 +1067,16 @@ class _LibraryTabState extends State<LibraryTab> {
     if (grouped) {
       final gs = [
         for (final g in groups)
-          MapEntry<DateTime, List<_LibEntry>>(
-              g.key, [for (final e in g.value) _entry(e)])
+          MapEntry<DateTime, List<_LibEntry>>(g.key, [
+            for (final e in g.value) _entry(e),
+          ]),
       ];
       final ordered = _sort == LibSort.dateOld ? gs.reversed.toList() : gs;
       if (_sort == LibSort.dateOld) {
         for (final g in ordered) {
-          g.value.sort((a, b) =>
-              (a.date ?? DateTime(0)).compareTo(b.date ?? DateTime(0)));
+          g.value.sort(
+            (a, b) => (a.date ?? DateTime(0)).compareTo(b.date ?? DateTime(0)),
+          );
         }
       }
       // Дни считаем здесь (в мемо), чтобы build не делал этого на каждый кадр.
@@ -972,7 +1087,7 @@ class _LibraryTabState extends State<LibraryTab> {
     } else {
       final flat = <_LibEntry>[
         for (final g in groups)
-          for (final e in g.value) _entry(e)
+          for (final e in g.value) _entry(e),
       ];
       _sortEntries(flat);
       _wmRender = [_MonthSection(null, null, flat)];
@@ -986,17 +1101,29 @@ class _LibraryTabState extends State<LibraryTab> {
     final viewing = e.viewing!;
     // Номер просмотра — по порядку добавления (стабилен, не зависит от даты).
     final ordinal = movie.viewings.indexOf(viewing) + 1;
-    final rewatchNum =
-        (movie.viewings.length > 1 && ordinal > 1) ? ordinal : null;
+    final rewatchNum = (movie.viewings.length > 1 && ordinal > 1)
+        ? ordinal
+        : null;
     return _LibEntry.movie(movie, viewing: viewing, rewatchNumber: rewatchNum);
   }
 
   void _sortEntries(List<_LibEntry> l) {
+    const last = 1 << 30; // запись без длительности — в самый низ
     switch (_sort) {
       case LibSort.ratingHigh:
+        l.sort((a, b) => (b.rating ?? -1).compareTo(a.rating ?? -1));
+      case LibSort.scoreHigh:
         l.sort((a, b) => (b.score ?? -1).compareTo(a.score ?? -1));
+      case LibSort.runtimeLong:
+        l.sort((a, b) => (b.runtimeMin ?? -1).compareTo(a.runtimeMin ?? -1));
+      case LibSort.runtimeShort:
+        l.sort(
+          (a, b) => (a.runtimeMin ?? last).compareTo(b.runtimeMin ?? last),
+        );
       case LibSort.titleAz:
-        l.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        l.sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
       case LibSort.yearNew:
         l.sort((a, b) => (b.year ?? 0).compareTo(a.year ?? 0));
       default:
@@ -1017,7 +1144,9 @@ class _LibraryTabState extends State<LibraryTab> {
   }
 
   List<Widget> _entrySlivers(
-      List<_LibEntry> entries, ({int cols, double w, double tileH}) g) {
+    List<_LibEntry> entries,
+    ({int cols, double w, double tileH}) g,
+  ) {
     switch (widget.viewMode) {
       case LibraryViewMode.list:
         return [
@@ -1088,9 +1217,27 @@ class _LibraryTabState extends State<LibraryTab> {
     if (widget.readOnly) {
       showReadonlySeriesSheet(context, s);
     } else {
-      Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => SeriesScreen(series: s, heroTag: heroTag)));
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SeriesScreen(series: s, heroTag: heroTag),
+        ),
+      );
     }
+  }
+
+  /// Кинорулетка с тем списком, который человек сейчас видит: фильтр, поиск и
+  /// сегмент «Фильмы/Сериалы» уже применены, сериалы тоже участвуют.
+  void _openRoulette() {
+    final pool = [
+      for (final e in _wlItems ?? const <_LibEntry>[])
+        if (e.movie != null)
+          RoulettePick.movie(e.movie!)
+        else if (e.seriesItem != null)
+          RoulettePick.series(e.seriesItem!),
+    ];
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => RouletteScreen(pool: pool)));
   }
 
   Widget _rowFor(_LibEntry e) {
@@ -1101,8 +1248,9 @@ class _LibraryTabState extends State<LibraryTab> {
     final diaryOn = AppPrefs.instance.diaryEnabled && !widget.readOnly;
     if (e.session != null) {
       // Сессия в ленте — из копий эпизодов; дневник вешаем на РЕАЛЬНУЮ первую серию.
-      final firstEp =
-          e.session!.episodes.isNotEmpty ? e.session!.episodes.first : null;
+      final firstEp = e.session!.episodes.isNotEmpty
+          ? e.session!.episodes.first
+          : null;
       final realEp = firstEp == null
           ? null
           : e.session!.series.watchedEpisode(firstEp.season, firstEp.number);
@@ -1119,11 +1267,11 @@ class _LibraryTabState extends State<LibraryTab> {
         diary: realEp?.diary,
         onDiary: (diaryOn && realEp != null)
             ? () => _editDiary(
-                  current: realEp.diary,
-                  photoKey:
-                      'ep-${e.session!.series.tvShowId}-${firstEp!.season}-${firstEp.number}',
-                  apply: (d) => realEp.diary = d,
-                )
+                current: realEp.diary,
+                photoKey:
+                    'ep-${e.session!.series.tvShowId}-${firstEp!.season}-${firstEp.number}',
+                apply: (d) => realEp.diary = d,
+              )
             : null,
       );
     }
@@ -1153,11 +1301,11 @@ class _LibraryTabState extends State<LibraryTab> {
       diary: e.viewing?.diary,
       onDiary: (diaryOn && e.viewing != null)
           ? () => _editDiary(
-                current: e.viewing!.diary,
-                photoKey:
-                    '${e.movie!.uuid}-${e.viewing!.date?.millisecondsSinceEpoch ?? 0}',
-                apply: (d) => e.viewing!.diary = d,
-              )
+              current: e.viewing!.diary,
+              photoKey:
+                  '${e.movie!.uuid}-${e.viewing!.date?.millisecondsSinceEpoch ?? 0}',
+              apply: (d) => e.viewing!.diary = d,
+            )
           : null,
     );
   }
@@ -1176,8 +1324,11 @@ class _LibraryTabState extends State<LibraryTab> {
       photoFile: current?.photoFile,
       note: current?.note,
     );
-    final result =
-        await showDiarySheet(context, initial: init, photoKey: photoKey);
+    final result = await showDiarySheet(
+      context,
+      initial: init,
+      photoKey: photoKey,
+    );
     if (result == null || !mounted) return; // отменили
     apply(result.isEmpty ? null : result);
     await MovieRepository.instance.saveDiary();
@@ -1314,14 +1465,28 @@ class _LibraryTabState extends State<LibraryTab> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _segChip(scheme, _WatchedFilter.all, tr('filter_all')),
-                    _segChip(scheme, _WatchedFilter.movies, tr('filter_movies')),
-                    _segChip(scheme, _WatchedFilter.series, tr('filter_series')),
+                    _segChip(
+                      scheme,
+                      _WatchedFilter.movies,
+                      tr('filter_movies'),
+                    ),
+                    _segChip(
+                      scheme,
+                      _WatchedFilter.series,
+                      tr('filter_series'),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
           const SizedBox(width: 4),
+          if (widget.mode == LibraryMode.watchlist && !widget.readOnly)
+            IconButton(
+              icon: const Icon(Icons.casino_rounded),
+              tooltip: tr('roulette_title'),
+              onPressed: _openRoulette,
+            ),
           _filterButton(),
           _sortButton(),
         ],
@@ -1348,8 +1513,9 @@ class _LibraryTabState extends State<LibraryTab> {
             fontFamily: AppTheme.bodyFont,
             fontWeight: FontWeight.w700,
             fontSize: 13.5,
-            color:
-                selected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
+            color: selected
+                ? scheme.onPrimaryContainer
+                : scheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -1357,35 +1523,40 @@ class _LibraryTabState extends State<LibraryTab> {
   }
 
   Widget _sortButton() => PopupMenuButton<LibSort>(
-        icon: const Icon(Icons.sort_rounded),
-        tooltip: tr('sort'),
-        onSelected: _setSort,
-        itemBuilder: (context) => [
-          for (final s in LibSort.values)
-            PopupMenuItem(
-              value: s,
-              child: Row(
-                children: [
-                  Text(_sortLabel(s)),
-                  if (_sort == s) ...[
-                    const Spacer(),
-                    Icon(Icons.check_rounded,
-                        size: 18,
-                        color: Theme.of(context).colorScheme.primary),
-                  ],
-                ],
-              ),
-            ),
-        ],
-      );
+    icon: const Icon(Icons.sort_rounded),
+    tooltip: tr('sort'),
+    onSelected: _setSort,
+    itemBuilder: (context) => [
+      for (final s in LibSort.values)
+        PopupMenuItem(
+          value: s,
+          child: Row(
+            children: [
+              Text(_sortLabel(s)),
+              if (_sort == s) ...[
+                const Spacer(),
+                Icon(
+                  Icons.check_rounded,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ],
+            ],
+          ),
+        ),
+    ],
+  );
 
   String _sortLabel(LibSort s) => switch (s) {
-        LibSort.dateNew => tr('sort_date_new'),
-        LibSort.dateOld => tr('sort_date_old'),
-        LibSort.ratingHigh => tr('sort_rating'),
-        LibSort.titleAz => tr('sort_title'),
-        LibSort.yearNew => tr('sort_year'),
-      };
+    LibSort.dateNew => tr('sort_date_new'),
+    LibSort.dateOld => tr('sort_date_old'),
+    LibSort.ratingHigh => tr('sort_rating'),
+    LibSort.scoreHigh => tr('sort_my_score'),
+    LibSort.runtimeLong => tr('sort_runtime_long'),
+    LibSort.runtimeShort => tr('sort_runtime_short'),
+    LibSort.titleAz => tr('sort_title'),
+    LibSort.yearNew => tr('sort_year'),
+  };
 
   /// Кнопка фильтров с точкой-индикатором, когда фильтр активен.
   Widget _filterButton() {
@@ -1398,7 +1569,7 @@ class _LibraryTabState extends State<LibraryTab> {
           tooltip: tr('filters'),
           onPressed: _openFilterSheet,
         ),
-        if (_hasMetaFilter)
+        if (_hasAnyFilter)
           Positioned(
             right: 8,
             top: 8,
@@ -1439,10 +1610,10 @@ class _LibraryTabState extends State<LibraryTab> {
     final hiY = (maxY ?? DateTime.now().year).toDouble();
 
     final sel = {..._genreFilter};
+    var actor = _actorFilter;
     var range = _yearFilter ?? RangeValues(loY, hiY);
     // На случай, если сохранённый диапазон вышел за границы новой библиотеки.
-    range = RangeValues(
-        range.start.clamp(loY, hiY), range.end.clamp(loY, hiY));
+    range = RangeValues(range.start.clamp(loY, hiY), range.end.clamp(loY, hiY));
 
     showModalBottomSheet<void>(
       context: context,
@@ -1461,37 +1632,99 @@ class _LibraryTabState extends State<LibraryTab> {
               children: [
                 Center(
                   child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                          color: scheme.outlineVariant,
-                          borderRadius: BorderRadius.circular(2))),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: scheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
-                Text(tr('filters'),
-                    style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 20,
-                        color: scheme.onSurface)),
+                Text(
+                  tr('filters'),
+                  style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                    color: scheme.onSurface,
+                  ),
+                ),
                 const SizedBox(height: 16),
-                Text(tr('filter_genres'),
-                    style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: scheme.primary)),
+                Text(
+                  tr('filter_actor'),
+                  style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: scheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: actor == null
+                      ? ActionChip(
+                          avatar: const Icon(
+                            Icons.person_search_rounded,
+                            size: 18,
+                          ),
+                          label: Text(tr('filter_actor_pick')),
+                          backgroundColor: scheme.surfaceContainerHigh,
+                          side: BorderSide.none,
+                          labelStyle: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12.5,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                          onPressed: () async {
+                            final picked = await _pickActor(sheetCtx);
+                            if (picked == null || !sheetCtx.mounted) return;
+                            setSheet(() => actor = picked);
+                          },
+                        )
+                      : InputChip(
+                          avatar: const Icon(Icons.person_rounded, size: 18),
+                          label: Text(actor!.name),
+                          selected: true,
+                          showCheckmark: false,
+                          selectedColor: scheme.secondaryContainer,
+                          side: BorderSide.none,
+                          labelStyle: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12.5,
+                            color: scheme.onSecondaryContainer,
+                          ),
+                          onDeleted: () => setSheet(() => actor = null),
+                        ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  tr('filter_genres'),
+                  style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: scheme.primary,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 if (genres.isEmpty)
-                  Text(tr('filter_genres_loading'),
-                      style: TextStyle(
-                          fontFamily: AppTheme.bodyFont,
-                          fontSize: 13,
-                          color: scheme.onSurfaceVariant))
+                  Text(
+                    tr('filter_genres_loading'),
+                    style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 13,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  )
                 else
                   ConstrainedBox(
                     constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(sheetCtx).size.height * 0.35),
+                      maxHeight: MediaQuery.of(sheetCtx).size.height * 0.35,
+                    ),
                     child: SingleChildScrollView(
                       child: Wrap(
                         spacing: 8,
@@ -1502,15 +1735,17 @@ class _LibraryTabState extends State<LibraryTab> {
                               label: Text('${capitalize(g)} · ${counts[g]}'),
                               selected: sel.contains(g),
                               onSelected: (v) => setSheet(
-                                  () => v ? sel.add(g) : sel.remove(g)),
+                                () => v ? sel.add(g) : sel.remove(g),
+                              ),
                               showCheckmark: false,
                               labelStyle: TextStyle(
-                                  fontFamily: AppTheme.bodyFont,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12.5,
-                                  color: sel.contains(g)
-                                      ? scheme.onSecondaryContainer
-                                      : scheme.onSurfaceVariant),
+                                fontFamily: AppTheme.bodyFont,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12.5,
+                                color: sel.contains(g)
+                                    ? scheme.onSecondaryContainer
+                                    : scheme.onSurfaceVariant,
+                              ),
                               selectedColor: scheme.secondaryContainer,
                               backgroundColor: scheme.surfaceContainerHigh,
                               side: BorderSide.none,
@@ -1523,19 +1758,25 @@ class _LibraryTabState extends State<LibraryTab> {
                   const SizedBox(height: 18),
                   Row(
                     children: [
-                      Text(tr('filter_year'),
-                          style: TextStyle(
-                              fontFamily: AppTheme.displayFont,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                              color: scheme.primary)),
+                      Text(
+                        tr('filter_year'),
+                        style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: scheme.primary,
+                        ),
+                      ),
                       const Spacer(),
-                      Text('${range.start.round()} – ${range.end.round()}',
-                          style: TextStyle(
-                              fontFamily: AppTheme.bodyFont,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                              color: scheme.onSurface)),
+                      Text(
+                        '${range.start.round()} – ${range.end.round()}',
+                        style: TextStyle(
+                          fontFamily: AppTheme.bodyFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: scheme.onSurface,
+                        ),
+                      ),
                     ],
                   ),
                   RangeSlider(
@@ -1544,7 +1785,9 @@ class _LibraryTabState extends State<LibraryTab> {
                     divisions: (hiY - loY).round().clamp(1, 200),
                     values: range,
                     labels: RangeLabels(
-                        '${range.start.round()}', '${range.end.round()}'),
+                      '${range.start.round()}',
+                      '${range.end.round()}',
+                    ),
                     onChanged: (v) => setSheet(() => range = v),
                   ),
                 ],
@@ -1558,6 +1801,7 @@ class _LibraryTabState extends State<LibraryTab> {
                           setState(() {
                             _genreFilter.clear();
                             _yearFilter = null;
+                            _actorFilter = null;
                           });
                         },
                         child: Text(tr('reset')),
@@ -1569,11 +1813,13 @@ class _LibraryTabState extends State<LibraryTab> {
                         onPressed: () {
                           Navigator.pop(sheetCtx);
                           setState(() {
+                            _actorFilter = actor;
                             _genreFilter
                               ..clear()
                               ..addAll(sel);
                             // Полный диапазон = без фильтра по году.
-                            _yearFilter = (!hasYears ||
+                            _yearFilter =
+                                (!hasYears ||
                                     (range.start <= loY && range.end >= hiY))
                                 ? null
                                 : range;
@@ -1592,33 +1838,228 @@ class _LibraryTabState extends State<LibraryTab> {
     );
   }
 
+  /// Поиск актёра для фильтра: живой поиск по TMDB, затем его фильмография.
+  ///
+  /// Фильмография тянется в момент выбора (два запроса: фильмы и сериалы) — так
+  /// фильтр сразу видит всю библиотеку, вместо того чтобы ждать, пока каст
+  /// дозагрузится для каждой записи по отдельности.
+  Future<ActorFilter?> _pickActor(BuildContext ctx) {
+    final scheme = Theme.of(ctx).colorScheme;
+    var hits = <TmdbPersonHit>[];
+    var searching = false;
+    var loadingCredits = false;
+    var query = '';
+    Timer? debounce;
+
+    return showModalBottomSheet<ActorFilter>(
+      context: ctx,
+      isScrollControlled: true,
+      backgroundColor: scheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheet) {
+          Future<void> run(String q) async {
+            query = q;
+            debounce?.cancel();
+            debounce = Timer(const Duration(milliseconds: 350), () async {
+              if (q.trim().length < 2) {
+                setSheet(() => hits = []);
+                return;
+              }
+              setSheet(() => searching = true);
+              final found = await TmdbService.searchPeople(q);
+              if (query != q) return; // пока искали, человек набрал другое
+              if (!sheetCtx.mounted) return; // лист успели закрыть
+              setSheet(() {
+                hits = found;
+                searching = false;
+              });
+            });
+          }
+
+          Future<void> choose(TmdbPersonHit h) async {
+            setSheet(() => loadingCredits = true);
+            final credits = await Future.wait([
+              TmdbService.personMovieCredits(h.id),
+              TmdbService.personTvCredits(h.id),
+            ]);
+            final filter = ActorFilter(
+              personId: h.id,
+              name: h.name,
+              movieIds: {for (final m in credits[0] as List<TmdbMovie>) m.id},
+              seriesIds: {for (final t in credits[1] as List<TmdbSeries>) t.id},
+            );
+            if (!sheetCtx.mounted) return;
+            if (filter.isEmpty) {
+              setSheet(() => loadingCredits = false);
+              ScaffoldMessenger.of(
+                sheetCtx,
+              ).showSnackBar(SnackBar(content: Text(tr('actor_no_credits'))));
+              return;
+            }
+            Navigator.pop(sheetCtx, filter);
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(sheetCtx).viewInsets.bottom,
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: scheme.outlineVariant,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      tr('actor_search_title'),
+                      style: TextStyle(
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 20,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      autofocus: true,
+                      textInputAction: TextInputAction.search,
+                      decoration: InputDecoration(
+                        hintText: tr('actor_search_hint'),
+                        prefixIcon: const Icon(Icons.search_rounded),
+                        filled: true,
+                        fillColor: scheme.surfaceContainerHigh,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onChanged: run,
+                    ),
+                    const SizedBox(height: 12),
+                    if (loadingCredits || searching)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (hits.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Text(
+                          query.trim().length < 2
+                              ? tr('actor_search_start')
+                              : tr('actor_search_none'),
+                          style: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontSize: 13,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      )
+                    else
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.of(sheetCtx).size.height * 0.45,
+                        ),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: hits.length,
+                          itemBuilder: (_, i) {
+                            final h = hits[i];
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: CircleAvatar(
+                                radius: 22,
+                                backgroundColor: scheme.surfaceContainerHighest,
+                                backgroundImage: h.photoUrl != null
+                                    ? CachedNetworkImageProvider(h.photoUrl!)
+                                    : null,
+                                child: h.photoUrl == null
+                                    ? Icon(
+                                        Icons.person_rounded,
+                                        color: scheme.onSurfaceVariant,
+                                      )
+                                    : null,
+                              ),
+                              title: Text(
+                                h.name,
+                                style: TextStyle(
+                                  fontFamily: AppTheme.bodyFont,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14.5,
+                                  color: scheme.onSurface,
+                                ),
+                              ),
+                              subtitle: h.knownFor.isEmpty
+                                  ? null
+                                  : Text(
+                                      h.knownFor.take(3).join(' · '),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontFamily: AppTheme.bodyFont,
+                                        fontSize: 12.5,
+                                        color: scheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                              onTap: () => choose(h),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    ).whenComplete(() => debounce?.cancel());
+  }
+
   Widget _countHeader(BuildContext context, int n) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-        child: Text(
-          trf('lib_count', {'n': n}),
-          style: TextStyle(
-              fontFamily: AppTheme.bodyFont,
-              fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-      );
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+    child: Text(
+      trf('lib_count', {'n': n}),
+      style: TextStyle(
+        fontFamily: AppTheme.bodyFont,
+        fontSize: 13,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    ),
+  );
 
   Widget _monthHeader(BuildContext context, DateTime month) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-        child: Text(
-          month.year <= 1
-              ? tr('when_unknown')
-              : trf('watched_month',
-                  {'month': monthName(month.month), 'year': month.year}),
-          style: TextStyle(
-            fontFamily: AppTheme.displayFont,
-            fontWeight: FontWeight.w800,
-            fontSize: 21,
-            letterSpacing: -0.4,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+    child: Text(
+      month.year <= 1
+          ? tr('when_unknown')
+          : trf('watched_month', {
+              'month': monthName(month.month),
+              'year': month.year,
+            }),
+      style: TextStyle(
+        fontFamily: AppTheme.displayFont,
+        fontWeight: FontWeight.w800,
+        fontSize: 21,
+        letterSpacing: -0.4,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
+    ),
+  );
 
   /// Разбивает элементы месяца на дни (сохраняя их порядок) — для дневных
   /// разделителей. Элементы уже отсортированы по дате, поэтому первое появление
@@ -1658,7 +2099,10 @@ class _LibraryTabState extends State<LibraryTab> {
           const SizedBox(width: 10),
           Expanded(
             child: Divider(
-                height: 1, thickness: 1, color: scheme.surfaceContainerHighest),
+              height: 1,
+              thickness: 1,
+              color: scheme.surfaceContainerHighest,
+            ),
           ),
         ],
       ),
@@ -1713,29 +2157,36 @@ class _LibEntry {
   /// Сериал в «Буду смотреть» (без сессии — ещё не начат).
   final LibrarySeries? seriesItem;
   _LibEntry.movie(this.movie, {this.viewing, this.rewatchNumber})
-      : session = null,
-        seriesItem = null;
+    : session = null,
+      seriesItem = null;
   _LibEntry.session(this.session)
-      : movie = null,
-        viewing = null,
-        rewatchNumber = null,
-        seriesItem = null;
+    : movie = null,
+      viewing = null,
+      rewatchNumber = null,
+      seriesItem = null;
   _LibEntry.series(this.seriesItem)
-      : movie = null,
-        viewing = null,
-        rewatchNumber = null,
-        session = null;
+    : movie = null,
+      viewing = null,
+      rewatchNumber = null,
+      session = null;
 
-  DateTime? get date =>
-      session != null ? session!.start : viewing?.date;
+  DateTime? get date => session != null ? session!.start : viewing?.date;
   double? get score => session != null
       ? (session!.avgScore ?? session!.series.displayScore)
       : (viewing != null ? movie!.scoreOf(viewing!) : movie?.currentScore);
   String get title => session != null
       ? session!.series.displayTitle
       : (seriesItem != null ? seriesItem!.displayTitle : movie!.displayTitle);
-  int? get year =>
-      (session != null || seriesItem != null) ? null : movie!.year;
+  int? get year => (session != null || seriesItem != null) ? null : movie!.year;
+
+  /// Рейтинг источника (TMDB/ПоискКино) — чужая оценка, не моя.
+  double? get rating => session != null
+      ? session!.series.kpRating
+      : (seriesItem != null ? seriesItem!.kpRating : movie?.kpRating);
+
+  /// Длительность фильма. У сериала её нет: сортировка по времени уводит такие
+  /// записи вниз, как и записи без года.
+  int? get runtimeMin => movie?.runtimeMin;
 }
 
 /// Карточка-постер для сетки (режим «Постеры»).
@@ -1785,11 +2236,12 @@ class _PosterCell extends StatelessWidget {
           Stack(
             children: [
               Poster(
-                  title: title,
-                  url: posterUrl,
-                  width: width,
-                  radius: 16,
-                  heroTag: heroTag),
+                title: title,
+                url: posterUrl,
+                width: width,
+                radius: 16,
+                heroTag: heroTag,
+              ),
               if (favorite || dropped)
                 Positioned(
                   top: 6,
@@ -1801,9 +2253,14 @@ class _PosterCell extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(5),
                           decoration: BoxDecoration(
-                              color: scheme.primary, shape: BoxShape.circle),
-                          child: Icon(Icons.favorite_rounded,
-                              size: 13, color: scheme.onPrimary),
+                            color: scheme.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.favorite_rounded,
+                            size: 13,
+                            color: scheme.onPrimary,
+                          ),
                         ),
                       if (favorite && dropped) const SizedBox(width: 4),
                       if (dropped) droppedBadge(),
@@ -1817,10 +2274,14 @@ class _PosterCell extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                        color: scheme.tertiary,
-                        borderRadius: BorderRadius.circular(8)),
-                    child: Icon(Icons.live_tv_rounded,
-                        size: 13, color: scheme.onTertiary),
+                      color: scheme.tertiary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.live_tv_rounded,
+                      size: 13,
+                      color: scheme.onTertiary,
+                    ),
                   ),
                 ),
               // Прогресс сериала (кольцо + N/M) в нижнем левом углу постера.
@@ -1829,27 +2290,28 @@ class _PosterCell extends StatelessWidget {
                   bottom: 6,
                   left: 6,
                   child: SeriesProgressPill(
-                      seen: episodesSeen!, total: totalEpisodes),
+                    seen: episodesSeen!,
+                    total: totalEpisodes,
+                  ),
                 ),
               if (score != null)
-                Positioned(
-                  bottom: 6,
-                  right: 6,
-                  child: _scorePill(score!),
-                ),
+                Positioned(bottom: 6, right: 6, child: _scorePill(score!)),
               if (selecting) _selectOverlay(scheme, selected, 16),
             ],
           ),
           const SizedBox(height: 6),
-          Text(title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontFamily: AppTheme.displayFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12.5,
-                  height: 1.1,
-                  color: scheme.onSurface)),
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: AppTheme.displayFont,
+              fontWeight: FontWeight.w700,
+              fontSize: 12.5,
+              height: 1.1,
+              color: scheme.onSurface,
+            ),
+          ),
         ],
       ),
     );
@@ -1922,24 +2384,30 @@ class _BannerCell extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontFamily: AppTheme.displayFont,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 19,
-                              height: 1.05,
-                              color: Colors.white)),
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 19,
+                          height: 1.05,
+                          color: Colors.white,
+                        ),
+                      ),
                       if (subtitle != null && subtitle!.isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        Text(subtitle!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontFamily: AppTheme.bodyFont,
-                                fontSize: 12.5,
-                                color: Colors.white.withValues(alpha: 0.85))),
+                        Text(
+                          subtitle!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontSize: 12.5,
+                            color: Colors.white.withValues(alpha: 0.85),
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -1952,18 +2420,27 @@ class _BannerCell extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (series) ...[
-                          const Icon(Icons.live_tv_rounded,
-                              size: 20, color: Colors.white),
+                          const Icon(
+                            Icons.live_tv_rounded,
+                            size: 20,
+                            color: Colors.white,
+                          ),
                           const SizedBox(width: 8),
                         ],
                         if (favorite) ...[
-                          const Icon(Icons.favorite_rounded,
-                              size: 20, color: Colors.white),
+                          const Icon(
+                            Icons.favorite_rounded,
+                            size: 20,
+                            color: Colors.white,
+                          ),
                           const SizedBox(width: 8),
                         ],
                         if (dropped)
-                          const Icon(Icons.heart_broken_rounded,
-                              size: 20, color: kDroppedColor),
+                          const Icon(
+                            Icons.heart_broken_rounded,
+                            size: 20,
+                            color: kDroppedColor,
+                          ),
                       ],
                     ),
                   ),
@@ -1984,9 +2461,10 @@ class _BannerCell extends StatelessWidget {
         imageUrl: posterUrl!,
         fit: BoxFit.cover,
         alignment: Alignment.topCenter,
-        memCacheWidth: (MediaQuery.sizeOf(context).width *
-                MediaQuery.devicePixelRatioOf(context))
-            .round(),
+        memCacheWidth:
+            (MediaQuery.sizeOf(context).width *
+                    MediaQuery.devicePixelRatioOf(context))
+                .round(),
         placeholder: (c, _) => Container(color: scheme.surfaceContainerHighest),
         errorWidget: (c, u, e) =>
             Container(color: scheme.surfaceContainerHighest),
@@ -1995,8 +2473,11 @@ class _BannerCell extends StatelessWidget {
     return Container(
       color: scheme.surfaceContainerHighest,
       alignment: Alignment.center,
-      child: Icon(Icons.movie_rounded,
-          size: 44, color: scheme.onSurfaceVariant),
+      child: Icon(
+        Icons.movie_rounded,
+        size: 44,
+        color: scheme.onSurfaceVariant,
+      ),
     );
   }
 }
@@ -2052,18 +2533,24 @@ Widget _scorePill(double score) {
   final on = onScoreColor(score);
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(20)),
+    decoration: BoxDecoration(
+      color: c,
+      borderRadius: BorderRadius.circular(20),
+    ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.star_rounded, size: 13, color: on),
         const SizedBox(width: 2),
-        Text(score.toStringAsFixed(1),
-            style: TextStyle(
-                fontFamily: AppTheme.displayFont,
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-                color: on)),
+        Text(
+          score.toStringAsFixed(1),
+          style: TextStyle(
+            fontFamily: AppTheme.displayFont,
+            fontWeight: FontWeight.w800,
+            fontSize: 12,
+            color: on,
+          ),
+        ),
       ],
     ),
   );
@@ -2114,8 +2601,9 @@ class _SeriesSessionCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
         child: Material(
-          color:
-              selected ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+          color: selected
+              ? scheme.primaryContainer
+              : scheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(22),
           clipBehavior: Clip.antiAlias,
           child: Column(
@@ -2124,8 +2612,11 @@ class _SeriesSessionCard extends StatelessWidget {
                 onTap: selecting
                     ? onSelect
                     : (onOpen ??
-                        () => Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => SeriesScreen(series: s)))),
+                          () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => SeriesScreen(series: s),
+                            ),
+                          )),
                 onLongPress: onSelect,
                 child: Padding(
                   padding: const EdgeInsets.all(10),
@@ -2134,29 +2625,34 @@ class _SeriesSessionCard extends StatelessWidget {
                       Stack(
                         children: [
                           Poster(
-                              title: s.displayTitle,
-                              url: s.displayPoster,
-                              width: 58,
-                              heroTag: heroTag),
+                            title: s.displayTitle,
+                            url: s.displayPoster,
+                            width: 58,
+                            heroTag: heroTag,
+                          ),
                           Positioned(
                             left: 4,
                             top: 4,
                             child: Container(
                               padding: const EdgeInsets.all(3),
                               decoration: BoxDecoration(
-                                  color: scheme.tertiary,
-                                  borderRadius: BorderRadius.circular(8)),
-                              child: Icon(Icons.live_tv_rounded,
-                                  size: 12, color: scheme.onTertiary),
+                                color: scheme.tertiary,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.live_tv_rounded,
+                                size: 12,
+                                color: scheme.onTertiary,
+                              ),
                             ),
                           ),
                           if (selecting) _selectOverlay(scheme, selected, 12),
                           if (!selecting && onDiary != null)
                             Positioned(
-                                left: 2,
-                                bottom: 2,
-                                child:
-                                    _DiaryBadge(diary: diary, onTap: onDiary!)),
+                              left: 2,
+                              bottom: 2,
+                              child: _DiaryBadge(diary: diary, onTap: onDiary!),
+                            ),
                         ],
                       ),
                       const SizedBox(width: 14),
@@ -2165,50 +2661,65 @@ class _SeriesSessionCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(s.displayTitle,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontFamily: AppTheme.displayFont,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 16,
-                                    height: 1.1,
-                                    color: scheme.onSurface)),
+                            Text(
+                              s.displayTitle,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: AppTheme.displayFont,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                height: 1.1,
+                                color: scheme.onSurface,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             Row(
                               children: [
                                 if (s.favorite)
                                   Padding(
                                     padding: const EdgeInsets.only(right: 6),
-                                    child: Icon(Icons.favorite_rounded,
-                                        size: 15, color: scheme.primary),
+                                    child: Icon(
+                                      Icons.favorite_rounded,
+                                      size: 15,
+                                      color: scheme.primary,
+                                    ),
                                   ),
                                 if (s.dropped)
                                   const Padding(
                                     padding: EdgeInsets.only(right: 6),
-                                    child: Icon(Icons.heart_broken_rounded,
-                                        size: 15, color: kDroppedColor),
+                                    child: Icon(
+                                      Icons.heart_broken_rounded,
+                                      size: 15,
+                                      color: kDroppedColor,
+                                    ),
                                   ),
                                 Flexible(
                                   child: Text(
-                                      '${session.rangeLabel} · ${session.count} сер.',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                          fontFamily: AppTheme.bodyFont,
-                                          fontSize: 13,
-                                          color: scheme.onSurfaceVariant)),
+                                    '${session.rangeLabel} · ${session.count} сер.',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: AppTheme.bodyFont,
+                                      fontSize: 13,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
                             if (start != null) ...[
                               const SizedBox(height: 3),
-                              Text(dateExactWithTime(start),
-                                  style: TextStyle(
-                                      fontFamily: AppTheme.bodyFont,
-                                      fontSize: 12,
-                                      color: scheme.onSurfaceVariant
-                                          .withValues(alpha: 0.85))),
+                              Text(
+                                dateExactWithTime(start),
+                                style: TextStyle(
+                                  fontFamily: AppTheme.bodyFont,
+                                  fontSize: 12,
+                                  color: scheme.onSurfaceVariant.withValues(
+                                    alpha: 0.85,
+                                  ),
+                                ),
+                              ),
                             ],
                           ],
                         ),
@@ -2220,11 +2731,12 @@ class _SeriesSessionCard extends StatelessWidget {
                 ),
               ),
               Divider(
-                  height: 1,
-                  thickness: 1,
-                  indent: 16,
-                  endIndent: 16,
-                  color: scheme.surfaceContainerHighest),
+                height: 1,
+                thickness: 1,
+                indent: 16,
+                endIndent: 16,
+                color: scheme.surfaceContainerHighest,
+              ),
               // В режиме выделения гасим внутренние тапы серий (иначе тап
               // открыл бы диалог оценки), а по касанию — переключаем выбор.
               GestureDetector(
@@ -2240,33 +2752,48 @@ class _SeriesSessionCard extends StatelessWidget {
                         // Серии от последней к первой (новые сверху).
                         for (final ep in session.episodes.reversed.take(12))
                           _EpisodeRow(
-                              seriesId: s.tvShowId, ep: ep, readOnly: readOnly),
-                    if (session.episodes.length > 12)
-                      InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: onOpen ??
-                            () => Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) => SeriesScreen(series: s))),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 8, horizontal: 4),
-                          child: Row(
-                            children: [
-                              Icon(Icons.expand_more_rounded,
-                                  size: 18, color: scheme.primary),
-                              const SizedBox(width: 8),
-                              Text(
-                                  trf('more_episodes',
-                                      {'n': session.episodes.length - 12}),
-                                  style: TextStyle(
+                            seriesId: s.tvShowId,
+                            ep: ep,
+                            readOnly: readOnly,
+                          ),
+                        if (session.episodes.length > 12)
+                          InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap:
+                                onOpen ??
+                                () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => SeriesScreen(series: s),
+                                  ),
+                                ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                                horizontal: 4,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.expand_more_rounded,
+                                    size: 18,
+                                    color: scheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    trf('more_episodes', {
+                                      'n': session.episodes.length - 12,
+                                    }),
+                                    style: TextStyle(
                                       fontFamily: AppTheme.bodyFont,
                                       fontWeight: FontWeight.w600,
                                       fontSize: 13,
-                                      color: scheme.primary)),
-                            ],
+                                      color: scheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
                       ],
                     ),
                   ),
@@ -2285,8 +2812,11 @@ class _EpisodeRow extends StatelessWidget {
   final String seriesId;
   final Episode ep;
   final bool readOnly;
-  const _EpisodeRow(
-      {required this.seriesId, required this.ep, this.readOnly = false});
+  const _EpisodeRow({
+    required this.seriesId,
+    required this.ep,
+    this.readOnly = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2299,27 +2829,36 @@ class _EpisodeRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
         child: Row(
           children: [
-            Icon(Icons.play_circle_outline_rounded,
-                size: 18, color: scheme.onSurfaceVariant),
+            Icon(
+              Icons.play_circle_outline_rounded,
+              size: 18,
+              color: scheme.onSurfaceVariant,
+            ),
             const SizedBox(width: 10),
             SizedBox(
               width: 92,
-              child: Text(ep.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: false,
-                  style: TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: scheme.onSurface)),
+              child: Text(
+                ep.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                style: TextStyle(
+                  fontFamily: AppTheme.displayFont,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: scheme.onSurface,
+                ),
+              ),
             ),
             if (ep.watchedAt != null)
-              Text(hhmm(ep.watchedAt!),
-                  style: TextStyle(
-                      fontFamily: AppTheme.bodyFont,
-                      fontSize: 12,
-                      color: scheme.onSurfaceVariant.withValues(alpha: 0.8))),
+              Text(
+                hhmm(ep.watchedAt!),
+                style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontSize: 12,
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                ),
+              ),
             // Бейдж повтора «↻ N» — на самой серии (номер этого просмотра).
             if (ep.rewatchOrdinal >= 2) ...[
               const SizedBox(width: 8),
@@ -2338,22 +2877,24 @@ class _EpisodeRow extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                      sc != null
-                          ? Icons.star_rounded
-                          : Icons.star_border_rounded,
-                      size: 14,
+                    sc != null ? Icons.star_rounded : Icons.star_border_rounded,
+                    size: 14,
+                    color: sc != null
+                        ? scheme.onPrimaryContainer
+                        : scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    sc != null ? sc.toStringAsFixed(1) : '—',
+                    style: TextStyle(
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
                       color: sc != null
                           ? scheme.onPrimaryContainer
-                          : scheme.onSurfaceVariant),
-                  const SizedBox(width: 3),
-                  Text(sc != null ? sc.toStringAsFixed(1) : '—',
-                      style: TextStyle(
-                          fontFamily: AppTheme.displayFont,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12.5,
-                          color: sc != null
-                              ? scheme.onPrimaryContainer
-                              : scheme.onSurfaceVariant)),
+                          : scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2381,24 +2922,31 @@ class _EpisodeRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                        color: scheme.outlineVariant,
-                        borderRadius: BorderRadius.circular(2))),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: scheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
                 const SizedBox(height: 14),
-                Text(ep.label,
-                    style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                        color: scheme.onSurface)),
+                Text(
+                  ep.label,
+                  style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: scheme.onSurface,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () async {
-                    final r = await showScorePad(sheetCtx,
-                        initial: rated ? val : null);
+                    final r = await showScorePad(
+                      sheetCtx,
+                      initial: rated ? val : null,
+                    );
                     if (r != null) {
                       setSheet(() {
                         val = r;
@@ -2409,17 +2957,23 @@ class _EpisodeRow extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(rated ? val.toStringAsFixed(1) : '—',
-                          style: TextStyle(
-                              fontFamily: AppTheme.displayFont,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 44,
-                              color: rated
-                                  ? scoreColor(val)
-                                  : scheme.onSurfaceVariant)),
+                      Text(
+                        rated ? val.toStringAsFixed(1) : '—',
+                        style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 44,
+                          color: rated
+                              ? scoreColor(val)
+                              : scheme.onSurfaceVariant,
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      Icon(Icons.dialpad_rounded,
-                          size: 18, color: scheme.onSurfaceVariant),
+                      Icon(
+                        Icons.dialpad_rounded,
+                        size: 18,
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ],
                   ),
                 ),
@@ -2437,7 +2991,12 @@ class _EpisodeRow extends StatelessWidget {
                       child: TextButton(
                         onPressed: () {
                           MovieRepository.instance.setEpisodeViewScoreByDate(
-                              seriesId, ep.season, ep.number, ep.watchedAt, null);
+                            seriesId,
+                            ep.season,
+                            ep.number,
+                            ep.watchedAt,
+                            null,
+                          );
                           Navigator.pop(sheetCtx);
                         },
                         child: Text(tr('remove_score')),
@@ -2448,11 +3007,12 @@ class _EpisodeRow extends StatelessWidget {
                       child: FilledButton(
                         onPressed: () {
                           MovieRepository.instance.setEpisodeViewScoreByDate(
-                              seriesId,
-                              ep.season,
-                              ep.number,
-                              ep.watchedAt,
-                              rated ? val : null);
+                            seriesId,
+                            ep.season,
+                            ep.number,
+                            ep.watchedAt,
+                            rated ? val : null,
+                          );
                           Navigator.pop(sheetCtx);
                         },
                         child: Text(tr('done')),
@@ -2478,9 +3038,14 @@ Widget _scoreBadge(ColorScheme scheme, double? score, {bool addMode = false}) {
       height: 46,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest, shape: BoxShape.circle),
-      child: Icon(addMode ? Icons.add_rounded : Icons.star_border_rounded,
-          color: scheme.onSurfaceVariant, size: 24),
+        color: scheme.surfaceContainerHighest,
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        addMode ? Icons.add_rounded : Icons.star_border_rounded,
+        color: scheme.onSurfaceVariant,
+        size: 24,
+      ),
     );
   }
   return Container(
@@ -2555,7 +3120,9 @@ class _MovieRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
         child: Material(
-          color: selected ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+          color: selected
+              ? scheme.primaryContainer
+              : scheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(22),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -2571,16 +3138,18 @@ class _MovieRow extends StatelessWidget {
                   Stack(
                     children: [
                       Poster(
-                          title: movie.displayTitle,
-                          url: movie.displayPoster,
-                          width: 58,
-                          heroTag: heroTag),
+                        title: movie.displayTitle,
+                        url: movie.displayPoster,
+                        width: 58,
+                        heroTag: heroTag,
+                      ),
                       if (selecting) _selectOverlay(scheme, selected, 12),
                       if (!selecting && onDiary != null)
                         Positioned(
-                            left: 2,
-                            bottom: 2,
-                            child: _DiaryBadge(diary: diary, onTap: onDiary!)),
+                          left: 2,
+                          bottom: 2,
+                          child: _DiaryBadge(diary: diary, onTap: onDiary!),
+                        ),
                     ],
                   ),
                   const SizedBox(width: 14),
@@ -2589,38 +3158,49 @@ class _MovieRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(movie.displayTitle,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontFamily: AppTheme.displayFont,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                                height: 1.1,
-                                color: scheme.onSurface)),
+                        Text(
+                          movie.displayTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: AppTheme.displayFont,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            height: 1.1,
+                            color: scheme.onSurface,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Row(
                           children: [
                             if (movie.emotions.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(right: 6),
-                                child: Text(movie.emotions.first.emoji,
-                                    style: const TextStyle(fontSize: 15)),
+                                child: Text(
+                                  movie.emotions.first.emoji,
+                                  style: const TextStyle(fontSize: 15),
+                                ),
                               ),
                             if (movie.favorite)
                               Padding(
                                 padding: const EdgeInsets.only(right: 6),
-                                child: Icon(Icons.favorite_rounded,
-                                    size: 15, color: scheme.primary),
+                                child: Icon(
+                                  Icons.favorite_rounded,
+                                  size: 15,
+                                  color: scheme.primary,
+                                ),
                               ),
                             Flexible(
-                              child: Text(meta,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                      fontFamily: AppTheme.bodyFont,
-                                      fontSize: 13,
-                                      color: scheme.onSurfaceVariant)),
+                              child: Text(
+                                meta,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: AppTheme.bodyFont,
+                                  fontSize: 13,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -2632,10 +3212,12 @@ class _MovieRow extends StatelessWidget {
                                 Text(
                                   dateExactWithTime(date),
                                   style: TextStyle(
-                                      fontFamily: AppTheme.bodyFont,
-                                      fontSize: 12,
-                                      color: scheme.onSurfaceVariant
-                                          .withValues(alpha: 0.85)),
+                                    fontFamily: AppTheme.bodyFont,
+                                    fontSize: 12,
+                                    color: scheme.onSurfaceVariant.withValues(
+                                      alpha: 0.85,
+                                    ),
+                                  ),
                                 ),
                               if (rewatchNumber != null) ...[
                                 if (date != null) const SizedBox(width: 8),
@@ -2663,24 +3245,28 @@ class _MovieRow extends StatelessWidget {
 
 /// Бейдж повтора «↻ N» — номер просмотра (2-й, 3-й…). Общий для фильмов и серий.
 Widget _rewatchChip(ColorScheme scheme, int n) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-          color: scheme.tertiaryContainer,
-          borderRadius: BorderRadius.circular(12)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.repeat_rounded, size: 13, color: scheme.onTertiaryContainer),
-          const SizedBox(width: 3),
-          Text('$n',
-              style: TextStyle(
-                  fontFamily: AppTheme.displayFont,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
-                  color: scheme.onTertiaryContainer)),
-        ],
+  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+  decoration: BoxDecoration(
+    color: scheme.tertiaryContainer,
+    borderRadius: BorderRadius.circular(12),
+  ),
+  child: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(Icons.repeat_rounded, size: 13, color: scheme.onTertiaryContainer),
+      const SizedBox(width: 3),
+      Text(
+        '$n',
+        style: TextStyle(
+          fontFamily: AppTheme.displayFont,
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+          color: scheme.onTertiaryContainer,
+        ),
       ),
-    );
+    ],
+  ),
+);
 
 /// Маленький бейдж дневника в углу постера в ленте «Просмотрено»: пусто — тусклая
 /// иконка (тап → добавить запись); есть запись — эмодзи настроения (тап → правка).
@@ -2757,17 +3343,21 @@ class _WatchlistSeriesRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
         child: Material(
-          color:
-              selected ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+          color: selected
+              ? scheme.primaryContainer
+              : scheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(22),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: selecting
                 ? onSelect
                 : (onOpen ??
-                    () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) =>
-                            SeriesScreen(series: series, heroTag: heroTag)))),
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              SeriesScreen(series: series, heroTag: heroTag),
+                        ),
+                      )),
             onLongPress: onSelect,
             child: Padding(
               padding: const EdgeInsets.all(10),
@@ -2776,19 +3366,24 @@ class _WatchlistSeriesRow extends StatelessWidget {
                   Stack(
                     children: [
                       Poster(
-                          title: series.displayTitle,
-                          url: series.displayPoster,
-                          width: 58),
+                        title: series.displayTitle,
+                        url: series.displayPoster,
+                        width: 58,
+                      ),
                       Positioned(
                         left: 4,
                         top: 4,
                         child: Container(
                           padding: const EdgeInsets.all(3),
                           decoration: BoxDecoration(
-                              color: scheme.tertiary,
-                              borderRadius: BorderRadius.circular(8)),
-                          child: Icon(Icons.live_tv_rounded,
-                              size: 12, color: scheme.onTertiary),
+                            color: scheme.tertiary,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.live_tv_rounded,
+                            size: 12,
+                            color: scheme.onTertiary,
+                          ),
                         ),
                       ),
                       if (selecting) _selectOverlay(scheme, selected, 12),
@@ -2800,37 +3395,48 @@ class _WatchlistSeriesRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(series.displayTitle,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontFamily: AppTheme.displayFont,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                                height: 1.1,
-                                color: scheme.onSurface)),
+                        Text(
+                          series.displayTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: AppTheme.displayFont,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            height: 1.1,
+                            color: scheme.onSurface,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Row(
                           children: [
                             if (series.favorite)
                               Padding(
                                 padding: const EdgeInsets.only(right: 6),
-                                child: Icon(Icons.favorite_rounded,
-                                    size: 15, color: scheme.primary),
+                                child: Icon(
+                                  Icons.favorite_rounded,
+                                  size: 15,
+                                  color: scheme.primary,
+                                ),
                               ),
-                            Text(_subtitle(series),
-                                style: TextStyle(
-                                    fontFamily: AppTheme.bodyFont,
-                                    fontSize: 13,
-                                    color: scheme.onSurfaceVariant)),
+                            Text(
+                              _subtitle(series),
+                              style: TextStyle(
+                                fontFamily: AppTheme.bodyFont,
+                                fontSize: 13,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
                           ],
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Icon(Icons.chevron_right_rounded,
-                      color: scheme.onSurfaceVariant),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ],
               ),
             ),

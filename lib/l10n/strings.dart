@@ -568,7 +568,7 @@ const Map<String, Map<String, String>> _strings = {
   'roulette_title': {'ru': 'Кинорулетка', 'en': 'Movie roulette'},
   'roulette_spin': {'ru': 'Крутить!', 'en': 'Spin!'},
   'roulette_spinning': {'ru': 'Крутим…', 'en': 'Spinning…'},
-  'roulette_open': {'ru': 'Открыть фильм', 'en': 'Open film'},
+  'roulette_open': {'ru': 'Открыть', 'en': 'Open'},
   'roulette_src_watchlist': {'ru': 'Мой вишлист', 'en': 'My watchlist'},
   'roulette_src_friends': {'ru': 'Советы друзей', 'en': 'Friends’ picks'},
   'roulette_empty_watchlist': {
@@ -1045,7 +1045,10 @@ const Map<String, Map<String, String>> _strings = {
   'sort': {'ru': 'Сортировка', 'en': 'Sort'},
   'sort_date_new': {'ru': 'Сначала новые', 'en': 'Newest first'},
   'sort_date_old': {'ru': 'Сначала старые', 'en': 'Oldest first'},
-  'sort_rating': {'ru': 'По оценке', 'en': 'By rating'},
+  'sort_rating': {'ru': 'Рейтинг источника', 'en': 'Source rating'},
+  'sort_my_score': {'ru': 'Моя оценка', 'en': 'My rating'},
+  'sort_runtime_long': {'ru': 'Сначала длинные', 'en': 'Longest first'},
+  'sort_runtime_short': {'ru': 'Сначала короткие', 'en': 'Shortest first'},
   'sort_title': {'ru': 'По названию', 'en': 'By title'},
   'sort_year': {'ru': 'По году', 'en': 'By year'},
   'filter_genre': {'ru': 'Жанр', 'en': 'Genre'},
@@ -1505,6 +1508,19 @@ const Map<String, Map<String, String>> _strings = {
   },
   'filters': {'ru': 'Фильтры', 'en': 'Filters'},
   'filter_genres': {'ru': 'Жанры', 'en': 'Genres'},
+  'filter_actor': {'ru': 'Актёр', 'en': 'Actor'},
+  'filter_actor_pick': {'ru': 'Выбрать актёра', 'en': 'Choose an actor'},
+  'actor_search_title': {'ru': 'Поиск актёра', 'en': 'Find an actor'},
+  'actor_search_hint': {'ru': 'Имя актёра', 'en': 'Actor name'},
+  'actor_search_start': {
+    'ru': 'Введите хотя бы две буквы',
+    'en': 'Type at least two letters',
+  },
+  'actor_search_none': {'ru': 'Никого не нашлось', 'en': 'No one found'},
+  'actor_no_credits': {
+    'ru': 'У него нет ролей в базе TMDB',
+    'en': 'TMDB lists no roles for them',
+  },
   'filter_genres_loading': {
     'ru': 'Жанры подгружаются в фоне — открой пару карточек или зайди позже.',
     'en':

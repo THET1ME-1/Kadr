@@ -83,4 +83,38 @@ void main() {
     expect(TmdbService.parsePersonMovies(const {}), isEmpty);
     expect(TmdbService.parsePersonSeries(const {}), isEmpty);
   });
+
+  test('поиск людей: имя, фото и «известен по» из фильмов и сериалов', () {
+    final hits = TmdbService.parsePeople({
+      'results': [
+        {
+          'id': 11,
+          'name': 'Киллиан Мёрфи',
+          'profile_path': '/km.jpg',
+          'known_for': [
+            {'media_type': 'movie', 'title': 'Оппенгеймер'},
+            {'media_type': 'tv', 'name': 'Острые козырьки'},
+          ],
+        },
+        {'id': 12, 'name': 'Однофамилец'},
+      ],
+    });
+    expect(hits.length, 2);
+    expect(hits.first.name, 'Киллиан Мёрфи');
+    expect(hits.first.photoUrl, endsWith('/km.jpg'));
+    expect(hits.first.knownFor, ['Оппенгеймер', 'Острые козырьки']);
+    expect(hits.last.photoUrl, isNull);
+    expect(hits.last.knownFor, isEmpty);
+  });
+
+  test('поиск людей: запись без имени или id выбрасывается', () {
+    final hits = TmdbService.parsePeople({
+      'results': [
+        {'id': 1, 'name': '   '},
+        {'name': 'Без id'},
+        {'id': 2, 'name': 'Годный'},
+      ],
+    });
+    expect(hits.map((h) => h.name).toList(), ['Годный']);
+  });
 }
