@@ -30,7 +30,7 @@ const Map<String, Map<String, String>> _strings = {
   'poster_change': {'ru': 'Изменить постер', 'en': 'Change poster'},
   'poster_load_failed': {
     'ru': 'Не удалось загрузить постер',
-    'en': 'Failed to load poster'
+    'en': 'Failed to load poster',
   },
   'poster_reset': {'ru': 'Вернуть оригинал', 'en': 'Restore original'},
   'disc_hide_section': {'ru': 'Скрывать в Обзоре', 'en': 'Hide in Discover'},
@@ -757,7 +757,10 @@ const Map<String, Map<String, String>> _strings = {
   'movies_count': {'ru': '{n} фильмов', 'en': '{n} movies'},
   'facts_title': {'ru': 'Знаете ли вы', 'en': 'Did you know'},
   'facts_bloopers': {'ru': 'Киноляпы', 'en': 'Bloopers'},
-  'facts_spoiler': {'ru': 'Спойлер, нажмите чтобы прочитать', 'en': 'Spoiler, tap to read'},
+  'facts_spoiler': {
+    'ru': 'Спойлер, нажмите чтобы прочитать',
+    'en': 'Spoiler, tap to read',
+  },
   'facts_more_n': {'ru': 'Ещё {n}', 'en': '{n} more'},
   'facts_source': {'ru': 'Факты с ПоискКино', 'en': 'Facts from PoiskKino'},
   'bio_awards': {'ru': 'Главные награды', 'en': 'Main awards'},
@@ -802,9 +805,11 @@ const Map<String, Map<String, String>> _strings = {
   // --------------------------- Иконка приложения ---------------------------
   'app_icon': {'ru': 'Иконка приложения', 'en': 'App icon'},
   'app_icon_hint': {
-    'ru': 'Иконка на рабочем столе обновится за пару секунд. '
+    'ru':
+        'Иконка на рабочем столе обновится за пару секунд. '
         'Некоторые оболочки показывают новую только после перезапуска.',
-    'en': 'The home screen icon updates within a couple of seconds. '
+    'en':
+        'The home screen icon updates within a couple of seconds. '
         'Some launchers show it only after a restart.',
   },
   'app_icon_graphite': {'ru': 'Бирюза на графите', 'en': 'Teal on graphite'},
@@ -821,10 +826,12 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Any colours — as a home screen shortcut',
   },
   'custom_icon_warning': {
-    'ru': 'Это НЕ замена иконки приложения, а новый ярлык на рабочем столе: '
+    'ru':
+        'Это НЕ замена иконки приложения, а новый ярлык на рабочем столе: '
         'произвольный цвет Android разрешает только ярлыкам. Обычная иконка '
         'останется на месте — её колеровка выбирается выше.',
-    'en': 'This does NOT replace the app icon — it adds a new home screen '
+    'en':
+        'This does NOT replace the app icon — it adds a new home screen '
         'shortcut: Android allows custom colours only for shortcuts. The regular '
         'icon stays as it is; pick its colourway above.',
   },
@@ -1642,11 +1649,11 @@ const Map<String, Map<String, String>> _strings = {
   'tvtime_title': {'ru': 'Импорт из TV Time', 'en': 'Import from TV Time'},
   'tvtime_settings_sub': {
     'ru': 'Перенести фильмы, сериалы и просмотры',
-    'en': 'Move movies, series and watch history'
+    'en': 'Move movies, series and watch history',
   },
   'tvtime_headline': {
     'ru': 'Перенеси свою историю из TV Time',
-    'en': 'Bring your history from TV Time'
+    'en': 'Bring your history from TV Time',
   },
   'tvtime_sub': {
     'ru':
@@ -1654,23 +1661,23 @@ const Map<String, Map<String, String>> _strings = {
         'фильмы, сериалы и все просмотры с датами.',
     'en':
         'TV Time shuts down on July 15, 2026 — move your library to Kadr: '
-        'movies, series and every watch with dates.'
+        'movies, series and every watch with dates.',
   },
   'tvtime_what_movies': {
     'ru': 'Фильмы: просмотрено, оценки, «буду смотреть»',
-    'en': 'Movies: watched, ratings, watchlist'
+    'en': 'Movies: watched, ratings, watchlist',
   },
   'tvtime_what_series': {
     'ru': 'Сериалы и все серии — с датами просмотра',
-    'en': 'Series and every episode — with watch dates'
+    'en': 'Series and every episode — with watch dates',
   },
   'tvtime_what_ratings': {
     'ru': 'Оценки из реакций-эмоций',
-    'en': 'Ratings from your emotion reactions'
+    'en': 'Ratings from your emotion reactions',
   },
   'tvtime_what_watchlist': {
     'ru': 'Список «Буду смотреть»',
-    'en': 'Your watchlist'
+    'en': 'Your watchlist',
   },
   'tvtime_what_lists': {'ru': 'Свои списки', 'en': 'Your custom lists'},
   'tvtime_how': {
@@ -1679,29 +1686,26 @@ const Map<String, Map<String, String>> _strings = {
         'данные» (GDPR). На почту придёт gdpr-data.zip — выбери его здесь.',
     'en':
         'How to get the file: in TV Time → Settings → Account → “Download my '
-        'data” (GDPR). You’ll get gdpr-data.zip by email — pick it here.'
+        'data” (GDPR). You’ll get gdpr-data.zip by email — pick it here.',
   },
-  'tvtime_pick': {
-    'ru': 'Выбрать gdpr-data.zip',
-    'en': 'Choose gdpr-data.zip'
-  },
+  'tvtime_pick': {'ru': 'Выбрать gdpr-data.zip', 'en': 'Choose gdpr-data.zip'},
   'tvtime_st_unzip': {
     'ru': 'Распаковываю архив…',
-    'en': 'Unpacking the archive…'
+    'en': 'Unpacking the archive…',
   },
   'tvtime_st_read': {
     'ru': 'Читаю фильмы и сериалы…',
-    'en': 'Reading movies and series…'
+    'en': 'Reading movies and series…',
   },
   'tvtime_st_import': {
     'ru': 'Переношу в библиотеку…',
-    'en': 'Adding to your library…'
+    'en': 'Adding to your library…',
   },
   'tvtime_st_finish': {'ru': 'Почти готово…', 'en': 'Almost done…'},
   'tvtime_done_title': {'ru': 'Готово!', 'en': 'All set!'},
   'tvtime_done_sub': {
     'ru': 'Библиотека перенесена. Постеры подтянутся сами.',
-    'en': 'Your library is imported. Posters will load automatically.'
+    'en': 'Your library is imported. Posters will load automatically.',
   },
   'tvtime_stat_movies': {'ru': 'Фильмов', 'en': 'Movies'},
   'tvtime_stat_series': {'ru': 'Сериалов', 'en': 'Series'},
@@ -1713,13 +1717,13 @@ const Map<String, Map<String, String>> _strings = {
         'лимита TMDB.',
     'en':
         'Posters, localized titles and details load in the background within '
-        'your TMDB limit.'
+        'your TMDB limit.',
   },
   'tvtime_continue': {'ru': 'Продолжить', 'en': 'Continue'},
   'tvtime_error': {'ru': 'Не удалось импортировать', 'en': 'Import failed'},
   'tvtime_error_sub': {
     'ru': 'Проверь, что выбран gdpr-data.zip из экспорта TV Time.',
-    'en': 'Make sure you picked gdpr-data.zip from your TV Time export.'
+    'en': 'Make sure you picked gdpr-data.zip from your TV Time export.',
   },
   'tvtime_retry': {'ru': 'Попробовать снова', 'en': 'Try again'},
 
@@ -1731,14 +1735,14 @@ const Map<String, Map<String, String>> _strings = {
         'даты.',
     'en':
         'Bring your watch history in a couple of taps — movies, series and '
-        'dates.'
+        'dates.',
   },
 
   // --- Вход без ключа TMDB ---
   'tmdb_key_skip': {'ru': 'Войти без ключа', 'en': 'Continue without a key'},
   'tmdb_skip_title': {
     'ru': 'Войти без ключа TMDB?',
-    'en': 'Enter without a TMDB key?'
+    'en': 'Enter without a TMDB key?',
   },
   'tmdb_skip_body': {
     'ru':
@@ -1748,7 +1752,7 @@ const Map<String, Map<String, String>> _strings = {
     'en':
         'Without a key there are no posters, search or details — the app is '
         'nearly empty. TV Time import and manual entries still work. You can '
-        'add a key later in Settings.'
+        'add a key later in Settings.',
   },
   'tmdb_skip_confirm': {'ru': 'Всё равно войти', 'en': 'Enter anyway'},
 
@@ -1756,64 +1760,65 @@ const Map<String, Map<String, String>> _strings = {
   'scrobble_title': {'ru': 'Скробблинг', 'en': 'Scrobbling'},
   'scrobble_settings_sub': {
     'ru': 'Авто-отметка из Plex, Jellyfin, Kodi',
-    'en': 'Auto-log from Plex, Jellyfin, Kodi'
+    'en': 'Auto-log from Plex, Jellyfin, Kodi',
   },
   'scrobble_need_account': {'ru': 'Нужен аккаунт', 'en': 'Account required'},
   'scrobble_need_account_sub': {
-    'ru': 'Скробблинг привязывает просмотры к твоему аккаунту. Войди, чтобы '
+    'ru':
+        'Скробблинг привязывает просмотры к твоему аккаунту. Войди, чтобы '
         'включить.',
-    'en': 'Scrobbling links watches to your account. Log in to enable it.'
+    'en': 'Scrobbling links watches to your account. Log in to enable it.',
   },
   'scrobble_intro': {
-    'ru': 'Смотри в Plex, Jellyfin или Kodi — Kadr сам отметит серии и фильмы '
+    'ru':
+        'Смотри в Plex, Jellyfin или Kodi — Kadr сам отметит серии и фильмы '
         'просмотренными, с датой. Настрой вебхук один раз.',
-    'en': 'Watch in Plex, Jellyfin or Kodi — Kadr marks episodes and movies '
-        'watched automatically, with dates. Set up the webhook once.'
+    'en':
+        'Watch in Plex, Jellyfin or Kodi — Kadr marks episodes and movies '
+        'watched automatically, with dates. Set up the webhook once.',
   },
-  'scrobble_enable': {
-    'ru': 'Включить скробблинг',
-    'en': 'Enable scrobbling'
-  },
+  'scrobble_enable': {'ru': 'Включить скробблинг', 'en': 'Enable scrobbling'},
   'scrobble_enable_sub': {
     'ru': 'Забирать просмотры при открытии приложения',
-    'en': 'Fetch watches when the app opens'
+    'en': 'Fetch watches when the app opens',
   },
   'scrobble_url_label': {'ru': 'Твой адрес вебхука', 'en': 'Your webhook URL'},
   'scrobble_url_error': {
     'ru': 'Не удалось получить адрес — зайди позже',
-    'en': 'Could not load the URL — try again later'
+    'en': 'Could not load the URL — try again later',
   },
   'scrobble_copy': {'ru': 'Скопировать', 'en': 'Copy'},
   'scrobble_copied': {'ru': 'Адрес скопирован', 'en': 'URL copied'},
   'scrobble_plex_steps': {
-    'ru': 'Настройки Plex → Аккаунт → Webhooks → Add Webhook → вставь адрес '
+    'ru':
+        'Настройки Plex → Аккаунт → Webhooks → Add Webhook → вставь адрес '
         'выше. Требуется Plex Pass.',
-    'en': 'Plex Settings → Account → Webhooks → Add Webhook → paste the URL '
-        'above. Plex Pass required.'
+    'en':
+        'Plex Settings → Account → Webhooks → Add Webhook → paste the URL '
+        'above. Plex Pass required.',
   },
   'scrobble_jellyfin_steps': {
-    'ru': 'Установи плагин Webhook → Add Generic Destination → вставь адрес, '
+    'ru':
+        'Установи плагин Webhook → Add Generic Destination → вставь адрес, '
         'включи события Playback Stop и Item Marked Played, для Episodes и '
         'Movies.',
-    'en': 'Install the Webhook plugin → Add Generic Destination → paste the '
+    'en':
+        'Install the Webhook plugin → Add Generic Destination → paste the '
         'URL, enable Playback Stop and Item Marked Played, for Episodes and '
-        'Movies.'
+        'Movies.',
   },
   'scrobble_check_now': {'ru': 'Проверить сейчас', 'en': 'Check now'},
   'scrobble_checked': {
     'ru': 'Применено просмотров: {n}',
-    'en': 'Applied {n} watches'
+    'en': 'Applied {n} watches',
   },
   'scrobble_check_fail': {'ru': 'Не удалось проверить', 'en': 'Check failed'},
 
   // --- Дневник просмотров ---
-  'diary_settings_title': {
-    'ru': 'Дневник просмотров',
-    'en': 'Watch diary'
-  },
+  'diary_settings_title': {'ru': 'Дневник просмотров', 'en': 'Watch diary'},
   'diary_settings_sub': {
     'ru': 'Настроение, с кем, где и фото у каждого просмотра',
-    'en': 'Mood, who with, where and a photo for each watch'
+    'en': 'Mood, who with, where and a photo for each watch',
   },
   'diary_title': {'ru': 'Дневник просмотра', 'en': 'Diary entry'},
   'diary_mood': {'ru': 'Настроение', 'en': 'Mood'},
@@ -1829,7 +1834,7 @@ const Map<String, Map<String, String>> _strings = {
   'diary_note': {'ru': 'Заметка', 'en': 'Note'},
   'diary_note_hint': {
     'ru': 'Пара слов об этом просмотре…',
-    'en': 'A few words about this watch…'
+    'en': 'A few words about this watch…',
   },
   'stat_diary': {'ru': 'Дневник', 'en': 'Diary'},
   'stat_diary_notes_n': {'ru': 'Заметок: {n}', 'en': '{n} notes'},
@@ -1842,3 +1847,9 @@ const Map<String, Map<String, String>> _strings = {
   'profile_add_btn': {'ru': 'Добавить', 'en': 'Add'},
   'profile_or_code': {'ru': 'Или по коду друга', 'en': 'Or by friend code'},
 };
+
+/// Базовые ru/en-строки целиком — для теста полноты переводов.
+///
+/// Нужен, чтобы `test/translations_complete_test.dart` мог сверить [_strings]
+/// с [kTranslations]: в коде приложения строки берутся только через [tr].
+const Map<String, Map<String, String>> kBaseStrings = _strings;
