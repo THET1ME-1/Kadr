@@ -1,5 +1,12 @@
 # Промт логотипа Kadr — «Врата кадра»
 
+> **Обновление 2026-09-16.** Основное лого приложения — растровый мастер
+> `docs/logo/glow-master.png` («Сияние»: знак «Засечка» бирюзовым градиентом на
+> тёмном `#0B0D13`). Его утвердил владелец бренда, и градиент в нём разрешён.
+> Запрет градиентов ниже действует для векторного знака `E-zasechka.svg` и трёх
+> плоских колеровок в пикере. Launcher-иконки и брендинг собирают
+> `tool/gen_icons.py` и `tool/gen_branding.py` из мастера.
+
 Мастер-промт для генерации логотипа. Тон: монументальный минимализм.
 Опирается на скилл `logo-generator` (`~/.claude/skills/logo-generator`) и ДНК `m3-dna`.
 
@@ -216,4 +223,4 @@
 - Скилл `logo-generator` — [op7418/logo-generator-skill](https://github.com/op7418/logo-generator-skill)
 - Скилл `svg-logo-designer` — [rknall/claude-skills](https://github.com/rknall/claude-skills)
 - ДНК проекта — `~/Projects/GitHub/m3-dna/GUIDE.md`
-- Текущая иконка — `tool/gen_icon.py`, seed — `lib/theme/app_theme.dart:18`
+- Иконки — `tool/gen_icons.py`, брендинг — `tool/gen_branding.py`, seed — `lib/theme/app_theme.dart:18`

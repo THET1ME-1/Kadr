@@ -15,6 +15,7 @@ class AppIconOption {
     required this.nameKey,
     required this.mark,
     required this.background,
+    this.asset,
   });
 
   final String id;
@@ -25,6 +26,10 @@ class AppIconOption {
   /// Цвет знака и подложки — ими же рисуется превью в пикере.
   final Color mark;
   final Color background;
+
+  /// Готовая картинка превью. Есть у растровых колеровок (градиент кодом не
+  /// повторяем), у плоских null — их превью рисует `ZasechkaPainter`.
+  final String? asset;
 }
 
 /// Выбор иконки приложения (Android).
@@ -39,9 +44,18 @@ class AppIconService extends ChangeNotifier {
 
   static const _channel = MethodChannel('app_icon');
   static const _storeKey = 'appIconId';
-  static const defaultId = 'ink';
+  static const defaultId = 'glow';
 
   static const options = <AppIconOption>[
+    // Основное лого: бирюзовый градиент на тёмном, мастер docs/logo/glow-master.png.
+    // mark/background — ближайшие плоские цвета, для мест, где нужна пара цветов.
+    AppIconOption(
+      id: 'glow',
+      nameKey: 'app_icon_glow',
+      mark: Color(0xFF1ED8E6),
+      background: Color(0xFF0B0D13),
+      asset: 'assets/icon/app_icon.png',
+    ),
     AppIconOption(
       id: 'ink',
       nameKey: 'app_icon_ink',

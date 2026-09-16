@@ -855,6 +855,7 @@ const Map<String, Map<String, String>> kTranslations = {
     'app_icon': 'App-Icon',
     'app_icon_hint':
         'Das Icon auf dem Startbildschirm aktualisiert sich in wenigen Sekunden. Manche Launcher zeigen das neue erst nach einem Neustart.',
+    'app_icon_glow': 'Leuchten',
     'app_icon_graphite': 'Türkis auf Graphit',
     'app_icon_ink': 'Dunkel auf Türkis',
     'app_icon_white': 'Weiß auf Türkis',
@@ -1760,6 +1761,7 @@ const Map<String, Map<String, String>> kTranslations = {
     'app_icon': 'Icône de l\'application',
     'app_icon_hint':
         'L\'icône sur l\'écran d\'accueil se met à jour en quelques secondes. Certains launchers ne l\'affichent qu\'après un redémarrage.',
+    'app_icon_glow': 'Éclat',
     'app_icon_graphite': 'Turquoise sur graphite',
     'app_icon_ink': 'Sombre sur turquoise',
     'app_icon_white': 'Blanc sur turquoise',
@@ -2662,6 +2664,7 @@ const Map<String, Map<String, String>> kTranslations = {
     'app_icon': 'Icono de la app',
     'app_icon_hint':
         'El icono en la pantalla de inicio se actualiza en un par de segundos. Algunos lanzadores solo muestran el nuevo tras reiniciar.',
+    'app_icon_glow': 'Brillo',
     'app_icon_graphite': 'Turquesa sobre grafito',
     'app_icon_ink': 'Oscuro sobre turquesa',
     'app_icon_white': 'Blanco sobre turquesa',
@@ -3559,6 +3562,7 @@ const Map<String, Map<String, String>> kTranslations = {
     'app_icon': 'Icona dell\'app',
     'app_icon_hint':
         'L\'icona sulla schermata home si aggiorna in un paio di secondi. Alcuni launcher mostrano quella nuova solo dopo un riavvio.',
+    'app_icon_glow': 'Bagliore',
     'app_icon_graphite': 'Turchese su grafite',
     'app_icon_ink': 'Scuro su turchese',
     'app_icon_white': 'Bianco su turchese',
@@ -4456,6 +4460,7 @@ const Map<String, Map<String, String>> kTranslations = {
     'app_icon': 'Ícone do app',
     'app_icon_hint':
         'O ícone na tela inicial é atualizado em alguns segundos. Alguns launchers só mostram o novo depois de reiniciar.',
+    'app_icon_glow': 'Brilho',
     'app_icon_graphite': 'Turquesa sobre grafite',
     'app_icon_ink': 'Escuro sobre turquesa',
     'app_icon_white': 'Branco sobre turquesa',

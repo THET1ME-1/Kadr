@@ -8,8 +8,9 @@ import '../services/app_icon_service.dart';
 
 /// Превью launcher-иконки: знак «Засечка» на подложке.
 ///
-/// Рисуется кодом, а не берётся из mipmap: ассеты лаунчера лежат в `android/`
-/// и во Flutter не видны. Геометрия повторяет `docs/logo/E-zasechka.svg`
+/// Ассеты лаунчера лежат в `android/` и во Flutter не видны, поэтому плоские
+/// колеровки рисуются кодом, а у растровой (основное лого) есть своя копия в
+/// `assets/icon/`. Геометрия плоских повторяет `docs/logo/E-zasechka.svg`
 /// (см. `docs/logo_prompt.md`) — сквиркл-суперэллипс, срезанный угол,
 /// сквозные вырезы. Числа даны в системе координат 0..100 и масштабируются.
 class AppIconPreview extends StatelessWidget {
@@ -42,14 +43,17 @@ class AppIconPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = mark ?? option!.mark;
     final b = background ?? option!.background;
+    final asset = option?.asset;
     return ClipRRect(
       borderRadius: BorderRadius.circular(size * radiusFactor),
       child: SizedBox(
         width: size,
         height: size,
-        child: CustomPaint(
-          painter: ZasechkaPainter(mark: m, background: b),
-        ),
+        child: asset != null
+            ? Image.asset(asset, width: size, height: size, fit: BoxFit.cover)
+            : CustomPaint(
+                painter: ZasechkaPainter(mark: m, background: b),
+              ),
       ),
     );
   }

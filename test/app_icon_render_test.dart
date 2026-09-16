@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kadr/services/app_icon_service.dart';
 import 'package:kadr/widgets/app_icon_preview.dart';
 
 /// Знак рисуется кодом (CustomPainter), поэтому «собралось» не значит
@@ -70,5 +72,19 @@ void main() {
     const edge = 0.5 - 32 / 108;
     final p = await pixel(img, (216 * edge).round(), 108);
     expect(p, bg, reason: 'знак не должен доходить до края маски лаунчера');
+  });
+
+  test('основное лого — glow, и его превью лежит в ассетах', () {
+    expect(AppIconService.defaultId, 'glow');
+    final glow = AppIconService.optionById('glow');
+    expect(glow.id, 'glow', reason: 'optionById молча отдал бы первую колеровку');
+    for (final o in AppIconService.options) {
+      final asset = o.asset;
+      if (asset == null) continue;
+      expect(File(asset).existsSync(), isTrue,
+          reason: 'нет превью $asset — пикер покажет пустую плитку');
+    }
+    // Остальные колеровки рисуются кодом: без asset превью не должно потеряться.
+    expect(glow.asset, isNotNull);
   });
 }

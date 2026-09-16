@@ -44,7 +44,24 @@
              activity-alias со своим icon/roundIcon; переключение — включением одного
              и выключением остальных через PackageManager (см. MainActivity.kt).
              MAIN/LAUNCHER живёт ТОЛЬКО здесь, у MainActivity его нет — иначе в
-             лаунчере было бы два ярлыка. Ровно один alias всегда включён. -->
+             лаунчере было бы два ярлыка. Ровно один alias всегда включён.
+             По умолчанию (enabled="true" в манифесте) — IconGlow, основное лого. -->
+        <activity-alias
+            android:name=".IconGlow"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:enabled="true"
+            android:label="Kadr"
+            android:icon="@mipmap/ic_launcher_glow"
+            android:roundIcon="@mipmap/ic_launcher_glow_round"
+            android:banner="@drawable/tv_banner">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+                <!-- Появляться в лаунчере Android TV. -->
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
         <activity-alias
             android:name=".IconGraphite"
             android:targetActivity=".MainActivity"
@@ -57,7 +74,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
-                <!-- Появляться в лаунчере Android TV. -->
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
             </intent-filter>
         </activity-alias>
@@ -65,7 +81,7 @@
             android:name=".IconInk"
             android:targetActivity=".MainActivity"
             android:exported="true"
-            android:enabled="true"
+            android:enabled="false"
             android:label="Kadr"
             android:icon="@mipmap/ic_launcher_ink"
             android:roundIcon="@mipmap/ic_launcher_ink_round"

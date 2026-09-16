@@ -812,6 +812,7 @@ const Map<String, Map<String, String>> _strings = {
         'The home screen icon updates within a couple of seconds. '
         'Some launchers show it only after a restart.',
   },
+  'app_icon_glow': {'ru': 'Сияние', 'en': 'Glow'},
   'app_icon_graphite': {'ru': 'Бирюза на графите', 'en': 'Teal on graphite'},
   'app_icon_ink': {'ru': 'Тёмный на бирюзе', 'en': 'Dark on teal'},
   'app_icon_white': {'ru': 'Белый на бирюзе', 'en': 'White on teal'},

@@ -19,15 +19,17 @@ class MainActivity : FlutterActivity() {
 
         /** id колеровки → activity-alias в манифесте. Ключи совпадают с AppIconService. */
         private val ICON_ALIASES = mapOf(
+            "glow" to ".IconGlow",
             "ink" to ".IconInk",
             "graphite" to ".IconGraphite",
             "white" to ".IconWhite",
         )
-        private const val DEFAULT_ICON = "ink"
+        private const val DEFAULT_ICON = "glow"
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        migrateIconAliases()
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -70,6 +72,24 @@ class MainActivity : FlutterActivity() {
         setAliasEnabled(target, true)
         ICON_ALIASES.values.filter { it != target }.forEach { setAliasEnabled(it, false) }
     }
+
+    /**
+     * Основное лого сменилось (2026-09-16): в манифесте теперь включён IconGlow,
+     * а IconInk выключен. Кто уже выбирал иконку сам, у того старые alias'ы стоят
+     * в явном состоянии, а новый — в DEFAULT, то есть включён по манифесту: в
+     * лаунчере оказалось бы два ярлыка. Гасим новый, выбор человека остаётся.
+     */
+    private fun migrateIconAliases() {
+        val glow = ICON_ALIASES.getValue(DEFAULT_ICON)
+        if (aliasState(glow) != PackageManager.COMPONENT_ENABLED_STATE_DEFAULT) return
+        val chosen = ICON_ALIASES.values.any {
+            it != glow && aliasState(it) == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        }
+        if (chosen) setAliasEnabled(glow, false)
+    }
+
+    private fun aliasState(alias: String): Int =
+        packageManager.getComponentEnabledSetting(ComponentName(packageName, packageName + alias))
 
     private fun setAliasEnabled(alias: String, enabled: Boolean) {
         val state = if (enabled) PackageManager.COMPONENT_ENABLED_STATE_ENABLED
@@ -125,16 +145,11 @@ class MainActivity : FlutterActivity() {
 
     /** Какая колеровка включена сейчас: источник истины — система, а не наши настройки. */
     private fun currentIcon(): String {
+        // Явный выбор важнее манифеста: сначала ищем включённый руками alias.
         for ((id, alias) in ICON_ALIASES) {
-            val state = packageManager.getComponentEnabledSetting(
-                ComponentName(packageName, packageName + alias)
-            )
-            if (state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) return id
-            // DEFAULT = как объявлено в манифесте: там включён только дефолтный alias
-            if (state == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT && id == DEFAULT_ICON) {
-                return id
-            }
+            if (aliasState(alias) == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) return id
         }
+        // Выбора не было: работает манифест, а там включён только дефолтный alias.
         return DEFAULT_ICON
     }
 }

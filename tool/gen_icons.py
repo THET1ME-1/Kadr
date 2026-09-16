@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Генератор launcher-иконок Kadr — знак «Засечка» в трёх колеровках.
+"""Генератор launcher-иконок Kadr — знак «Засечка».
 
-Геометрия знака — docs/logo/E-zasechka.svg (см. docs/logo_prompt.md):
-монолит-сквиркл со срезанным верхним правым углом, play и перфорация —
-СКВОЗНЫЕ вырезы, заливка строго плоская (градиенты запрещены).
+Основная иконка «Сияние» (glow) — растровый мастер docs/logo/glow-master.png:
+бирюзовый градиент на тёмном фоне, утверждён 2026-09-16 как лого приложения.
+Три плоские колеровки рисуются из вектора docs/logo/E-zasechka.svg
+(см. docs/logo_prompt.md) и остаются в пикере как выбор.
 
 Для каждой колеровки кладёт:
   * mipmap-<d>dpi/ic_launcher_<v>.png        — legacy, сквиркл с прозрачными углами
@@ -12,11 +13,15 @@
   * mipmap-anydpi-v26/ic_launcher_<v>.xml    — adaptive (цвет фона + foreground)
   * values/ic_launcher_colors.xml            — цвета фонов
 
-Колеровка по умолчанию (graphite) дублируется в ic_launcher.* — иконка
+У glow ещё mipmap-<d>dpi/ic_mono_glow.png — силуэт для тематических иконок
+Android 13 (foreground у неё непрозрачный и в monochrome не годится), и
+assets/icon/app_icon.png — та же иконка для экранов приложения.
+
+Колеровка по умолчанию (glow) дублируется в ic_launcher.* — иконка
 приложения вне лаунчера.
 
 Запуск: python3 tool/gen_icons.py
-Требует: ImageMagick (magick).
+Требует: ImageMagick (magick), Pillow, numpy.
 """
 import os
 import re
@@ -24,9 +29,14 @@ import shutil
 import subprocess
 import sys
 
+import numpy as np
+from PIL import Image, ImageDraw
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = f"{ROOT}/android/app/src/main/res"
 SIGN = f"{ROOT}/docs/logo/E-zasechka.svg"
+GLOW = f"{ROOT}/docs/logo/glow-master.png"
+APP_ICON = f"{ROOT}/assets/icon/app_icon.png"
 
 TEAL = "#00B5C7"
 INK = "#0E1316"
@@ -38,7 +48,19 @@ VARIANTS = {
     "graphite": (TEAL, INK),   # бирюза на графите
     "white": (WHITE, TEAL),    # белый на бирюзе
 }
-DEFAULT = "ink"
+# Растровые колеровки: id → (мастер, цвет фона мастера). Порядок в пикере —
+# впереди векторных.
+RASTER = {
+    "glow": (GLOW, "#0B0D13"),
+}
+DEFAULT = "glow"
+
+# Разметка мастера glow: центр и сторона знака в пикселях 1254×1254 (по рамке
+# пикселей ярче фона). Знак в SVG занимает 84 единицы из 100 — по этой паре
+# растр ужимается до того же видимого размера, что и векторные колеровки.
+GLOW_CENTER = (626.5, 620.5)
+GLOW_MARK = 842
+SIGN_SPAN = 0.84
 
 # legacy: итоговый размер иконки в px
 DENSITIES = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
@@ -93,11 +115,86 @@ def render(svg: str, size: int, out: str):
     os.remove(tmp)
 
 
+def raster_tile(src: Image.Image, bg: str, size: int, scale: float) -> Image.Image:
+    """Мастер на квадрате size×size: знак по центру, как у векторного при scale.
+
+    Мастер кладётся на канву с его же фоном (фон плоский, шум ±1 уровень —
+    шва не видно), затем канва целиком ужимается до size.
+    """
+    n = round(GLOW_MARK / (SIGN_SPAN * scale))
+    canvas = Image.new("RGB", (n, n), bg)
+    canvas.paste(src, (round(n / 2 - GLOW_CENTER[0]), round(n / 2 - GLOW_CENTER[1])))
+    return canvas.resize((size, size), Image.LANCZOS)
+
+
+def plate_mask(shape: str, size: int) -> Image.Image:
+    """Альфа подложки: тот же сквиркл, что у векторных legacy-иконок, или круг."""
+    if shape == "circle":
+        big = Image.new("L", (size * SS, size * SS), 0)
+        ImageDraw.Draw(big).ellipse([0, 0, size * SS - 1, size * SS - 1], fill=255)
+        return big.resize((size, size), Image.LANCZOS)
+    # знак белым по белому: в альфе остаётся одна подложка
+    svg = compose("#FFFFFF", "#FFFFFF", 0.5, "squircle", "m")
+    out = f"/tmp/_kadr_mask_{os.getpid()}.png"
+    render(svg, size, out)
+    alpha = Image.open(out).getchannel("A")
+    os.remove(out)
+    return alpha
+
+
+def silhouette(tile: Image.Image) -> Image.Image:
+    """Белый силуэт знака с альфой из яркости: тело знака — бирюза с каналом
+    не темнее 130, фон и сквозные вырезы — не светлее 20."""
+    peak = np.asarray(tile.convert("RGB")).max(axis=2).astype(float)
+    alpha = np.clip((peak - 20) / 110, 0, 1) * 255
+    out = Image.new("RGBA", tile.size, (255, 255, 255, 0))
+    out.putalpha(Image.fromarray(alpha.astype(np.uint8)))
+    return out
+
+
+def gen_raster(vid: str, master: str, bg: str):
+    src = Image.open(master).convert("RGB")
+    for dens, size in DENSITIES.items():
+        d = f"{RES}/mipmap-{dens}"
+        os.makedirs(d, exist_ok=True)
+        tile = raster_tile(src, bg, size, LEGACY_SCALE)
+        for suffix, shape in (("", "squircle"), ("_round", "circle")):
+            icon = tile.convert("RGBA")
+            icon.putalpha(plate_mask(shape, size))
+            icon.save(f"{d}/ic_launcher_{vid}{suffix}.png")
+    for dens, size in FG_DENSITIES.items():
+        d = f"{RES}/mipmap-{dens}"
+        # foreground непрозрачный: фон мастера совпадает с цветом ic_bg_<id>
+        tile = raster_tile(src, bg, size, FG_SCALE)
+        tile.save(f"{d}/ic_fg_{vid}.png")
+        silhouette(tile).save(f"{d}/ic_mono_{vid}.png")
+
+    d26 = f"{RES}/mipmap-anydpi-v26"
+    os.makedirs(d26, exist_ok=True)
+    open(f"{d26}/ic_launcher_{vid}.xml", "w").write(
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
+        f'    <background android:drawable="@color/ic_bg_{vid}"/>\n'
+        f'    <foreground android:drawable="@mipmap/ic_fg_{vid}"/>\n'
+        f'    <monochrome android:drawable="@mipmap/ic_mono_{vid}"/>\n'
+        '</adaptive-icon>\n')
+
+    if vid == DEFAULT:
+        # экраны приложения («О приложении», пикер): квадрат, скругляет ClipRRect
+        raster_tile(src, bg, 512, LEGACY_SCALE).save(APP_ICON)
+    print(f"  {vid}: растр {os.path.basename(master)} на {bg}")
+
+
 def main():
     if not shutil.which("magick"):
         sys.exit("нужен ImageMagick (magick)")
     if not os.path.exists(SIGN):
         sys.exit(f"нет файла знака: {SIGN}")
+
+    for vid, (master, bg) in RASTER.items():
+        if not os.path.exists(master):
+            sys.exit(f"нет мастера: {master}")
+        gen_raster(vid, master, bg)
 
     for vid, (fill, bg) in VARIANTS.items():
         for dens, size in DENSITIES.items():
@@ -126,8 +223,9 @@ def main():
 
     # цвета фонов
     os.makedirs(f"{RES}/values", exist_ok=True)
+    backgrounds = {v: bg for v, (_, bg) in {**RASTER, **VARIANTS}.items()}
     colors = "\n".join(f'    <color name="ic_bg_{v}">{bg}</color>'
-                       for v, (_, bg) in VARIANTS.items())
+                       for v, bg in backgrounds.items())
     open(f"{RES}/values/ic_launcher_colors.xml", "w").write(
         '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
         f'{colors}\n</resources>\n')
@@ -143,7 +241,7 @@ def main():
     # ic_launcher.xml ссылается на ic_fg_<default>; для round — та же adaptive
     shutil.copy(f"{RES}/mipmap-anydpi-v26/ic_launcher_{DEFAULT}.xml",
                 f"{RES}/mipmap-anydpi-v26/ic_launcher_round.xml")
-    for vid in VARIANTS:
+    for vid in [*RASTER, *VARIANTS]:
         shutil.copy(f"{RES}/mipmap-anydpi-v26/ic_launcher_{vid}.xml",
                     f"{RES}/mipmap-anydpi-v26/ic_launcher_{vid}_round.xml")
     print(f"дефолт → ic_launcher.* ({DEFAULT})")
