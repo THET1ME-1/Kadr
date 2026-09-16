@@ -28,6 +28,7 @@ import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
 import 'browse_screens.dart';
 import 'delete_helpers.dart';
+import 'series_stats_screen.dart';
 import 'social/friend_pick_sheet.dart';
 import 'social/media_image_picker.dart';
 
@@ -181,6 +182,17 @@ class _SeriesScreenState extends State<SeriesScreen> {
         runtimeMin: ep.runtime);
     HapticFeedback.selectionClick();
     _snack(tr('marked_unknown'));
+  }
+
+  /// Статистика сериала: время, даты и путь по сезонам.
+  void _openStats() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => SeriesStatsScreen(
+        series: s,
+        seasons: List.of(_seasons),
+        tmdbId: _tmdbId,
+      ),
+    ));
   }
 
   /// Полностью удалить сериал из базы (для мусорных/ненаходимых) → закрыть экран.
@@ -377,9 +389,21 @@ class _SeriesScreenState extends State<SeriesScreen> {
               child: PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
                 onSelected: (v) {
+                  if (v == 'stats') _openStats();
                   if (v == 'delete') _deleteSeriesFromBase();
                 },
                 itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'stats',
+                    child: Row(
+                      children: [
+                        Icon(Icons.insights_rounded,
+                            size: 20, color: scheme.primary),
+                        const SizedBox(width: 10),
+                        Text(tr('drawer_stats')),
+                      ],
+                    ),
+                  ),
                   PopupMenuItem(
                     value: 'delete',
                     child: Row(

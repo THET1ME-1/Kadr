@@ -22,6 +22,31 @@ String trf(String key, Map<String, Object> params) {
   return s;
 }
 
+/// Число со словом в нужной форме: `trn('ss_days', 5)` → «5 дней».
+///
+/// Берёт ключ `<key>_one`, `<key>_few` или `<key>_many` и подставляет `{n}`
+/// плюс [params]. Три формы нужны русскому; в языках, где их две, `_few`
+/// и `_many` совпадают.
+String trn(String key, int n, [Map<String, Object> params = const {}]) {
+  final form = _pluralForm(LocaleController.instance.code, n);
+  return trf('${key}_$form', {...params, 'n': n});
+}
+
+String _pluralForm(String code, int n) {
+  final a = n.abs();
+  switch (code) {
+    case 'ru':
+      if (a % 10 == 1 && a % 100 != 11) return 'one';
+      final d = a % 10;
+      if (d >= 2 && d <= 4 && (a % 100 < 12 || a % 100 > 14)) return 'few';
+      return 'many';
+    case 'fr':
+      return a <= 1 ? 'one' : 'many';
+    default:
+      return a == 1 ? 'one' : 'many';
+  }
+}
+
 /// Словарь интерфейсных строк (ru/en). Растёт по мере локализации экранов.
 const Map<String, Map<String, String>> _strings = {
   // ------------------------------ Общее ------------------------------
@@ -1932,6 +1957,146 @@ const Map<String, Map<String, String>> _strings = {
   'profile_search_none': {'ru': 'Никого не нашлось', 'en': 'No one found'},
   'profile_add_btn': {'ru': 'Добавить', 'en': 'Add'},
   'profile_or_code': {'ru': 'Или по коду друга', 'en': 'Or by friend code'},
+  // --- Статистика сериала (экран из меню ⋮) ---
+  'ss_screen_time': {'ru': 'ВРЕМЯ У ЭКРАНА', 'en': 'SCREEN TIME'},
+  'ss_min_unit': {'ru': 'мин', 'en': 'min'},
+  'ss_hm': {'ru': '{h} ч {m} мин', 'en': '{h}h {m}m'},
+  'ss_h': {'ru': '{h} ч', 'en': '{h}h'},
+  'ss_m': {'ru': '{m} мин', 'en': '{m}m'},
+  'ss_avg': {'ru': 'средняя {v}', 'en': 'average {v}'},
+  'ss_timeline': {'ru': 'Путь по сезонам', 'en': 'Season by season'},
+  'ss_started': {'ru': 'Начали с серии «{t}»', 'en': 'Started with “{t}”'},
+  'ss_finished': {
+    'ru': '«{t}». Сериал досмотрен',
+    'en': '“{t}”. Series finished',
+  },
+  'ss_last': {
+    'ru': 'Последняя отмеченная — «{t}»',
+    'en': 'Last watched: “{t}”',
+  },
+  'ss_best_series': {
+    'ru': '«{t}» — лучшая серия сериала, {s}',
+    'en': '“{t}” is the best episode of the series, {s}',
+  },
+  'ss_worst_series': {
+    'ru': 'Самая низкая оценка сериала — «{t}», {s}',
+    'en': 'Lowest rating of the series: “{t}”, {s}',
+  },
+  'ss_best_season': {
+    'ru': 'Лучшая в сезоне — «{t}», {s}',
+    'en': 'Best of the season: “{t}”, {s}',
+  },
+  'ss_pause': {'ru': 'Пауза {d}', 'en': 'Break of {d}'},
+  'ss_came_back': {
+    'ru': 'После {s}-го сезона вернулись {date}',
+    'en': 'Came back after season {s} on {date}',
+  },
+  'ss_no_marks': {
+    'ru': 'Отметьте хотя бы одну серию, и здесь появится статистика',
+    'en': 'Mark at least one episode to see statistics here',
+  },
+  'ss_days_one': {'ru': '{n} день', 'en': '{n} day'},
+  'ss_days_few': {'ru': '{n} дня', 'en': '{n} days'},
+  'ss_days_many': {'ru': '{n} дней', 'en': '{n} days'},
+  'ss_months_one': {'ru': '{n} месяц', 'en': '{n} month'},
+  'ss_months_few': {'ru': '{n} месяца', 'en': '{n} months'},
+  'ss_months_many': {'ru': '{n} месяцев', 'en': '{n} months'},
+  'ss_years_one': {'ru': '{n} год', 'en': '{n} year'},
+  'ss_years_few': {'ru': '{n} года', 'en': '{n} years'},
+  'ss_years_many': {'ru': '{n} лет', 'en': '{n} years'},
+  'ss_episodes_one': {'ru': '{n} серия', 'en': '{n} episode'},
+  'ss_episodes_few': {'ru': '{n} серии', 'en': '{n} episodes'},
+  'ss_episodes_many': {'ru': '{n} серий', 'en': '{n} episodes'},
+  'ss_of_episodes_one': {'ru': '{a} из {n} серии', 'en': '{a} of {n} episode'},
+  'ss_of_episodes_few': {'ru': '{a} из {n} серий', 'en': '{a} of {n} episodes'},
+  'ss_of_episodes_many': {
+    'ru': '{a} из {n} серий',
+    'en': '{a} of {n} episodes',
+  },
+  'ss_of_season_episodes_one': {
+    'ru': '{a} из {n} серии сезона',
+    'en': '{a} of {n} episode this season',
+  },
+  'ss_of_season_episodes_few': {
+    'ru': '{a} из {n} серий сезона',
+    'en': '{a} of {n} episodes this season',
+  },
+  'ss_of_season_episodes_many': {
+    'ru': '{a} из {n} серий сезона',
+    'en': '{a} of {n} episodes this season',
+  },
+  'ss_nonstop_days_one': {
+    'ru': 'это {n} сутки без перерыва',
+    'en': "that's {n} day nonstop",
+  },
+  'ss_nonstop_days_few': {
+    'ru': 'это {n} суток без перерыва',
+    'en': "that's {n} days nonstop",
+  },
+  'ss_nonstop_days_many': {
+    'ru': 'это {n} суток без перерыва',
+    'en': "that's {n} days nonstop",
+  },
+  'ss_like_movies_one': {
+    'ru': 'как {n} фильм по два часа',
+    'en': 'like {n} two-hour movie',
+  },
+  'ss_like_movies_few': {
+    'ru': 'как {n} фильма по два часа',
+    'en': 'like {n} two-hour movies',
+  },
+  'ss_like_movies_many': {
+    'ru': 'как {n} фильмов по два часа',
+    'en': 'like {n} two-hour movies',
+  },
+  'ss_record_one': {
+    'ru': 'Рекорд сериала: {n} серия подряд, {date}, {time}',
+    'en': 'Series record: {n} episode in a row, {date}, {time}',
+  },
+  'ss_record_few': {
+    'ru': 'Рекорд сериала: {n} серии подряд, {date}, {time}',
+    'en': 'Series record: {n} episodes in a row, {date}, {time}',
+  },
+  'ss_record_many': {
+    'ru': 'Рекорд сериала: {n} серий подряд, {date}, {time}',
+    'en': 'Series record: {n} episodes in a row, {date}, {time}',
+  },
+  'ss_binge_day_one': {
+    'ru': 'Марафон: {n} серия за день, {date}',
+    'en': 'Binge: {n} episode in a day, {date}',
+  },
+  'ss_binge_day_few': {
+    'ru': 'Марафон: {n} серии за день, {date}',
+    'en': 'Binge: {n} episodes in a day, {date}',
+  },
+  'ss_binge_day_many': {
+    'ru': 'Марафон: {n} серий за день, {date}',
+    'en': 'Binge: {n} episodes in a day, {date}',
+  },
+  'ss_rewatched_one': {
+    'ru': 'Серию «{t}» пересматривали ещё {n} раз',
+    'en': 'Rewatched “{t}” {n} more time',
+  },
+  'ss_rewatched_few': {
+    'ru': 'Серию «{t}» пересматривали ещё {n} раза',
+    'en': 'Rewatched “{t}” {n} more times',
+  },
+  'ss_rewatched_many': {
+    'ru': 'Серию «{t}» пересматривали ещё {n} раз',
+    'en': 'Rewatched “{t}” {n} more times',
+  },
+  'ss_undated_one': {
+    'ru': 'У {n} серии нет даты: она учтена во времени, но не на линии',
+    'en': '{n} episode has no date: it counts toward the time but not the timeline',
+  },
+  'ss_undated_few': {
+    'ru': 'У {n} серий нет даты: они учтены во времени, но не на линии',
+    'en': '{n} episodes have no date: they count toward the time but not the timeline',
+  },
+  'ss_undated_many': {
+    'ru': 'У {n} серий нет даты: они учтены во времени, но не на линии',
+    'en': '{n} episodes have no date: they count toward the time but not the timeline',
+  },
 };
 
 /// Базовые ru/en-строки целиком — для теста полноты переводов.
