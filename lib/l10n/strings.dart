@@ -33,7 +33,7 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Failed to load poster',
   },
   'poster_reset': {'ru': 'Вернуть оригинал', 'en': 'Restore original'},
-  'disc_hide_section': {'ru': 'Скрывать в Обзоре', 'en': 'Hide in Discover'},
+  'disc_hide_section': {'ru': 'Скрывать в «Обзоре»', 'en': 'Hide in Discover'},
   'disc_hide_watched_movies': {
     'ru': 'Просмотренные фильмы',
     'en': 'Watched movies',
@@ -98,10 +98,10 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Порядок и видимость пунктов бокового меню',
     'en': 'Order and visibility of side-menu items',
   },
-  'tv_mode': {'ru': 'TV-режим', 'en': 'TV mode'},
+  'tv_mode': {'ru': 'Режим для телевизора', 'en': 'TV mode'},
   'tv_mode_sub': {
-    'ru': 'Интерфейс под пульт (авто на Android TV)',
-    'en': 'Remote-friendly UI (auto on Android TV)',
+    'ru': 'Управление с пульта. На Android TV включается сам',
+    'en': 'Remote control layout. Turns on by itself on Android TV',
   },
   'trakt_sub': {
     'ru': 'Синхронизация просмотренного и списков',
@@ -328,17 +328,16 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Не удалось проверить (нет сети) — сохранил, поправишь позже',
     'en': "Couldn't verify (offline) — saved, fix later if needed",
   },
-  'api_keys_title': {'ru': 'API-ключи (TMDB)', 'en': 'API keys (TMDB)'},
+  'api_keys_title': {'ru': 'Ключи доступа', 'en': 'Access keys'},
   'api_keys_sub': {
-    'ru': 'Свой токен TMDB / PoiskKino',
-    'en': 'Your TMDB / PoiskKino key',
+    'ru': 'Ваш токен TMDB или ключ ПоискКино',
+    'en': 'Your TMDB token or PoiskKino key',
   },
   'support_authors': {'ru': 'Поддержать авторов', 'en': 'Support the authors'},
   'support_authors_sub': {
     'ru': 'Boosty — помочь развитию приложения',
     'en': 'Boosty — help the app grow',
   },
-  'support_section': {'ru': 'Поддержать', 'en': 'Support'},
   'support_intro': {
     'ru':
         'Kadr — бесплатное приложение с открытым кодом. Любой донат помогает развивать проект.',
@@ -799,8 +798,82 @@ const Map<String, Map<String, String>> _strings = {
 
   // ---------------------------- Настройки ----------------------------
   'settings_title': {'ru': 'Настройки', 'en': 'Settings'},
+  // Разделы экрана настроек: заголовок и подсказка «что внутри» для свёрнутого.
+  'set_hint_appearance': {
+    'ru': 'Тема, цвета, чёрный фон, иконка приложения',
+    'en': 'Theme, colours, pure black, app icon',
+  },
+  'set_group_interface': {'ru': 'Интерфейс', 'en': 'Interface'},
+  'set_hint_interface': {
+    'ru': 'Стартовый экран, формат даты, кнопка «+», меню, режим ТВ',
+    'en': 'Start screen, date format, + button, menu, TV mode',
+  },
+  'set_side_menu': {'ru': 'Боковое меню', 'en': 'Side menu'},
+  'set_hint_discover': {
+    'ru': 'Просмотренное, брошенное и «Буду смотреть» в подборках',
+    'en': 'Watched, dropped and watchlist titles in recommendations',
+  },
+  'set_group_catalog': {'ru': 'База фильмов', 'en': 'Movie database'},
+  'set_hint_catalog': {
+    'ru': 'TMDB или ПоискКино, ключи доступа',
+    'en': 'TMDB or PoiskKino, access keys',
+  },
+  'set_group_tracking': {'ru': 'Отметки просмотра', 'en': 'Watch tracking'},
+  'set_hint_tracking': {
+    'ru': 'Серии по порядку, невышедшие серии, дневник',
+    'en': 'Episodes in order, unaired episodes, diary',
+  },
+  'set_group_notifications': {'ru': 'Уведомления', 'en': 'Notifications'},
+  'set_hint_notifications': {
+    'ru': 'О новых сериях: баннер в приложении и пуши',
+    'en': 'New episodes: in-app banner and push',
+  },
+  'set_group_sync': {'ru': 'Бэкап и синхронизация', 'en': 'Backup & sync'},
+  'set_hint_sync': {
+    'ru': 'Автобэкап, WebDAV, копия в файл, Trakt',
+    'en': 'Auto backup, WebDAV, backup file, Trakt',
+  },
+  'set_backup_file': {'ru': 'Копия в файл', 'en': 'Backup file'},
+  'set_backup_file_sub': {
+    'ru': 'Создать или восстановить копию, импорт CSV из других трекеров',
+    'en': 'Create or restore a backup, import CSV from other trackers',
+  },
+  'set_group_import': {
+    'ru': 'Импорт и автоотметки',
+    'en': 'Import & auto-tracking',
+  },
+  'set_hint_import': {
+    'ru': 'TV Time, Plex, Jellyfin, Kodi',
+    'en': 'TV Time, Plex, Jellyfin, Kodi',
+  },
+  'set_scrobble': {
+    'ru': 'Автоотметки из плееров',
+    'en': 'Auto-tracking from players',
+  },
+  'set_scrobble_sub': {
+    'ru': 'Plex, Jellyfin и Kodi сами отмечают просмотренное',
+    'en': 'Plex, Jellyfin and Kodi log what you watch',
+  },
+  'set_group_storage': {'ru': 'Память и сброс', 'en': 'Storage & reset'},
+  'set_hint_storage': {
+    'ru': 'Кэш картинок, удаление всех данных',
+    'en': 'Image cache, delete all data',
+  },
+  'set_group_support': {'ru': 'Поддержать проект', 'en': 'Support the project'},
+  'set_hint_support': {
+    'ru': 'Boosty, DonationAlerts, Lava.top',
+    'en': 'Boosty, DonationAlerts, Lava.top',
+  },
+  'set_hint_about': {
+    'ru': 'Обновления, версия, исходный код, связь с нами',
+    'en': 'Updates, version, source code, contact',
+  },
+  'set_about_kadr': {'ru': 'О Kadr', 'en': 'About Kadr'},
+  'set_about_kadr_sub': {
+    'ru': 'Версия, авторы, источники данных',
+    'en': 'Version, credits, data sources',
+  },
   'appearance': {'ru': 'Внешний вид', 'en': 'Appearance'},
-  'general': {'ru': 'Общее', 'en': 'General'},
   'start_screen': {'ru': 'Экран при запуске', 'en': 'Start screen'},
   // --------------------------- Иконка приложения ---------------------------
   'app_icon': {'ru': 'Иконка приложения', 'en': 'App icon'},
@@ -823,8 +896,8 @@ const Map<String, Map<String, String>> _strings = {
   },
   'custom_icon': {'ru': 'Своя иконка', 'en': 'Custom icon'},
   'custom_icon_sub': {
-    'ru': 'Любые цвета — ярлыком на рабочий стол',
-    'en': 'Any colours — as a home screen shortcut',
+    'ru': 'Ярлык на рабочем столе в ваших цветах',
+    'en': 'A home screen shortcut in your colours',
   },
   'custom_icon_warning': {
     'ru':
@@ -854,7 +927,10 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Лаунчер не умеет добавлять ярлыки — на нём эта функция недоступна',
     'en': 'Your launcher does not support pinned shortcuts',
   },
-  'fab_position': {'ru': 'Кнопка «+»', 'en': 'The + button'},
+  'fab_position': {
+    'ru': 'Положение кнопки «+»',
+    'en': 'Position of the + button',
+  },
   'fab_center': {'ru': 'По центру', 'en': 'Center'},
   'fab_left': {'ru': 'Слева', 'en': 'Left'},
   'fab_right': {'ru': 'Справа', 'en': 'Right'},
@@ -870,15 +946,15 @@ const Map<String, Map<String, String>> _strings = {
   'theme_dark': {'ru': 'Тёмная', 'en': 'Dark'},
   'theme_system': {'ru': 'Системная', 'en': 'System'},
   'theme_auto': {'ru': 'Авто (по времени)', 'en': 'Auto (by time)'},
-  'dynamic_color': {'ru': 'Material You', 'en': 'Material You'},
+  'dynamic_color': {'ru': 'Цвета из обоев', 'en': 'Wallpaper colours'},
   'dynamic_color_sub': {
-    'ru': 'Цвет из обоев системы (Android 12+)',
-    'en': 'Color from system wallpaper (Android 12+)',
+    'ru': 'Material You, Android 12 и новее',
+    'en': 'Material You, Android 12 and later',
   },
-  'amoled': {'ru': 'AMOLED-чёрный', 'en': 'AMOLED black'},
+  'amoled': {'ru': 'Чёрный фон', 'en': 'Pure black'},
   'amoled_sub': {
-    'ru': 'Чистый чёрный фон в тёмной теме',
-    'en': 'Pure black background in dark theme',
+    'ru': 'Чёрный вместо серого в тёмной теме',
+    'en': 'Black instead of grey in the dark theme',
   },
   'theme_presets': {'ru': 'Палитры', 'en': 'Palettes'},
   'theme_color': {'ru': 'Цвет оформления', 'en': 'Theme color'},
@@ -886,18 +962,13 @@ const Map<String, Map<String, String>> _strings = {
   'theme_intensity': {'ru': 'Насыщенность', 'en': 'Intensity'},
   'theme_vibrant': {'ru': 'Сочно', 'en': 'Vivid'},
   'theme_faithful': {'ru': 'Точь-в-точь', 'en': 'Exact'},
-  'movies_section': {'ru': 'Фильмы', 'en': 'Movies'},
-  'movie_source': {'ru': 'Источник поиска', 'en': 'Search source'},
+  'movie_source': {'ru': 'Источник данных', 'en': 'Data source'},
   'movie_source_sub': {
     'ru': 'Откуда брать названия, постеры и данные',
     'en': 'Where to get titles, posters and data',
   },
   'data': {'ru': 'Данные', 'en': 'Data'},
   'sync_backup': {'ru': 'Синхронизация и бэкап', 'en': 'Sync & backup'},
-  'sync_backup_sub': {
-    'ru': 'Резервные копии и перенос между устройствами',
-    'en': 'Backups and transfer between devices',
-  },
   'create_backup': {'ru': 'Создать резервную копию', 'en': 'Create backup'},
   'create_backup_sub': {
     'ru': 'Поделиться файлом (Telegram, Диск, …)',
@@ -1004,7 +1075,6 @@ const Map<String, Map<String, String>> _strings = {
   'lib_count': {'ru': 'Всего: {n}', 'en': 'Total: {n}'},
   'sort_newest': {'ru': 'Сначала новые', 'en': 'Newest first'},
   'sort_oldest': {'ru': 'Сначала старые', 'en': 'Oldest first'},
-  'nav_series': {'ru': 'Сериалы', 'en': 'Series'},
   'episodes_n': {'ru': '{n} серий', 'en': '{n} episodes'},
   'episodes_section': {'ru': 'Серии', 'en': 'Episodes'},
   'season_n': {'ru': 'Сезон {n}', 'en': 'Season {n}'},
@@ -1162,11 +1232,11 @@ const Map<String, Map<String, String>> _strings = {
     'en': "Season {n} marked without a date — won't appear in the Watched feed",
   },
   'restrict_unaired': {
-    'ru': 'Запрет невышедших серий',
+    'ru': 'Не отмечать невышедшие серии',
     'en': 'Block unaired episodes',
   },
   'restrict_unaired_sub': {
-    'ru': 'Нельзя отметить/оценить серию, которая ещё не вышла',
+    'ru': 'Серию, которая ещё не вышла, нельзя отметить или оценить',
     'en': "Can't mark or rate an episode that hasn't aired yet",
   },
   'episode_not_aired': {
@@ -1363,7 +1433,7 @@ const Map<String, Map<String, String>> _strings = {
   },
   'watched_movies': {'ru': 'Просмотренные фильмы', 'en': 'Watched movies'},
   'watched_series': {'ru': 'Просмотренные сериалы', 'en': 'Watched series'},
-  'auto_backup': {'ru': 'Автобекап', 'en': 'Auto backup'},
+  'auto_backup': {'ru': 'Автобэкап', 'en': 'Auto backup'},
   'auto_backup_sub': {
     'ru': 'Локальные копии в выбранную папку',
     'en': 'Local copies to a chosen folder',
@@ -1375,7 +1445,7 @@ const Map<String, Map<String, String>> _strings = {
         'The app saves a copy of your library to the chosen folder. Copies survive uninstall — a safety net. Last 20 copies are kept.',
   },
   'auto_backup_enable': {
-    'ru': 'Включить автобекап',
+    'ru': 'Включить автобэкап',
     'en': 'Enable auto backup',
   },
   'auto_backup_folder': {'ru': 'Папка', 'en': 'Folder'},
@@ -1623,20 +1693,19 @@ const Map<String, Map<String, String>> _strings = {
   'dropped_count': {'ru': 'Брошено: {n}', 'en': 'Dropped: {n}'},
 
   // --------------------- Уведомления о новых сериях ---------------------
-  'notif_new_episodes': {'ru': 'Новые серии', 'en': 'New episodes'},
   'notif_new_episodes_sub': {
     'ru': 'Уведомлять о выходе новых серий сериалов, которые смотрю',
     'en': 'Notify when new episodes of series I watch are released',
   },
-  'notif_inapp': {'ru': 'Блок в приложении', 'en': 'In-app banner'},
+  'notif_inapp': {'ru': 'Баннер в приложении', 'en': 'In-app banner'},
   'notif_inapp_sub': {
     'ru': 'Показывать новые серии баннером внутри приложения',
     'en': 'Show new episodes as a banner inside the app',
   },
   'notif_push': {'ru': 'Пуш-уведомления', 'en': 'Push notifications'},
   'notif_push_sub': {
-    'ru': 'Системные уведомления о новых сериях (по умолчанию выкл.)',
-    'en': 'System notifications for new episodes (off by default)',
+    'ru': 'Системные уведомления о новых сериях. По умолчанию выключены',
+    'en': 'System notifications for new episodes. Off by default',
   },
   'notif_channel_name': {'ru': 'Новые серии', 'en': 'New episodes'},
   'notif_new_ep_title': {'ru': 'Вышла новая серия', 'en': 'New episode out'},

@@ -86,6 +86,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _group(
                 'appearance',
                 Icons.palette_rounded,
+                hint: tr('set_hint_appearance'),
                 initiallyExpanded: true,
                 children: [
                   const AppearanceCard(),
@@ -144,6 +145,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _group(
                 'language',
                 Icons.translate_rounded,
+                hint: _currentLanguageName(),
                 children: [
                   _card([
                     _tile(
@@ -156,8 +158,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
               _group(
-                'general',
+                'set_group_interface',
                 Icons.tune_rounded,
+                hint: tr('set_hint_interface'),
                 children: [
                   _card([
                     _tile(
@@ -183,7 +186,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _divider(),
                     _tile(
                       icon: Icons.menu_open_rounded,
-                      title: tr('drawer_customize'),
+                      title: tr('set_side_menu'),
                       subtitle: tr('drawer_customize_sub'),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
@@ -205,6 +208,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _group(
                 'disc_hide_section',
                 Icons.explore_rounded,
+                hint: tr('set_hint_discover'),
                 children: [
                   _card([
                     _discSwitch(
@@ -246,12 +250,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
               _group(
-                'movies_section',
-                Icons.movie_rounded,
+                'set_group_catalog',
+                Icons.movie_filter_rounded,
+                hint: tr('set_hint_catalog'),
                 children: [
                   _card([
                     _tile(
-                      icon: Icons.movie_filter_rounded,
+                      icon: Icons.travel_explore_rounded,
                       title: tr('movie_source'),
                       subtitle:
                           '${_source.source.label} · ${_source.source.note}',
@@ -268,21 +273,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                     ),
-                    _divider(),
-                    _tile(
-                      icon: Icons.sync_rounded,
-                      title: 'Trakt',
-                      subtitle: tr('trakt_sub'),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const TraktScreen()),
-                      ),
-                    ),
                   ]),
                 ],
               ),
               _group(
-                'nav_series',
-                Icons.live_tv_rounded,
+                'set_group_tracking',
+                Icons.task_alt_rounded,
+                hint: tr('set_hint_tracking'),
                 children: [
                   _card([
                     SwitchListTile(
@@ -321,8 +318,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
               _group(
-                'notif_new_episodes',
+                'set_group_notifications',
                 Icons.notifications_rounded,
+                hint: tr('set_hint_notifications'),
                 children: [
                   _card([
                     SwitchListTile(
@@ -367,8 +365,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
               _group(
-                'data',
-                Icons.storage_rounded,
+                'set_group_sync',
+                Icons.cloud_sync_rounded,
+                hint: tr('set_hint_sync'),
                 children: [
                   _card([
                     _tile(
@@ -393,11 +392,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _divider(),
                     _tile(
                       icon: Icons.backup_rounded,
-                      title: tr('sync_backup'),
-                      subtitle: tr('sync_backup_sub'),
+                      title: tr('set_backup_file'),
+                      subtitle: tr('set_backup_file_sub'),
                       onTap: _backupSheet,
                     ),
                     _divider(),
+                    _tile(
+                      icon: Icons.sync_rounded,
+                      title: 'Trakt',
+                      subtitle: tr('trakt_sub'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const TraktScreen()),
+                      ),
+                    ),
+                  ]),
+                ],
+              ),
+              _group(
+                'set_group_import',
+                Icons.move_to_inbox_rounded,
+                hint: tr('set_hint_import'),
+                children: [
+                  _card([
                     _tile(
                       icon: Icons.move_to_inbox_rounded,
                       title: tr('tvtime_title'),
@@ -410,14 +426,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _divider(),
                     _tile(
                       icon: Icons.sensors_rounded,
-                      title: tr('scrobble_title'),
-                      subtitle: tr('scrobble_settings_sub'),
+                      title: tr('set_scrobble'),
+                      subtitle: tr('set_scrobble_sub'),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
                             builder: (_) => const ScrobbleScreen()),
                       ),
                     ),
-                    _divider(),
+                  ]),
+                ],
+              ),
+              _group(
+                'set_group_storage',
+                Icons.storage_rounded,
+                hint: tr('set_hint_storage'),
+                children: [
+                  _card([
                     _tile(
                       icon: Icons.cleaning_services_rounded,
                       title: tr('clear_image_cache'),
@@ -445,14 +469,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
               _group(
-                'support_section',
+                'set_group_support',
                 Icons.volunteer_activism_rounded,
+                hint: tr('set_hint_support'),
                 initiallyExpanded: true,
                 children: [_donationCard()],
               ),
               _group(
                 'about',
                 Icons.info_outline_rounded,
+                hint: tr('set_hint_about'),
                 children: [
                   _card([
                     _tile(
@@ -463,9 +489,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     _divider(),
                     _tile(
-                      icon: Icons.movie_rounded,
-                      title: tr('app_name'),
-                      subtitle: tr('about_sub'),
+                      icon: Icons.info_rounded,
+                      title: tr('set_about_kadr'),
+                      subtitle: tr('set_about_kadr_sub'),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const AboutScreen()),
                       ),
@@ -533,9 +559,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// Сворачиваемая секция настроек: тап по заголовку разворачивает/сворачивает
   /// содержимое. Так экран короткий (список заголовков), но ни одна настройка не
   /// удалена — всё под своим заголовком. По умолчанию открыты только некоторые.
+  ///
+  /// [hint] перечисляет, что лежит внутри, и виден, пока секция свёрнута: по
+  /// одному заголовку вроде «Данные» не угадать, где искать нужный пункт.
   Widget _group(
     String titleKey,
     IconData icon, {
+    String? hint,
     bool initiallyExpanded = false,
     required List<Widget> children,
   }) {
@@ -557,14 +587,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icon(icon, size: 20, color: scheme.primary),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    tr(titleKey),
-                    style: TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                      letterSpacing: 0.2,
-                      color: scheme.primary,
+                  child: AnimatedSize(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeInOut,
+                    alignment: Alignment.topLeft,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tr(titleKey),
+                          style: TextStyle(
+                            fontFamily: AppTheme.displayFont,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            letterSpacing: 0.2,
+                            color: scheme.primary,
+                          ),
+                        ),
+                        if (hint != null && !expanded)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              hint,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: AppTheme.bodyFont,
+                                fontSize: 13,
+                                height: 1.3,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -1028,7 +1083,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _backupSheet() {
     _bottomSheet(
-      title: tr('sync_backup'),
+      title: tr('set_backup_file'),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
