@@ -16,6 +16,7 @@ import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/score.dart';
+import '../utils/season_pick.dart';
 import '../widgets/facts_section.dart';
 import '../widgets/pop_icon.dart';
 import '../widgets/poster.dart';
@@ -258,23 +259,14 @@ class _SeriesScreenState extends State<SeriesScreen> {
       }
       await _repo.reconcileSeriesEpisodes(s.tvShowId, ordered);
     }
-    _season = _initialSeason();
+    _season = await pickInitialSeason(
+      seasons: _seasons,
+      watched: s.episodes,
+      episodesOf: (n) => TmdbService.episodesOf(_tmdbId!, n),
+    );
+    if (!mounted) return;
     await _loadSeason(_season!);
     if (mounted) setState(() => _loading = false);
-  }
-
-  int _initialSeason() {
-    int? best;
-    DateTime? bestAt;
-    for (final e in s.episodes) {
-      if (e.season == null || e.watchedAt == null) continue;
-      if (bestAt == null || e.watchedAt!.isAfter(bestAt)) {
-        bestAt = e.watchedAt;
-        best = e.season;
-      }
-    }
-    if (best != null && _seasons.any((x) => x.number == best)) return best;
-    return _seasons.first.number;
   }
 
   Future<void> _loadSeason(int n) async {
