@@ -17,6 +17,7 @@ import 'package:kadr/l10n/locale_controller.dart';
 import 'package:kadr/l10n/strings.dart';
 import 'package:kadr/models/social.dart';
 import 'package:kadr/screens/library_tab.dart';
+import 'package:kadr/screens/series_stats_screen.dart';
 import 'package:kadr/screens/settings/account_page.dart';
 import 'package:kadr/screens/settings/appearance_page.dart';
 import 'package:kadr/screens/settings/library_pages.dart';
@@ -24,11 +25,14 @@ import 'package:kadr/screens/settings_screen.dart';
 import 'package:kadr/screens/social/my_profile_screen.dart';
 import 'package:kadr/services/movie_repository.dart';
 import 'package:kadr/services/social/social_controller.dart';
+import 'package:kadr/services/store.dart';
 import 'package:kadr/theme/app_theme.dart';
 import 'package:kadr/widgets/floating_nav_bar.dart';
 import 'package:kadr/widgets/season_pill.dart';
 import 'package:kadr/widgets/user_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'series_stats_screen_test.dart' show sampleSeries;
 
 const _out = 'build/preview';
 const _width = 390.0;
@@ -267,6 +271,26 @@ void main() {
       height: 120,
       width: 640,
     );
+
+    // Статистика сериала с рейтингом сезонов: развёрнутый и свёрнутый.
+    final sample = sampleSeries();
+    for (final short in [false, true]) {
+      await tester.runAsync(
+        () => Store.instance.setBool('seriesStatsRankShort', short),
+      );
+      await _shoot(
+        tester,
+        '9_stats_${short ? 'short' : 'full'}',
+        SeriesStatsScreen(
+          series: sample.series,
+          seasons: sample.seasons,
+          preloaded: sample.tmdb,
+        ),
+        height: 900,
+        width: 352,
+      );
+    }
+    await tester.runAsync(() => Store.instance.remove('seriesStatsRankShort'));
 
     SocialController.instance.debugSetSession(null);
     // Картинкам и ленте нужны таймеры: даём им отработать до конца теста.

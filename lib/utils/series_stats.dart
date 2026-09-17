@@ -212,8 +212,34 @@ class SeriesStats extends StatsSummary {
     return null;
   }
 
+  /// Сезоны от лучшего к худшему по средней оценке.
+  ///
+  /// В счёт идут сезоны, где оценено от [minRated] серий, и короткие, где
+  /// оценены все вышедшие. При равной средней выше ранний сезон. Пусто,
+  /// если таких сезонов меньше двух или средняя у всех одна: сравнивать
+  /// нечего.
+  List<SeasonStats> get seasonRanking {
+    int key(SeasonStats s) => (s.avgScore! * 100).round();
+    final list = [
+      for (final s in seasons)
+        if (s.avgScore != null &&
+            (s.rated >= minRated || (s.rated > 0 && s.rated >= s.aired)))
+          s,
+    ];
+    if (list.length < 2) return const [];
+    list.sort((a, b) {
+      final c = key(b).compareTo(key(a));
+      return c != 0 ? c : a.season.compareTo(b.season);
+    });
+    if (key(list.first) == key(list.last)) return const [];
+    return list;
+  }
+
   /// С какого размера отрезок подряд или за день стоит отдельного факта.
   static const minRecord = 3;
+
+  /// Сколько оценённых серий нужно сезону, чтобы попасть в рейтинг.
+  static const minRated = 3;
 
   /// Короче этого перерыв между сезонами не показывается.
   static const pauseDays = 7;

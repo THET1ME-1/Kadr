@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
 import '../services/movie_repository.dart';
+import '../services/store.dart';
 import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
@@ -42,9 +43,17 @@ class _SeriesStatsScreenState extends State<SeriesStatsScreen> {
   /// Выбранный сезон; null — сериал целиком.
   int? _selected;
 
+  /// Рейтинг сезонов свёрнут до лучшего и худшего. Одно состояние на все
+  /// сериалы, хранится в [Store].
+  bool _rankShort = false;
+  static const _rankShortKey = 'seriesStatsRankShort';
+
   @override
   void initState() {
     super.initState();
+    Store.instance.getBool(_rankShortKey).then((v) {
+      if (mounted && v != _rankShort) setState(() => _rankShort = v);
+    });
     final pre = widget.preloaded;
     if (pre != null) {
       _tmdb = pre;
@@ -118,6 +127,10 @@ class _SeriesStatsScreenState extends State<SeriesStatsScreen> {
                       selected == null ? st : st.season(selected)!,
                       season: selected != null,
                     ),
+                    if (selected == null && st.seasonRanking.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _ranking(context, st.seasonRanking),
+                    ],
                     const SizedBox(height: 28),
                     Padding(
                       padding: const EdgeInsets.only(left: 4, bottom: 14),
@@ -140,6 +153,215 @@ class _SeriesStatsScreenState extends State<SeriesStatsScreen> {
                 ),
         );
       },
+    );
+  }
+
+  // ------------------------------------------------------------ рейтинг
+
+  void _toggleRank() {
+    HapticFeedback.selectionClick();
+    setState(() => _rankShort = !_rankShort);
+    Store.instance.setBool(_rankShortKey, _rankShort);
+  }
+
+  /// Сезоны от лучшего к худшему (вариант R2 макета, 2026-09-17). Свёрнутый
+  /// оставляет только первую и последнюю строку.
+  Widget _ranking(BuildContext context, List<SeasonStats> ranked) {
+    final scheme = Theme.of(context).colorScheme;
+    final best = ranked.first, worst = ranked.last;
+    // Из двух сезонов сворачивать нечего.
+    final canFold = ranked.length > 2;
+    final short = canFold && _rankShort;
+    final shown = short ? [best, worst] : ranked;
+    // Если у соседей совпали десятые, карточка переходит на сотые: иначе
+    // худший сезон неотличим от соседа, хотя порядок разный.
+    final fine = [
+      for (var i = 1; i < ranked.length; i++)
+        _score(ranked[i - 1].avgScore!) == _score(ranked[i].avgScore!),
+    ].any((same) => same);
+    return Container(
+      key: const ValueKey('season-ranking'),
+      padding: const EdgeInsets.fromLTRB(18, 8, 8, 14),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10, right: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tr('ss_rank_title'),
+                        style: TextStyle(
+                          fontFamily: AppTheme.displayFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          color: scheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        short ? tr('ss_rank_sub_short') : tr('ss_rank_sub_all'),
+                        style: TextStyle(
+                          fontFamily: AppTheme.bodyFont,
+                          fontSize: 13,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (canFold)
+                IconButton(
+                  tooltip: short
+                      ? tr('ss_rank_expand')
+                      : tr('ss_rank_collapse'),
+                  onPressed: _toggleRank,
+                  icon: AnimatedRotation(
+                    turns: short ? 0 : 0.5,
+                    duration: const Duration(milliseconds: 220),
+                    child: const Icon(Icons.expand_more_rounded),
+                  ),
+                )
+              else
+                const SizedBox(width: 10),
+            ],
+          ),
+          const SizedBox(height: 8),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 240),
+            curve: AppTheme.emphasized,
+            alignment: Alignment.topCenter,
+            child: Column(
+              children: [
+                for (final s in shown)
+                  _rankRow(
+                    context,
+                    s,
+                    best: identical(s, best),
+                    worst: identical(s, worst),
+                    value: fine
+                        ? s.avgScore!.toStringAsFixed(2)
+                        : _score(s.avgScore!),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _rankRow(
+    BuildContext context,
+    SeasonStats s, {
+    required bool best,
+    required bool worst,
+    required String value,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final strong = best || worst;
+    final label = trf('season_n', {'n': s.season});
+    // Остальные сезоны приглушены: цвет оценки в диапазоне 8–10 почти не
+    // различается, выделяются только лучший и худший, и у обоих есть значок.
+    final bar = best
+        ? scheme.primary
+        : worst
+        ? scheme.error
+        : scheme.outlineVariant;
+    return Semantics(
+      label: [
+        label,
+        value,
+        if (best) tr('ss_rank_best'),
+        if (worst) tr('ss_rank_worst'),
+      ].join(', '),
+      excludeSemantics: true,
+      child: SizedBox(
+        height: 32,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              child: best
+                  ? Icon(
+                      Icons.emoji_events_rounded,
+                      size: 18,
+                      color: scheme.primary,
+                    )
+                  : worst
+                  ? Icon(
+                      Icons.thumb_down_alt_rounded,
+                      size: 16,
+                      color: scheme.error,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 84,
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: AppTheme.bodyFont,
+                  fontSize: 13.5,
+                  fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
+                  color: scheme.onSurface,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: FractionallySizedBox(
+                  widthFactor: (s.avgScore! / 10).clamp(0.02, 1.0),
+                  child: Container(
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: bar,
+                      borderRadius: const BorderRadius.horizontal(
+                        right: Radius.circular(4),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            // Unbounded широкий: «8.04» не должно переломиться на две строки.
+            SizedBox(
+              width: 48,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerEnd,
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    color: scheme.onSurface,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
+        ),
+      ),
     );
   }
 

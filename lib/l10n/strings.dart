@@ -2009,6 +2009,34 @@ const Map<String, Map<String, String>> _strings = {
   'ss_m': {'ru': '{m} мин', 'en': '{m}m'},
   'ss_avg': {'ru': 'средняя {v}', 'en': 'average {v}'},
   'ss_timeline': {'ru': 'Путь по сезонам', 'en': 'Season by season'},
+  'ss_rank_title': {
+    'ru': 'Сезоны по оценкам',
+    'en': 'Seasons by rating',
+  },
+  'ss_rank_sub_all': {
+    'ru': 'Средняя твоих оценок, от лучшего к худшему',
+    'en': 'Your average rating, best to worst',
+  },
+  'ss_rank_sub_short': {
+    'ru': 'Лучший и худший сезон по твоим оценкам',
+    'en': 'Your best and worst season',
+  },
+  'ss_rank_best': {
+    'ru': 'Лучший сезон',
+    'en': 'Best season',
+  },
+  'ss_rank_worst': {
+    'ru': 'Худший сезон',
+    'en': 'Worst season',
+  },
+  'ss_rank_expand': {
+    'ru': 'Показать все сезоны',
+    'en': 'Show all seasons',
+  },
+  'ss_rank_collapse': {
+    'ru': 'Оставить лучший и худший',
+    'en': 'Show best and worst only',
+  },
   'ss_started': {'ru': 'Начали с серии «{t}»', 'en': 'Started with “{t}”'},
   'ss_finished': {
     'ru': '«{t}». Сериал досмотрен',

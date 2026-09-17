@@ -257,4 +257,79 @@ void main() {
     expect(s2.spanDays, 3);
     expect(st.minutes, 150);
   });
+  group('рейтинг сезонов', () {
+    SeriesStats rated(Map<int, List<double?>> scores, {List<int>? counts}) {
+      final eps = <Episode>[
+        for (final e in scores.entries)
+          for (var i = 0; i < e.value.length; i++)
+            ep(e.key, i + 1, at(3, e.key, 10 + i), 45, e.value[i]),
+      ];
+      return computeSeriesStats(
+        episodes: eps,
+        seasons: structure(counts ?? [for (final l in scores.values) l.length]),
+        now: now,
+      );
+    }
+
+    List<int> order(SeriesStats st) => [
+      for (final s in st.seasonRanking) s.season,
+    ];
+
+    test('от лучшего сезона к худшему по средней', () {
+      expect(
+        order(
+          rated({
+            1: [9, 9, 10],
+            2: [6, 7, 6],
+            3: [8, 8, 8],
+          }),
+        ),
+        [1, 3, 2],
+      );
+    });
+
+    test(
+      'мало оценок — мимо, короткий сезон с оценками у всех серий — в счёт',
+      () {
+        final st = rated(
+          {
+            1: [9, 9, 9],
+            2: [10, null, null, null],
+            3: [4, 5],
+          },
+          counts: [3, 4, 2],
+        );
+        expect(order(st), [1, 3]);
+      },
+    );
+
+    test('при равной средней выше ранний сезон', () {
+      expect(
+        order(
+          rated({
+            1: [8, 8, 8],
+            2: [9, 9, 9],
+            3: [8, 8, 8],
+          }),
+        ),
+        [2, 1, 3],
+      );
+    });
+
+    test('один сезон или одна средняя у всех — рейтинга нет', () {
+      expect(
+        rated({
+          1: [8, 9, 10],
+        }).seasonRanking,
+        isEmpty,
+      );
+      expect(
+        rated({
+          1: [8, 8, 8],
+          2: [7, 9, 8],
+        }).seasonRanking,
+        isEmpty,
+      );
+    });
+  });
 }

@@ -4,6 +4,7 @@ import 'package:kadr/l10n/locale_controller.dart';
 import 'package:kadr/l10n/strings.dart';
 import 'package:kadr/models/library_entry.dart';
 import 'package:kadr/screens/series_stats_screen.dart';
+import 'package:kadr/services/store.dart';
 import 'package:kadr/services/tmdb_service.dart';
 import 'package:kadr/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -123,6 +124,18 @@ Widget app(
   ),
 );
 
+/// Подпись на пути по сезонам: без строк карточки рейтинга, где сезоны
+/// тоже названы.
+int _inPath(String text) =>
+    find.text(text).evaluate().length -
+    find
+        .descendant(
+          of: find.byKey(const ValueKey('season-ranking')),
+          matching: find.text(text),
+        )
+        .evaluate()
+        .length;
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -172,13 +185,78 @@ void main() {
       find.text(trn('ss_of_season_episodes', 13, {'a': 13})),
       findsOneWidget,
     );
-    expect(find.text('Сезон 4'), findsOneWidget);
-    expect(find.text('Сезон 3'), findsNothing);
+    expect(_inPath('Сезон 4'), 1);
+    expect(_inPath('Сезон 3'), 0);
     expect(find.textContaining('Пауза'), findsNothing);
 
     await tester.ensureVisible(find.text('Все'));
     await tester.tap(find.text('Все'));
     await tester.pumpAndSettle();
-    expect(find.text('Сезон 3'), findsOneWidget);
+    expect(_inPath('Сезон 3'), 1);
   });
+  testWidgets(
+    'рейтинг сезонов сворачивается до лучшего и худшего и помнит это',
+    (tester) async {
+      tester.view.physicalSize = const Size(400, 3000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.runAsync(() async {
+        await LocaleController.instance.setCode('ru');
+        await Store.instance.remove('seriesStatsRankShort');
+      });
+      await tester.pumpWidget(app(sampleSeries()));
+      await tester.pumpAndSettle();
+
+      final card = find.byKey(const ValueKey('season-ranking'));
+      Finder rows() =>
+          find.descendant(of: card, matching: find.textContaining('Сезон '));
+      expect(card, findsOneWidget);
+      expect(rows(), findsNWidgets(5));
+      // Сезоны 1 и 3 в десятых оба 7.9: карточка переходит на сотые, иначе
+      // худший неотличим от соседа.
+      expect(
+        find.descendant(of: card, matching: find.text('7.93')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: card, matching: find.text('7.88')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.descendant(
+          of: card,
+          matching: find.byTooltip(tr('ss_rank_collapse')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(rows(), findsNWidgets(2));
+      final saved = await tester.runAsync(
+        () => Store.instance.getBool('seriesStatsRankShort'),
+      );
+      expect(saved, isTrue);
+
+      // Другой сериал или повторный вход открывается уже свёрнутым.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(app(sampleSeries()));
+      await tester.pumpAndSettle();
+      expect(rows(), findsNWidgets(2));
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.byTooltip(tr('ss_rank_expand')),
+        ),
+        findsOneWidget,
+      );
+
+      // У отдельного сезона рейтинга нет.
+      await tester.ensureVisible(find.text('S4'));
+      await tester.tap(find.text('S4'));
+      await tester.pumpAndSettle();
+      expect(card, findsNothing);
+      await tester.runAsync(
+        () => Store.instance.remove('seriesStatsRankShort'),
+      );
+    },
+  );
 }
