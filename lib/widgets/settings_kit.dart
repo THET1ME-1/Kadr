@@ -147,25 +147,34 @@ class SettingsGroup extends StatelessWidget {
 }
 
 /// Круглый значок строки: 44, подложка `primaryContainer`.
+///
+/// Тем же значком помечены серии в ленте «Просмотрено», там он 40.
 class SettingsIconChip extends StatelessWidget {
   final IconData icon;
   final Color? bg;
   final Color? fg;
+  final double size;
 
-  const SettingsIconChip(this.icon, {super.key, this.bg, this.fg});
+  const SettingsIconChip(
+    this.icon, {
+    super.key,
+    this.bg,
+    this.fg,
+    this.size = 44,
+  });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      width: 44,
-      height: 44,
+      width: size,
+      height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: bg ?? scheme.primaryContainer,
         shape: BoxShape.circle,
       ),
-      child: Icon(icon, size: 22, color: fg ?? scheme.onPrimaryContainer),
+      child: Icon(icon, size: size / 2, color: fg ?? scheme.onPrimaryContainer),
     );
   }
 }

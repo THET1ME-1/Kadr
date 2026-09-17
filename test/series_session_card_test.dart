@@ -118,5 +118,27 @@ void main() {
       ),
       findsNothing,
     );
+
+    // У каждой серии круглый значок, как у пунктов настроек (вариант D1).
+    for (final label in ['S7·E4', 'S7·E3', 'S7·E2']) {
+      final block = find
+          .ancestor(of: find.text(label), matching: find.byType(Material))
+          .first;
+      final chip = find.descendant(
+        of: block,
+        matching: find.byType(SettingsIconChip),
+      );
+      expect(chip, findsOneWidget, reason: label);
+      expect(tester.widget<SettingsIconChip>(chip).size, 40, reason: label);
+      expect(
+        find.descendant(
+          of: chip,
+          matching: find.byIcon(Icons.play_arrow_rounded),
+        ),
+        findsOneWidget,
+        reason: label,
+      );
+    }
+    expect(find.byIcon(Icons.play_circle_outline_rounded), findsNothing);
   });
 }

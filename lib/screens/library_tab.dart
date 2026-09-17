@@ -2769,6 +2769,7 @@ class _SeriesSessionCard extends StatelessWidget {
                           seriesId: s.tvShowId,
                           ep: shown[i],
                           readOnly: readOnly,
+                          selected: selected,
                         ),
                       ),
                     if (hidden > 0)
@@ -2819,16 +2820,26 @@ class _EpisodeRow extends StatelessWidget {
   final String seriesId;
   final Episode ep;
   final bool readOnly;
+
+  /// Карточка выделена: блок залит `primaryContainer`, и значок с оценкой
+  /// берут `primary`, иначе они сливаются с фоном.
+  final bool selected;
   const _EpisodeRow({
     required this.seriesId,
     required this.ep,
     this.readOnly = false,
+    this.selected = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final sc = ep.score;
+    final chipFg = sc == null
+        ? scheme.onSurfaceVariant
+        : selected
+        ? scheme.onPrimary
+        : scheme.onPrimaryContainer;
     // Строка — содержимое своего блока, форму и обрезку даёт блок.
     return InkWell(
       onTap: readOnly ? null : () => _rate(context),
@@ -2836,12 +2847,14 @@ class _EpisodeRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
         child: Row(
           children: [
-            Icon(
-              Icons.play_circle_outline_rounded,
-              size: 18,
-              color: scheme.onSurfaceVariant,
+            // Круглый значок, как у пунктов настроек (вариант D1 макета).
+            SettingsIconChip(
+              Icons.play_arrow_rounded,
+              size: 40,
+              bg: selected ? scheme.primary : null,
+              fg: selected ? scheme.onPrimary : null,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 14),
             SizedBox(
               width: 92,
               child: Text(
@@ -2852,7 +2865,7 @@ class _EpisodeRow extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: AppTheme.displayFont,
                   fontWeight: FontWeight.w700,
-                  fontSize: 13,
+                  fontSize: 14,
                   color: scheme.onSurface,
                 ),
               ),
@@ -2875,9 +2888,11 @@ class _EpisodeRow extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: sc != null
-                    ? scheme.primaryContainer
-                    : scheme.surfaceContainerHighest,
+                color: sc == null
+                    ? scheme.surfaceContainerHighest
+                    : selected
+                    ? scheme.primary
+                    : scheme.primaryContainer,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
@@ -2886,9 +2901,7 @@ class _EpisodeRow extends StatelessWidget {
                   Icon(
                     sc != null ? Icons.star_rounded : Icons.star_border_rounded,
                     size: 14,
-                    color: sc != null
-                        ? scheme.onPrimaryContainer
-                        : scheme.onSurfaceVariant,
+                    color: chipFg,
                   ),
                   const SizedBox(width: 3),
                   Text(
@@ -2897,9 +2910,7 @@ class _EpisodeRow extends StatelessWidget {
                       fontFamily: AppTheme.displayFont,
                       fontWeight: FontWeight.w700,
                       fontSize: 12.5,
-                      color: sc != null
-                          ? scheme.onPrimaryContainer
-                          : scheme.onSurfaceVariant,
+                      color: chipFg,
                     ),
                   ),
                 ],
