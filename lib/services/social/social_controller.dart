@@ -84,6 +84,19 @@ class SocialController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Подменяет сессию без сервера: экраны профиля и аккаунта в тестах.
+  /// `null` возвращает к состоянию «не вошёл».
+  @visibleForTesting
+  void debugSetSession(
+    SocialUser? user, {
+    FriendsData friends = const FriendsData(),
+  }) {
+    _token = user == null ? null : 'test';
+    _user = user;
+    _friends = user == null ? const FriendsData() : friends;
+    notifyListeners();
+  }
+
   // ------------------------------- auth -------------------------------
 
   /// Регистрация. Возвращает КОД ВОССТАНОВЛЕНИЯ (показать один раз пользователю).

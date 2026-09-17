@@ -306,7 +306,9 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
         title: Text(tabs[_index].title),
         actions: [
           if (onLibrary) _viewModeButton(context),
-          const SizedBox(width: 4),
+          // Настройки отделены от профиля, вход к ним держим под рукой.
+          if (_index == 3) const SettingsButton(),
+          const SizedBox(width: 8),
         ],
       ),
       drawer: _KadrDrawer(

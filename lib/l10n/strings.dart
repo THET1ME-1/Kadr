@@ -898,6 +898,43 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Версия, авторы, источники данных',
     'en': 'Version, credits, data sources',
   },
+  // Хаб настроек и раздел «Аккаунт».
+  'set_sec_look': {
+    'ru': 'Вид и поведение',
+    'en': 'Look & behaviour',
+  },
+  'set_sec_library': {
+    'ru': 'Библиотека и данные',
+    'en': 'Library & data',
+  },
+  'set_group_account': {
+    'ru': 'Аккаунт',
+    'en': 'Account',
+  },
+  'set_hint_account': {
+    'ru': 'Почта, код восстановления, приватность, выход',
+    'en': 'Email, recovery code, privacy, sign out',
+  },
+  'set_account_out_sub': {
+    'ru': 'Нужен для друзей и ленты. Библиотека работает и без него',
+    'en': 'Needed for friends and the feed. Your library works without it',
+  },
+  'set_sec_privacy': {
+    'ru': 'Что видят друзья',
+    'en': 'What friends see',
+  },
+  'privacy_hide_ratings_sub': {
+    'ru': 'Друзья увидят просмотр, но не оценку',
+    'en': 'Friends see the watch, not the score',
+  },
+  'set_account_email_sub': {
+    'ru': 'Почта аккаунта. Нажми, чтобы скопировать',
+    'en': 'Account email. Tap to copy',
+  },
+  'set_email_copied': {
+    'ru': 'Почта скопирована',
+    'en': 'Email copied',
+  },
   'appearance': {'ru': 'Внешний вид', 'en': 'Appearance'},
   'start_screen': {'ru': 'Экран при запуске', 'en': 'Start screen'},
   // --------------------------- Иконка приложения ---------------------------

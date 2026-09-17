@@ -1,1247 +1,211 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 import '../l10n/locale_controller.dart';
 import '../l10n/strings.dart';
-import '../services/app_icon_service.dart';
-import '../services/app_prefs.dart';
-import '../services/backup_service.dart';
-import '../services/import_service.dart';
-import '../services/update_service.dart';
-import '../widgets/update_sheet.dart';
-import '../services/movie_repository.dart';
-import '../services/movie_source.dart';
-import '../services/notification_service.dart';
-import '../services/store.dart';
-import '../theme/app_theme.dart';
-import '../utils/format.dart';
-import '../theme/theme_controller.dart';
-import '../widgets/app_icon_preview.dart';
-import '../widgets/appearance_card.dart';
-import 'about_screen.dart';
-import 'auto_backup_screen.dart';
-import 'custom_icon_screen.dart';
-import 'drawer_customize_screen.dart';
-import 'trakt_screen.dart';
-import 'sync_screen.dart';
-import 'scrobble_screen.dart';
-import 'tmdb_key_screen.dart';
-import 'tvtime_import_screen.dart';
+import '../services/social/social_controller.dart';
+import '../widgets/settings_kit.dart';
+import '../widgets/user_avatar.dart';
+import 'settings/account_page.dart';
+import 'settings/appearance_page.dart';
+import 'settings/kadr_pages.dart';
+import 'settings/library_pages.dart';
+import 'settings/look_pages.dart';
+import 'settings/settings_sheets.dart';
+import 'social/auth_screen.dart';
 
-/// Экран настроек в духе Material 3 Expressive (перенос из ScoreMaster):
-/// внешний вид (тема, цвет, палитры, Material You, AMOLED), язык (7 языков),
-/// данные (бэкап/синхронизация). Все выборы — выезжающими снизу панелями.
-class SettingsScreen extends StatefulWidget {
+/// Настройки: список разделов, каждый открывается своей страницей.
+///
+/// Вид перенесён из Togetherly (`widgets/settings_kit.dart`): подпись раздела
+/// капсом, каждый пункт отдельным блоком, круглый значок. До 2026-09-17 здесь
+/// были сворачиваемые группы, а тема, язык, бэкапы и выход дублировались в
+/// профиле. Открывается шестерёнкой на вкладке «Профиль» и из бокового меню.
+///
+/// Под каждым разделом подпись перечисляет, что внутри (`set_hint_*`).
+/// Добавляешь пункт на страницу — допиши его в подпись.
+class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
-
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
-  final _theme = ThemeController.instance;
-  final _locale = LocaleController.instance;
-  final _source = SourceController.instance;
-  final _prefs = AppPrefs.instance;
-  final _appIcon = AppIconService.instance;
-  bool _notifyInApp = true;
-  bool _notifyPush = false;
-  bool _sequential = true;
-  bool _restrictUnaired = true;
-
-  /// Какие секции развёрнуты. Ключ = ключ заголовка секции. По умолчанию открыты
-  /// только «Внешний вид» и «Поддержать» — остальное свёрнуто, чтобы экран не
-  /// пугал длиной (ни одна настройка не удалена, просто спрятана под заголовок).
-  final Map<String, bool> _expanded = {};
-
-  @override
-  void initState() {
-    super.initState();
-    Store.instance.getBool('notifyInApp', def: true).then((v) {
-      if (mounted) setState(() => _notifyInApp = v);
-    });
-    Store.instance.getBool('notifyPush', def: false).then((v) {
-      if (mounted) setState(() => _notifyPush = v);
-    });
-    Store.instance.getBool('sequentialEpisodes', def: true).then((v) {
-      if (mounted) setState(() => _sequential = v);
-    });
-    Store.instance.getBool('restrictUnaired', def: true).then((v) {
-      if (mounted) setState(() => _restrictUnaired = v);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_theme, _locale, _source, _prefs, _appIcon]),
+      listenable: Listenable.merge([
+        LocaleController.instance,
+        SocialController.instance,
+      ]),
       builder: (context, _) {
-        return Scaffold(
-          appBar: AppBar(title: Text(tr('settings_title'))),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-            children: [
-              _group(
-                'appearance',
+        final scheme = Theme.of(context).colorScheme;
+        return SettingsPage(
+          title: tr('settings_title'),
+          children: [
+            SettingsGroup([_accountRow(context)]),
+            SettingsSection(tr('set_sec_look'), icon: Icons.tune_rounded),
+            SettingsGroup([
+              _link(
+                context,
                 Icons.palette_rounded,
-                hint: tr('set_hint_appearance'),
-                initiallyExpanded: true,
-                children: [
-                  const AppearanceCard(),
-                  const SizedBox(height: 10),
-                  _card([
-                    SwitchListTile(
-                      secondary: const Icon(Icons.auto_awesome_rounded),
-                      title: Text(tr('dynamic_color')),
-                      subtitle: Text(tr('dynamic_color_sub')),
-                      value: _theme.useDynamicColor,
-                      onChanged: _theme.setUseDynamicColor,
-                    ),
-                    if (_theme.isDark) ...[
-                      _divider(),
-                      SwitchListTile(
-                        secondary: const Icon(Icons.contrast_rounded),
-                        title: Text(tr('amoled')),
-                        subtitle: Text(tr('amoled_sub')),
-                        value: _theme.amoled,
-                        onChanged: _theme.setAmoled,
-                      ),
-                    ],
-                    if (_appIcon.isSupported) ...[
-                      _divider(),
-                      ListTile(
-                        leading: AppIconPreview(
-                          option: _appIcon.currentOption,
-                          size: 40,
-                        ),
-                        title: Text(
-                          tr('app_icon'),
-                          style: const TextStyle(
-                            fontFamily: AppTheme.bodyFont,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        subtitle: Text(tr(_appIcon.currentOption.nameKey)),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: _pickAppIcon,
-                      ),
-                      _divider(),
-                      _tile(
-                        icon: Icons.color_lens_rounded,
-                        title: tr('custom_icon'),
-                        subtitle: tr('custom_icon_sub'),
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const CustomIconScreen(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ]),
-                ],
+                tr('appearance'),
+                tr('set_hint_appearance'),
+                const AppearancePage(),
               ),
-              _group(
-                'language',
-                Icons.translate_rounded,
-                hint: _currentLanguageName(),
-                children: [
-                  _card([
-                    _tile(
-                      icon: Icons.translate_rounded,
-                      title: tr('language'),
-                      subtitle: _currentLanguageName(),
-                      onTap: _pickLanguage,
-                    ),
-                  ]),
-                ],
+              SettingsRow(
+                icon: Icons.translate_rounded,
+                title: tr('language'),
+                subtitle: currentLanguageName(),
+                trailing: const SettingsChevron(),
+                onTap: () => pickLanguage(context),
               ),
-              _group(
-                'set_group_interface',
-                Icons.tune_rounded,
-                hint: tr('set_hint_interface'),
-                children: [
-                  _card([
-                    _tile(
-                      icon: Icons.home_rounded,
-                      title: tr('start_screen'),
-                      subtitle: _startScreenLabel(_prefs.startScreen),
-                      onTap: _pickStartScreen,
-                    ),
-                    _divider(),
-                    _tile(
-                      icon: Icons.event_note_rounded,
-                      title: tr('date_format'),
-                      subtitle: _dateFormatExample(_prefs.numericDates),
-                      onTap: _pickDateFormat,
-                    ),
-                    _divider(),
-                    _tile(
-                      icon: Icons.add_circle_outline_rounded,
-                      title: tr('fab_position'),
-                      subtitle: _fabPositionLabel(_prefs.fabPosition),
-                      onTap: _pickFabPosition,
-                    ),
-                    _divider(),
-                    _tile(
-                      icon: Icons.menu_open_rounded,
-                      title: tr('set_side_menu'),
-                      subtitle: tr('drawer_customize_sub'),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const DrawerCustomizeScreen(),
-                        ),
-                      ),
-                    ),
-                    _divider(),
-                    SwitchListTile(
-                      secondary: const Icon(Icons.tv_rounded),
-                      title: Text(tr('tv_mode')),
-                      subtitle: Text(tr('tv_mode_sub')),
-                      value: _prefs.forceTvMode,
-                      onChanged: _prefs.setForceTvMode,
-                    ),
-                  ]),
-                ],
+              _link(
+                context,
+                Icons.dashboard_customize_rounded,
+                tr('set_group_interface'),
+                tr('set_hint_interface'),
+                const InterfacePage(),
               ),
-              _group(
-                'disc_hide_section',
+              _link(
+                context,
                 Icons.explore_rounded,
-                hint: tr('set_hint_discover'),
-                children: [
-                  _card([
-                    _discSwitch(
-                      DiscoverHide.watchedMovies,
-                      Icons.check_circle_rounded,
-                      'disc_hide_watched_movies',
-                    ),
-                    _divider(),
-                    _discSwitch(
-                      DiscoverHide.watchedSeries,
-                      Icons.check_circle_rounded,
-                      'disc_hide_watched_series',
-                    ),
-                    _divider(),
-                    _discSwitch(
-                      DiscoverHide.droppedMovies,
-                      Icons.heart_broken_rounded,
-                      'disc_hide_dropped_movies',
-                    ),
-                    _divider(),
-                    _discSwitch(
-                      DiscoverHide.droppedSeries,
-                      Icons.heart_broken_rounded,
-                      'disc_hide_dropped_series',
-                    ),
-                    _divider(),
-                    _discSwitch(
-                      DiscoverHide.watchlistMovies,
-                      Icons.bookmark_rounded,
-                      'disc_hide_watchlist_movies',
-                    ),
-                    _divider(),
-                    _discSwitch(
-                      DiscoverHide.watchlistSeries,
-                      Icons.bookmark_rounded,
-                      'disc_hide_watchlist_series',
-                    ),
-                  ]),
-                ],
+                tr('disc_hide_section'),
+                tr('set_hint_discover'),
+                const DiscoverHidePage(),
               ),
-              _group(
-                'set_group_catalog',
-                Icons.movie_filter_rounded,
-                hint: tr('set_hint_catalog'),
-                children: [
-                  _card([
-                    _tile(
-                      icon: Icons.travel_explore_rounded,
-                      title: tr('movie_source'),
-                      subtitle:
-                          '${_source.source.label} · ${_source.source.note}',
-                      onTap: _pickSource,
-                    ),
-                    _divider(),
-                    _tile(
-                      icon: Icons.vpn_key_rounded,
-                      title: tr('api_keys_title'),
-                      subtitle: tr('api_keys_sub'),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const TmdbKeyScreen(),
-                        ),
-                      ),
-                    ),
-                  ]),
-                ],
-              ),
-              _group(
-                'set_group_tracking',
-                Icons.task_alt_rounded,
-                hint: tr('set_hint_tracking'),
-                children: [
-                  _card([
-                    SwitchListTile(
-                      secondary: const Icon(Icons.playlist_add_check_rounded),
-                      title: Text(tr('seq_mode')),
-                      subtitle: Text(tr('seq_mode_sub')),
-                      value: _sequential,
-                      onChanged: (v) {
-                        setState(() => _sequential = v);
-                        Store.instance.setBool('sequentialEpisodes', v);
-                      },
-                    ),
-                    _divider(),
-                    SwitchListTile(
-                      secondary: const Icon(Icons.event_busy_rounded),
-                      title: Text(tr('restrict_unaired')),
-                      subtitle: Text(tr('restrict_unaired_sub')),
-                      value: _restrictUnaired,
-                      onChanged: (v) {
-                        setState(() => _restrictUnaired = v);
-                        Store.instance.setBool('restrictUnaired', v);
-                      },
-                    ),
-                    _divider(),
-                    SwitchListTile(
-                      secondary: const Icon(Icons.auto_stories_rounded),
-                      title: Text(tr('diary_settings_title')),
-                      subtitle: Text(tr('diary_settings_sub')),
-                      value: _prefs.diaryEnabled,
-                      onChanged: (v) {
-                        _prefs.setDiaryEnabled(v);
-                        setState(() {});
-                      },
-                    ),
-                  ]),
-                ],
-              ),
-              _group(
-                'set_group_notifications',
+              _link(
+                context,
                 Icons.notifications_rounded,
-                hint: tr('set_hint_notifications'),
-                children: [
-                  _card([
-                    SwitchListTile(
-                      secondary: const Icon(Icons.dashboard_customize_rounded),
-                      title: Text(tr('notif_inapp')),
-                      subtitle: Text(tr('notif_inapp_sub')),
-                      value: _notifyInApp,
-                      onChanged: (v) async {
-                        setState(() => _notifyInApp = v);
-                        await NotificationService.instance.setInAppEnabled(v);
-                        if (v) {
-                          await NotificationService.instance
-                              .checkNewEpisodes();
-                        }
-                      },
-                    ),
-                    _divider(),
-                    SwitchListTile(
-                      secondary: const Icon(Icons.notifications_active_rounded),
-                      title: Text(tr('notif_push')),
-                      subtitle: Text(tr('notif_push_sub')),
-                      value: _notifyPush,
-                      onChanged: (v) async {
-                        setState(() => _notifyPush = v);
-                        await NotificationService.instance.setPushEnabled(v);
-                        if (v) {
-                          await NotificationService.instance
-                              .checkNewEpisodes();
-                        }
-                      },
-                    ),
-                    if (_notifyInApp || _notifyPush) ...[
-                      _divider(),
-                      _tile(
-                        icon: Icons.notifications_none_rounded,
-                        title: tr('notif_test'),
-                        subtitle: tr('notif_test_sub'),
-                        onTap: () => NotificationService.instance.showTest(),
-                      ),
-                    ],
-                  ]),
-                ],
+                tr('set_group_notifications'),
+                tr('set_hint_notifications'),
+                const NotificationsPage(),
               ),
-              _group(
-                'set_group_sync',
+            ]),
+            SettingsSection(
+              tr('set_sec_library'),
+              icon: Icons.video_library_rounded,
+            ),
+            SettingsGroup([
+              _link(
+                context,
+                Icons.movie_filter_rounded,
+                tr('set_group_catalog'),
+                tr('set_hint_catalog'),
+                const CatalogPage(),
+              ),
+              _link(
+                context,
+                Icons.task_alt_rounded,
+                tr('set_group_tracking'),
+                tr('set_hint_tracking'),
+                const TrackingPage(),
+              ),
+              _link(
+                context,
                 Icons.cloud_sync_rounded,
-                hint: tr('set_hint_sync'),
-                children: [
-                  _card([
-                    _tile(
-                      icon: Icons.folder_zip_rounded,
-                      title: tr('auto_backup'),
-                      subtitle: tr('auto_backup_sub'),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const AutoBackupScreen(),
-                        ),
-                      ),
-                    ),
-                    _divider(),
-                    _tile(
-                      icon: Icons.cloud_sync_rounded,
-                      title: tr('sync_webdav'),
-                      subtitle: tr('sync_webdav_sub'),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const SyncScreen()),
-                      ),
-                    ),
-                    _divider(),
-                    _tile(
-                      icon: Icons.backup_rounded,
-                      title: tr('set_backup_file'),
-                      subtitle: tr('set_backup_file_sub'),
-                      onTap: _backupSheet,
-                    ),
-                    _divider(),
-                    _tile(
-                      icon: Icons.sync_rounded,
-                      title: 'Trakt',
-                      subtitle: tr('trakt_sub'),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const TraktScreen()),
-                      ),
-                    ),
-                  ]),
-                ],
+                tr('set_group_sync'),
+                tr('set_hint_sync'),
+                const SyncPage(),
               ),
-              _group(
-                'set_group_import',
+              _link(
+                context,
                 Icons.move_to_inbox_rounded,
-                hint: tr('set_hint_import'),
-                children: [
-                  _card([
-                    _tile(
-                      icon: Icons.move_to_inbox_rounded,
-                      title: tr('tvtime_title'),
-                      subtitle: tr('tvtime_settings_sub'),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const TvTimeImportScreen()),
-                      ),
-                    ),
-                    _divider(),
-                    _tile(
-                      icon: Icons.sensors_rounded,
-                      title: tr('set_scrobble'),
-                      subtitle: tr('set_scrobble_sub'),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const ScrobbleScreen()),
-                      ),
-                    ),
-                  ]),
-                ],
+                tr('set_group_import'),
+                tr('set_hint_import'),
+                const ImportPage(),
               ),
-              _group(
-                'set_group_storage',
+              _link(
+                context,
                 Icons.storage_rounded,
-                hint: tr('set_hint_storage'),
-                children: [
-                  _card([
-                    _tile(
-                      icon: Icons.cleaning_services_rounded,
-                      title: tr('clear_image_cache'),
-                      subtitle: tr('clear_image_cache_sub'),
-                      onTap: _clearImageCache,
-                    ),
-                    _divider(),
-                    ListTile(
-                      leading: Icon(
-                        Icons.delete_forever_rounded,
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                      title: Text(
-                        tr('clear_all_data'),
-                        style: TextStyle(
-                          fontFamily: AppTheme.bodyFont,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                      subtitle: Text(tr('clear_all_data_sub')),
-                      onTap: _confirmClearAll,
-                    ),
-                  ]),
-                ],
+                tr('set_group_storage'),
+                tr('set_hint_storage'),
+                const StoragePage(),
               ),
-              _group(
-                'set_group_support',
+            ]),
+            SettingsSection(tr('app_name'), icon: Icons.local_movies_rounded),
+            SettingsGroup([
+              // Донат раньше был раскрыт по умолчанию, чтобы его видели.
+              // Теперь его выделяет залитый значок.
+              _link(
+                context,
                 Icons.volunteer_activism_rounded,
-                hint: tr('set_hint_support'),
-                initiallyExpanded: true,
-                children: [_donationCard()],
+                tr('set_group_support'),
+                tr('set_hint_support'),
+                const SupportPage(),
+                iconBg: scheme.primary,
+                iconFg: scheme.onPrimary,
               ),
-              _group(
-                'about',
-                Icons.info_outline_rounded,
-                hint: tr('set_hint_about'),
-                children: [
-                  _card([
-                    _tile(
-                      icon: Icons.system_update_rounded,
-                      title: tr('check_updates'),
-                      subtitle: tr('check_updates_sub'),
-                      onTap: _checkUpdates,
-                    ),
-                    _divider(),
-                    _tile(
-                      icon: Icons.info_rounded,
-                      title: tr('set_about_kadr'),
-                      subtitle: tr('set_about_kadr_sub'),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const AboutScreen()),
-                      ),
-                    ),
-                    _divider(),
-                    _tile(
-                      icon: Icons.code_rounded,
-                      title: tr('source_code'),
-                      subtitle: 'github.com/THET1ME-1/Kadr',
-                      onTap: openRepo,
-                    ),
-                    _divider(),
-                    _tile(
-                      icon: Icons.mail_outline_rounded,
-                      title: tr('contact_support'),
-                      subtitle: kSupportEmail,
-                      onTap: openSupportEmail,
-                    ),
-                  ]),
-                ],
+              _link(
+                context,
+                Icons.info_rounded,
+                tr('about'),
+                tr('set_hint_about'),
+                const AboutPage(),
               ),
-            ],
-          ),
+            ]),
+          ],
         );
       },
     );
   }
 
-  /// Ручная проверка обновления: меню обновления или «последняя версия».
-  Future<void> _checkUpdates() async {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(tr('checking_updates')),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    final current = (await PackageInfo.fromPlatform()).version;
-    try {
-      final info = await UpdateService.checkForUpdate(current);
-      if (!mounted) return;
-      if (info == null) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(tr('up_to_date')),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      } else {
-        await UpdateSheet.show(context, info, current);
-      }
-    } catch (_) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(tr('update_check_failed')),
-          behavior: SnackBarBehavior.floating,
-        ),
+  /// Верхняя строка: свой аккаунт или приглашение войти.
+  Widget _accountRow(BuildContext context) {
+    final me = SocialController.instance.user;
+    if (me == null) {
+      return SettingsRow(
+        icon: Icons.person_rounded,
+        title: tr('profile_login_cta'),
+        subtitle: tr('set_account_out_sub'),
+        trailing: const SettingsChevron(),
+        onTap: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const AuthScreen())),
       );
     }
+    return SettingsRow(
+      leading: UserAvatar(user: me, size: 44),
+      title: me.displayName,
+      subtitle: tr('set_hint_account'),
+      trailing: const SettingsChevron(),
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const AccountPage())),
+    );
   }
 
-  // --------------------------- строительные блоки ---------------------------
-
-  /// Сворачиваемая секция настроек: тап по заголовку разворачивает/сворачивает
-  /// содержимое. Так экран короткий (список заголовков), но ни одна настройка не
-  /// удалена — всё под своим заголовком. По умолчанию открыты только некоторые.
-  ///
-  /// [hint] перечисляет, что лежит внутри, и виден, пока секция свёрнута: по
-  /// одному заголовку вроде «Данные» не угадать, где искать нужный пункт.
-  Widget _group(
-    String titleKey,
-    IconData icon, {
-    String? hint,
-    bool initiallyExpanded = false,
-    required List<Widget> children,
+  Widget _link(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String hint,
+    Widget page, {
+    Color? iconBg,
+    Color? iconFg,
   }) {
-    final scheme = Theme.of(context).colorScheme;
-    final expanded = _expanded[titleKey] ?? initiallyExpanded;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () {
-            HapticFeedback.selectionClick();
-            setState(() => _expanded[titleKey] = !expanded);
-          },
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
-            child: Row(
-              children: [
-                Icon(icon, size: 20, color: scheme.primary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: AnimatedSize(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeInOut,
-                    alignment: Alignment.topLeft,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          tr(titleKey),
-                          style: TextStyle(
-                            fontFamily: AppTheme.displayFont,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                            letterSpacing: 0.2,
-                            color: scheme.primary,
-                          ),
-                        ),
-                        if (hint != null && !expanded)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              hint,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontFamily: AppTheme.bodyFont,
-                                fontSize: 13,
-                                height: 1.3,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                AnimatedRotation(
-                  turns: expanded ? 0.5 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    Icons.expand_more_rounded,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeInOut,
-          alignment: Alignment.topCenter,
-          child: expanded
-              ? Padding(
-                  padding: const EdgeInsets.only(top: 2, bottom: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: children,
-                  ),
-                )
-              : const SizedBox(width: double.infinity),
-        ),
-      ],
+    return SettingsRow(
+      icon: icon,
+      title: title,
+      subtitle: hint,
+      iconBg: iconBg,
+      iconFg: iconFg,
+      trailing: const SettingsChevron(),
+      onTap: () =>
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => page)),
     );
   }
+}
 
-  Widget _card(List<Widget> children) => Card(
-    margin: EdgeInsets.zero,
-    child: Column(children: children),
-  );
+/// Шестерёнка в шапке вкладки «Профиль»: быстрый вход в настройки.
+class SettingsButton extends StatelessWidget {
+  const SettingsButton({super.key});
 
-  /// Заметный блок доната: короткий текст + две крупные кнопки (Boosty,
-  /// DonationAlerts). Стоит НАД блоком «О приложении».
-  Widget _donationCard() {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      color: scheme.primaryContainer.withValues(alpha: 0.35),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.volunteer_activism_rounded,
-                  color: scheme.primary,
-                  size: 22,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    tr('support_authors'),
-                    style: TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                      color: scheme.onSurface,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              tr('support_intro'),
-              style: TextStyle(
-                fontFamily: AppTheme.bodyFont,
-                fontSize: 13,
-                height: 1.35,
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: openSupportAuthors,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              icon: const Icon(Icons.favorite_rounded, size: 19),
-              label: const Text(
-                'Boosty',
-                style: TextStyle(
-                  fontFamily: AppTheme.displayFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            FilledButton.tonalIcon(
-              onPressed: openDonationAlerts,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 13),
-              ),
-              icon: const Icon(Icons.card_giftcard_rounded, size: 19),
-              label: const Text(
-                'DonationAlerts',
-                style: TextStyle(
-                  fontFamily: AppTheme.displayFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            FilledButton.tonalIcon(
-              onPressed: openLavaDonate,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 13),
-              ),
-              icon: const Icon(Icons.bolt_rounded, size: 19),
-              label: const Text(
-                'Lava.top',
-                style: TextStyle(
-                  fontFamily: AppTheme.displayFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+  @override
+  Widget build(BuildContext context) {
+    return IconButton.filledTonal(
+      icon: const Icon(Icons.settings_rounded),
+      tooltip: tr('settings_title'),
+      onPressed: () {
+        FocusManager.instance.primaryFocus?.unfocus();
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+      },
     );
-  }
-
-  Widget _divider() => const Divider(height: 1, indent: 56);
-
-  Widget _discSwitch(DiscoverHide h, IconData icon, String key) =>
-      SwitchListTile(
-        secondary: Icon(icon),
-        title: Text(tr(key)),
-        value: _prefs.discoverHidden(h),
-        onChanged: (v) => _prefs.setDiscoverHidden(h, v),
-      );
-
-  Widget _tile({
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    Widget? trailing,
-    bool enabled = true,
-    VoidCallback? onTap,
-  }) {
-    return ListTile(
-      enabled: enabled,
-      leading: Icon(icon),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontFamily: AppTheme.bodyFont,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      subtitle: subtitle == null ? null : Text(subtitle),
-      trailing:
-          trailing ??
-          (onTap == null
-              ? null
-              : const Icon(Icons.chevron_right_rounded, size: 22)),
-      onTap: onTap,
-    );
-  }
-
-  // ------------------------------- действия -------------------------------
-
-  void _pickLanguage() {
-    _bottomSheet(
-      title: tr('language'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final l in LocaleController.languages)
-            ListTile(
-              title: Text(
-                l.nativeName,
-                style: const TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              trailing: _locale.code == l.code
-                  ? Icon(
-                      Icons.check_circle_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                    )
-                  : null,
-              onTap: () {
-                // setCode меняет код синхронно (persist — в фоне), поэтому
-                // пере-локализация ниже уже видит новый язык.
-                _locale.setCode(l.code);
-                MovieRepository.instance.relocalizeTitlesSweep();
-                Navigator.pop(context);
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _pickSource() {
-    _bottomSheet(
-      title: tr('movie_source'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final s in MovieSource.values)
-            ListTile(
-              leading: Icon(switch (s) {
-                MovieSource.tmdb => Icons.public_rounded,
-                MovieSource.kinopoisk => Icons.movie_rounded,
-                MovieSource.tvdb => Icons.live_tv_rounded,
-              }),
-              title: Text(
-                s.label,
-                style: const TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Text(s.note),
-              trailing: _source.source == s
-                  ? Icon(
-                      Icons.check_circle_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                    )
-                  : null,
-              onTap: () {
-                _source.setSource(s);
-                // Дотянуть необогащённые фильмы через новый источник.
-                MovieRepository.instance.retryUnmatched();
-                Navigator.pop(context);
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// Выбор иконки приложения. mipmap-ассеты лаунчера из Flutter не видны:
-  /// плоские превью рисуются кодом, основное лого берётся из `assets/icon/`.
-  /// Оба пути дают ровно то, что встанет на стол.
-  void _pickAppIcon() {
-    _bottomSheet(
-      title: tr('app_icon'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Text(
-              tr('app_icon_hint'),
-              style: TextStyle(
-                fontFamily: AppTheme.bodyFont,
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          for (final o in AppIconService.options)
-            ListTile(
-              leading: AppIconPreview(option: o, size: 48),
-              title: Text(
-                tr(o.nameKey),
-                style: const TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              trailing: _appIcon.current == o.id
-                  ? Icon(
-                      Icons.check_circle_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                    )
-                  : null,
-              onTap: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(context);
-                final already = _appIcon.current == o.id;
-                final ok = await _appIcon.setIcon(o.id);
-                navigator.pop();
-                if (already) return;
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(ok ? tr('app_icon_changed') : tr('app_icon_failed')),
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _pickFabPosition() {
-    _bottomSheet(
-      title: tr('fab_position'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final p in FabPosition.values)
-            ListTile(
-              leading: Icon(_fabPositionIcon(p)),
-              title: Text(
-                _fabPositionLabel(p),
-                style: const TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              trailing: _prefs.fabPosition == p
-                  ? Icon(
-                      Icons.check_circle_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                    )
-                  : null,
-              onTap: () {
-                _prefs.setFabPosition(p);
-                Navigator.pop(context);
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _pickStartScreen() {
-    _bottomSheet(
-      title: tr('start_screen'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final s in StartScreen.values)
-            ListTile(
-              leading: Icon(_startScreenIcon(s)),
-              title: Text(
-                _startScreenLabel(s),
-                style: const TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              trailing: _prefs.startScreen == s
-                  ? Icon(
-                      Icons.check_circle_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                    )
-                  : null,
-              onTap: () {
-                _prefs.setStartScreen(s);
-                Navigator.pop(context);
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _pickDateFormat() {
-    final now = DateTime(2026, 6, 24);
-    _bottomSheet(
-      title: tr('date_format'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final numeric in [false, true])
-            ListTile(
-              leading: Icon(
-                numeric ? Icons.pin_rounded : Icons.calendar_month_rounded,
-              ),
-              title: Text(
-                numeric ? tr('date_format_numeric') : tr('date_format_long'),
-                style: const TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Text(numeric ? numericDate(now) : longDate(now)),
-              trailing: _prefs.numericDates == numeric
-                  ? Icon(
-                      Icons.check_circle_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                    )
-                  : null,
-              onTap: () {
-                _prefs.setNumericDates(numeric);
-                Navigator.pop(context);
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// Подтверждение полной очистки личных данных (необратимо).
-  /// Очищает кэш скачанных картинок (постеры/бэкдропы/аватары) — освобождает
-  /// память телефона; при следующем показе перекачаются с TMDB/сервера.
-  Future<void> _clearImageCache() async {
-    await DefaultCacheManager().emptyCache();
-    PaintingBinding.instance.imageCache.clear();
-    PaintingBinding.instance.imageCache.clearLiveImages();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(tr('cache_cleared')),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  void _confirmClearAll() {
-    final scheme = Theme.of(context).colorScheme;
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: Icon(Icons.delete_forever_rounded, color: scheme.error, size: 32),
-        title: Text(
-          tr('clear_all_title'),
-          style: const TextStyle(fontFamily: AppTheme.displayFont),
-        ),
-        content: Text(
-          tr('clear_all_body'),
-          style: const TextStyle(fontFamily: AppTheme.bodyFont),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(tr('cancel')),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              Navigator.pop(ctx);
-              await MovieRepository.instance.clearAll();
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(tr('clear_all_done')),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: scheme.error,
-              foregroundColor: scheme.onError,
-            ),
-            child: Text(tr('clear')),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _backupSheet() {
-    _bottomSheet(
-      title: tr('set_backup_file'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 10),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                tr('backup_hint'),
-                style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.ios_share_rounded),
-            title: Text(tr('create_backup')),
-            subtitle: Text(tr('create_backup_sub')),
-            onTap: () {
-              Navigator.pop(context);
-              BackupService.exportAndShare();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.file_open_rounded),
-            title: Text(tr('restore_backup')),
-            subtitle: Text(tr('restore_backup_sub')),
-            onTap: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              Navigator.pop(context);
-              final ok = await BackupService.importFromFile();
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(
-                    tr(ok ? 'backup_import_ok' : 'backup_import_fail'),
-                  ),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.move_to_inbox_rounded),
-            title: Text(tr('import_tracker')),
-            subtitle: Text(tr('import_tracker_sub')),
-            onTap: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              Navigator.pop(context);
-              final res = await ImportService.pickAndImport();
-              if (!res.ok) {
-                messenger.showSnackBar(
-                  SnackBar(content: Text(tr('import_tracker_fail'))),
-                );
-                return;
-              }
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(
-                    trf('import_tracker_ok', {
-                      'a': res.added,
-                      'u': res.updated,
-                    }),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Единый стиль нижней панели (скругление сверху, ручка, заголовок).
-  void _bottomSheet({required String title, required Widget child}) {
-    final scheme = Theme.of(context).colorScheme;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: scheme.surfaceContainer,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: scheme.outlineVariant,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontFamily: AppTheme.displayFont,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                    color: scheme.onSurface,
-                  ),
-                ),
-              ),
-            ),
-            child,
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ------------------------------- подписи -------------------------------
-
-  String _currentLanguageName() {
-    for (final l in LocaleController.languages) {
-      if (l.code == _locale.code) return l.nativeName;
-    }
-    return _locale.code;
-  }
-
-  String _fabPositionLabel(FabPosition p) => switch (p) {
-    FabPosition.center => tr('fab_center'),
-    FabPosition.left => tr('fab_left'),
-    FabPosition.right => tr('fab_right'),
-  };
-
-  IconData _fabPositionIcon(FabPosition p) => switch (p) {
-    FabPosition.center => Icons.vertical_align_bottom_rounded,
-    FabPosition.left => Icons.align_horizontal_left_rounded,
-    FabPosition.right => Icons.align_horizontal_right_rounded,
-  };
-
-  String _startScreenLabel(StartScreen s) => switch (s) {
-    StartScreen.watchlist => tr('nav_watchlist'),
-    StartScreen.watched => tr('nav_watched'),
-    StartScreen.nowWatching => tr('now_watching'),
-    StartScreen.discover => tr('nav_discover'),
-    StartScreen.cinema => tr('nav_cinema'),
-  };
-
-  IconData _startScreenIcon(StartScreen s) => switch (s) {
-    StartScreen.watchlist => Icons.bookmark_rounded,
-    StartScreen.watched => Icons.check_circle_rounded,
-    StartScreen.nowWatching => Icons.live_tv_rounded,
-    StartScreen.discover => Icons.explore_rounded,
-    StartScreen.cinema => Icons.local_movies_rounded,
-  };
-
-  String _dateFormatExample(bool numeric) {
-    final now = DateTime(2026, 6, 24);
-    return numeric ? numericDate(now) : longDate(now);
   }
 }
