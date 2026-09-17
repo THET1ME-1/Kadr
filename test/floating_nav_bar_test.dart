@@ -92,6 +92,21 @@ void main() {
     expect(find.text(tr('nav_discover')), findsNothing);
   });
 
+  testWidgets('у таблетки меню нет обводки', (tester) async {
+    await tester.runAsync(() => LocaleController.instance.setCode('ru'));
+    await _pump(tester, selected: 0, onAdd: () {});
+    final boxes = tester.widgetList<DecoratedBox>(
+      find.descendant(
+        of: find.byType(FloatingNavBar),
+        matching: find.byType(DecoratedBox),
+      ),
+    );
+    for (final b in boxes) {
+      final d = b.decoration;
+      if (d is BoxDecoration) expect(d.border, isNull);
+    }
+  });
+
   testWidgets('нажатие на значок переключает вкладку', (tester) async {
     await tester.runAsync(() => LocaleController.instance.setCode('ru'));
     int? picked;

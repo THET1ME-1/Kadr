@@ -117,12 +117,10 @@ class FloatingNavBar extends StatelessWidget {
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: DecoratedBox(
+          // Без обводки: таблетку отделяет от ленты только тон и размытие.
           decoration: BoxDecoration(
             color: scheme.surfaceContainer.withValues(alpha: 0.88),
             borderRadius: radius,
-            border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.5),
-            ),
           ),
           child: SizedBox(
             height: height,
