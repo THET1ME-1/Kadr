@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:kadr/l10n/locale_controller.dart';
 import 'package:kadr/l10n/strings.dart';
 import 'package:kadr/models/social.dart';
@@ -93,6 +97,67 @@ void main() {
     final friends = tester.getTopLeft(find.text('Аня')).dy;
     expect(requests, lessThan(stats));
     expect(stats, lessThan(friends));
+  });
+
+  testWidgets('поиск друзей знает, кто уже в друзьях и кому ушла заявка', (
+    tester,
+  ) async {
+    _phone(tester);
+    await tester.runAsync(() => LocaleController.instance.setCode('ru'));
+    SocialController.instance.debugSetSession(
+      _me,
+      friends: FriendsData(
+        friends: [FriendEntry(user: _user('f1', 'jbsharan', '9VFV4Z'))],
+        incoming: [FriendEntry(user: _user('f2', 'jbasks', 'AAAAAA'))],
+        outgoing: [FriendEntry(user: _user('f3', 'jbwaits', 'BBBBBB'))],
+      ),
+    );
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(tr('social_add_friend')));
+    await tester.pumpAndSettle();
+
+    Map<String, Object> user(String id, String name, String code) => {
+      'id': id,
+      'displayName': name,
+      'friendCode': code,
+      'avatar': 0,
+    };
+    final server = MockClient(
+      (_) async => http.Response(
+        jsonEncode({
+          'users': [
+            user('f1', 'jbsharan', '9VFV4Z'),
+            user('f2', 'jbasks', 'AAAAAA'),
+            user('f3', 'jbwaits', 'BBBBBB'),
+            user('f9', 'jbnew', 'CCCCCC'),
+          ],
+        }),
+        200,
+      ),
+    );
+    await http.runWithClient(
+      () => tester.enterText(find.byType(TextField).first, 'jb'),
+      () => server,
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+
+    final sheet = find.byType(BottomSheet);
+    Finder inRow(String name, String label) => find.descendant(
+      of: find.ancestor(
+        of: find.descendant(of: sheet, matching: find.text(name)),
+        matching: find.byType(ListTile),
+      ),
+      matching: find.text(label),
+    );
+
+    expect(inRow('jbsharan', tr('profile_in_friends')), findsOneWidget);
+    expect(inRow('jbsharan', tr('profile_add_btn')), findsNothing);
+    expect(inRow('jbasks', tr('accept')), findsOneWidget);
+    expect(inRow('jbwaits', tr('profile_request_pending')), findsOneWidget);
+    expect(inRow('jbnew', tr('profile_add_btn')), findsOneWidget);
   });
 
   for (final lang in LocaleController.languages.map((l) => l.code)) {

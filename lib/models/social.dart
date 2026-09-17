@@ -279,6 +279,9 @@ class CoWatchItem {
       );
 }
 
+/// Кем найденный человек приходится мне: от этого зависит кнопка в поиске.
+enum FriendRelation { none, friend, incoming, outgoing }
+
 /// Ответ `GET /friends`: три корзины связей.
 class FriendsData {
   final List<FriendEntry> friends; // принятые
@@ -293,6 +296,16 @@ class FriendsData {
 
   bool get isEmpty =>
       friends.isEmpty && incoming.isEmpty && outgoing.isEmpty;
+
+  /// Поиск на сервере возвращает всех по нику, в том числе уже друзей, поэтому
+  /// отношение сверяется здесь.
+  FriendRelation relationTo(String userId) {
+    bool has(List<FriendEntry> list) => list.any((f) => f.user.id == userId);
+    if (has(friends)) return FriendRelation.friend;
+    if (has(incoming)) return FriendRelation.incoming;
+    if (has(outgoing)) return FriendRelation.outgoing;
+    return FriendRelation.none;
+  }
 
   factory FriendsData.fromJson(Map<String, dynamic> j) {
     List<FriendEntry> parse(String k) => [

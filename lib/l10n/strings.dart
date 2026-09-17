@@ -1993,6 +1993,8 @@ const Map<String, Map<String, String>> _strings = {
   'profile_search_hint': {'ru': 'Поиск по нику', 'en': 'Search by nickname'},
   'profile_search_none': {'ru': 'Никого не нашлось', 'en': 'No one found'},
   'profile_add_btn': {'ru': 'Добавить', 'en': 'Add'},
+  'profile_in_friends': {'ru': 'В друзьях', 'en': 'Friends'},
+  'profile_request_pending': {'ru': 'Ждёт ответа', 'en': 'Pending'},
   'profile_or_code': {'ru': 'Или по коду друга', 'en': 'Or by friend code'},
   // --- Статистика сериала (экран из меню ⋮) ---
   'ss_screen_time': {'ru': 'ВРЕМЯ У ЭКРАНА', 'en': 'SCREEN TIME'},

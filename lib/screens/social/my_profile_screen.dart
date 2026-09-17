@@ -1104,11 +1104,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                       color: scheme.onSurfaceVariant,
                                     ),
                                   ),
-                                  trailing: FilledButton.tonal(
-                                    onPressed: busy
-                                        ? null
-                                        : () => add(userId: u.id),
-                                    child: Text(tr('profile_add_btn')),
+                                  trailing: _searchAction(
+                                    u,
+                                    busy: busy,
+                                    onAdd: () => add(userId: u.id),
                                   ),
                                 ),
                             ],
@@ -1186,6 +1185,56 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           },
         ),
       ),
+    );
+  }
+
+  /// Кнопка у найденного человека. Уже друг или заявка ушла — вместо
+  /// «Добавить» подпись; прислал заявку сам — «Принять».
+  Widget _searchAction(
+    SocialUser u, {
+    required bool busy,
+    required VoidCallback onAdd,
+  }) {
+    return ListenableBuilder(
+      listenable: SocialController.instance,
+      builder: (context, _) {
+        final scheme = Theme.of(context).colorScheme;
+        final ctl = SocialController.instance;
+        Widget status(IconData icon, String key) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Text(
+              tr(key),
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        );
+        return switch (ctl.friends.relationTo(u.id)) {
+          FriendRelation.friend => status(
+            Icons.how_to_reg_rounded,
+            'profile_in_friends',
+          ),
+          FriendRelation.outgoing => status(
+            Icons.schedule_rounded,
+            'profile_request_pending',
+          ),
+          FriendRelation.incoming => FilledButton.tonal(
+            onPressed: busy ? null : () => ctl.respond(u.id, accept: true),
+            child: Text(tr('accept')),
+          ),
+          FriendRelation.none => FilledButton.tonal(
+            onPressed: busy ? null : onAdd,
+            child: Text(tr('profile_add_btn')),
+          ),
+        };
+      },
     );
   }
 

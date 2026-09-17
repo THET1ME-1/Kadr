@@ -7,6 +7,7 @@ import '../../l10n/strings.dart';
 import '../../models/library_entry.dart';
 import '../../services/movie_repository.dart';
 import '../../services/social/social_controller.dart';
+import '../../services/store.dart';
 import '../../services/tmdb_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/poster.dart';
@@ -31,6 +32,14 @@ class _Cand {
     this.series,
     this.tmdbId,
   });
+
+  /// Стабильный ключ, по которому выпавший фильм узнаётся при следующем входе.
+  String get key {
+    if (movie != null) return 'm:${movie!.uuid}';
+    if (series != null) return 's:${series!.tvShowId}';
+    if (tmdbId != null) return 't:$tmdbId';
+    return 'k:${title.toLowerCase().trim()}|${year ?? 0}';
+  }
 }
 
 /// Запись, переданная извне: уже отобранный список «Буду смотреть» с экрана
@@ -66,8 +75,15 @@ class _RouletteScreenState extends State<RouletteScreen> {
 
   Timer? _spinTimer;
   bool _spinning = false;
-  _Cand? _shown; // текущий кадр (во время кручения) / итог
-  bool _settled = false;
+  _Cand? _shown; // кадр, мелькающий во время кручения
+
+  /// Что выпало, у каждого источника своё. Переключение источника итог не
+  /// стирает, а последний итог лежит в [Store] и ждёт следующего входа.
+  final Map<_Source, _Cand> _picked = {};
+
+  static String _storeKey(_Source s) => 'roulettePick.${s.name}';
+
+  _Cand? get _result => _picked[_source];
 
   @override
   void initState() {
@@ -96,6 +112,19 @@ class _RouletteScreenState extends State<RouletteScreen> {
               // displayPoster, а не posterUrl: свой постер должен побеждать.
               _Cand(m.displayTitle, m.displayPoster, m.year, movie: m),
           ];
+    _restorePick(_Source.watchlist, _watchlist);
+  }
+
+  /// Возвращает прошлый итог, если фильм всё ещё в этом списке.
+  Future<void> _restorePick(_Source source, List<_Cand> pool) async {
+    final key = await Store.instance.getString(_storeKey(source));
+    if (key == null || !mounted || _picked[source] != null) return;
+    for (final c in pool) {
+      if (c.key == key) {
+        setState(() => _picked[source] = c);
+        return;
+      }
+    }
   }
 
   @override
@@ -133,18 +162,17 @@ class _RouletteScreenState extends State<RouletteScreen> {
         _friendCands = byKey.values.toList();
         _loadingFriends = false;
       });
+      _restorePick(_Source.friends, _friendCands!);
     }
   }
 
   void _spin() {
     final pool = _pool;
+    final source = _source;
     if (pool.isEmpty || _spinning) return;
-    setState(() {
-      _spinning = true;
-      _settled = false;
-    });
+    setState(() => _spinning = true);
     // avoid: крутить дважды и получить то же самое — выглядит как поломка.
-    final finalPick = pickRandom(pool, avoid: _shown, rng: _rnd)!;
+    final finalPick = pickRandom(pool, avoid: _picked[source], rng: _rnd)!;
     var ticks = 0;
     // Кол-во кадров зависит от размера пула (но не слишком много).
     final total = 16 + _rnd.nextInt(8);
@@ -154,10 +182,11 @@ class _RouletteScreenState extends State<RouletteScreen> {
         ticks++;
         if (ticks >= total) {
           setState(() {
-            _shown = finalPick;
+            _shown = null;
+            _picked[source] = finalPick;
             _spinning = false;
-            _settled = true;
           });
+          Store.instance.setString(_storeKey(source), finalPick.key);
           return;
         }
         setState(() => _shown = pool[_rnd.nextInt(pool.length)]);
@@ -200,12 +229,14 @@ class _RouletteScreenState extends State<RouletteScreen> {
           const SizedBox(height: 12),
           _sourceToggle(scheme),
           Expanded(
-            child: Center(
-              child: _loadingFriends
-                  ? const CircularProgressIndicator()
-                  : pool.isEmpty
-                  ? _emptyPool(scheme)
-                  : _reel(scheme),
+            child: LayoutBuilder(
+              builder: (context, box) => Center(
+                child: _loadingFriends
+                    ? const CircularProgressIndicator()
+                    : pool.isEmpty
+                    ? _emptyPool(scheme)
+                    : _reel(scheme, box.maxHeight),
+              ),
             ),
           ),
           Padding(
@@ -243,14 +274,14 @@ class _RouletteScreenState extends State<RouletteScreen> {
       final sel = _source == s;
       return Expanded(
         child: GestureDetector(
-          onTap: () {
-            setState(() {
-              _source = s;
-              _settled = false;
-              _shown = null;
-            });
-            if (s == _Source.friends) _ensureFriends();
-          },
+          // Пока барабан крутится, источник не меняем: итог уже выбран из
+          // текущего списка.
+          onTap: _spinning
+              ? null
+              : () {
+                  setState(() => _source = s);
+                  if (s == _Source.friends) _ensureFriends();
+                },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(vertical: 10),
@@ -312,16 +343,32 @@ class _RouletteScreenState extends State<RouletteScreen> {
     ),
   );
 
-  Widget _reel(ColorScheme scheme) {
-    final c = _shown ?? _pool.first;
+  /// Высота под названием, годом и кнопкой «Открыть».
+  static const double _reelTextHeight = 170;
+
+  /// [height] — место под барабан. На телефоне постер 190 dp в ширину, на
+  /// низком экране (телевизор, горизонталь) он ужимается, чтобы итог
+  /// с кнопкой поместился целиком.
+  Widget _reel(ColorScheme scheme, double height) {
+    final posterWidth = ((height - _reelTextHeight) * 2 / 3).clamp(80.0, 190.0);
+    final result = _spinning ? null : _result;
+    // До первого вращения виден первый фильм списка, но без «Открыть»: это
+    // заставка, а не итог.
+    final c = (_spinning ? _shown : result) ?? _pool.first;
+    final settled = result != null;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         AnimatedScale(
-          scale: _settled ? 1.0 : 0.94,
+          scale: settled ? 1.0 : 0.94,
           duration: const Duration(milliseconds: 260),
           curve: Curves.easeOutBack,
-          child: Poster(title: c.title, url: c.poster, width: 190, radius: 20),
+          child: Poster(
+            title: c.title,
+            url: c.poster,
+            width: posterWidth,
+            radius: 20,
+          ),
         ),
         const SizedBox(height: 18),
         Padding(
@@ -351,7 +398,7 @@ class _RouletteScreenState extends State<RouletteScreen> {
             ),
           ),
         ],
-        if (_settled) ...[
+        if (settled) ...[
           const SizedBox(height: 16),
           FilledButton.tonalIcon(
             onPressed: () => _open(c),
