@@ -1,4 +1,4 @@
-// Служебный рендер профиля и настроек в PNG, чтобы посмотреть вёрстку без
+// Служебный рендер профиля, настроек и ленты «Просмотрено» в PNG, чтобы посмотреть вёрстку без
 // телефона. Имя без суффикса `_test`, поэтому `flutter test` его не
 // подхватывает. Запуск руками:
 //
@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kadr/l10n/locale_controller.dart';
 import 'package:kadr/l10n/strings.dart';
 import 'package:kadr/models/social.dart';
+import 'package:kadr/screens/library_tab.dart';
 import 'package:kadr/screens/settings/account_page.dart';
 import 'package:kadr/screens/settings/appearance_page.dart';
 import 'package:kadr/screens/settings/library_pages.dart';
@@ -122,6 +123,19 @@ void main() {
   testWidgets('рендер профиля и настроек', (tester) async {
     addTearDown(tester.view.reset);
     SharedPreferences.setMockInitialValues({});
+    // Кэшу постеров нужна временная папка. Документы не отдаём: библиотека из
+    // копии не должна никуда записаться.
+    final cache = Directory('$_out/cache')..createSync(recursive: true);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (call) async {
+            if (call.method == 'getApplicationDocumentsDirectory') {
+              throw MissingPluginException();
+            }
+            return cache.absolute.path;
+          },
+        );
     await tester.runAsync(() async {
       await _loadFonts();
       await LocaleController.instance.setCode('ru');
@@ -159,6 +173,12 @@ void main() {
     await _shoot(tester, '3_account', const AccountPage());
     await _shoot(tester, '4_appearance', const AppearancePage());
     await _shoot(tester, '5_sync', const SyncPage());
+    await _shoot(
+      tester,
+      '6_watched',
+      const Scaffold(body: LibraryTab(mode: LibraryMode.watched)),
+      height: 1600,
+    );
 
     SocialController.instance.debugSetSession(null);
   });

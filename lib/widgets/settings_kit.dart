@@ -93,6 +93,19 @@ class SettingsSection extends StatelessWidget {
   }
 }
 
+/// Форма блока по его месту в группе из [count]: первому большой верх,
+/// последнему большой низ, средним [inner] со всех сторон. Общая для настроек
+/// и ленты «Просмотрено», где серии сессии стоят такими же блоками.
+BorderRadius groupBlockRadius(
+  int index,
+  int count, {
+  double outer = SettingsGroup.outerRadius,
+  double inner = SettingsGroup.innerRadius,
+}) => BorderRadius.vertical(
+  top: Radius.circular(index == 0 ? outer : inner),
+  bottom: Radius.circular(index == count - 1 ? outer : inner),
+);
+
 /// Группа настроек: каждый пункт — свой блок, блоки разделены зазором.
 ///
 /// Форму блока задаёт его место: первому большой верх, последнему большой
@@ -113,8 +126,6 @@ class SettingsGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    const outer = Radius.circular(outerRadius);
-    const inner = Radius.circular(innerRadius);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -125,10 +136,7 @@ class SettingsGroup extends StatelessWidget {
             child: Material(
               color: scheme.surfaceContainerHigh,
               clipBehavior: Clip.antiAlias,
-              borderRadius: BorderRadius.vertical(
-                top: i == 0 ? outer : inner,
-                bottom: i == children.length - 1 ? outer : inner,
-              ),
+              borderRadius: groupBlockRadius(i, children.length),
               child: children[i],
             ),
           ),
