@@ -8,6 +8,7 @@ import 'package:kadr/l10n/locale_controller.dart';
 import 'package:kadr/l10n/strings.dart';
 import 'package:kadr/models/social.dart';
 import 'package:kadr/screens/settings_screen.dart';
+import 'package:kadr/services/app_prefs.dart';
 import 'package:kadr/services/social/social_controller.dart';
 import 'package:kadr/services/store.dart';
 import 'package:kadr/theme/app_theme.dart';
@@ -91,6 +92,29 @@ void main() {
     await tester.tap(find.byTooltip(tr('settings_title')));
     await tester.pumpAndSettle();
     expect(find.byType(SettingsScreen), findsOneWidget);
+  });
+
+  testWidgets('вид нижнего меню выбирается в «Интерфейсе»', (tester) async {
+    _phone(tester, width: 400);
+    await tester.runAsync(() => LocaleController.instance.setCode('ru'));
+    await AppPrefs.instance.setNavStyle(NavStyle.floating);
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(tr('set_group_interface')));
+    await tester.pumpAndSettle();
+
+    // В плавающем меню «+» стоит в его ряду, выбирать место не из чего.
+    expect(find.text(tr('fab_position')), findsNothing);
+    expect(find.text(tr('nav_style_floating')), findsOneWidget);
+
+    await tester.tap(find.text(tr('set_nav_style')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(tr('nav_style_classic')));
+    await tester.pumpAndSettle();
+
+    expect(AppPrefs.instance.navStyle, NavStyle.classic);
+    expect(find.text(tr('fab_position')), findsOneWidget);
+    await AppPrefs.instance.setNavStyle(NavStyle.floating);
   });
 
   testWidgets('строка языка открывает список языков', (tester) async {

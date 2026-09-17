@@ -25,6 +25,9 @@ import 'package:kadr/screens/social/my_profile_screen.dart';
 import 'package:kadr/services/movie_repository.dart';
 import 'package:kadr/services/social/social_controller.dart';
 import 'package:kadr/theme/app_theme.dart';
+import 'package:kadr/widgets/floating_nav_bar.dart';
+import 'package:kadr/widgets/season_pill.dart';
+import 'package:kadr/widgets/user_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _out = 'build/preview';
@@ -88,8 +91,9 @@ Future<void> _shoot(
   String name,
   Widget screen, {
   double height = 844,
+  double width = _width,
 }) async {
-  tester.view.physicalSize = Size(_width, height);
+  tester.view.physicalSize = Size(width, height);
   tester.view.devicePixelRatio = 1;
   final key = GlobalKey();
   await tester.pumpWidget(
@@ -180,6 +184,93 @@ void main() {
       height: 1600,
     );
 
+    // Плавающее меню над лентой на ширине телефона владельца (~352 dp).
+    for (final tab in [1, 3]) {
+      await _shoot(
+        tester,
+        '7_nav_$tab',
+        Scaffold(
+          extendBody: true,
+          body: const LibraryTab(mode: LibraryMode.watched),
+          bottomNavigationBar: FloatingNavBar(
+            selectedIndex: tab,
+            onSelect: (_) {},
+            onAdd: tab == 1 ? () {} : null,
+            addTooltip: tr('add'),
+            items: [
+              FloatingNavItem(
+                icon: Icons.bookmark_border_rounded,
+                selectedIcon: Icons.bookmark_rounded,
+                label: tr('nav_watchlist'),
+              ),
+              FloatingNavItem(
+                icon: Icons.check_circle_outline_rounded,
+                selectedIcon: Icons.check_circle_rounded,
+                label: tr('nav_watched'),
+              ),
+              FloatingNavItem(
+                icon: Icons.explore_outlined,
+                selectedIcon: Icons.explore_rounded,
+                label: tr('nav_discover'),
+              ),
+              FloatingNavItem(
+                icon: Icons.person_outline_rounded,
+                selectedIcon: Icons.person_rounded,
+                label: tr('nav_profile'),
+                leading: UserAvatar(
+                  user: SocialController.instance.user!,
+                  size: 26,
+                ),
+                badge: 1,
+              ),
+            ],
+          ),
+        ),
+        height: 760,
+        width: 352,
+      );
+    }
+
+    // Таблетки сезонов: досмотрены три, четвёртый начат и выбран, пятый нет.
+    await _shoot(
+      tester,
+      '8_seasons',
+      Scaffold(
+        body: Center(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                for (final (n, f) in [
+                  (1, 1.0),
+                  (2, 1.0),
+                  (3, 1.0),
+                  (4, 0.3),
+                  (5, 0.0),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: SeasonPill(
+                      label: trf('season_n', {'n': n}),
+                      fraction: f,
+                      done: f >= 1,
+                      selected: n == 4,
+                      onTap: () {},
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      height: 120,
+      width: 640,
+    );
+
     SocialController.instance.debugSetSession(null);
+    // Картинкам и ленте нужны таймеры: даём им отработать до конца теста.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(minutes: 1));
   });
 }

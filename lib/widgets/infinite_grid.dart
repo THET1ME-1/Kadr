@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
@@ -211,7 +213,10 @@ class _InfiniteGridState<T> extends State<InfiniteGrid<T>>
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverPadding(
-              padding: widget.padding,
+              // Под плавающим меню последний ряд должен выезжать над ним.
+              padding: widget.padding.copyWith(
+                  bottom: math.max(widget.padding.bottom,
+                      MediaQuery.paddingOf(context).bottom + 16)),
               sliver: SliverGrid(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: cols,

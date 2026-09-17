@@ -47,6 +47,34 @@ class InterfacePage extends StatelessWidget {
               ),
             ),
             SettingsRow(
+              icon: Icons.call_to_action_rounded,
+              title: tr('set_nav_style'),
+              subtitle: prefs.navStyle == NavStyle.floating
+                  ? tr('nav_style_floating')
+                  : tr('nav_style_classic'),
+              trailing: const SettingsChevron(),
+              onTap: () => showChoiceSheet<NavStyle>(
+                context,
+                title: tr('set_nav_style'),
+                selected: prefs.navStyle,
+                options: [
+                  ChoiceOption(
+                    value: NavStyle.floating,
+                    label: tr('nav_style_floating'),
+                    subtitle: tr('nav_style_floating_sub'),
+                    icon: Icons.smart_button_rounded,
+                  ),
+                  ChoiceOption(
+                    value: NavStyle.classic,
+                    label: tr('nav_style_classic'),
+                    subtitle: tr('nav_style_classic_sub'),
+                    icon: Icons.call_to_action_rounded,
+                  ),
+                ],
+                onPick: prefs.setNavStyle,
+              ),
+            ),
+            SettingsRow(
               icon: Icons.event_note_rounded,
               title: tr('date_format'),
               subtitle: _dateExample(prefs.numericDates),
@@ -71,26 +99,28 @@ class InterfacePage extends StatelessWidget {
                 onPick: prefs.setNumericDates,
               ),
             ),
-            SettingsRow(
-              icon: Icons.add_circle_outline_rounded,
-              title: tr('fab_position'),
-              subtitle: _fabLabel(prefs.fabPosition),
-              trailing: const SettingsChevron(),
-              onTap: () => showChoiceSheet<FabPosition>(
-                context,
+            // В плавающем меню «+» стоит в его ряду, место выбирать не из чего.
+            if (prefs.navStyle == NavStyle.classic)
+              SettingsRow(
+                icon: Icons.add_circle_outline_rounded,
                 title: tr('fab_position'),
-                selected: prefs.fabPosition,
-                options: [
-                  for (final p in FabPosition.values)
-                    ChoiceOption(
-                      value: p,
-                      label: _fabLabel(p),
-                      icon: _fabIcon(p),
-                    ),
-                ],
-                onPick: prefs.setFabPosition,
+                subtitle: _fabLabel(prefs.fabPosition),
+                trailing: const SettingsChevron(),
+                onTap: () => showChoiceSheet<FabPosition>(
+                  context,
+                  title: tr('fab_position'),
+                  selected: prefs.fabPosition,
+                  options: [
+                    for (final p in FabPosition.values)
+                      ChoiceOption(
+                        value: p,
+                        label: _fabLabel(p),
+                        icon: _fabIcon(p),
+                      ),
+                  ],
+                  onPick: prefs.setFabPosition,
+                ),
               ),
-            ),
             SettingsRow(
               icon: Icons.menu_open_rounded,
               title: tr('set_side_menu'),

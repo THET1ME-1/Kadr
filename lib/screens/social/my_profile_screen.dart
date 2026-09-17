@@ -67,7 +67,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   Widget _loggedOut(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        32 + MediaQuery.paddingOf(context).bottom,
+      ),
       children: [
         Container(
           padding: const EdgeInsets.all(24),
@@ -139,7 +144,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     return RefreshIndicator(
       onRefresh: () => ctl.refreshFriends(),
       child: ListView(
-        padding: const EdgeInsets.only(bottom: 40),
+        padding: EdgeInsets.only(
+          bottom: 40 + MediaQuery.paddingOf(context).bottom,
+        ),
         children: [
           _header(context, me),
           Padding(

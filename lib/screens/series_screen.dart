@@ -17,6 +17,7 @@ import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/score.dart';
 import '../utils/season_pick.dart';
+import '../utils/season_progress.dart';
 import '../widgets/facts_section.dart';
 import '../widgets/pop_icon.dart';
 import '../widgets/poster.dart';
@@ -26,6 +27,7 @@ import '../widgets/rating_slider.dart';
 import '../widgets/favorite_character.dart';
 import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
+import '../widgets/season_pill.dart';
 import 'browse_screens.dart';
 import 'delete_helpers.dart';
 import 'series_stats_screen.dart';
@@ -919,9 +921,11 @@ class _SeriesScreenState extends State<SeriesScreen> {
 
   // ----------------------------- сезоны -----------------------------
 
+  /// Таблетки сезонов: заполняются по ходу сезона, досмотренный с галочкой
+  /// (вариант S3 макета). Доля считается по числу серий сезона из TMDB.
   Widget _seasonBar(ColorScheme scheme) {
     return SizedBox(
-      height: 46,
+      height: 48,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -929,25 +933,19 @@ class _SeriesScreenState extends State<SeriesScreen> {
           for (final se in _seasons)
             Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(trf('season_n', {'n': se.number})),
-                selected: _season == se.number,
-                onSelected: (_) {
-                  setState(() => _season = se.number);
-                  _loadSeason(se.number);
-                },
-                labelStyle: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontWeight: FontWeight.w600,
-                    color: _season == se.number
-                        ? scheme.onPrimary
-                        : scheme.onSurfaceVariant),
-                selectedColor: scheme.primary,
-                backgroundColor: scheme.surfaceContainerHighest,
-                side: BorderSide.none,
-                shape: const StadiumBorder(),
-                showCheckmark: false,
-              ),
+              child: Builder(builder: (context) {
+                final p = seasonProgress(s, se.number, se.episodeCount);
+                return SeasonPill(
+                  label: trf('season_n', {'n': se.number}),
+                  fraction: p.fraction,
+                  done: p.done,
+                  selected: _season == se.number,
+                  onTap: () {
+                    setState(() => _season = se.number);
+                    _loadSeason(se.number);
+                  },
+                );
+              }),
             ),
         ],
       ),

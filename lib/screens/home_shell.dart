@@ -14,7 +14,9 @@ import '../services/store.dart';
 import '../services/sync/webdav_service.dart';
 import '../services/update_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/floating_nav_bar.dart';
 import '../widgets/update_sheet.dart';
+import '../widgets/user_avatar.dart';
 import 'about_screen.dart';
 import 'discover_tab.dart';
 import 'dropped_screen.dart';
@@ -299,9 +301,22 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
+    // Вид нижнего меню и место «+» меняются в настройках на лету.
+    return ListenableBuilder(
+      listenable: AppPrefs.instance,
+      builder: (context, _) => _scaffold(context),
+    );
+  }
+
+  Widget _scaffold(BuildContext context) {
     final tabs = _tabs;
     final onLibrary = _index == 0 || _index == 1;
+    final floating = AppPrefs.instance.navStyle == NavStyle.floating;
+    final showAdd = onLibrary && !AppPrefs.instance.tvActive;
     return Scaffold(
+      // Плавающее меню висит над лентой: тело уходит под него, а списки
+      // берут нижний отступ из MediaQuery (см. bottomListTail).
+      extendBody: floating,
       appBar: AppBar(
         title: Text(tabs[_index].title),
         actions: [
@@ -341,7 +356,8 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
           ),
         ],
       ),
-      floatingActionButton: (onLibrary && !AppPrefs.instance.tvActive)
+      // В плавающем меню «+» стоит в его ряду, отдельная кнопка не нужна.
+      floatingActionButton: (showAdd && !floating)
           ? FloatingActionButton(
               onPressed: () => _goTab(2),
               shape: const CircleBorder(), // именно круг, а не M3-квадрат
@@ -363,6 +379,28 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
         listenable: SocialController.instance,
         builder: (context, _) {
           final incoming = SocialController.instance.incomingCount;
+          if (floating) {
+            final me = SocialController.instance.user;
+            return FloatingNavBar(
+              selectedIndex: _index,
+              onSelect: _goTab,
+              onAdd: showAdd ? () => _goTab(2) : null,
+              addTooltip: tr('add'),
+              items: [
+                for (var i = 0; i < tabs.length; i++)
+                  FloatingNavItem(
+                    icon: tabs[i].icon,
+                    selectedIcon: tabs[i].selectedIcon,
+                    label: tabs[i].title,
+                    // На вкладке профиля своя аватарка, если вошёл.
+                    leading: (i == 3 && me != null)
+                        ? UserAvatar(user: me, size: 26)
+                        : null,
+                    badge: i == 3 ? incoming : 0,
+                  ),
+              ],
+            );
+          }
           return NavigationBar(
             selectedIndex: _index,
             onDestinationSelected: _goTab,

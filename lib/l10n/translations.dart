@@ -380,8 +380,13 @@ const Map<String, Map<String, String>> kTranslations = {
     'set_hint_appearance': 'Design, Farben, reines Schwarz, App-Symbol',
     'set_group_interface': 'Oberfläche',
     'set_hint_interface':
-        'Startbildschirm, Datum, „+“-Schaltfläche, Menü, TV-Modus',
+        'Startbildschirm, Leisten und Menü, Datum, „+“-Schaltfläche, TV-Modus',
     'set_side_menu': 'Seitenmenü',
+    'set_nav_style': 'Untere Leiste',
+    'nav_style_floating': 'Schwebend',
+    'nav_style_floating_sub': 'Schwebt über dem Feed, die +-Taste daneben',
+    'nav_style_classic': 'Klassisch',
+    'nav_style_classic_sub': 'Leiste über die ganze Breite, wie bisher',
     'set_hint_discover':
         'Gesehenes, Abgebrochenes und die Merkliste in Empfehlungen',
     'set_group_catalog': 'Filmdatenbank',
@@ -1382,8 +1387,13 @@ const Map<String, Map<String, String>> kTranslations = {
     'set_hint_appearance': "Thème, couleurs, noir pur, icône de l'app",
     'set_group_interface': 'Interface',
     'set_hint_interface':
-        'Écran de démarrage, date, bouton « + », menu, mode TV',
+        'Écran de démarrage, barre du bas et menu, date, bouton « + », mode TV',
     'set_side_menu': 'Menu latéral',
+    'set_nav_style': 'Barre du bas',
+    'nav_style_floating': 'Flottante',
+    'nav_style_floating_sub': 'Flotte au-dessus du fil, le bouton + à côté',
+    'nav_style_classic': 'Classique',
+    'nav_style_classic_sub': 'Barre pleine largeur, comme avant',
     'set_hint_discover':
         'Titres vus, abandonnés et à voir dans les suggestions',
     'set_group_catalog': 'Base de films',
@@ -2375,8 +2385,14 @@ const Map<String, Map<String, String>> kTranslations = {
     'settings_title': 'Ajustes',
     'set_hint_appearance': 'Tema, colores, negro puro, icono de la app',
     'set_group_interface': 'Interfaz',
-    'set_hint_interface': 'Pantalla de inicio, fecha, botón «+», menú, modo TV',
+    'set_hint_interface':
+        'Pantalla de inicio, barra inferior y menú, fecha, botón «+», modo TV',
     'set_side_menu': 'Menú lateral',
+    'set_nav_style': 'Barra inferior',
+    'nav_style_floating': 'Flotante',
+    'nav_style_floating_sub': 'Flota sobre el feed, con el botón + al lado',
+    'nav_style_classic': 'Clásica',
+    'nav_style_classic_sub': 'Barra de ancho completo, como antes',
     'set_hint_discover':
         'Títulos vistos, abandonados y por ver en las recomendaciones',
     'set_group_catalog': 'Base de películas',
@@ -3370,8 +3386,13 @@ const Map<String, Map<String, String>> kTranslations = {
     'set_hint_appearance': "Tema, colori, nero puro, icona dell'app",
     'set_group_interface': 'Interfaccia',
     'set_hint_interface':
-        'Schermata iniziale, data, pulsante «+», menu, modalità TV',
+        'Schermata iniziale, barra in basso e menu, data, pulsante «+», modalità TV',
     'set_side_menu': 'Menu laterale',
+    'set_nav_style': 'Barra in basso',
+    'nav_style_floating': 'Fluttuante',
+    'nav_style_floating_sub': 'Fluttua sopra il feed, con il pulsante + accanto',
+    'nav_style_classic': 'Classica',
+    'nav_style_classic_sub': 'Barra a tutta larghezza, come prima',
     'set_hint_discover':
         'Titoli visti, abbandonati e da vedere nei suggerimenti',
     'set_group_catalog': 'Database dei film',
@@ -4349,8 +4370,14 @@ const Map<String, Map<String, String>> kTranslations = {
     'settings_title': 'Configurações',
     'set_hint_appearance': 'Tema, cores, preto puro, ícone do app',
     'set_group_interface': 'Interface',
-    'set_hint_interface': 'Tela inicial, data, botão «+», menu, modo TV',
+    'set_hint_interface':
+        'Tela inicial, barra inferior e menu, data, botão «+», modo TV',
     'set_side_menu': 'Menu lateral',
+    'set_nav_style': 'Barra inferior',
+    'nav_style_floating': 'Flutuante',
+    'nav_style_floating_sub': 'Flutua sobre o feed, com o botão + ao lado',
+    'nav_style_classic': 'Clássica',
+    'nav_style_classic_sub': 'Barra de largura total, como antes',
     'set_hint_discover':
         'Títulos vistos, abandonados e em «Quero ver» nas recomendações',
     'set_group_catalog': 'Base de filmes',

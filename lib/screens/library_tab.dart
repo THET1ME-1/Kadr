@@ -17,6 +17,7 @@ import '../utils/library_sort.dart';
 import '../utils/score.dart';
 import '../widgets/diary_sheet.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/floating_nav_bar.dart';
 import '../widgets/movie_cards.dart' show droppedBadge;
 import '../widgets/poster.dart';
 import '../widgets/pressable.dart';
@@ -871,7 +872,9 @@ class _LibraryTabState extends State<LibraryTab> {
             SliverToBoxAdapter(child: _filterBar()),
             SliverToBoxAdapter(child: _countHeader(context, entries.length)),
             ..._entrySlivers(entries, g),
-            const SliverToBoxAdapter(child: SizedBox(height: 96)),
+            SliverToBoxAdapter(
+              child: SizedBox(height: bottomListTail(context)),
+            ),
           ],
         );
       },
@@ -952,7 +955,9 @@ class _LibraryTabState extends State<LibraryTab> {
                   childCount: rows.length,
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 96)),
+              SliverToBoxAdapter(
+                child: SizedBox(height: bottomListTail(context)),
+              ),
             ],
           ],
         );

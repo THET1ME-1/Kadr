@@ -49,6 +49,10 @@ enum StartScreen { watchlist, watched, nowWatching, discover, cinema }
 /// Позиция кнопки «+» (докнута к нижней навигации).
 enum FabPosition { center, left, right }
 
+/// Вид нижнего меню. Плавающее (по умолчанию с 0.24) висит над контентом, и
+/// кнопка «+» стоит в его ряду. Классическое — прежняя полоса во всю ширину.
+enum NavStyle { floating, classic }
+
 /// Настраиваемые пункты бокового меню (порядок и видимость). Настройки и «О
 /// приложении» — фиксированные, здесь их нет.
 enum DrawerItem {
@@ -92,8 +96,11 @@ class AppPrefs extends ChangeNotifier {
   /// Какой экран открывать при старте.
   StartScreen startScreen = StartScreen.watchlist;
 
-  /// Позиция кнопки «+» над нижней навигацией (центр/слева/справа).
+  /// Позиция кнопки «+» над нижней навигацией (центр/слева/справа). Нужна
+  /// только классическому меню: в плавающем «+» стоит в его ряду.
   FabPosition fabPosition = FabPosition.center;
+
+  NavStyle navStyle = NavStyle.floating;
 
   /// Устройство — Android TV (leanback). Определяется при запуске.
   bool isTvDevice = false;
@@ -139,6 +146,9 @@ class AppPrefs extends ChangeNotifier {
     final raw = await Store.instance.getString('startScreen');
     startScreen = _parse(raw);
     fabPosition = _parseFab(await Store.instance.getString('fabPosition'));
+    navStyle = await Store.instance.getString('navStyle') == 'classic'
+        ? NavStyle.classic
+        : NavStyle.floating;
     forceTvMode = await Store.instance.getBool('forceTvMode');
     try {
       if (Platform.isAndroid) {
@@ -238,6 +248,13 @@ class AppPrefs extends ChangeNotifier {
     if (fabPosition == p) return;
     fabPosition = p;
     await Store.instance.setString('fabPosition', p.name);
+    notifyListeners();
+  }
+
+  Future<void> setNavStyle(NavStyle v) async {
+    if (navStyle == v) return;
+    navStyle = v;
+    await Store.instance.setString('navStyle', v.name);
     notifyListeners();
   }
 

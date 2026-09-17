@@ -830,10 +830,15 @@ const Map<String, Map<String, String>> _strings = {
   },
   'set_group_interface': {'ru': 'Интерфейс', 'en': 'Interface'},
   'set_hint_interface': {
-    'ru': 'Стартовый экран, формат даты, кнопка «+», меню, режим ТВ',
-    'en': 'Start screen, date format, + button, menu, TV mode',
+    'ru': 'Стартовый экран, нижнее и боковое меню, формат даты, кнопка «+», режим ТВ',
+    'en': 'Start screen, bottom bar and side menu, date format, + button, TV mode',
   },
   'set_side_menu': {'ru': 'Боковое меню', 'en': 'Side menu'},
+  'set_nav_style': {'ru': 'Нижнее меню', 'en': 'Bottom bar'},
+  'nav_style_floating': {'ru': 'Плавающее', 'en': 'Floating'},
+  'nav_style_floating_sub': {'ru': 'Висит над лентой, кнопка «+» в том же ряду', 'en': 'Floats above the feed, with the + button beside it'},
+  'nav_style_classic': {'ru': 'Классическое', 'en': 'Classic'},
+  'nav_style_classic_sub': {'ru': 'Полоса во всю ширину, как раньше', 'en': 'Full-width bar, as before'},
   'set_hint_discover': {
     'ru': 'Просмотренное, брошенное и «Буду смотреть» в подборках',
     'en': 'Watched, dropped and watchlist titles in recommendations',
