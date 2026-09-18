@@ -103,8 +103,6 @@ void main() {
     await tester.tap(find.text(tr('set_group_interface')));
     await tester.pumpAndSettle();
 
-    // В плавающем меню «+» стоит в его ряду, выбирать место не из чего.
-    expect(find.text(tr('fab_position')), findsNothing);
     expect(find.text(tr('nav_style_floating')), findsOneWidget);
 
     await tester.tap(find.text(tr('set_nav_style')));
@@ -113,7 +111,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(AppPrefs.instance.navStyle, NavStyle.classic);
-    expect(find.text(tr('fab_position')), findsOneWidget);
     await AppPrefs.instance.setNavStyle(NavStyle.floating);
   });
 

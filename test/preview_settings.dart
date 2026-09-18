@@ -199,8 +199,6 @@ void main() {
           bottomNavigationBar: FloatingNavBar(
             selectedIndex: tab,
             onSelect: (_) {},
-            onAdd: tab == 1 ? () {} : null,
-            addTooltip: tr('add'),
             items: [
               FloatingNavItem(
                 icon: Icons.bookmark_border_rounded,

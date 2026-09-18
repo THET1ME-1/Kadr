@@ -301,7 +301,7 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
-    // Вид нижнего меню и место «+» меняются в настройках на лету.
+    // Вид нижнего меню меняется в настройках на лету.
     return ListenableBuilder(
       listenable: AppPrefs.instance,
       builder: (context, _) => _scaffold(context),
@@ -368,13 +368,9 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
               child: const Icon(Icons.add_rounded),
             )
           : null,
-      // Круглая «+» ПЛАВАЕТ над нижней навигацией (не перекрывает кнопки);
-      // позицию (центр/слева/справа) выбирает пользователь в настройках.
-      floatingActionButtonLocation: switch (AppPrefs.instance.fabPosition) {
-        FabPosition.center => FloatingActionButtonLocation.centerFloat,
-        FabPosition.left => FloatingActionButtonLocation.startFloat,
-        FabPosition.right => FloatingActionButtonLocation.endFloat,
-      },
+      // Круглая «+» плавает по центру над нижней навигацией и не
+      // перекрывает её кнопки.
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       bottomNavigationBar: ListenableBuilder(
         listenable: SocialController.instance,
         builder: (context, _) {

@@ -46,9 +46,6 @@ class FavoriteActor {
 /// Экран, открываемый при запуске приложения.
 enum StartScreen { watchlist, watched, nowWatching, discover, cinema }
 
-/// Позиция кнопки «+» (докнута к нижней навигации).
-enum FabPosition { center, left, right }
-
 /// Вид нижнего меню. Плавающее (по умолчанию с 0.24) висит над контентом, и
 /// кнопка «+» стоит в его ряду. Классическое — прежняя полоса во всю ширину.
 enum NavStyle { floating, classic }
@@ -96,10 +93,6 @@ class AppPrefs extends ChangeNotifier {
   /// Какой экран открывать при старте.
   StartScreen startScreen = StartScreen.watchlist;
 
-  /// Позиция кнопки «+» над нижней навигацией (центр/слева/справа). Нужна
-  /// только классическому меню: в плавающем «+» стоит в его ряду.
-  FabPosition fabPosition = FabPosition.center;
-
   NavStyle navStyle = NavStyle.floating;
 
   /// Устройство — Android TV (leanback). Определяется при запуске.
@@ -145,7 +138,6 @@ class AppPrefs extends ChangeNotifier {
     diaryEnabled = await Store.instance.getBool('diaryEnabled', def: true);
     final raw = await Store.instance.getString('startScreen');
     startScreen = _parse(raw);
-    fabPosition = _parseFab(await Store.instance.getString('fabPosition'));
     navStyle = await Store.instance.getString('navStyle') == 'classic'
         ? NavStyle.classic
         : NavStyle.floating;
@@ -244,13 +236,6 @@ class AppPrefs extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setFabPosition(FabPosition p) async {
-    if (fabPosition == p) return;
-    fabPosition = p;
-    await Store.instance.setString('fabPosition', p.name);
-    notifyListeners();
-  }
-
   Future<void> setNavStyle(NavStyle v) async {
     if (navStyle == v) return;
     navStyle = v;
@@ -286,12 +271,5 @@ class AppPrefs extends ChangeNotifier {
       if (s.name == raw) return s;
     }
     return StartScreen.watchlist;
-  }
-
-  static FabPosition _parseFab(String? raw) {
-    for (final p in FabPosition.values) {
-      if (p.name == raw) return p;
-    }
-    return FabPosition.center;
   }
 }

@@ -99,28 +99,6 @@ class InterfacePage extends StatelessWidget {
                 onPick: prefs.setNumericDates,
               ),
             ),
-            // В плавающем меню «+» стоит в его ряду, место выбирать не из чего.
-            if (prefs.navStyle == NavStyle.classic)
-              SettingsRow(
-                icon: Icons.add_circle_outline_rounded,
-                title: tr('fab_position'),
-                subtitle: _fabLabel(prefs.fabPosition),
-                trailing: const SettingsChevron(),
-                onTap: () => showChoiceSheet<FabPosition>(
-                  context,
-                  title: tr('fab_position'),
-                  selected: prefs.fabPosition,
-                  options: [
-                    for (final p in FabPosition.values)
-                      ChoiceOption(
-                        value: p,
-                        label: _fabLabel(p),
-                        icon: _fabIcon(p),
-                      ),
-                  ],
-                  onPick: prefs.setFabPosition,
-                ),
-              ),
             SettingsRow(
               icon: Icons.menu_open_rounded,
               title: tr('set_side_menu'),
@@ -147,18 +125,6 @@ class InterfacePage extends StatelessWidget {
 
   static String _dateExample(bool numeric) =>
       numeric ? numericDate(_sample) : longDate(_sample);
-
-  static String _fabLabel(FabPosition p) => switch (p) {
-    FabPosition.center => tr('fab_center'),
-    FabPosition.left => tr('fab_left'),
-    FabPosition.right => tr('fab_right'),
-  };
-
-  static IconData _fabIcon(FabPosition p) => switch (p) {
-    FabPosition.center => Icons.vertical_align_bottom_rounded,
-    FabPosition.left => Icons.align_horizontal_left_rounded,
-    FabPosition.right => Icons.align_horizontal_right_rounded,
-  };
 
   static IconData _startScreenIcon(StartScreen s) => switch (s) {
     StartScreen.watchlist => Icons.bookmark_rounded,

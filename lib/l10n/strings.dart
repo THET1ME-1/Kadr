@@ -836,7 +836,7 @@ const Map<String, Map<String, String>> _strings = {
   'set_side_menu': {'ru': 'Боковое меню', 'en': 'Side menu'},
   'set_nav_style': {'ru': 'Нижнее меню', 'en': 'Bottom bar'},
   'nav_style_floating': {'ru': 'Плавающее', 'en': 'Floating'},
-  'nav_style_floating_sub': {'ru': 'Висит над лентой, кнопка «+» в том же ряду', 'en': 'Floats above the feed, with the + button beside it'},
+  'nav_style_floating_sub': {'ru': 'Висит над лентой', 'en': 'Floats above the feed'},
   'nav_style_classic': {'ru': 'Классическое', 'en': 'Classic'},
   'nav_style_classic_sub': {'ru': 'Полоса во всю ширину, как раньше', 'en': 'Full-width bar, as before'},
   'set_hint_discover': {
@@ -994,13 +994,6 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Лаунчер не умеет добавлять ярлыки — на нём эта функция недоступна',
     'en': 'Your launcher does not support pinned shortcuts',
   },
-  'fab_position': {
-    'ru': 'Положение кнопки «+»',
-    'en': 'Position of the + button',
-  },
-  'fab_center': {'ru': 'По центру', 'en': 'Center'},
-  'fab_left': {'ru': 'Слева', 'en': 'Left'},
-  'fab_right': {'ru': 'Справа', 'en': 'Right'},
   'date_format': {'ru': 'Формат даты', 'en': 'Date format'},
   'date_format_long': {
     'ru': 'Как «24 июня 2026»',
