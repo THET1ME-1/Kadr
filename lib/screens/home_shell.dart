@@ -356,7 +356,7 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
           ),
         ],
       ),
-      // В плавающем меню «+» стоит в его ряду, отдельная кнопка не нужна.
+      // «+» только у классического меню, в плавающем её нет совсем.
       floatingActionButton: (showAdd && !floating)
           ? FloatingActionButton(
               onPressed: () => _goTab(2),
@@ -384,8 +384,6 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
             return FloatingNavBar(
               selectedIndex: _index,
               onSelect: _goTab,
-              onAdd: showAdd ? () => _goTab(2) : null,
-              addTooltip: tr('add'),
               items: [
                 for (var i = 0; i < tabs.length; i++)
                   FloatingNavItem(

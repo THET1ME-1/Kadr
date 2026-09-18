@@ -36,13 +36,13 @@ class FloatingNavItem {
 }
 
 /// Плавающее нижнее меню (вариант N3 макета, 2026-09-17): полупрозрачная
-/// таблетка с вкладками, а справа в том же ряду кнопка «+».
+/// таблетка с вкладками во всю ширину. Кнопки «+» в ряду нет, добавляют через
+/// «Обзор».
 ///
 /// У открытой вкладки значок с подписью, у остальных только значки. Подпись
 /// получает место, которое осталось после значков: на узком телефоне она
 /// ужимается до [_minLabelScale], а если не влезает и так, остаётся только
-/// значок в подсвеченной таблетке. Русские «Буду смотреть» и «Просмотрено»
-/// самые длинные, на 352 dp рядом с «+» они идут чуть мельче.
+/// значок в подсвеченной таблетке.
 ///
 /// Кладётся в `Scaffold.bottomNavigationBar` вместе с `extendBody: true`:
 /// тогда лента уходит под меню, а нижний отступ списков берётся из
@@ -52,23 +52,16 @@ class FloatingNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelect;
 
-  /// Кнопка «+». null — кнопки нет, и таблетка занимает всю ширину.
-  final VoidCallback? onAdd;
-  final String addTooltip;
-
   const FloatingNavBar({
     super.key,
     required this.items,
     required this.selectedIndex,
     required this.onSelect,
-    this.onAdd,
-    this.addTooltip = '',
   });
 
   static const double height = 64;
   static const double _itemHeight = 52;
   static const double _minItemWidth = 42;
-  static const double _addSize = 56;
   static const double _minLabelScale = 0.8;
 
   /// Поля таблетки открытой вкладки: слева до значка, между значком и
@@ -91,21 +84,7 @@ class FloatingNavBar extends StatelessWidget {
       minimum: const EdgeInsets.only(bottom: 8),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 0, 10, 4),
-        child: Row(
-          children: [
-            Expanded(child: _pill(context, scheme)),
-            AnimatedSize(
-              duration: _motion,
-              curve: AppTheme.emphasized,
-              child: onAdd == null
-                  ? const SizedBox(height: height)
-                  : Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: _addButton(scheme),
-                    ),
-            ),
-          ],
-        ),
+        child: _pill(context, scheme),
       ),
     );
   }
@@ -231,29 +210,6 @@ class FloatingNavBar extends StatelessWidget {
                     ),
                   )
                 : icon,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _addButton(ColorScheme scheme) {
-    const shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.all(Radius.circular(18)),
-    );
-    return Tooltip(
-      message: addTooltip,
-      child: Material(
-        color: scheme.primary,
-        shape: shape,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          customBorder: shape,
-          onTap: onAdd,
-          child: SizedBox(
-            width: _addSize,
-            height: _addSize,
-            child: Icon(Icons.add_rounded, size: 28, color: scheme.onPrimary),
           ),
         ),
       ),

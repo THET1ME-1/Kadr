@@ -39,7 +39,6 @@ Future<void> _pump(
   WidgetTester tester, {
   required int selected,
   ValueChanged<int>? onSelect,
-  VoidCallback? onAdd,
   double width = 400,
 }) async {
   tester.view.physicalSize = Size(width, 800);
@@ -55,8 +54,6 @@ Future<void> _pump(
           items: _items(),
           selectedIndex: selected,
           onSelect: onSelect ?? (_) {},
-          onAdd: onAdd,
-          addTooltip: tr('add'),
         ),
       ),
     ),
@@ -86,7 +83,7 @@ void main() {
 
   testWidgets('подпись только у открытой вкладки', (tester) async {
     await tester.runAsync(() => LocaleController.instance.setCode('ru'));
-    await _pump(tester, selected: 1, onAdd: () {});
+    await _pump(tester, selected: 1);
     expect(find.text(tr('nav_watched')), findsOneWidget);
     expect(find.text(tr('nav_watchlist')), findsNothing);
     expect(find.text(tr('nav_discover')), findsNothing);
@@ -94,7 +91,7 @@ void main() {
 
   testWidgets('у таблетки меню нет обводки', (tester) async {
     await tester.runAsync(() => LocaleController.instance.setCode('ru'));
-    await _pump(tester, selected: 0, onAdd: () {});
+    await _pump(tester, selected: 0);
     final boxes = tester.widgetList<DecoratedBox>(
       find.descendant(
         of: find.byType(FloatingNavBar),
@@ -115,15 +112,12 @@ void main() {
     expect(picked, 2);
   });
 
-  testWidgets('кнопка «+» есть, только когда её передали', (tester) async {
+  testWidgets('кнопки «+» в меню нет', (tester) async {
     await tester.runAsync(() => LocaleController.instance.setCode('ru'));
-    var adds = 0;
-    await _pump(tester, selected: 0, onAdd: () => adds++);
-    await tester.tap(find.byTooltip(tr('add')));
-    expect(adds, 1);
-
-    await _pump(tester, selected: 2);
-    expect(find.byTooltip(tr('add')), findsNothing);
+    for (var i = 0; i < 4; i++) {
+      await _pump(tester, selected: i);
+      expect(find.byIcon(Icons.add_rounded), findsNothing, reason: '$i');
+    }
   });
 
   testWidgets('число заявок висит на значке профиля', (tester) async {
@@ -132,7 +126,7 @@ void main() {
     expect(find.text('2'), findsOneWidget);
   });
 
-  testWidgets('на телефоне в 352 dp подпись «Просмотрено» видна рядом с «+»', (
+  testWidgets('на телефоне в 352 dp подпись «Просмотрено» видна', (
     tester,
   ) async {
     // Замер подписи идёт по шрифту: с тестовым Ahem буквы шире настоящих.
@@ -146,7 +140,7 @@ void main() {
         );
       await loader.load();
     });
-    await _pump(tester, selected: 1, onAdd: () {}, width: 352);
+    await _pump(tester, selected: 1, width: 352);
     expect(tester.takeException(), isNull);
     expect(find.text(tr('nav_watched')), findsOneWidget);
   });
@@ -155,15 +149,8 @@ void main() {
     testWidgets('на 320 dp ничего не вылезает: $lang', (tester) async {
       await tester.runAsync(() => LocaleController.instance.setCode(lang));
       for (var i = 0; i < 4; i++) {
-        for (final add in [true, false]) {
-          await _pump(
-            tester,
-            selected: i,
-            onAdd: add ? () {} : null,
-            width: 320,
-          );
-          expect(tester.takeException(), isNull, reason: '$i $add');
-        }
+        await _pump(tester, selected: i, width: 320);
+        expect(tester.takeException(), isNull, reason: '$i');
       }
     });
   }
