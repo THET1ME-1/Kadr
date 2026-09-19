@@ -33,6 +33,10 @@ import 'delete_helpers.dart';
 import 'series_stats_screen.dart';
 import 'social/friend_pick_sheet.dart';
 import 'social/media_image_picker.dart';
+import 'review/review_editor_screen.dart';
+import 'review/review_screen.dart';
+import 'review/review_target.dart';
+import '../widgets/review/review_parts.dart';
 
 /// Экран сериала (M3 Expressive): крупная шапка с бэкдропом, оценка всего
 /// сериала, выбор сезона, отметка «весь сезон разом», а у каждой серии —
@@ -1294,139 +1298,47 @@ class _SeriesScreenState extends State<SeriesScreen> {
     );
   }
 
-  /// Плитка «Моя рецензия» на сериал: текст (тап → правка) или кнопка написать.
+  /// Плитка «Моя рецензия» на сериал: карточка рецензии (тап → чтение) или
+  /// кнопка «Написать рецензию», которая открывает редактор критика.
   Widget _reviewTile(ColorScheme scheme) {
-    final has = s.review != null && s.review!.trim().isNotEmpty;
+    final target = ReviewTarget.series(s);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
-      child: has
-          ? GestureDetector(
-              onTap: _editReview,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: s.hasReview
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Text(tr('my_review'),
-                            style: TextStyle(
-                                fontFamily: AppTheme.displayFont,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                                color: scheme.primary)),
-                        const Spacer(),
-                        Icon(Icons.edit_rounded,
-                            size: 16, color: scheme.onSurfaceVariant),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(s.review!,
+                    Text(tr('my_review'),
                         style: TextStyle(
-                            fontFamily: AppTheme.bodyFont,
+                            fontFamily: AppTheme.displayFont,
+                            fontWeight: FontWeight.w700,
                             fontSize: 14,
-                            height: 1.45,
-                            color: scheme.onSurface)),
+                            color: scheme.primary)),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: () => openReviewEditor(context, target),
+                      icon: const Icon(Icons.edit_rounded, size: 17),
+                      label: Text(tr('edit')),
+                    ),
                   ],
                 ),
-              ),
+                ReviewPreviewCard(
+                  text: s.review,
+                  meta: s.reviewMeta,
+                  onOpen: () => openReview(context, target),
+                ),
+              ],
             )
           : SizedBox(
               width: double.infinity,
               child: FilledButton.tonalIcon(
-                onPressed: _editReview,
+                onPressed: () => openReviewEditor(context, target),
                 icon: const Icon(Icons.rate_review_rounded),
                 label: Text(tr('write_review')),
               ),
             ),
-    );
-  }
-
-  /// Редактор рецензии на сериал — нижний лист с многострочным полем.
-  void _editReview() {
-    final ctl = TextEditingController(text: s.review ?? '');
-    final scheme = Theme.of(context).colorScheme;
-    final id = s.tvShowId;
-    final had = s.review != null && s.review!.trim().isNotEmpty;
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: scheme.surfaceContainer,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetCtx) => Padding(
-        padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 14,
-            bottom: 20 + MediaQuery.of(sheetCtx).viewInsets.bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                      color: scheme.outlineVariant,
-                      borderRadius: BorderRadius.circular(2))),
-            ),
-            const SizedBox(height: 14),
-            Text(tr('my_review'),
-                style: TextStyle(
-                    fontFamily: AppTheme.displayFont,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                    color: scheme.onSurface)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctl,
-              autofocus: true,
-              minLines: 4,
-              maxLines: 10,
-              textCapitalization: TextCapitalization.sentences,
-              style: const TextStyle(fontFamily: AppTheme.bodyFont, height: 1.4),
-              decoration: InputDecoration(
-                hintText: tr('review_hint'),
-                filled: true,
-                fillColor: scheme.surfaceContainerHigh,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                if (had)
-                  TextButton(
-                    onPressed: () {
-                      _repo.setSeriesReview(id, null);
-                      Navigator.pop(sheetCtx);
-                    },
-                    child: Text(tr('delete')),
-                  ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: () {
-                    _repo.setSeriesReview(id, ctl.text);
-                    Navigator.pop(sheetCtx);
-                  },
-                  child: Text(tr('save')),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 

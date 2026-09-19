@@ -8,6 +8,9 @@ import '../../theme/app_theme.dart';
 import '../../widgets/profile_banner.dart';
 import '../../widgets/user_avatar.dart';
 import '../library_tab.dart';
+import '../review/review_list_tile.dart';
+import '../review/review_target.dart';
+import '../../widgets/settings_kit.dart' show groupBlockRadius;
 import 'auth_screen.dart';
 import 'profile_stats.dart';
 import 'taste_match.dart';
@@ -113,11 +116,13 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
                           mode: LibraryMode.watched,
                           repository: _repo,
                           readOnly: true,
+                          owner: widget.user,
                           viewMode: _viewMode),
                       LibraryTab(
                           mode: LibraryMode.watchlist,
                           repository: _repo,
                           readOnly: true,
+                          owner: widget.user,
                           viewMode: _viewMode),
                       _aboutTab(),
                     ],
@@ -154,6 +159,7 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
       children: [
         _header(),
         const SizedBox(height: 20),
+        if (repo != null) ..._reviewsSection(repo),
         if (repo != null) ...[
           WatchTogether(mine: MovieRepository.instance, friend: repo),
           if (MovieRepository.instance.watchlist.isNotEmpty)
@@ -168,6 +174,42 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
         ],
       ],
     );
+  }
+
+  /// Рецензии друга: три свежих, остальные по кнопке.
+  bool _allReviews = false;
+
+  List<Widget> _reviewsSection(MovieRepository repo) {
+    final list = ReviewTarget.publicReviews(repo);
+    if (list.isEmpty) return const [];
+    final scheme = Theme.of(context).colorScheme;
+    final shown = _allReviews ? list : list.take(3).toList();
+    return [
+      Text(trf('friend_reviews', {'n': list.length}),
+          style: TextStyle(
+              fontFamily: AppTheme.displayFont,
+              fontWeight: FontWeight.w800,
+              fontSize: 17,
+              color: scheme.onSurface)),
+      const SizedBox(height: 12),
+      for (var i = 0; i < shown.length; i++) ...[
+        if (i > 0) const SizedBox(height: 4),
+        ReviewListTile(
+          target: shown[i],
+          author: widget.user,
+          radius: groupBlockRadius(i, shown.length),
+        ),
+      ],
+      if (list.length > shown.length)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () => setState(() => _allReviews = true),
+            child: Text(trf('rv_show_all', {'n': list.length})),
+          ),
+        ),
+      const SizedBox(height: 22),
+    ];
   }
 
   Widget _header() {

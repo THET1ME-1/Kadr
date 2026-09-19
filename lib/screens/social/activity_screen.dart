@@ -11,9 +11,11 @@ import '../../utils/format.dart';
 import '../../utils/score.dart';
 import '../../widgets/poster.dart';
 import '../../widgets/user_avatar.dart';
+import '../review/review_screen.dart';
+import '../review/review_target.dart';
 import 'friend_profile_screen.dart';
 
-enum _Kind { watched, wishlist, series }
+enum _Kind { watched, wishlist, series, review }
 
 /// Событие в ленте активности друга.
 class _Event {
@@ -25,8 +27,12 @@ class _Event {
   final int? tmdbId;
   final DateTime date;
   final double? score;
+
+  /// Рецензия друга — у событий «написал рецензию».
+  final ReviewTarget? review;
   _Event(this.friend, this.kind, this.title, this.posterUrl, this.year,
-      this.tmdbId, this.date, this.score);
+      this.tmdbId, this.date, this.score,
+      {this.review});
 }
 
 /// Рекомендация: фильм, который друзья высоко оценили, а я не смотрел.
@@ -105,6 +111,21 @@ class _ActivityScreenState extends State<ActivityScreen> {
           events.add(_Event(f, _Kind.wishlist, m.displayTitle, m.posterUrl,
               m.year, m.tmdbId, d, null));
         }
+      }
+      for (final r in ReviewTarget.publicReviews(lib.repo)) {
+        final d = r.meta?.shownDate;
+        if (d == null) continue;
+        final head = r.meta?.title?.trim();
+        events.add(_Event(
+            f,
+            _Kind.review,
+            head == null || head.isEmpty ? r.title : head,
+            r.poster,
+            r.year,
+            r.tmdbId,
+            d,
+            r.score,
+            review: r));
       }
       for (final s in lib.repo.series) {
         final d = s.lastWatch;
@@ -440,10 +461,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
       _Kind.watched => (Icons.check_circle_rounded, tr('activity_watched')),
       _Kind.wishlist => (Icons.bookmark_rounded, tr('activity_wishlisted')),
       _Kind.series => (Icons.live_tv_rounded, tr('activity_series')),
+      _Kind.review => (
+          Icons.rate_review_rounded,
+          trf('activity_reviewed', {'title': e.review!.title})
+        ),
     };
+    final review = e.review;
     return InkWell(
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => FriendProfileScreen(user: e.friend))),
+      onTap: review != null
+          ? () => openReview(context, review, author: e.friend)
+          : () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => FriendProfileScreen(user: e.friend))),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
         child: Row(

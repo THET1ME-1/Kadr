@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
+import '../models/social.dart';
 import '../services/app_prefs.dart';
 import '../services/movie_repository.dart';
 import '../services/tmdb_service.dart';
@@ -56,6 +57,9 @@ class LibraryTab extends StatefulWidget {
 
   /// Вызывается по кнопке «Искать по всей базе» из пустого результата поиска.
   final VoidCallback? onSearchEverywhere;
+
+  /// Хозяин чужой библиотеки — подпись к его рецензиям.
+  final SocialUser? owner;
   const LibraryTab({
     super.key,
     required this.mode,
@@ -64,6 +68,7 @@ class LibraryTab extends StatefulWidget {
     this.repository,
     this.readOnly = false,
     this.onSearchEverywhere,
+    this.owner,
   });
 
   @override
@@ -1212,7 +1217,8 @@ class _LibraryTabState extends State<LibraryTab> {
   /// read-only просмотр (без кнопок правки).
   void _openMovie(LibraryMovie m, {String? heroTag}) {
     if (widget.readOnly) {
-      showReadonlyMovieSheet(context, m);
+      showReadonlyMovieSheet(context, m,
+          author: widget.owner, repo: widget.repository);
     } else {
       showMovieSheet(context, m, heroTag: heroTag);
     }
@@ -1221,7 +1227,8 @@ class _LibraryTabState extends State<LibraryTab> {
   /// Открыть сериал: свой — экран сериала; друга — read-only просмотр.
   void _openSeries(LibrarySeries s, {String? heroTag}) {
     if (widget.readOnly) {
-      showReadonlySeriesSheet(context, s);
+      showReadonlySeriesSheet(context, s,
+          author: widget.owner, repo: widget.repository);
     } else {
       Navigator.of(context).push(
         MaterialPageRoute(

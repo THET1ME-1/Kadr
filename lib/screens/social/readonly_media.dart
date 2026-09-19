@@ -2,14 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/library_entry.dart';
+import '../../models/social.dart';
+import '../../services/movie_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/score.dart';
 import '../../widgets/poster.dart';
+import '../../widgets/review/review_parts.dart';
+import '../review/review_screen.dart';
+import '../review/review_target.dart';
 
 /// Read-only просмотр фильма из библиотеки ДРУГА (без кнопок правки). Показывает
-/// постер, мету, оценку и историю просмотров с оценками — как у себя, но смотреть.
-void showReadonlyMovieSheet(BuildContext context, LibraryMovie m) {
+/// постер, мету, оценку, рецензию и историю просмотров с оценками — как у
+/// себя, но смотреть. [repo] — его read-only копия, [author] — сам друг.
+void showReadonlyMovieSheet(BuildContext context, LibraryMovie m,
+    {SocialUser? author, MovieRepository? repo}) {
   final scheme = Theme.of(context).colorScheme;
   final meta = [
     if (m.year != null) '${m.year}',
@@ -84,6 +91,11 @@ void showReadonlyMovieSheet(BuildContext context, LibraryMovie m) {
                 ],
               ),
             ],
+            if (m.reviewIsPublic) ...[
+              const SizedBox(height: 18),
+              _friendReview(
+                  ctx, ReviewTarget.movie(m, repo: repo), author),
+            ],
             if (views.isNotEmpty) ...[
               const SizedBox(height: 18),
               Text(tr('nav_watched'),
@@ -104,7 +116,8 @@ void showReadonlyMovieSheet(BuildContext context, LibraryMovie m) {
 
 /// Read-only просмотр сериала друга: постер, оценка, прогресс и список
 /// просмотренных серий с оценками (без правки).
-void showReadonlySeriesSheet(BuildContext context, LibrarySeries s) {
+void showReadonlySeriesSheet(BuildContext context, LibrarySeries s,
+    {SocialUser? author, MovieRepository? repo}) {
   final scheme = Theme.of(context).colorScheme;
   final eps = [...s.episodes]..sort((a, b) {
       final sa = (a.season ?? 0).compareTo(b.season ?? 0);
@@ -192,8 +205,20 @@ void showReadonlySeriesSheet(BuildContext context, LibrarySeries s) {
             Expanded(
               child: ListView.builder(
                 controller: scroll,
-                itemCount: eps.length,
-                itemBuilder: (ctx, i) => _episodeRow(scheme, eps[i]),
+                itemCount: eps.length + (s.reviewIsPublic ? 1 : 0),
+                itemBuilder: (ctx, i) {
+                  if (s.reviewIsPublic) {
+                    if (i == 0) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _friendReview(
+                            ctx, ReviewTarget.series(s, repo: repo), author),
+                      );
+                    }
+                    i--;
+                  }
+                  return _episodeRow(scheme, eps[i]);
+                },
               ),
             ),
           ],
@@ -204,6 +229,17 @@ void showReadonlySeriesSheet(BuildContext context, LibrarySeries s) {
 }
 
 // ------------------------------ вспомогательное ------------------------------
+
+/// Рецензия друга в его карточке: превью, тап открывает целиком.
+Widget _friendReview(
+        BuildContext context, ReviewTarget target, SocialUser? author) =>
+    ReviewPreviewCard(
+      text: target.text,
+      meta: target.meta,
+      showStatus: false,
+      guardSpoilers: true,
+      onOpen: () => openReview(context, target, author: author),
+    );
 
 Widget _handle(ColorScheme scheme) => Container(
     width: 40,

@@ -24,6 +24,7 @@ import '../widgets/poster.dart';
 import '../widgets/poster_viewer.dart';
 import '../widgets/pressable.dart';
 import '../widgets/rating_slider.dart';
+import '../widgets/review/review_parts.dart';
 import '../widgets/facts_section.dart';
 import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
@@ -33,6 +34,9 @@ import 'social/auth_screen.dart';
 import 'social/media_image_picker.dart';
 import 'share_card_sheet.dart';
 import 'when_watched_sheet.dart';
+import 'review/review_editor_screen.dart';
+import 'review/review_screen.dart';
+import 'review/review_target.dart';
 
 /// Открывает полноэкранную карточку фильма (как экран сериала — отдельная
 /// страница, а не выезжающая панель).
@@ -2017,145 +2021,43 @@ class _MovieScreenState extends State<MovieScreen> {
     );
   }
 
-  /// Секция «Моя рецензия»: текст (тап → правка) или кнопка «Написать рецензию».
+  /// Секция «Моя рецензия»: карточка рецензии (тап → чтение) или кнопка
+  /// «Написать рецензию», которая открывает редактор критика.
   List<Widget> _reviewSection(ColorScheme scheme, LibraryMovie m) {
-    final has = m.review != null && m.review!.trim().isNotEmpty;
+    final target = ReviewTarget.movie(m);
     return [
       Row(
         children: [
           _sectionTitle(scheme, tr('my_review')),
           const Spacer(),
-          if (has)
+          if (m.hasReview)
             TextButton.icon(
-              onPressed: () => _editReview(m),
+              onPressed: () => openReviewEditor(context, target),
               icon: const Icon(Icons.edit_rounded, size: 17),
               label: Text(tr('edit')),
             ),
         ],
       ),
       const SizedBox(height: 6),
-      if (has)
+      if (m.hasReview)
         GestureDetector(
-          onTap: () => _editReview(m),
-          onLongPress: () => _copy(m.review!),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Text(
-              m.review!,
-              style: TextStyle(
-                fontFamily: AppTheme.bodyFont,
-                fontSize: 14,
-                height: 1.45,
-                color: scheme.onSurface,
-              ),
-            ),
+          onLongPress: m.hasReviewText ? () => _copy(m.review!) : null,
+          child: ReviewPreviewCard(
+            text: m.review,
+            meta: m.reviewMeta,
+            onOpen: () => openReview(context, target),
           ),
         )
       else
         SizedBox(
           width: double.infinity,
           child: FilledButton.tonalIcon(
-            onPressed: () => _editReview(m),
+            onPressed: () => openReviewEditor(context, target),
             icon: const Icon(Icons.rate_review_rounded),
             label: Text(tr('write_review')),
           ),
         ),
     ];
-  }
-
-  /// Редактор рецензии — нижний лист с многострочным полем.
-  void _editReview(LibraryMovie m) {
-    final ctl = TextEditingController(text: m.review ?? '');
-    final scheme = Theme.of(context).colorScheme;
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: scheme.surfaceContainer,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetCtx) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 14,
-          bottom: 20 + MediaQuery.of(sheetCtx).viewInsets.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: scheme.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              tr('my_review'),
-              style: TextStyle(
-                fontFamily: AppTheme.displayFont,
-                fontWeight: FontWeight.w800,
-                fontSize: 18,
-                color: scheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctl,
-              autofocus: true,
-              minLines: 4,
-              maxLines: 10,
-              textCapitalization: TextCapitalization.sentences,
-              style: const TextStyle(
-                fontFamily: AppTheme.bodyFont,
-                height: 1.4,
-              ),
-              decoration: InputDecoration(
-                hintText: tr('review_hint'),
-                filled: true,
-                fillColor: scheme.surfaceContainerHigh,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                if (m.review != null && m.review!.trim().isNotEmpty)
-                  TextButton(
-                    onPressed: () {
-                      _repo.setReview(m.uuid, null);
-                      Navigator.pop(sheetCtx);
-                    },
-                    child: Text(tr('delete')),
-                  ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: () {
-                    _repo.setReview(m.uuid, ctl.text);
-                    Navigator.pop(sheetCtx);
-                  },
-                  child: Text(tr('save')),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
