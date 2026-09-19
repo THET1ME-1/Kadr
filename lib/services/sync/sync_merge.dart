@@ -1,4 +1,5 @@
 import '../../models/library_entry.dart';
+import '../../models/review.dart';
 
 /// Формат снимка для синхронизации и ЧИСТЫЕ функции слияния двух снимков.
 /// Отдельный файл без Flutter — легко покрыть юнит-тестами
@@ -188,9 +189,8 @@ LibraryMovie _mergeMovie(LibraryMovie a, LibraryMovie b) {
     emotions: emo.values.toList(),
     favorite: a.favorite || b.favorite,
     lists: lists,
-    review: (a.review != null && a.review!.trim().isNotEmpty)
-        ? a.review
-        : b.review,
+    review: _pickReview(a, b).review,
+    reviewMeta: _pickReview(a, b).reviewMeta?.copy(),
     kinopoiskId: a.kinopoiskId ?? b.kinopoiskId,
     posterUrl: a.posterUrl ?? b.posterUrl,
     genres: genres,
@@ -276,9 +276,8 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
     totalEpisodes: a.totalEpisodes ?? b.totalEpisodes,
     year: a.year ?? b.year,
     score: a.score ?? b.score,
-    review: (a.review != null && a.review!.trim().isNotEmpty)
-        ? a.review
-        : b.review,
+    review: _pickReview(a, b).review,
+    reviewMeta: _pickReview(a, b).reviewMeta?.copy(),
     kinopoiskId: a.kinopoiskId ?? b.kinopoiskId,
     tmdbId: a.tmdbId ?? b.tmdbId,
     tvdbId: a.tvdbId ?? b.tvdbId,
@@ -288,4 +287,21 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
     posterUrl: a.posterUrl ?? b.posterUrl,
     posterFile: a.posterFile ?? b.posterFile,
   );
+}
+
+/// Чья рецензия остаётся после слияния. Текст и разбор едут парой, иначе
+/// заголовок одной версии встанет над текстом другой. Побеждает более свежая
+/// правка; рецензия со старой версии приложения (без разбора и без даты)
+/// уступает любой датированной. Если разбора нет ни у кого — прежнее правило:
+/// непустой текст побеждает.
+HasReview _pickReview(HasReview a, HasReview b) {
+  final am = a.reviewMeta, bm = b.reviewMeta;
+  if (am == null && bm == null) return a.hasReviewText ? a : b;
+  if (!b.hasReview) return a;
+  if (!a.hasReview) return b;
+  final at = am?.updatedAt, bt = bm?.updatedAt;
+  if (at == null && bt == null) return a;
+  if (at == null) return b;
+  if (bt == null) return a;
+  return bt.isAfter(at) ? b : a;
 }

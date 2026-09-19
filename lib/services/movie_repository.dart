@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../l10n/locale_controller.dart';
 import '../models/library_entry.dart';
+import '../models/review.dart';
 import 'kinopoisk_service.dart';
 import 'movie_source.dart';
 import 'poster_store.dart';
@@ -394,7 +395,8 @@ class MovieRepository extends ChangeNotifier {
 
   /// Публичная проекция библиотеки для друзей: полный снимок просмотров и
   /// желаний (чтобы друг видел ленту «Просмотрено»/«Буду смотреть» и статистику
-  /// теми же экранами), но БЕЗ приватного — рецензий и личных списков. В облако
+  /// теми же экранами), но БЕЗ приватного — личных списков, черновиков и
+  /// рецензий, закрытых от друзей. В облако
   /// уезжает только это; настройки и device-local данные не входят.
   ///
   /// [hideRatings] — не делиться оценками; [hideDates] — скрыть точные даты
@@ -442,18 +444,36 @@ class MovieRepository extends ChangeNotifier {
       }
     }
 
+    // Рецензия уезжает, только если опубликована и открыта друзьям.
+    // Черновики и старые приватные рецензии режутся вместе с разбором.
+    Map<String, dynamic> withReview(HasReview item, Map<String, dynamic> j) {
+      if (!item.reviewIsPublic) {
+        j.remove('review');
+        j.remove('reviewMeta');
+      } else {
+        final meta = j['reviewMeta'] as Map?;
+        if (hideRatings) meta?.remove('criteria');
+        if (hideDates && meta != null) {
+          for (final k in ['createdAt', 'updatedAt', 'publishedAt']) {
+            if (meta[k] != null) meta[k] = coarse(meta[k]);
+          }
+        }
+      }
+      return j;
+    }
+
     final movies = [
       for (final m in _movies)
         if (m.status == LibraryStatus.watched ||
             m.status == LibraryStatus.watchlist ||
             m.status == LibraryStatus.dropped ||
             m.favorite)
-          (m.toJson()..remove('review')),
+          withReview(m, m.toJson()),
     ];
     final series = [
       for (final s in _series)
         if (s.episodes.isNotEmpty || s.watchlist || s.favorite || s.dropped)
-          (s.toJson()..remove('review')),
+          withReview(s, s.toJson()),
     ];
     if (hideRatings || hideDates) {
       for (final m in movies) {
@@ -1477,22 +1497,75 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
-  /// Своя рецензия на фильм (пустая строка → убрать). Бэкапится и синкается.
-  Future<void> setReview(String uuid, String? text) async {
+  /// Сохраняет рецензию на фильм: текст (Markdown) и разбор критика. Пустой
+  /// текст убирает поле, разбор остаётся. Даты правки и первой публикации
+  /// ставятся здесь, чтобы синхронизация выбирала свежую версию.
+  Future<void> saveMovieReview(String uuid,
+      {String? text, required ReviewMeta meta}) async {
     final m = byUuid(uuid);
     if (m == null) return;
-    final t = text?.trim();
-    m.review = (t == null || t.isEmpty) ? null : t;
+    m.review = _cleanReviewText(text);
+    m.reviewMeta = _stampReview(meta);
     notifyListeners();
     await _persist();
   }
 
-  /// Своя рецензия на сериал.
-  Future<void> setSeriesReview(String seriesId, String? text) async {
+  /// То же для сериала.
+  Future<void> saveSeriesReview(String seriesId,
+      {String? text, required ReviewMeta meta}) async {
     final s = seriesById(seriesId);
     if (s == null) return;
+    s.review = _cleanReviewText(text);
+    s.reviewMeta = _stampReview(meta);
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> deleteMovieReview(String uuid) async {
+    final m = byUuid(uuid);
+    if (m == null) return;
+    m.review = null;
+    m.reviewMeta = null;
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> deleteSeriesReview(String seriesId) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    s.review = null;
+    s.reviewMeta = null;
+    notifyListeners();
+    await _persist();
+  }
+
+  static String? _cleanReviewText(String? text) {
     final t = text?.trim();
-    s.review = (t == null || t.isEmpty) ? null : t;
+    return (t == null || t.isEmpty) ? null : t;
+  }
+
+  static ReviewMeta _stampReview(ReviewMeta meta) {
+    final now = DateTime.now();
+    meta.createdAt ??= now;
+    meta.updatedAt = now;
+    if (!meta.draft) meta.publishedAt ??= now;
+    return meta;
+  }
+
+  /// Оценка фильма «как в карточке»: в текущий просмотр, а если просмотров
+  /// нет — в общую. null убирает обе, иначе scoreOf() упадёт на общую.
+  Future<void> setCurrentScore(String uuid, double? score) async {
+    final m = byUuid(uuid);
+    if (m == null) return;
+    final cv = m.currentViewing;
+    if (score == null) {
+      cv?.score = null;
+      m.score = null;
+    } else if (cv != null) {
+      cv.score = score;
+    } else {
+      m.score = score;
+    }
     notifyListeners();
     await _persist();
   }

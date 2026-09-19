@@ -4,6 +4,7 @@
 
 import '../l10n/locale_controller.dart';
 import '../services/poster_store.dart';
+import 'review.dart';
 
 /// Эмоция-реакция на фильм (наследие TV Time) + её стартовый вклад в балл.
 class MovieEmotion {
@@ -124,7 +125,7 @@ class Viewing {
 enum LibraryStatus { watched, watchlist, library, dropped }
 
 /// Фильм в библиотеке пользователя.
-class LibraryMovie {
+class LibraryMovie with HasReview {
   final String uuid;
   String title;
 
@@ -163,7 +164,12 @@ class LibraryMovie {
   List<MovieEmotion> emotions;
   bool favorite;
   List<String> lists;
+
+  /// Текст рецензии (Markdown). Разбор критика лежит в [reviewMeta].
+  @override
   String? review;
+  @override
+  ReviewMeta? reviewMeta;
 
   /// Кэш идентификаторов/постера от источников (kinopoisk.dev / KinoBD / TMDB).
   int? kinopoiskId;
@@ -207,6 +213,7 @@ class LibraryMovie {
     this.favorite = false,
     List<String>? lists,
     this.review,
+    this.reviewMeta,
     this.kinopoiskId,
     this.tvdbId,
     this.imdbId,
@@ -325,6 +332,7 @@ class LibraryMovie {
         favorite: j['favorite'] == true,
         lists: (j['lists'] as List? ?? []).map((e) => '$e').toList(),
         review: j['review'] as String?,
+        reviewMeta: _meta(j['reviewMeta']),
         kinopoiskId: (j['kinopoiskId'] as num?)?.toInt(),
         tmdbId: (j['tmdbId'] as num?)?.toInt(),
         tvdbId: (j['tvdbId'] as num?)?.toInt(),
@@ -354,6 +362,7 @@ class LibraryMovie {
         'favorite': favorite,
         'lists': lists,
         'review': review,
+        if (reviewMeta != null) 'reviewMeta': reviewMeta!.toJson(),
         'kinopoiskId': kinopoiskId,
         'tmdbId': tmdbId,
         if (tvdbId != null) 'tvdbId': tvdbId,
@@ -554,7 +563,7 @@ class EpisodeSession {
 }
 
 /// Сериал в библиотеке.
-class LibrarySeries {
+class LibrarySeries with HasReview {
   final String tvShowId;
   String title;
 
@@ -590,7 +599,12 @@ class LibrarySeries {
   /// Год выхода (первый эфир) — из TMDB. Для статистики оценок по годам выхода.
   int? year;
   double? score;
+
+  /// Текст рецензии (Markdown). Разбор критика лежит в [reviewMeta].
+  @override
   String? review;
+  @override
+  ReviewMeta? reviewMeta;
   int? kinopoiskId;
   int? tmdbId;
   int? tvdbId;
@@ -622,6 +636,7 @@ class LibrarySeries {
     this.year,
     this.score,
     this.review,
+    this.reviewMeta,
     this.kinopoiskId,
     this.tmdbId,
     this.tvdbId,
@@ -758,6 +773,7 @@ class LibrarySeries {
       year: (j['year'] as num?)?.toInt(),
       score: (j['score'] as num?)?.toDouble(),
       review: j['review'] as String?,
+      reviewMeta: _meta(j['reviewMeta']),
       kinopoiskId: (j['kinopoiskId'] as num?)?.toInt(),
       tmdbId: (j['tmdbId'] as num?)?.toInt(),
       tvdbId: (j['tvdbId'] as num?)?.toInt(),
@@ -784,6 +800,7 @@ class LibrarySeries {
         'year': year,
         'score': score,
         'review': review,
+        if (reviewMeta != null) 'reviewMeta': reviewMeta!.toJson(),
         'kinopoiskId': kinopoiskId,
         'tmdbId': tmdbId,
         if (tvdbId != null) 'tvdbId': tvdbId,
@@ -828,3 +845,7 @@ class MovieList {
   Map<String, dynamic> toJson() =>
       {'name': name, 'movieUuids': movieUuids, 'public': public};
 }
+
+/// Разбор рецензии из JSON; мусор вместо объекта даёт null.
+ReviewMeta? _meta(dynamic v) =>
+    v is Map ? ReviewMeta.fromJson(Map<String, dynamic>.from(v)) : null;
