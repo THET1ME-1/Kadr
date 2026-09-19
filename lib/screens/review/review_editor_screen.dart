@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -10,6 +12,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/score.dart';
 import '../../widgets/poster.dart';
 import '../../widgets/rating_slider.dart';
+import '../../widgets/score_pad.dart';
 import '../../widgets/review/review_parts.dart';
 import '../../widgets/review/verdict_badge.dart';
 import '../../widgets/settings_kit.dart';
@@ -41,7 +44,8 @@ class ReviewEditorScreen extends StatefulWidget {
   State<ReviewEditorScreen> createState() => _ReviewEditorScreenState();
 }
 
-class _ReviewEditorScreenState extends State<ReviewEditorScreen> {
+class _ReviewEditorScreenState extends State<ReviewEditorScreen>
+    with WidgetsBindingObserver {
   ReviewTarget get t => widget.target;
 
   late final ReviewMeta _meta = _initialMeta();
@@ -54,11 +58,15 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen> {
 
   /// Была ли рецензия уже опубликована до этого захода.
   late final bool _wasPublished = t.item.hasReview && !_meta.draft;
-  /// Правили ли разбор (вердикт, пункты, теги, переключатели).
+  /// Правили ли разбор (вердикт, пункты, теги, переключатели) после
+  /// последнего сохранения.
   bool _metaChanged = false;
-  late final String _startTitle = _title.text;
-  late final String _startBody = _body.text;
+
+  /// Текст на момент последнего сохранения — от него считаем правки.
+  late String _savedTitle = _title.text;
+  late String _savedBody = _body.text;
   bool _done = false;
+  Timer? _autosave;
   List<String> _shown = kDefaultCriteria;
   List<String> _people = const [];
   String? _director;
@@ -75,29 +83,78 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen> {
   @override
   void initState() {
     super.initState();
-    // Запоминаем исходный текст до первой правки.
-    _startTitle;
-    _startBody;
+    // Считаем сразу, до первого автосохранения: оно создаёт черновик.
+    _wasPublished;
+    _savedTitle;
+    _savedBody;
+    _lastTitle = _title.text;
+    _lastBody = _body.text;
+    _title.addListener(_onText);
+    _body.addListener(_onText);
+    WidgetsBinding.instance.addObserver(this);
     _loadCriteria();
     _loadPeople();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _autosave?.cancel();
     _title.dispose();
     _body.dispose();
     super.dispose();
+  }
+
+  /// Приложение уходит в фон: сохраняем всё, иначе система может выгрузить
+  /// его вместе с текстом. Опубликованная рецензия обновляется так же, как
+  /// при выходе из редактора.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      _autosave?.cancel();
+      _saveNow();
+    }
+  }
+
+  String _lastTitle = '', _lastBody = '';
+
+  /// Поле шлёт события и при смене курсора — реагируем только на текст.
+  void _onText() {
+    if (_title.text == _lastTitle && _body.text == _lastBody) return;
+    _lastTitle = _title.text;
+    _lastBody = _body.text;
+    _scheduleAutosave();
+  }
+
+  /// Черновик сохраняется сам через секунду после правки. Опубликованную
+  /// на лету не трогаем: друзья видели бы полуслова, её сохраняют выход из
+  /// редактора, сворачивание приложения и «Опубликовать».
+  void _scheduleAutosave() {
+    if (_wasPublished || _done) return;
+    _autosave?.cancel();
+    _autosave = Timer(const Duration(milliseconds: 1200), _saveNow);
+  }
+
+  void _saveNow() {
+    if (_done || !_dirty) return;
+    _persist(publish: false);
+    _savedTitle = _title.text;
+    _savedBody = _body.text;
+    _metaChanged = false;
   }
 
   /// Есть что сохранять. Сравниваем текст, а не ловим события поля: поле
   /// шлёт их и при смене курсора, и пустой заход сдвигал бы `updatedAt`,
   /// а синхронизация по нему выбирает свежую версию.
   bool get _dirty =>
-      _metaChanged || _title.text != _startTitle || _body.text != _startBody;
+      _metaChanged || _title.text != _savedTitle || _body.text != _savedBody;
 
   void _change(VoidCallback fn) {
     setState(fn);
     _metaChanged = true;
+    _scheduleAutosave();
   }
 
   Future<void> _loadCriteria() async {
@@ -153,6 +210,7 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen> {
 
   /// Уход с экрана без «Опубликовать»: введённое не пропадает.
   void _saveOnLeave() {
+    _autosave?.cancel();
     if (_done || !_dirty) return;
     _done = true;
     final messenger = ScaffoldMessenger.maybeOf(context);
@@ -170,6 +228,7 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen> {
       return;
     }
     HapticFeedback.mediumImpact();
+    _autosave?.cancel();
     _done = true;
     await _persist(publish: true);
     if (!mounted) return;
@@ -457,7 +516,10 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen> {
       spacing: 12,
       children: [
         ReviewCaps(tr('rv_overall')),
-        Row(
+        InkWell(
+          onTap: canSet ? _pickOverall : null,
+          borderRadius: BorderRadius.circular(16),
+          child: Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
           children: [
@@ -480,7 +542,13 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen> {
                     fontWeight: FontWeight.w700,
                     fontSize: 20,
                     color: scheme.onSurfaceVariant)),
+            if (canSet) ...[
+              const SizedBox(width: 10),
+              Icon(Icons.dialpad_rounded,
+                  size: 20, color: scheme.onSurfaceVariant),
+            ],
           ],
+          ),
         ),
         if (!t.canRate)
           Text(tr('rate_after_watch'),
@@ -570,7 +638,11 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen> {
                   label: critLabel(id),
                   value: _meta.criteria[id],
                   onChanged: (v) => _change(() => _meta.criteria[id] = v),
-                  onClear: () => _change(() => _meta.criteria.remove(id)),
+                  onPick: () => _pickCriterion(id),
+                  onClear: () {
+                    HapticFeedback.mediumImpact();
+                    _change(() => _meta.criteria.remove(id));
+                  },
                 ),
             ],
           ),
@@ -582,6 +654,21 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen> {
                 color: scheme.onSurfaceVariant)),
       ],
     );
+  }
+
+  /// Точная оценка пункта с калькулятора.
+  Future<void> _pickCriterion(String id) async {
+    final v = await showScorePad(context);
+    if (v == null || !mounted) return;
+    _change(() => _meta.criteria[id] = v);
+  }
+
+  /// Общая оценка с калькулятора — как в карточке фильма.
+  Future<void> _pickOverall() async {
+    final v = await showScorePad(context);
+    if (v == null || !mounted) return;
+    setState(() => _score = v);
+    await t.setScore(v);
   }
 
   Future<void> _pickCriteria() async {
@@ -934,17 +1021,19 @@ const _kConsPresets = [
 
 /// Строка пункта: подпись, тонкий слайдер цвета оценки, число. Пока пункт
 /// не оценён, стоит прочерк, а первое касание ставит значение. Нажатие на
-/// число сбрасывает пункт.
+/// число открывает калькулятор, удержание сбрасывает пункт.
 class _CriterionRow extends StatelessWidget {
   final String label;
   final double? value;
   final ValueChanged<double> onChanged;
+  final VoidCallback onPick;
   final VoidCallback onClear;
 
   const _CriterionRow({
     required this.label,
     required this.value,
     required this.onChanged,
+    required this.onPick,
     required this.onClear,
   });
 
@@ -998,10 +1087,12 @@ class _CriterionRow extends StatelessWidget {
               ),
             ),
           ),
-          Tooltip(
-            message: tr('rv_clear'),
+          Semantics(
+            button: true,
+            hint: tr('rv_criteria_hint'),
             child: InkWell(
-              onTap: v == null ? null : onClear,
+              onTap: onPick,
+              onLongPress: v == null ? null : onClear,
               borderRadius: BorderRadius.circular(12),
               child: SizedBox(
                 width: 44,

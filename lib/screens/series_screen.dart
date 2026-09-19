@@ -1327,7 +1327,12 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 ReviewPreviewCard(
                   text: s.review,
                   meta: s.reviewMeta,
-                  onOpen: () => openReview(context, target),
+                  openLabel: (s.reviewMeta?.draft ?? false)
+                      ? tr('rv_continue')
+                      : null,
+                  onOpen: (s.reviewMeta?.draft ?? false)
+                      ? () => openReviewEditor(context, target)
+                      : () => openReview(context, target),
                 ),
               ],
             )
@@ -1718,7 +1723,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
   /// и не трогает невышедшие).
   Future<void> _rateSeason() async {
     if (_season == null) return;
-    final r = await showScorePad(context, initial: null);
+    final r = await showScorePad(context);
     if (r == null) return;
     final n = await _repo.setSeasonScore(s.tvShowId, _season!, r);
     if (mounted) {
@@ -2036,8 +2041,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () async {
-                    final r = await showScorePad(sheetCtx,
-                        initial: rated ? val : null);
+                    final r = await showScorePad(sheetCtx);
                     if (r != null) {
                       setSheet(() {
                         val = r;
@@ -2517,7 +2521,7 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
                   behavior: HitTestBehavior.opaque,
                   onTap: () async {
                     final r =
-                        await showScorePad(sheetCtx, initial: rated ? val : null);
+                        await showScorePad(sheetCtx);
                     if (r != null) {
                       setSheet(() {
                         val = r;
@@ -2788,7 +2792,7 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () async {
-            final r = await showScorePad(context, initial: we.score);
+            final r = await showScorePad(context);
             if (r != null) {
               _repo.setEpisodeScore(widget.seriesId, we, r);
               if (mounted) setState(() => _dragging = null);

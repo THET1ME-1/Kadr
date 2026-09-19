@@ -284,6 +284,9 @@ class ReviewPreviewCard extends StatelessWidget {
   /// показываем, как и на экране чтения.
   final bool guardSpoilers;
 
+  /// Подпись кнопки; по умолчанию «Читать целиком».
+  final String? openLabel;
+
   const ReviewPreviewCard({
     super.key,
     required this.text,
@@ -292,6 +295,7 @@ class ReviewPreviewCard extends StatelessWidget {
     this.showFooter = true,
     this.showStatus = true,
     this.guardSpoilers = false,
+    this.openLabel,
   });
 
   @override
@@ -385,7 +389,8 @@ class ReviewPreviewCard extends StatelessWidget {
                   children: [
                     if (onOpen != null)
                       FilledButton.tonal(
-                          onPressed: onOpen, child: Text(tr('rv_read_full'))),
+                          onPressed: onOpen,
+                          child: Text(openLabel ?? tr('rv_read_full'))),
                     const SizedBox(width: 12),
                     if (showStatus)
                     Expanded(

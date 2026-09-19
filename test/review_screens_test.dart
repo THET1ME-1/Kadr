@@ -381,4 +381,101 @@ void main() {
       expect(repo.byUuid('m1')!.reviewMeta, isNull);
     });
   });
+
+  group('правки с телефона', () {
+    testWidgets('у поля текста нет рамки и в фокусе', (tester) async {
+      phone(tester);
+      await tester.runAsync(() => LocaleController.instance.setCode('ru'));
+      final repo = _repo(text: 'Кайф');
+      final target = ReviewTarget.movie(repo.byUuid('m1')!, repo: repo);
+      await tester.pumpWidget(
+          _app(ReviewEditorScreen(target: target, initialStep: 1)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Кайф'));
+      await tester.pump();
+      for (final f in tester.widgetList<TextField>(find.byType(TextField))) {
+        final d = f.decoration!;
+        expect(d.focusedBorder, InputBorder.none);
+        expect(d.enabledBorder, InputBorder.none);
+        expect(d.filled, isFalse);
+      }
+    });
+
+    testWidgets('нажатие на число пункта открывает калькулятор',
+        (tester) async {
+      phone(tester);
+      await tester.runAsync(() => LocaleController.instance.setCode('ru'));
+      final repo = _repo(meta: _fullMeta(), text: _text);
+      final target = ReviewTarget.movie(repo.byUuid('m1')!, repo: repo);
+      await tester.pumpWidget(_app(ReviewEditorScreen(target: target)));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('6.8'));
+      await tester.tap(find.text('6.8'));
+      await tester.pumpAndSettle();
+      expect(find.text(tr('enter_score')), findsOneWidget);
+      final pad = find.byType(BottomSheet);
+      for (final k in ['7', '.', '4']) {
+        await tester.tap(find.descendant(of: pad, matching: find.text(k)));
+        await tester.pump();
+      }
+      await tester.tap(find.descendant(of: pad, matching: find.text(tr('done'))));
+      await tester.pumpAndSettle();
+      expect(find.text('7.4'), findsOneWidget);
+      expect(find.text('6.8'), findsNothing);
+    });
+
+    testWidgets('удержание числа сбрасывает пункт', (tester) async {
+      phone(tester);
+      await tester.runAsync(() => LocaleController.instance.setCode('ru'));
+      final repo = _repo(meta: _fullMeta(), text: _text);
+      final target = ReviewTarget.movie(repo.byUuid('m1')!, repo: repo);
+      await tester.pumpWidget(_app(ReviewEditorScreen(target: target)));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('6.8'));
+      await tester.longPress(find.text('6.8'));
+      await tester.pumpAndSettle();
+      expect(find.text('6.8'), findsNothing);
+      expect(find.text(tr('enter_score')), findsNothing);
+    });
+
+    testWidgets('черновик сохраняется сам, пока пишешь', (tester) async {
+      phone(tester);
+      await tester.runAsync(() => LocaleController.instance.setCode('ru'));
+      final repo = _repo();
+      final target = ReviewTarget.movie(repo.byUuid('m1')!, repo: repo);
+      await tester.pumpWidget(
+          _app(ReviewEditorScreen(target: target, initialStep: 1)));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, 'Закрутили петли');
+      await tester.pump(const Duration(seconds: 3));
+
+      final m = repo.byUuid('m1')!;
+      expect(m.review, 'Закрутили петли');
+      expect(m.reviewMeta!.draft, isTrue);
+    });
+
+    testWidgets('сворачивание приложения сохраняет правку опубликованной',
+        (tester) async {
+      phone(tester);
+      await tester.runAsync(() => LocaleController.instance.setCode('ru'));
+      final repo = _repo(meta: _fullMeta(), text: 'Было.');
+      final target = ReviewTarget.movie(repo.byUuid('m1')!, repo: repo);
+      await tester.pumpWidget(
+          _app(ReviewEditorScreen(target: target, initialStep: 1)));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, 'Стало.');
+      await tester.pump(const Duration(seconds: 3));
+      // Опубликованную не переписываем на лету: друзья видели бы опечатки.
+      expect(repo.byUuid('m1')!.review, 'Было.');
+
+      tester.binding
+          .handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      expect(repo.byUuid('m1')!.review, 'Стало.');
+      expect(repo.byUuid('m1')!.reviewMeta!.draft, isFalse);
+    });
+  });
 }

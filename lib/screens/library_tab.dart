@@ -2973,10 +2973,7 @@ class _EpisodeRow extends StatelessWidget {
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () async {
-                    final r = await showScorePad(
-                      sheetCtx,
-                      initial: rated ? val : null,
-                    );
+                    final r = await showScorePad(sheetCtx);
                     if (r != null) {
                       setSheet(() {
                         val = r;

@@ -7,7 +7,8 @@ import '../utils/score.dart';
 
 /// Открывает кастомную M3-клавиатуру-калькулятор для ручного ввода оценки
 /// (1.0–10.0, шаг 0.1). Возвращает введённый балл или null (отмена).
-Future<double?> showScorePad(BuildContext context, {double? initial}) {
+/// Табло всегда пустое: старое число пришлось бы стирать перед новым.
+Future<double?> showScorePad(BuildContext context) {
   final scheme = Theme.of(context).colorScheme;
   return showModalBottomSheet<double>(
     context: context,
@@ -16,24 +17,19 @@ Future<double?> showScorePad(BuildContext context, {double? initial}) {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
-    builder: (_) => _ScorePad(initial: initial),
+    builder: (_) => const _ScorePad(),
   );
 }
 
 class _ScorePad extends StatefulWidget {
-  final double? initial;
-  const _ScorePad({this.initial});
+  const _ScorePad();
 
   @override
   State<_ScorePad> createState() => _ScorePadState();
 }
 
 class _ScorePadState extends State<_ScorePad> {
-  late String _input =
-      widget.initial == null ? '' : _trim(widget.initial!.toStringAsFixed(1));
-
-  static String _trim(String s) =>
-      s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
+  String _input = '';
 
   double? get _value => double.tryParse(_input);
   bool get _valid => _value != null && _value! > 0;
@@ -85,41 +81,58 @@ class _ScorePadState extends State<_ScorePad> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: scheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(2))),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: scheme.outlineVariant,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             const SizedBox(height: 14),
-            Text(tr('enter_score'),
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontSize: 13,
-                    color: scheme.onSurfaceVariant)),
+            Text(
+              tr('enter_score'),
+              style: TextStyle(
+                fontFamily: AppTheme.bodyFont,
+                fontSize: 13,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: 4),
             // Табло ввода.
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Icon(_valid ? Icons.star_rounded : Icons.star_border_rounded,
-                    color: accent, size: 34),
-                const SizedBox(width: 8),
-                Text(_input.isEmpty ? '—' : _input,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Icon(
+                    _valid ? Icons.star_rounded : Icons.star_border_rounded,
+                    color: accent,
+                    size: 34,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _input.isEmpty ? '—' : _input,
                     style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 52,
-                        height: 1,
-                        color: accent)),
-                Text(' / 10',
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 52,
+                      height: 1,
+                      color: accent,
+                    ),
+                  ),
+                  Text(
+                    ' / 10',
                     style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 20,
-                        color: scheme.onSurfaceVariant)),
-              ],
+                      fontFamily: AppTheme.displayFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             // Клавиатура калькулятора.
@@ -146,12 +159,16 @@ class _ScorePadState extends State<_ScorePad> {
               child: FilledButton(
                 onPressed: _valid ? _confirm : null,
                 style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16)),
-                child: Text(tr('done'),
-                    style: const TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16)),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: Text(
+                  tr('done'),
+                  style: const TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
               ),
             ),
           ],
@@ -165,10 +182,10 @@ class _ScorePadState extends State<_ScorePad> {
     final isDot = k == '.';
     final bg = isBack
         ? scheme.secondaryContainer
-        : (isDot ? scheme.surfaceContainerHighest : scheme.surfaceContainerHigh);
-    final fg = isBack
-        ? scheme.onSecondaryContainer
-        : scheme.onSurface;
+        : (isDot
+              ? scheme.surfaceContainerHighest
+              : scheme.surfaceContainerHigh);
+    final fg = isBack ? scheme.onSecondaryContainer : scheme.onSurface;
     final enabled = isBack ? _input.isNotEmpty : _canAppend(k);
     return Expanded(
       child: AspectRatio(
@@ -182,12 +199,15 @@ class _ScorePadState extends State<_ScorePad> {
             child: Center(
               child: isBack
                   ? Icon(Icons.backspace_rounded, size: 24, color: fg)
-                  : Text(k,
+                  : Text(
+                      k,
                       style: TextStyle(
-                          fontFamily: AppTheme.displayFont,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 26,
-                          color: fg.withValues(alpha: enabled ? 1 : 0.5))),
+                        fontFamily: AppTheme.displayFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 26,
+                        color: fg.withValues(alpha: enabled ? 1 : 0.5),
+                      ),
+                    ),
             ),
           ),
         ),

@@ -99,7 +99,11 @@ class _ReviewTextStepState extends State<ReviewTextStep> {
                 color: scheme.onSurface),
             decoration: InputDecoration(
               hintText: tr('rv_title_hint'),
+              // Тема рисует обводку у поля в фокусе; редактор — страница,
+              // поэтому гасим рамку во всех состояниях.
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
               filled: false,
               isCollapsed: true,
             ),
@@ -118,7 +122,11 @@ class _ReviewTextStepState extends State<ReviewTextStep> {
             decoration: InputDecoration(
               hintText: tr('rv_body_hint'),
               hintMaxLines: 6,
+              // Тема рисует обводку у поля в фокусе; редактор — страница,
+              // поэтому гасим рамку во всех состояниях.
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
               filled: false,
               isCollapsed: true,
             ),

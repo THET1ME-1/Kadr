@@ -1421,10 +1421,7 @@ class _MovieScreenState extends State<MovieScreen> {
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () async {
-                    final r = await showScorePad(
-                      sheetCtx,
-                      initial: rated ? val : null,
-                    );
+                    final r = await showScorePad(sheetCtx);
                     if (r != null) {
                       setSheet(() {
                         val = r;
@@ -1793,7 +1790,7 @@ class _MovieScreenState extends State<MovieScreen> {
 
   /// Открывает клавиатуру-калькулятор для ручного ввода оценки текущего фильма.
   Future<void> _openScorePad(LibraryMovie m) async {
-    final v = await showScorePad(context, initial: m.currentScore);
+    final v = await showScorePad(context);
     if (v != null) {
       _commitCurrentScore(m, v);
       if (mounted) setState(() => _dragging = null);
@@ -2042,10 +2039,15 @@ class _MovieScreenState extends State<MovieScreen> {
       if (m.hasReview)
         GestureDetector(
           onLongPress: m.hasReviewText ? () => _copy(m.review!) : null,
+          // Черновик продолжают писать, опубликованную читают.
           child: ReviewPreviewCard(
             text: m.review,
             meta: m.reviewMeta,
-            onOpen: () => openReview(context, target),
+            openLabel:
+                (m.reviewMeta?.draft ?? false) ? tr('rv_continue') : null,
+            onOpen: (m.reviewMeta?.draft ?? false)
+                ? () => openReviewEditor(context, target)
+                : () => openReview(context, target),
           ),
         )
       else
