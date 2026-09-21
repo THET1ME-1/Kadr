@@ -1313,6 +1313,17 @@ const Map<String, Map<String, String>> _strings = {
   'mark_season': {'ru': 'Отметить весь сезон', 'en': 'Mark whole season'},
   'unmark_season': {'ru': 'Снять весь сезон', 'en': 'Unmark whole season'},
   'season_done': {'ru': 'Сезон {n} отмечен', 'en': 'Season {n} marked'},
+  'unmark_season_confirm': {
+    'ru': 'Снять весь сезон {n}?',
+    'en': 'Unmark whole season {n}?',
+  },
+  'unmark_season_confirm_body': {
+    'ru': 'Просмотры {c} серий будут удалены вместе с датами и оценками. '
+        'Отменить это нельзя.',
+    'en': 'Watch records for {c} episodes will be deleted along with their '
+        'dates and ratings. This cannot be undone.',
+  },
+  'unmark_season_action': {'ru': 'Снять', 'en': 'Unmark'},
   'watch_again': {'ru': 'Смотрел ещё раз', 'en': 'Watched again'},
   'season_mark_when': {
     'ru': 'Когда вы посмотрели сезон {n}?',

@@ -991,9 +991,11 @@ class _SeriesScreenState extends State<SeriesScreen> {
             child: GestureDetector(
               onLongPress: () => _seasonRewatchMenu(scheme),
               child: FilledButton.tonalIcon(
-                onPressed: () {
+                onPressed: () async {
                   if (allWatched) {
-                    _repo.unmarkSeason(s.tvShowId, _season!);
+                    if (await _confirmUnmarkSeason(seenInSeason)) {
+                      _repo.unmarkSeason(s.tvShowId, _season!);
+                    }
                   } else {
                     _seasonMarkSheet();
                   }
@@ -1485,6 +1487,32 @@ class _SeriesScreenState extends State<SeriesScreen> {
   bool get _hasFriends =>
       SocialController.instance.friends.friends.isNotEmpty;
 
+  /// Подтверждение перед снятием всех просмотров сезона: вместе с отметками
+  /// теряются даты и оценки серий, вернуть их нечем.
+  Future<bool> _confirmUnmarkSeason(int watched) async {
+    final scheme = Theme.of(context).colorScheme;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.warning_amber_rounded, color: scheme.error, size: 32),
+        title: Text(trf('unmark_season_confirm', {'n': _season!})),
+        content: Text(trf('unmark_season_confirm_body', {'c': watched})),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('cancel'))),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+                backgroundColor: scheme.error, foregroundColor: scheme.onError),
+            child: Text(tr('unmark_season_action')),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
   /// Меню по удержанию кнопки сезона: отметить ВЕСЬ сезон просмотренным ещё раз
   /// с выбором даты + снять все просмотры.
   void _seasonRewatchMenu(ColorScheme scheme) {
@@ -1508,8 +1536,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
       extra: (sheetCtx) => _seasonMenuTile(
           Theme.of(sheetCtx).colorScheme,
           Icons.remove_done_rounded,
-          tr('season_clear_all'), () {
+          tr('season_clear_all'), () async {
         Navigator.pop(sheetCtx);
+        if (!await _confirmUnmarkSeason(watchedInSeason)) return;
         _repo.unmarkSeason(s.tvShowId, _season!);
         _snack(tr('season_cleared'));
       }, danger: true),
