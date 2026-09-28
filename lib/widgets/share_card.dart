@@ -166,7 +166,7 @@ class _Texture extends StatelessWidget {
           const Align(alignment: Alignment.centerLeft, child: _FilmEdge()),
           const Align(alignment: Alignment.centerRight, child: _FilmEdge()),
         ],
-        CustomPaint(painter: _GrainPainter(seed: data.title.hashCode)),
+        CustomPaint(painter: ShareGrainPainter(seed: data.title.hashCode)),
       ],
     );
   }
@@ -259,8 +259,8 @@ class _FilmEdge extends StatelessWidget {
 
 /// Плёночное зерно: тысячи еле заметных точек. Зерно детерминировано по
 /// названию фильма, поэтому карточка одного фильма всегда одинаковая.
-class _GrainPainter extends CustomPainter {
-  const _GrainPainter({required this.seed});
+class ShareGrainPainter extends CustomPainter {
+  const ShareGrainPainter({required this.seed});
 
   final int seed;
 
@@ -294,7 +294,7 @@ class _GrainPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_GrainPainter old) => old.seed != seed;
+  bool shouldRepaint(ShareGrainPainter old) => old.seed != seed;
 }
 
 /// Постер с обводкой-волоском. Теней нет: глубину держит контур и тон.
@@ -333,8 +333,13 @@ class _Poster extends StatelessWidget {
 }
 
 /// Подпись: знак «Засечка» и слово Kadr.
-class _Signature extends StatelessWidget {
-  const _Signature({this.size = 15, this.fontSize = 13, this.alpha = 0.85});
+class ShareSignature extends StatelessWidget {
+  const ShareSignature({
+    super.key,
+    this.size = 15,
+    this.fontSize = 13,
+    this.alpha = 0.85,
+  });
 
   final double size;
   final double fontSize;
@@ -522,7 +527,7 @@ class _PosterStyle extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const _Signature(),
+                  const ShareSignature(),
                   Flexible(
                     child: Text(
                       data.footerNote,
@@ -746,7 +751,7 @@ class _TicketStyle extends StatelessWidget {
                   painter: _BarcodePainter(seed: data.title.hashCode),
                 ),
               ),
-              const _Signature(),
+              const ShareSignature(),
             ],
           ),
         ),
@@ -972,7 +977,7 @@ class _StoryStyle extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 22),
-              const _Signature(size: 17, fontSize: 14, alpha: 0.9),
+              const ShareSignature(size: 17, fontSize: 14, alpha: 0.9),
             ],
           ),
         ),
@@ -1158,7 +1163,7 @@ class _QuietStyle extends StatelessWidget {
             ),
           ),
         CustomPaint(painter: const _GridPainter()),
-        CustomPaint(painter: _GrainPainter(seed: data.title.hashCode)),
+        CustomPaint(painter: ShareGrainPainter(seed: data.title.hashCode)),
         Padding(
           padding: const EdgeInsets.fromLTRB(28, 30, 28, 24),
           child: Column(
@@ -1260,7 +1265,7 @@ class _QuietStyle extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const _Signature(alpha: 0.8),
+                  const ShareSignature(alpha: 0.8),
                   Flexible(
                     child: Text(
                       data.footerNote,

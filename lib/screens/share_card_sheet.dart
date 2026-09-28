@@ -1,15 +1,10 @@
-import 'dart:async';
-import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
+import '../services/share_export.dart';
 import '../services/store.dart';
 import '../theme/app_theme.dart';
 import '../utils/share_card_data.dart';
@@ -91,14 +86,12 @@ class _ShareCardSheetState extends State<_ShareCardSheet> {
     });
   }
 
-  /// Раскодирует постер и кадр заранее: снимок делается за один кадр, ждать
-  /// загрузку из сети в момент рендера уже поздно — в PNG попадёт пустота.
   Future<void> _loadImages() async {
-    final poster = await _decode(widget.movie.displayPoster);
-    final backdrop = await _decode(widget.backdropUrl);
+    final poster = await decodeShareImage(widget.movie.displayPoster);
+    final backdrop = await decodeShareImage(widget.backdropUrl);
     final palette = poster == null
         ? SharePalette.fallback
-        : await _paletteOf(poster);
+        : await sharePaletteOfImage(poster);
     if (!mounted) {
       poster?.dispose();
       backdrop?.dispose();
@@ -110,39 +103,6 @@ class _ShareCardSheetState extends State<_ShareCardSheet> {
       _palette = palette;
       _ready = true;
     });
-  }
-
-  Future<ui.Image?> _decode(String? url) async {
-    if (url == null || url.isEmpty) return null;
-    final provider = url.startsWith('/')
-        ? FileImage(File(url)) as ImageProvider
-        : CachedNetworkImageProvider(url);
-    final completer = Completer<ui.Image?>();
-    final stream = provider.resolve(ImageConfiguration.empty);
-    late final ImageStreamListener listener;
-    listener = ImageStreamListener(
-      (info, _) {
-        stream.removeListener(listener);
-        if (!completer.isCompleted) completer.complete(info.image);
-      },
-      onError: (_, _) {
-        stream.removeListener(listener);
-        if (!completer.isCompleted) completer.complete(null);
-      },
-    );
-    stream.addListener(listener);
-    return completer.future.timeout(
-      const Duration(seconds: 12),
-      onTimeout: () => null,
-    );
-  }
-
-  /// Палитра считается по прореженным пикселям: постер w342 — это 175 тысяч
-  /// точек, каждая седьмая даёт тот же тон и не морозит кадр.
-  Future<SharePalette> _paletteOf(ui.Image image) async {
-    final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-    if (data == null) return SharePalette.fallback;
-    return sharePaletteFromPixels(data.buffer.asUint8List(), stride: 7);
   }
 
   ShareCardData get _data {
@@ -166,21 +126,11 @@ class _ShareCardSheetState extends State<_ShareCardSheet> {
   Future<void> _share() async {
     setState(() => _busy = true);
     try {
-      // Кадр с превью уже отрисован, но дадим слоям фильтров осесть.
-      await Future<void>.delayed(const Duration(milliseconds: 80));
-      final boundary =
-          _shotKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) return;
-      final image = await boundary.toImage(pixelRatio: 3);
-      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-      image.dispose();
-      if (bytes == null) return;
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/kadr_${widget.movie.uuid}.png');
-      await file.writeAsBytes(bytes.buffer.asUint8List());
-      await Share.shareXFiles([
-        XFile(file.path, mimeType: 'image/png'),
-      ], subject: 'Kadr · ${widget.movie.displayTitle}');
+      await shareBoundaryPng(
+        _shotKey,
+        fileName: 'kadr_${widget.movie.uuid}',
+        subject: 'Kadr · ${widget.movie.displayTitle}',
+      );
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

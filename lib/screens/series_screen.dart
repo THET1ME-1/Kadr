@@ -30,6 +30,7 @@ import '../widgets/score_pad.dart';
 import '../widgets/season_pill.dart';
 import 'browse_screens.dart';
 import 'delete_helpers.dart';
+import 'episode_grid_sheet.dart';
 import 'series_stats_screen.dart';
 import 'social/friend_pick_sheet.dart';
 import 'social/media_image_picker.dart';
@@ -199,6 +200,15 @@ class _SeriesScreenState extends State<SeriesScreen> {
         tmdbId: _tmdbId,
       ),
     ));
+  }
+
+  /// Картинка с оценками всех серий. Структура та же, что на экране: сезоны и
+  /// число серий из TMDB, без спецвыпусков.
+  void _shareGrid() {
+    showEpisodeGridSheet(context, s, {
+      for (final se in _seasons)
+        if (se.number > 0) se.number: se.episodeCount,
+    });
   }
 
   /// Полностью удалить сериал из базы (для мусорных/ненаходимых) → закрыть экран.
@@ -396,6 +406,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
                 onSelected: (v) {
                   if (v == 'stats') _openStats();
+                  if (v == 'grid') _shareGrid();
                   if (v == 'delete') _deleteSeriesFromBase();
                 },
                 itemBuilder: (context) => [
@@ -407,6 +418,17 @@ class _SeriesScreenState extends State<SeriesScreen> {
                             size: 20, color: scheme.primary),
                         const SizedBox(width: 10),
                         Text(tr('drawer_stats')),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'grid',
+                    child: Row(
+                      children: [
+                        Icon(Icons.grid_view_rounded,
+                            size: 20, color: scheme.primary),
+                        const SizedBox(width: 10),
+                        Text(tr('grid_share')),
                       ],
                     ),
                   ),
