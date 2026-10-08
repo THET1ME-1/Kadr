@@ -187,7 +187,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final meta = _meta;
     final text = _text?.trim() ?? '';
     final title = meta?.title?.trim();
-    final year = t.year != null ? ', ${t.year}' : '';
+    // У рецензии на сезоны охват идёт следом: «…, 2013 · S2–S3».
+    final year = '${t.year != null ? ', ${t.year}' : ''}'
+        '${t.isPart ? ' · ${t.scopeShortLabel}' : ''}';
     final label = _isFriend
         ? trf('rv_label_friend', {'title': '${t.title}$year'})
         : trf('rv_label_mine', {'title': '${t.title}$year'});

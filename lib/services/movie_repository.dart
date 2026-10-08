@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import '../l10n/locale_controller.dart';
 import '../models/library_entry.dart';
 import '../models/review.dart';
+import '../utils/season_reviews.dart';
 import '../utils/series_finale.dart';
 import 'kinopoisk_service.dart';
 import 'movie_source.dart';
@@ -447,6 +448,7 @@ class MovieRepository extends ChangeNotifier {
 
     // Рецензия уезжает, только если опубликована и открыта друзьям.
     // Черновики и старые приватные рецензии режутся вместе с разбором.
+    // Рецензии на сезоны проходят то же сито по одной.
     Map<String, dynamic> withReview(HasReview item, Map<String, dynamic> j) {
       if (!item.reviewIsPublic) {
         j.remove('review');
@@ -458,6 +460,17 @@ class MovieRepository extends ChangeNotifier {
           for (final k in ['createdAt', 'updatedAt', 'publishedAt']) {
             if (meta[k] != null) meta[k] = coarse(meta[k]);
           }
+        }
+      }
+      if (item is LibrarySeries) {
+        final parts = [
+          for (final p in item.seasonReviews)
+            if (p.reviewIsPublic) withReview(p, p.toJson()),
+        ];
+        if (parts.isEmpty) {
+          j.remove('seasonReviews');
+        } else {
+          j['seasonReviews'] = parts;
         }
       }
       return j;
@@ -1597,6 +1610,105 @@ class MovieRepository extends ChangeNotifier {
     if (s == null) return;
     s.review = null;
     s.reviewMeta = null;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Рецензия на сезоны [from]..[to]. Без [id] создаёт новую. Возвращает id
+  /// или null, если сезоны уже заняты другой рецензией.
+  Future<String?> saveSeasonReview(String seriesId,
+      {String? id,
+      required int from,
+      required int to,
+      String? text,
+      required ReviewMeta meta}) async {
+    final s = seriesById(seriesId);
+    if (s == null || !canCover(s, from, to, exceptId: id)) return null;
+    var part = id == null
+        ? null
+        : s.seasonReviews.where((p) => p.id == id).firstOrNull;
+    if (part == null) {
+      part = SeasonReview(
+        id: id ?? 'sr-${DateTime.now().microsecondsSinceEpoch}',
+        from: from,
+        to: to,
+      );
+      s.seasonReviews.add(part);
+    }
+    part
+      ..from = from
+      ..to = to
+      ..review = _cleanReviewText(text)
+      ..reviewMeta = _stampReview(meta);
+    s.seasonReviews.sort((a, b) => a.from.compareTo(b.from));
+    notifyListeners();
+    await _persist();
+    return part.id;
+  }
+
+  Future<void> deleteSeasonReview(String seriesId, String id) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    s.seasonReviews.removeWhere((p) => p.id == id);
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Меняет охват рецензии. [partId] — какая рецензия на сезоны, null — на
+  /// весь сериал. [from]/[to] — новый охват, null — весь сериал. Текст и
+  /// разбор переезжают вместе. Отказ, если сезоны заняты или рецензия на
+  /// весь сериал уже есть.
+  Future<({bool ok, String? partId})> moveReview(String seriesId,
+      {String? partId, int? from, int? to}) async {
+    const fail = (ok: false, partId: null);
+    final s = seriesById(seriesId);
+    if (s == null) return fail;
+    final part = partId == null
+        ? null
+        : s.seasonReviews.where((p) => p.id == partId).firstOrNull;
+    if (partId != null && part == null) return fail;
+    final toWhole = from == null || to == null;
+    if (toWhole) {
+      if (part == null) return (ok: true, partId: null);
+      if (s.hasReview) return fail;
+      s.review = part.review;
+      s.reviewMeta = part.reviewMeta;
+      s.seasonReviews.remove(part);
+      notifyListeners();
+      await _persist();
+      return (ok: true, partId: null);
+    }
+    if (from > to || !canCover(s, from, to, exceptId: partId)) return fail;
+    if (part != null) {
+      part
+        ..from = from
+        ..to = to;
+    } else {
+      final moved = SeasonReview(
+        id: 'sr-${DateTime.now().microsecondsSinceEpoch}',
+        from: from,
+        to: to,
+        review: s.review,
+        reviewMeta: s.reviewMeta,
+      );
+      s.seasonReviews.add(moved);
+      s.review = null;
+      s.reviewMeta = null;
+      partId = moved.id;
+    }
+    s.seasonReviews.sort((a, b) => a.from.compareTo(b.from));
+    notifyListeners();
+    await _persist();
+    return (ok: true, partId: partId);
+  }
+
+  /// Откуда брать оценку сериала: кнопка «Выставить сериалу» и «Вернуть».
+  Future<void> setSeriesScoreSource(
+      String seriesId, SeriesScoreSource source) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    s.scoreSource = source;
+    s.scoreSourceAt = DateTime.now();
     notifyListeners();
     await _persist();
   }

@@ -36,10 +36,7 @@ import 'episode_grid_sheet.dart';
 import 'series_stats_screen.dart';
 import 'social/friend_pick_sheet.dart';
 import 'social/media_image_picker.dart';
-import 'review/review_editor_screen.dart';
-import 'review/review_screen.dart';
-import 'review/review_target.dart';
-import '../widgets/review/review_parts.dart';
+import 'review/series_reviews_section.dart';
 
 /// Экран сериала (M3 Expressive): крупная шапка с бэкдропом, оценка всего
 /// сериала, выбор сезона, отметка «весь сезон разом», а у каждой серии —
@@ -471,7 +468,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 if (s.episodes.isEmpty || s.watchlist)
                   SliverToBoxAdapter(child: _watchlistButton(scheme)),
                 SliverToBoxAdapter(child: _droppedButton(scheme)),
-                SliverToBoxAdapter(child: _reviewTile(scheme)),
+                SliverToBoxAdapter(
+                    child: SeriesReviewsSection(
+                        series: s, repo: _repo, seasons: _seasons)),
                 if (_seasons.length > 1)
                   SliverToBoxAdapter(child: _seasonBar(scheme)),
                 SliverToBoxAdapter(child: _seasonToolbar(scheme)),
@@ -829,75 +828,132 @@ class _SeriesScreenState extends State<SeriesScreen> {
   Widget _actions(ColorScheme scheme) {
     // Если у серий есть оценки — показываем их среднее (считается автоматически).
     // Ручная оценка сериала доступна ТОЛЬКО когда ни одна серия не оценена.
+    // Оценку может давать свод рецензий или рецензия на весь сериал, если
+    // человек нажал «Выставить сериалу»; тогда под кнопкой строка «Вернуть».
     final epAvg = s.episodeScoreAvg;
-    final fromEp = epAvg != null;
-    final sc = epAvg ?? s.score;
+    final rvAvg = switch (s.scoreSource) {
+      SeriesScoreSource.reviews => s.seasonReviewsAverage,
+      SeriesScoreSource.review => s.reviewMeta?.average,
+      SeriesScoreSource.episodes => null,
+    };
+    final fromReviews = rvAvg != null;
+    final fromEp = !fromReviews && epAvg != null;
+    final sc = rvAvg ?? epAvg ?? s.score;
+    final own = epAvg ?? s.score;
+    final label = fromReviews
+        ? tr(s.scoreSource == SeriesScoreSource.reviews
+            ? 'rvs_by_reviews'
+            : 'rvs_by_review')
+        : fromEp
+            ? tr('avg_of_episodes')
+            : tr('series_rating');
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Material(
-              color: sc != null
-                  ? scoreColor(sc)
-                  : scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(18),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: fromEp ? () => _snack(tr('series_avg_locked')) : _rateSeries,
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(sc != null ? Icons.star_rounded : Icons.star_border_rounded,
-                          size: 20,
-                          color: sc != null
-                              ? onScoreColor(sc)
-                              : scheme.onSurfaceVariant),
-                      const SizedBox(width: 8),
-                      Text(
-                        sc != null
-                            ? '${sc.toStringAsFixed(1)} · ${fromEp ? tr('avg_of_episodes') : tr('series_rating')}'
-                            : tr('rate_series'),
-                        style: TextStyle(
-                            fontFamily: AppTheme.displayFont,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14.5,
-                            color: sc != null
-                                ? onScoreColor(sc)
-                                : scheme.onSurfaceVariant),
+          Row(
+            children: [
+              Expanded(
+                child: Material(
+                  color: sc != null
+                      ? scoreColor(sc)
+                      : scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(18),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: fromReviews
+                        ? () => _snack(tr('rvs_score_locked'))
+                        : fromEp
+                            ? () => _snack(tr('series_avg_locked'))
+                            : _rateSeries,
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                              fromReviews
+                                  ? Icons.rate_review_rounded
+                                  : sc != null
+                                      ? Icons.star_rounded
+                                      : Icons.star_border_rounded,
+                              size: 20,
+                              color: sc != null
+                                  ? onScoreColor(sc)
+                                  : scheme.onSurfaceVariant),
+                          const SizedBox(width: 8),
+                          Text(
+                            sc != null
+                                ? '${sc.toStringAsFixed(1)} · $label'
+                                : tr('rate_series'),
+                            style: TextStyle(
+                                fontFamily: AppTheme.displayFont,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14.5,
+                                color: sc != null
+                                    ? onScoreColor(sc)
+                                    : scheme.onSurfaceVariant),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Material(
-            color: s.favorite ? scheme.primary : scheme.surfaceContainerHighest,
-            shape: const CircleBorder(),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                _repo.toggleSeriesFavorite(s.tvShowId);
-              },
-              child: SizedBox(
-                width: 48,
-                height: 48,
-                child: PopIcon(
-                  active: s.favorite,
-                  activeIcon: Icons.favorite_rounded,
-                  inactiveIcon: Icons.favorite_border_rounded,
-                  activeColor: scheme.onPrimary,
-                  inactiveColor: scheme.onSurfaceVariant,
+              const SizedBox(width: 12),
+              Material(
+                color: s.favorite ? scheme.primary : scheme.surfaceContainerHighest,
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    _repo.toggleSeriesFavorite(s.tvShowId);
+                  },
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: PopIcon(
+                      active: s.favorite,
+                      activeIcon: Icons.favorite_rounded,
+                      inactiveIcon: Icons.favorite_border_rounded,
+                      activeColor: scheme.onPrimary,
+                      inactiveColor: scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
+          if (fromReviews)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, left: 6),
+              child: Row(
+                children: [
+                  Icon(Icons.undo_rounded,
+                      size: 16, color: scheme.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                        own != null
+                            ? trf('rvs_episodes_line',
+                                {'v': own.toStringAsFixed(1)})
+                            : tr('avg_of_episodes'),
+                        style: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontSize: 13,
+                            color: scheme.onSurfaceVariant)),
+                  ),
+                  TextButton(
+                    onPressed: () => _repo.setSeriesScoreSource(
+                        s.tvShowId, SeriesScoreSource.episodes),
+                    child: Text(tr('rvs_back')),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -1329,55 +1385,6 @@ class _SeriesScreenState extends State<SeriesScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  /// Плитка «Моя рецензия» на сериал: карточка рецензии (тап → чтение) или
-  /// кнопка «Написать рецензию», которая открывает редактор критика.
-  Widget _reviewTile(ColorScheme scheme) {
-    final target = ReviewTarget.series(s);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
-      child: s.hasReview
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Text(tr('my_review'),
-                        style: TextStyle(
-                            fontFamily: AppTheme.displayFont,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: scheme.primary)),
-                    const Spacer(),
-                    TextButton.icon(
-                      onPressed: () => openReviewEditor(context, target),
-                      icon: const Icon(Icons.edit_rounded, size: 17),
-                      label: Text(tr('edit')),
-                    ),
-                  ],
-                ),
-                ReviewPreviewCard(
-                  text: s.review,
-                  meta: s.reviewMeta,
-                  openLabel: (s.reviewMeta?.draft ?? false)
-                      ? tr('rv_continue')
-                      : null,
-                  onOpen: (s.reviewMeta?.draft ?? false)
-                      ? () => openReviewEditor(context, target)
-                      : () => openReview(context, target),
-                ),
-              ],
-            )
-          : SizedBox(
-              width: double.infinity,
-              child: FilledButton.tonalIcon(
-                onPressed: () => openReviewEditor(context, target),
-                icon: const Icon(Icons.rate_review_rounded),
-                label: Text(tr('write_review')),
-              ),
-            ),
     );
   }
 

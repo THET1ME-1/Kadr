@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/strings.dart';
+import '../../models/library_entry.dart';
 import '../../models/review.dart';
 import '../../services/social/social_controller.dart';
 import '../../services/store.dart';
@@ -16,6 +17,7 @@ import '../../widgets/score_pad.dart';
 import '../../widgets/review/review_parts.dart';
 import '../../widgets/review/verdict_badge.dart';
 import '../../widgets/settings_kit.dart';
+import 'review_scope_sheet.dart';
 import 'review_screen.dart';
 import 'review_target.dart';
 import 'review_text_step.dart';
@@ -94,6 +96,15 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen>
     WidgetsBinding.instance.addObserver(this);
     _loadCriteria();
     _loadPeople();
+    if (t.isSeries) _loadSeasons();
+  }
+
+  /// Сезоны сериала для полосы охвата и листа «О чём рецензия».
+  List<TmdbSeason> _seasons = const [];
+
+  Future<void> _loadSeasons() async {
+    final list = await reviewSeasons(t.series!);
+    if (mounted) setState(() => _seasons = list);
   }
 
   @override
@@ -447,8 +458,12 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen>
       padding: EdgeInsets.fromLTRB(16, 8, 16, 32 + bottom),
       children: [
         _mediaRow(context),
+        if (t.isSeries) ...[
+          const SizedBox(height: 14),
+          _scopeBar(context),
+        ],
         const SizedBox(height: 26),
-        _overall(context),
+        if (t.isSeries) _seriesOverall(context) else _overall(context),
         const SizedBox(height: 26),
         _criteria(context),
         const SizedBox(height: 26),
@@ -501,6 +516,204 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen>
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  /// Полоса охвата под постером: «Сезоны 2–3 · 34 серии» и «Изменить».
+  Widget _scopeBar(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final s = t.series!;
+    final part = t.isPart;
+    final eps = _seasons
+        .where((x) => !part || (x.number >= t.from! && x.number <= t.to!))
+        .fold(0, (sum, x) => sum + x.episodeCount);
+    final epAvg = part ? _rangeEpisodeAverage(s) : s.episodeScoreAvg;
+    // У рецензии на сезоны — серии и их средняя, у всего сериала — сезоны
+    // и серии: средняя по сериям стоит в подсказке под оценкой.
+    final sub = [
+      if (!part && _seasons.isNotEmpty) trn('rvs_seasons', _seasons.length),
+      if (eps > 0) trn('ss_episodes', eps),
+      if (part && epAvg != null)
+        trf('rvs_by_episodes', {'v': epAvg.toStringAsFixed(1)}),
+    ].join(' · ');
+    final bg = part
+        ? scheme.secondaryContainer
+        : scheme.surfaceContainerHighest;
+    final fg = part ? scheme.onSecondaryContainer : scheme.onSurface;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        spacing: 10,
+        children: [
+          Icon(Icons.layers_rounded, size: 20, color: fg),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 2,
+              children: [
+                Text(
+                  t.scopeLongLabel!,
+                  style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: fg,
+                  ),
+                ),
+                if (sub.isNotEmpty)
+                  Text(
+                    sub,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 12.5,
+                      color: fg.withValues(alpha: 0.85),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          FilledButton(
+            onPressed: _changeScope,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              backgroundColor: scheme.surface,
+              foregroundColor: scheme.onSurface,
+            ),
+            child: Text(tr('rvs_change')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Средняя по сериям сезонов этой рецензии.
+  double? _rangeEpisodeAverage(LibrarySeries s) {
+    final scores = [
+      for (final e in s.episodes)
+        if (e.score != null &&
+            (e.season ?? 0) >= t.from! &&
+            (e.season ?? 0) <= t.to!)
+          e.score!,
+    ];
+    if (scores.isEmpty) return null;
+    return (scores.reduce((a, b) => a + b) / scores.length * 10).round() / 10;
+  }
+
+  Future<void> _changeScope() async {
+    final scope = await showReviewScopeSheet(
+      context,
+      series: t.series!,
+      seasons: _seasons,
+      exceptPartId: t.partId,
+      initial: (from: t.from, to: t.to),
+    );
+    if (scope == null || !mounted) return;
+    final ok = await t.setScope(scope.from, scope.to);
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(tr('rvs_scope_failed'))));
+    }
+    setState(() {});
+  }
+
+  /// Общая оценка рецензии на сериал: средняя по пунктам. У рецензии на
+  /// весь сериал под ней кнопка «Выставить сериалу».
+  Widget _seriesOverall(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final s = t.series!;
+    final avg = _meta.average;
+    final own = s.episodeScoreAvg ?? s.score;
+    final String hint;
+    if (avg == null) {
+      hint = tr('rvs_hint_empty');
+    } else if (t.isPart) {
+      hint = tr('rvs_hint_part');
+    } else if (own != null) {
+      hint = trf('rvs_hint_whole', {'v': own.toStringAsFixed(1)});
+    } else {
+      hint = tr('rvs_hint_whole_plain');
+    }
+    final fromThis =
+        !t.isPart && s.scoreSource == SeriesScoreSource.review && s.hasReview;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 12,
+      children: [
+        ReviewCaps(tr('rv_overall')),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              avg != null ? avg.toStringAsFixed(1) : '—',
+              style: TextStyle(
+                fontFamily: AppTheme.displayFont,
+                fontWeight: FontWeight.w800,
+                fontSize: 48,
+                height: 1,
+                color: avg != null ? scoreColor(avg) : scheme.onSurfaceVariant,
+              ),
+            ),
+            Text(
+              ' / 10',
+              style: TextStyle(
+                fontFamily: AppTheme.displayFont,
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        Text(
+          hint,
+          style: TextStyle(
+            fontFamily: AppTheme.bodyFont,
+            fontSize: 14,
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+        if (!t.isPart && avg != null)
+          fromThis
+              ? Text(
+                  tr('rvs_score_from_this'),
+                  style: TextStyle(
+                    fontFamily: AppTheme.bodyFont,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: scheme.primary,
+                  ),
+                )
+              : FilledButton.tonal(
+                  onPressed: () async {
+                    HapticFeedback.selectionClick();
+                    _autosave?.cancel();
+                    if (_dirty) {
+                      await _persist(publish: false);
+                      _savedTitle = _title.text;
+                      _savedBody = _body.text;
+                      _metaChanged = false;
+                    }
+                    await t.repo.setSeriesScoreSource(
+                      s.tvShowId,
+                      SeriesScoreSource.review,
+                    );
+                    if (mounted) setState(() {});
+                  },
+                  child: Text(
+                    trf('rvs_set_series', {'v': avg.toStringAsFixed(1)}),
+                  ),
+                ),
       ],
     );
   }

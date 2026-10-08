@@ -606,6 +606,16 @@ class LibrarySeries with HasReview {
   /// Даты, когда человек догонял вышедшие серии. Пишутся в момент, когда
   /// вышла новая серия, чтобы плашка «Догнал» осталась в истории ленты.
   List<DateTime> caughtUpAt;
+
+  /// Рецензии на сезон или диапазон сезонов. Рецензия на весь сериал
+  /// остаётся в [review] и [reviewMeta]: так её видят старые версии.
+  List<SeasonReview> seasonReviews;
+
+  /// Откуда берётся оценка сериала: средняя по сериям, свод рецензий на
+  /// сезоны или рецензия на весь сериал. Ставит человек кнопкой
+  /// «Выставить сериалу», [scoreSourceAt] нужна слиянию при синке.
+  SeriesScoreSource scoreSource;
+  DateTime? scoreSourceAt;
   double? score;
 
   /// Текст рецензии (Markdown). Разбор критика лежит в [reviewMeta].
@@ -644,6 +654,9 @@ class LibrarySeries with HasReview {
     this.year,
     this.air,
     List<DateTime>? caughtUpAt,
+    List<SeasonReview>? seasonReviews,
+    this.scoreSource = SeriesScoreSource.episodes,
+    this.scoreSourceAt,
     this.score,
     this.review,
     this.reviewMeta,
@@ -661,7 +674,8 @@ class LibrarySeries with HasReview {
                 ? LocaleController.instance.code
                 : null),
         episodes = episodes ?? [],
-        caughtUpAt = caughtUpAt ?? [];
+        caughtUpAt = caughtUpAt ?? [],
+        seasonReviews = seasonReviews ?? [];
 
   /// Полностью ли просмотрен сериал (известно общее число серий и все отмечены).
   bool get isCompleted =>
@@ -681,7 +695,28 @@ class LibrarySeries with HasReview {
 
   /// Оценка сериала для показа: если есть оценки серий — их среднее (считается
   /// автоматически, руками не задаётся); иначе — ручная общая оценка.
-  double? get displayScore => episodeScoreAvg ?? score;
+  double? get displayScore => switch (scoreSource) {
+        SeriesScoreSource.reviews => seasonReviewsAverage ?? _ownScore,
+        SeriesScoreSource.review => reviewMeta?.average ?? _ownScore,
+        SeriesScoreSource.episodes => _ownScore,
+      };
+
+  /// Оценка без рецензий: средняя по сериям, иначе ручная.
+  double? get _ownScore => episodeScoreAvg ?? score;
+
+  /// Свод рецензий на сезоны: средняя по пунктам каждой рецензии с весом по
+  /// числу её сезонов. Черновики и рецензии без оценок не в счёт.
+  double? get seasonReviewsAverage {
+    var sum = 0.0, weight = 0;
+    for (final p in seasonReviews) {
+      final avg = p.reviewMeta?.average;
+      if (avg == null || (p.reviewMeta?.draft ?? false)) continue;
+      sum += avg * p.seasonCount;
+      weight += p.seasonCount;
+    }
+    if (weight == 0) return null;
+    return (sum / weight * 10).round() / 10;
+  }
 
   DateTime? get lastWatch {
     DateTime? best;
@@ -789,6 +824,17 @@ class LibrarySeries with HasReview {
         for (final d in (j['caughtUpAt'] as List? ?? []))
           ?DateTime.tryParse('$d'),
       ],
+      seasonReviews: [
+        for (final p in (j['seasonReviews'] as List? ?? []))
+          if (p is Map<String, dynamic>) SeasonReview.fromJson(p),
+      ],
+      scoreSource: SeriesScoreSource.values.firstWhere(
+        (v) => v.name == j['scoreSource'],
+        orElse: () => SeriesScoreSource.episodes,
+      ),
+      scoreSourceAt: j['scoreSourceAt'] == null
+          ? null
+          : DateTime.tryParse('${j['scoreSourceAt']}'),
       score: (j['score'] as num?)?.toDouble(),
       review: j['review'] as String?,
       reviewMeta: _meta(j['reviewMeta']),
@@ -819,6 +865,12 @@ class LibrarySeries with HasReview {
         if (air != null) 'air': air!.toJson(),
         if (caughtUpAt.isNotEmpty)
           'caughtUpAt': [for (final d in caughtUpAt) d.toIso8601String()],
+        if (seasonReviews.isNotEmpty)
+          'seasonReviews': [for (final p in seasonReviews) p.toJson()],
+        if (scoreSource != SeriesScoreSource.episodes)
+          'scoreSource': scoreSource.name,
+        if (scoreSourceAt != null)
+          'scoreSourceAt': scoreSourceAt!.toIso8601String(),
         'score': score,
         'review': review,
         if (reviewMeta != null) 'reviewMeta': reviewMeta!.toJson(),
@@ -830,6 +882,48 @@ class LibrarySeries with HasReview {
         'enrichTried': enrichTried,
         'posterUrl': posterUrl,
         if (posterFile != null) 'posterFile': posterFile,
+      };
+}
+
+/// Откуда берётся оценка сериала.
+enum SeriesScoreSource { episodes, reviews, review }
+
+/// Рецензия на один сезон или диапазон сезонов подряд. Текст и разбор
+/// устроены как у рецензии на весь сериал.
+class SeasonReview with HasReview {
+  final String id;
+  int from;
+  int to;
+  @override
+  String? review;
+  @override
+  ReviewMeta? reviewMeta;
+
+  SeasonReview({
+    required this.id,
+    required this.from,
+    required this.to,
+    this.review,
+    this.reviewMeta,
+  });
+
+  int get seasonCount => to - from + 1;
+  bool covers(int season) => season >= from && season <= to;
+
+  factory SeasonReview.fromJson(Map<String, dynamic> j) => SeasonReview(
+        id: '${j['id']}',
+        from: (j['from'] as num?)?.toInt() ?? 1,
+        to: (j['to'] as num?)?.toInt() ?? (j['from'] as num?)?.toInt() ?? 1,
+        review: j['review'] as String?,
+        reviewMeta: _meta(j['reviewMeta']),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'from': from,
+        'to': to,
+        'review': review,
+        if (reviewMeta != null) 'reviewMeta': reviewMeta!.toJson(),
       };
 }
 

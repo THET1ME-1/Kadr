@@ -33,6 +33,7 @@ class ReviewListTile extends StatelessWidget {
     final date = meta?.shownDate;
     final sub = [
       '${target.title}${target.year != null ? ' · ${target.year}' : ''}',
+      if (target.isPart) target.scopeShortLabel!,
       if (date != null) dayMonth(date),
     ].join(' · ');
     return Material(

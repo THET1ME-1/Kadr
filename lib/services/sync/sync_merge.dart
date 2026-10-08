@@ -276,6 +276,9 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
     totalEpisodes: a.totalEpisodes ?? b.totalEpisodes,
     year: a.year ?? b.year,
     air: _newerAir(a.air, b.air),
+    seasonReviews: _mergeSeasonReviews(a.seasonReviews, b.seasonReviews),
+    scoreSource: _newerSource(a, b).scoreSource,
+    scoreSourceAt: _newerSource(a, b).scoreSourceAt,
     caughtUpAt: {...a.caughtUpAt, ...b.caughtUpAt}.toList()..sort(),
     score: a.score ?? b.score,
     review: _pickReview(a, b).review,
@@ -289,6 +292,29 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
     posterUrl: a.posterUrl ?? b.posterUrl,
     posterFile: a.posterFile ?? b.posterFile,
   );
+}
+
+/// Рецензии на сезоны обеих сторон по id. У общей побеждает свежая правка,
+/// охват едет вместе с ней.
+List<SeasonReview> _mergeSeasonReviews(
+    List<SeasonReview> a, List<SeasonReview> b) {
+  final byId = <String, SeasonReview>{for (final p in a) p.id: p};
+  for (final p in b) {
+    final mine = byId[p.id];
+    byId[p.id] = mine == null ? p : _pickReview(mine, p) as SeasonReview;
+  }
+  return [
+    for (final p in byId.values)
+      SeasonReview.fromJson(p.toJson()),
+  ]..sort((x, y) => x.from.compareTo(y.from));
+}
+
+/// Сериал, у которого источник оценки выбран позже.
+LibrarySeries _newerSource(LibrarySeries a, LibrarySeries b) {
+  final at = a.scoreSourceAt, bt = b.scoreSourceAt;
+  if (at == null) return bt == null ? a : b;
+  if (bt == null) return a;
+  return bt.isAfter(at) ? b : a;
 }
 
 /// Сведения о выходе с более поздней проверкой TMDB.
