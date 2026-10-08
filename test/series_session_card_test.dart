@@ -172,7 +172,7 @@ void main() {
       tester,
       const SeriesAir(status: 'Ended', aired: 3, lastSeason: 7),
     );
-    expect(find.text('Финал · 3 серии за один день'), findsOneWidget);
+    expect(find.text('Финал · 3\u00A0серии за\u00A0один\u00A0день'), findsOneWidget);
     expect(find.textContaining('E2–E4'), findsNothing);
     expect(_blockOf(tester, 'Игра Престолов').color, scheme.primaryContainer);
     expect(find.byIcon(Icons.flag_rounded), findsWidgets);
@@ -200,5 +200,48 @@ void main() {
     );
     expect(find.textContaining('E2–E4'), findsOneWidget);
     expect(_blockOf(tester, 'Игра Престолов').color, scheme.surfaceContainerHigh);
+  });
+
+  testWidgets('финал: оценка в шапке по всему сериалу, а не за вечер', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(() => LocaleController.instance.setCode('ru'));
+    final series = LibrarySeries(
+      tvShowId: 'got',
+      title: 'Игра Престолов',
+      air: const SeriesAir(status: 'Ended', aired: 2, lastSeason: 1),
+      episodes: [
+        Episode(season: 1, number: 1, watchedAt: DateTime(2026, 9, 1, 20), score: 6),
+        Episode(season: 1, number: 2, watchedAt: DateTime(2026, 9, 14, 20), score: 9),
+      ],
+    );
+    final repo = MovieRepository.detached(
+      jsonDecode(jsonEncode({'series': [series.toJson()]}))
+          as Map<String, dynamic>,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(AppTheme.defaultSeed),
+        home: Scaffold(
+          body: LibraryTab(
+            mode: LibraryMode.watched,
+            repository: repo,
+            readOnly: true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final head = find
+        .ancestor(
+          of: find.textContaining('Финал'),
+          matching: find.byType(Material),
+        )
+        .first;
+    expect(find.descendant(of: head, matching: find.text('7.5')), findsOneWidget);
+    expect(find.descendant(of: head, matching: find.text('9.0')), findsNothing);
   });
 }

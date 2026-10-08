@@ -123,6 +123,8 @@ SessionMilestone? milestoneOf(EpisodeSession session) {
   return null;
 }
 
+String _glue(String s) => s.replaceAll(' ', '\u00A0');
+
 String _seasonOrd(int n) => trf('season_ord', {'n': n});
 
 /// Что ждём у догнанного сериала: «ждём 4-й сезон», «4-й сезон 12 мар»,
@@ -146,13 +148,15 @@ String catchUpLine(LibrarySeries s) {
 String milestoneLine(SessionMilestone m, EpisodeSession session) {
   final s = session.series;
   if (m.finale) {
-    final eps = trn('ss_episodes', _seen(s));
+    // Неразрывные пробелы внутри «94 серии» и «за 3 месяца»: длинный итог
+    // переносится только между ними, а не посреди «за 3 / месяца».
+    final eps = _glue(trn('ss_episodes', _seen(s)));
     final span = spanLabel(
       activeDays([for (final e in _numbered(s)) ?e.watchedAt]),
     );
     return span == null
         ? trf('fin_line', {'eps': eps})
-        : trf('fin_line_span', {'eps': eps, 'span': span});
+        : trf('fin_line_span', {'eps': eps, 'span': _glue(span)});
   }
   if (m.current) return catchUpLine(s);
   final ep = session.episodes.firstWhere(

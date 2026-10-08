@@ -126,7 +126,10 @@ void main() {
       expect(milestoneOf(sessions.first), isNull);
       final m = milestoneOf(sessions.last)!;
       expect(m.finale, isTrue);
-      expect(milestoneLine(m, sessions.last), 'Финал · 4 серии за 7 дней');
+      expect(
+        milestoneLine(m, sessions.last),
+        'Финал · 4\u00A0серии за\u00A07\u00A0дней',
+      );
     });
 
     test('пересмотр после финала плашку не забирает', () {

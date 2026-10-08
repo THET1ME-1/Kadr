@@ -2752,10 +2752,15 @@ class _SeriesSessionCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Row(
+                    // Итог бывает длинным («94 серии за 3 месяца») и
+                    // переносится, тогда флажок встаёт у первой строки.
+                    crossAxisAlignment: ms != null
+                        ? CrossAxisAlignment.start
+                        : CrossAxisAlignment.center,
                     children: [
                       if (ms != null)
                         Padding(
-                          padding: const EdgeInsets.only(right: 5),
+                          padding: const EdgeInsets.only(right: 5, top: 1),
                           child: Icon(
                             finale ? Icons.flag_rounded : Icons.update_rounded,
                             size: 15,
@@ -2785,14 +2790,11 @@ class _SeriesSessionCard extends StatelessWidget {
                           ms != null
                               ? milestoneLine(ms, session)
                               : '${session.rangeLabel} · ${session.count} сер.',
-                          maxLines: 1,
+                          maxLines: ms != null ? 2 : 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontFamily: AppTheme.bodyFont,
                             fontSize: 13,
-                            fontWeight: ms != null
-                                ? FontWeight.w600
-                                : FontWeight.w400,
                             color: headFgVariant,
                           ),
                         ),
@@ -2814,7 +2816,11 @@ class _SeriesSessionCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            _scoreBadge(scheme, session.avgScore ?? s.displayScore),
+            // У финала итог по всему сериалу, а не по последнему вечеру.
+            _scoreBadge(
+              scheme,
+              finale ? s.displayScore : session.avgScore ?? s.displayScore,
+            ),
           ],
         ),
       ),
