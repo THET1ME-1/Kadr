@@ -30,6 +30,35 @@ Future<void> startSeriesReview(BuildContext context, LibrarySeries series,
   );
 }
 
+/// Подтверждение перед «Выставить сериалу»: оценка сериала сменится на
+/// [value]. [current] — нынешняя средняя по сериям, если есть.
+Future<bool> confirmSetSeriesScore(BuildContext context,
+    {required double value, double? current}) async {
+  final scheme = Theme.of(context).colorScheme;
+  final v = value.toStringAsFixed(1);
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      icon: Icon(Icons.rate_review_rounded, color: scheme.primary, size: 32),
+      title: Text(trf('rvs_set_confirm_title', {'v': v})),
+      content: Text(current == null
+          ? trf('rvs_set_confirm_body_plain', {'v': v})
+          : trf('rvs_set_confirm_body',
+              {'v': v, 'e': current.toStringAsFixed(1)})),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(tr('cancel'))),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: Text(tr('rvs_set_confirm_ok')),
+        ),
+      ],
+    ),
+  );
+  return ok == true;
+}
+
 /// Рецензии на экране сериала (вариант A макета): список с охватом в
 /// таблетке и карточка свода — средняя по сериям против средней по
 /// рецензиям, сравнение по сезонам и «Выставить сериалу».
@@ -50,12 +79,16 @@ class SeriesReviewsSection extends StatefulWidget {
 
   static const collapsedKey = 'seriesReviewsCollapsed';
 
+  /// Сериалы, у которых человек убрал кнопку «Выставить сериалу» крестиком.
+  static const hiddenSetKey = 'seriesReviewsSetHidden';
+
   @override
   State<SeriesReviewsSection> createState() => _SeriesReviewsSectionState();
 }
 
 class _SeriesReviewsSectionState extends State<SeriesReviewsSection> {
   bool _collapsed = false;
+  bool _setHidden = false;
 
   LibrarySeries get series => widget.series;
   MovieRepository get repo => widget.repo;
@@ -67,6 +100,50 @@ class _SeriesReviewsSectionState extends State<SeriesReviewsSection> {
     Store.instance.getBool(SeriesReviewsSection.collapsedKey).then((v) {
       if (mounted && v != _collapsed) setState(() => _collapsed = v);
     });
+    Store.instance.getStringList(SeriesReviewsSection.hiddenSetKey).then((l) {
+      final v = l.contains(series.tvShowId);
+      if (mounted && v != _setHidden) setState(() => _setHidden = v);
+    });
+  }
+
+  Future<void> _saveHidden(bool hidden) async {
+    final list = [
+      ...await Store.instance.getStringList(SeriesReviewsSection.hiddenSetKey),
+    ]..remove(series.tvShowId);
+    if (hidden) list.add(series.tvShowId);
+    await Store.instance.setStringList(SeriesReviewsSection.hiddenSetKey, list);
+  }
+
+  /// Крестик у «Выставить сериалу»: прячет кнопку у этого сериала.
+  Future<void> _hideSet() async {
+    final scheme = Theme.of(context).colorScheme;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.visibility_off_rounded,
+            color: scheme.onSurfaceVariant, size: 32),
+        title: Text(tr('rvs_hide_title')),
+        content: Text(tr('rvs_hide_body')),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('cancel'))),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(tr('rvs_hide_ok')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _setHidden = true);
+    await _saveHidden(true);
+  }
+
+  Future<void> _showSet() async {
+    HapticFeedback.selectionClick();
+    setState(() => _setHidden = false);
+    await _saveHidden(false);
   }
 
   void _toggle() {
@@ -171,7 +248,13 @@ class _SeriesReviewsSectionState extends State<SeriesReviewsSection> {
             ),
           if (hasSummary) ...[
             const SizedBox(height: 12),
-            _Summary(series: series, repo: repo),
+            _Summary(
+              series: series,
+              repo: repo,
+              setHidden: _setHidden,
+              onHideSet: _hideSet,
+              onShowSet: _showSet,
+            ),
           ],
       ];
 }
@@ -369,7 +452,19 @@ class _ScopeChip extends StatelessWidget {
 class _Summary extends StatelessWidget {
   final LibrarySeries series;
   final MovieRepository repo;
-  const _Summary({required this.series, required this.repo});
+
+  /// Кнопку «Выставить сериалу» убрали крестиком: вместо неё значок в
+  /// заголовке, который её возвращает.
+  final bool setHidden;
+  final VoidCallback onHideSet;
+  final VoidCallback onShowSet;
+  const _Summary({
+    required this.series,
+    required this.repo,
+    required this.setHidden,
+    required this.onHideSet,
+    required this.onShowSet,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -389,7 +484,24 @@ class _Summary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 14,
         children: [
-          ReviewCaps(tr('rvs_summary')),
+          Row(
+            children: [
+              Expanded(child: ReviewCaps(tr('rvs_summary'))),
+              if (setHidden && !applied)
+                SizedBox(
+                  height: 24,
+                  child: IconButton(
+                    onPressed: onShowSet,
+                    tooltip: tr('rvs_show_set'),
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                    iconSize: 20,
+                    icon: Icon(Icons.visibility_rounded,
+                        color: scheme.onSurfaceVariant),
+                  ),
+                ),
+            ],
+          ),
           Row(
             spacing: 10,
             children: [
@@ -442,20 +554,37 @@ class _Summary extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                     color: scheme.primary))
-          else
-            FilledButton(
-              onPressed: () {
-                HapticFeedback.selectionClick();
-                repo.setSeriesScoreSource(
-                    series.tvShowId, SeriesScoreSource.reviews);
-              },
-              child: Text(trf('rvs_set_series', {'v': rv.toStringAsFixed(1)})),
+          else if (!setHidden)
+            Row(
+              spacing: 8,
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () async {
+                      HapticFeedback.selectionClick();
+                      if (!await confirmSetSeriesScore(context,
+                          value: rv, current: ep ?? series.score)) {
+                        return;
+                      }
+                      await repo.setSeriesScoreSource(
+                          series.tvShowId, SeriesScoreSource.reviews);
+                    },
+                    child: Text(
+                        trf('rvs_set_series', {'v': rv.toStringAsFixed(1)})),
+                  ),
+                ),
+                IconButton.filledTonal(
+                  onPressed: onHideSet,
+                  tooltip: tr('rvs_hide_set'),
+                  style: IconButton.styleFrom(
+                    fixedSize: const Size(56, 56),
+                    backgroundColor: scheme.surfaceContainerHighest,
+                    foregroundColor: scheme.onSurfaceVariant,
+                  ),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
             ),
-          Text(tr('rvs_summary_note'),
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontSize: 12.5,
-                  color: scheme.onSurfaceVariant)),
         ],
       ),
     );

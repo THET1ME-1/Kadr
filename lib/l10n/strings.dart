@@ -2101,10 +2101,30 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Оценка сериала берётся из свода',
     'en': 'The series score comes from the summary',
   },
-  'rvs_summary_note': {
-    'ru': 'Свод считает рецензии на сезоны. Рецензия на три сезона весит втрое больше рецензии на один. «Весь сериал» в свод не входит.',
-    'en': 'The summary counts season reviews. A review of three seasons weighs three times as much as one season. “Whole series” is not included.',
+  'rvs_set_confirm_title': {
+    'ru': 'Выставить сериалу {v}?',
+    'en': 'Use {v} for the series?',
   },
+  'rvs_set_confirm_body': {
+    'ru': 'Оценка сериала станет {v} вместо {e} по сериям. Вернуть её можно кнопкой «Вернуть» под оценкой.',
+    'en': 'The series score becomes {v} instead of {e} by episodes. «Revert» under the score brings it back.',
+  },
+  'rvs_set_confirm_body_plain': {
+    'ru': 'Оценка сериала станет {v}. Вернуть её можно кнопкой «Вернуть» под оценкой.',
+    'en': 'The series score becomes {v}. «Revert» under the score brings it back.',
+  },
+  'rvs_set_confirm_ok': {'ru': 'Выставить', 'en': 'Use it'},
+  'rvs_hide_set': {'ru': 'Убрать кнопку', 'en': 'Hide the button'},
+  'rvs_show_set': {
+    'ru': 'Вернуть кнопку «Выставить сериалу»',
+    'en': 'Show «Use for the series» again',
+  },
+  'rvs_hide_title': {'ru': 'Убрать кнопку?', 'en': 'Hide the button?'},
+  'rvs_hide_body': {
+    'ru': 'Кнопка «Выставить сериалу» пропадёт у этого сериала. Вернуть её можно значком справа от «Свод по рецензиям».',
+    'en': '«Use for the series» disappears for this series. The icon next to «Reviews summary» brings it back.',
+  },
+  'rvs_hide_ok': {'ru': 'Убрать', 'en': 'Hide'},
   'rvs_episodes_line': {'ru': 'По сериям {v}', 'en': 'Episodes {v}'},
   'rvs_back': {'ru': 'Вернуть', 'en': 'Revert'},
   'rvs_score_locked': {

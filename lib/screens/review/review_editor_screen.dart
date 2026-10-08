@@ -19,6 +19,7 @@ import '../../widgets/review/verdict_badge.dart';
 import '../../widgets/settings_kit.dart';
 import 'review_scope_sheet.dart';
 import 'review_screen.dart';
+import 'series_reviews_section.dart' show confirmSetSeriesScore;
 import 'review_target.dart';
 import 'review_text_step.dart';
 
@@ -697,6 +698,10 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen>
               : FilledButton.tonal(
                   onPressed: () async {
                     HapticFeedback.selectionClick();
+                    if (!await confirmSetSeriesScore(context,
+                        value: avg, current: own)) {
+                      return;
+                    }
                     _autosave?.cancel();
                     if (_dirty) {
                       await _persist(publish: false);

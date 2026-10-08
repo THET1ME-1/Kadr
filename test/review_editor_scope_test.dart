@@ -70,6 +70,9 @@ void main() {
     expect(find.text('Весь сериал'), findsOneWidget);
     await tester.tap(find.text('Выставить сериалу 9.0'));
     await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, tr('rvs_set_confirm_ok')));
+    await tester.pumpAndSettle();
     expect(repo.seriesById('aot')!.scoreSource, SeriesScoreSource.review);
     expect(repo.seriesById('aot')!.displayScore, 9.0);
   });

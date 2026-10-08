@@ -115,8 +115,19 @@ void main() {
       find.text('Рецензии строже серий на 0.3. Сильнее всего разошёлся 4-й сезон.'),
       findsOneWidget,
     );
+    expect(find.textContaining('весит втрое'), findsNothing,
+        reason: 'пояснение под сводом убрано');
     await tester.ensureVisible(find.text('Выставить сериалу 8.8'));
     await tester.tap(find.text('Выставить сериалу 8.8'));
+    await tester.pumpAndSettle();
+    // Сначала подтверждение: отмена ничего не меняет.
+    expect(find.byType(AlertDialog), findsOneWidget);
+    await tester.tap(find.text(tr('cancel')));
+    await tester.pumpAndSettle();
+    expect(repo.seriesById('aot')!.scoreSource, SeriesScoreSource.episodes);
+    await tester.tap(find.text('Выставить сериалу 8.8'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, tr('rvs_set_confirm_ok')));
     await tester.pumpAndSettle();
     expect(repo.seriesById('aot')!.scoreSource, SeriesScoreSource.reviews);
     expect(find.text('Выставить сериалу 8.8'), findsNothing);
@@ -174,4 +185,32 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('крестик прячет кнопку после подтверждения, значок её возвращает',
+      (tester) async {
+    await tester.runAsync(() => Store.instance.setStringList(
+        SeriesReviewsSection.hiddenSetKey, const []));
+    await _pump(tester);
+    await tester.ensureVisible(find.byTooltip(tr('rvs_hide_set')));
+    await tester.tap(find.byTooltip(tr('rvs_hide_set')));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, tr('rvs_hide_ok')));
+    await tester.pumpAndSettle();
+    expect(find.text('Выставить сериалу 8.8'), findsNothing);
+    expect(
+      await tester.runAsync(() =>
+          Store.instance.getStringList(SeriesReviewsSection.hiddenSetKey)),
+      ['aot'],
+    );
+
+    await tester.tap(find.byTooltip(tr('rvs_show_set')));
+    await tester.pumpAndSettle();
+    expect(find.text('Выставить сериалу 8.8'), findsOneWidget);
+    expect(
+      await tester.runAsync(() =>
+          Store.instance.getStringList(SeriesReviewsSection.hiddenSetKey)),
+      isEmpty,
+    );
+  });
 }
