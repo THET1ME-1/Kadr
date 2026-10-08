@@ -86,6 +86,9 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
       // Локализуем названия под язык интерфейса (фильмы + сериалы): дотягиваем
       // отсутствующие и пере-локализуем те, что в другом языке (после смены языка).
       await MovieRepository.instance.relocalizeTitlesSweep();
+      // Выходит ли сериал и сколько серий вышло: от этого зависят «Финал» и
+      // «Догнал» в ленте.
+      await MovieRepository.instance.refreshAirSweep();
       // ВНИМАНИЕ: авто-чистку серий по структуре TMDB (pruneStructureSweep)
       // УБРАЛИ намеренно. Она удаляла реальные серии пользователя по НЕТОЧНОМУ
       // авто-совпадению названия с TMDB (enrichSeries ставит чужой tmdbId), и

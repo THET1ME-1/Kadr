@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import '../l10n/locale_controller.dart';
 import '../models/library_entry.dart';
 import '../models/review.dart';
+import '../utils/series_finale.dart';
 import 'kinopoisk_service.dart';
 import 'movie_source.dart';
 import 'poster_store.dart';
@@ -850,6 +851,7 @@ class MovieRepository extends ChangeNotifier {
     s.kpRating ??= t.rating;
     s.enrichTried = true;
     s.totalEpisodes = null; // пересчитается при загрузке сезонов
+    s.air = null; // сведения о выходе были про чужое шоу
     notifyListeners();
     await _persist();
   }
@@ -1399,8 +1401,68 @@ class MovieRepository extends ChangeNotifier {
   /// Только НЕЗАВЕРШЁННЫЕ сериалы (для экрана «Сейчас смотрю»): есть
   /// просмотренные серии, не брошен и просмотрены не все серии.
   List<LibrarySeries> get nowWatching => currentlyWatching
-      .where((s) => !s.dropped && !s.finished && !s.isCompleted)
+      .where(
+        (s) =>
+            !s.dropped &&
+            !s.finished &&
+            !s.isCompleted &&
+            seriesRun(s) == SeriesRun.watching,
+      )
       .toList();
+
+  /// Сведения TMDB о выходе сериала. Если сериал был догнан, а теперь вышли
+  /// новые серии, момент «Догнал» уходит в историю, чтобы плашка осталась в
+  /// ленте.
+  Future<void> setSeriesAir(String id, SeriesAir air) async {
+    final s = seriesById(id);
+    if (s == null) return;
+    _applyAir(s, air);
+    notifyListeners();
+    await _persist();
+  }
+
+  void _applyAir(LibrarySeries s, SeriesAir air) {
+    final wasCaughtUp = seriesRun(s) == SeriesRun.caughtUp;
+    final at = completedAt(s);
+    s.air = air;
+    if (wasCaughtUp &&
+        at != null &&
+        seriesRun(s) != SeriesRun.caughtUp &&
+        !s.caughtUpAt.contains(at)) {
+      s.caughtUpAt.add(at);
+    }
+  }
+
+  bool _airSweeping = false;
+
+  /// Обход на старте: сведения о выходе для начатых сериалов. Закрытые
+  /// сериалы больше не проверяются, идущие — раз в три дня, чтобы «Догнал»
+  /// вовремя сменялся на «Смотрю», когда выходит новая серия.
+  Future<void> refreshAirSweep({int budget = 120}) async {
+    if (_airSweeping) return;
+    _airSweeping = true;
+    try {
+      final now = DateTime.now();
+      final todo = currentlyWatching.where((s) {
+        if (s.tmdbId == null || s.dropped) return false;
+        final air = s.air;
+        if (air == null || air.checkedAt == null) return true;
+        return !air.ended && now.difference(air.checkedAt!).inDays >= 3;
+      }).take(budget).toList();
+      var used = 0;
+      for (final s in todo) {
+        final air = await TmdbService.airOf(s.tmdbId!);
+        used++;
+        if (air != null) _applyAir(s, air);
+        _persistSoon();
+        if (used % 30 == 0) notifyListeners();
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+      }
+    } finally {
+      _airSweeping = false;
+      notifyListeners();
+    }
+  }
 
   /// Пометить сериал досмотренным / вернуть в «Сейчас смотрю».
   Future<void> setSeriesFinished(String id, bool finished) async {

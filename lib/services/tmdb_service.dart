@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
 import '../l10n/locale_controller.dart';
+import '../models/library_entry.dart' show SeriesAir;
 import 'api_keys.dart';
 import 'movie_source.dart';
 
@@ -1106,11 +1107,51 @@ class TmdbService {
               .toList()
             ..sort((a, b) => a.number.compareTo(b.number));
       _seasonsCache[tvId] = list;
+      _airCache[tvId] = airFromTv(j, list, now);
       return list;
     } catch (e) {
       debugPrint('tmdb seasons $tvId error: $e');
       return [];
     }
+  }
+
+  static final Map<int, SeriesAir> _airCache = {};
+
+  /// Выходит ли сериал и сколько серий уже вышло. Берётся из того же
+  /// запроса `/tv/{id}`, что и сезоны.
+  static Future<SeriesAir?> airOf(int tvId) async {
+    if (!_airCache.containsKey(tvId)) await seasons(tvId);
+    return _airCache[tvId];
+  }
+
+  /// Сведения о выходе из ответа `/tv/{id}`. Вышедших серий — все серии
+  /// сезонов до сезона последней вышедшей плюс её номер. Если последней
+  /// вышла спецсерия (сезон 0), число неизвестно.
+  static SeriesAir airFromTv(
+    Map<String, dynamic> j,
+    List<TmdbSeason> seasons,
+    DateTime now,
+  ) {
+    final last = j['last_episode_to_air'] as Map<String, dynamic>?;
+    final next = j['next_episode_to_air'] as Map<String, dynamic>?;
+    final lastSeason = (last?['season_number'] as num?)?.toInt();
+    final lastNumber = (last?['episode_number'] as num?)?.toInt();
+    int? aired;
+    if (lastSeason != null && lastSeason >= 1 && lastNumber != null) {
+      aired = lastNumber +
+          seasons
+              .where((s) => s.number < lastSeason)
+              .fold<int>(0, (a, s) => a + s.episodeCount);
+    }
+    return SeriesAir(
+      status: j['status'] as String?,
+      aired: aired,
+      lastSeason: lastSeason,
+      nextSeason: (next?['season_number'] as num?)?.toInt(),
+      nextNumber: (next?['episode_number'] as num?)?.toInt(),
+      nextDate: next?['air_date'] as String?,
+      checkedAt: now,
+    );
   }
 
   /// Сезон ещё не начал выходить (дата эфира строго в будущем). Неизвестную

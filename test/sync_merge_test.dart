@@ -148,6 +148,37 @@ void main() {
       expect(s['tvdbId'], 555);
     });
 
+    test('слияние сериала берёт свежие сведения о выходе и всю историю «Догнал»',
+        () {
+      final local = {
+        'series': [
+          {
+            ...series('s1'),
+            'air': {'status': 'Returning Series', 'aired': 8,
+                'checkedAt': '2026-10-01T00:00:00.000'},
+            'caughtUpAt': ['2026-05-01T21:00:00.000'],
+          }
+        ]
+      };
+      final remote = {
+        'series': [
+          {
+            ...series('s1'),
+            'air': {'status': 'Returning Series', 'aired': 9,
+                'checkedAt': '2026-10-08T00:00:00.000'},
+            'caughtUpAt': ['2026-09-01T21:00:00.000'],
+          }
+        ]
+      };
+      final s = (mergeSnapshots(local, remote, SyncStats())['series'] as List)
+          .single as Map;
+      expect((s['air'] as Map)['aired'], 9);
+      expect(s['caughtUpAt'], [
+        '2026-05-01T21:00:00.000',
+        '2026-09-01T21:00:00.000',
+      ]);
+    });
+
     test('дата добавления сериала при слиянии берётся ранняя', () {
       final local = {
         'series': [

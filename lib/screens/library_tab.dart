@@ -16,6 +16,7 @@ import '../utils/format.dart';
 import '../utils/actor_filter.dart';
 import '../utils/library_sort.dart';
 import '../utils/score.dart';
+import '../utils/series_finale.dart';
 import '../widgets/diary_sheet.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/floating_nav_bar.dart';
@@ -29,6 +30,7 @@ import '../widgets/score_pad.dart';
 import '../widgets/series_progress.dart';
 import 'movie_sheet.dart';
 import 'series_screen.dart';
+import 'series_stats_screen.dart';
 import 'social/roulette_screen.dart';
 import 'social/readonly_media.dart';
 
@@ -1364,7 +1366,10 @@ class _LibraryTabState extends State<LibraryTab> {
         selecting: _selecting,
         selected: sel,
         episodesSeen: s.episodesSeen,
-        totalEpisodes: s.totalEpisodes,
+        totalEpisodes: seriesRun(s) == SeriesRun.caughtUp
+            ? s.air?.aired
+            : s.totalEpisodes,
+        run: seriesRun(s),
         onSelect: () => _onSelect(key),
         onTap: () => _openSeries(s, heroTag: tag),
         heroTag: tag,
@@ -2219,6 +2224,9 @@ class _PosterCell extends StatelessWidget {
   /// Прогресс сериала (для кольца на постере). null — не сериал / не показывать.
   final int? episodesSeen;
   final int? totalEpisodes;
+
+  /// Досмотрен или догнан: на постере флажок или стрелки вместо кольца.
+  final SeriesRun run;
   final String? heroTag;
   const _PosterCell({
     required this.title,
@@ -2234,6 +2242,7 @@ class _PosterCell extends StatelessWidget {
     this.onSelect,
     this.episodesSeen,
     this.totalEpisodes,
+    this.run = SeriesRun.watching,
     this.heroTag,
   });
 
@@ -2305,6 +2314,7 @@ class _PosterCell extends StatelessWidget {
                   child: SeriesProgressPill(
                     seen: episodesSeen!,
                     total: totalEpisodes,
+                    run: run,
                   ),
                 ),
               if (score != null)
@@ -2604,6 +2614,19 @@ class _SeriesSessionCard extends StatelessWidget {
 
   LibrarySeries get s => session.series;
 
+  /// Шапка финала ведёт в статистику сериала: итог по сезонам, время, паузы.
+  Future<void> _openStats(BuildContext context) async {
+    final id = s.tmdbId;
+    final seasons = id == null ? <TmdbSeason>[] : await TmdbService.seasons(id);
+    if (!context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            SeriesStatsScreen(series: s, seasons: seasons, tmdbId: id),
+      ),
+    );
+  }
+
   /// Серий в ленте не больше этого, остальные открываются на экране сериала.
   static const _maxEpisodes = 12;
 
@@ -2618,11 +2641,28 @@ class _SeriesSessionCard extends StatelessWidget {
     final color = selected
         ? scheme.primaryContainer
         : scheme.surfaceContainerHigh;
+    // В этой сессии сериал досмотрен или догнан: шапка заливается цветом
+    // статуса, а строка серий меняется на итог (вариант B макета).
+    final ms = milestoneOf(session);
+    final finale = ms?.finale ?? false;
+    final headColor = ms == null || selected
+        ? color
+        : finale
+        ? scheme.primaryContainer
+        : scheme.surfaceContainerHighest;
+    final headFg = finale && !selected
+        ? scheme.onPrimaryContainer
+        : scheme.onSurface;
+    final headFgVariant = finale && !selected
+        ? scheme.onPrimaryContainer
+        : scheme.onSurfaceVariant;
     final VoidCallback openSeries =
         onOpen ??
-        () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => SeriesScreen(series: s)));
+        (finale
+            ? () => _openStats(context)
+            : () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => SeriesScreen(series: s)),
+              ));
     // Серии от последней к первой (новые сверху).
     final shown = session.episodes.reversed.take(_maxEpisodes).toList();
     final hidden = session.episodes.length - shown.length;
@@ -2630,10 +2670,10 @@ class _SeriesSessionCard extends StatelessWidget {
 
     // Шапка и каждая серия лежат отдельными блоками, как пункты настроек:
     // между ними зазор, линии нет. Форму блока задаёт его место в группе.
-    Widget block(int index, Widget child) => Padding(
+    Widget block(int index, Widget child, {Color? fill}) => Padding(
       padding: EdgeInsets.only(top: index == 0 ? 0 : SettingsGroup.gap),
       child: Material(
-        color: color,
+        color: fill ?? color,
         borderRadius: groupBlockRadius(index, count, outer: _outerRadius),
         clipBehavior: Clip.antiAlias,
         child: child,
@@ -2661,13 +2701,25 @@ class _SeriesSessionCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
-                      color: scheme.tertiary,
+                      color: ms == null
+                          ? scheme.tertiary
+                          : finale
+                          ? scheme.primary
+                          : scheme.secondaryContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      Icons.live_tv_rounded,
+                      ms == null
+                          ? Icons.live_tv_rounded
+                          : finale
+                          ? Icons.flag_rounded
+                          : Icons.update_rounded,
                       size: 12,
-                      color: scheme.onTertiary,
+                      color: ms == null
+                          ? scheme.onTertiary
+                          : finale
+                          ? scheme.onPrimary
+                          : scheme.onSecondaryContainer,
                     ),
                   ),
                 ),
@@ -2695,12 +2747,21 @@ class _SeriesSessionCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       fontSize: 16,
                       height: 1.1,
-                      color: scheme.onSurface,
+                      color: headFg,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
+                      if (ms != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 5),
+                          child: Icon(
+                            finale ? Icons.flag_rounded : Icons.update_rounded,
+                            size: 15,
+                            color: headFgVariant,
+                          ),
+                        ),
                       if (s.favorite)
                         Padding(
                           padding: const EdgeInsets.only(right: 6),
@@ -2721,13 +2782,18 @@ class _SeriesSessionCard extends StatelessWidget {
                         ),
                       Flexible(
                         child: Text(
-                          '${session.rangeLabel} · ${session.count} сер.',
+                          ms != null
+                              ? milestoneLine(ms, session)
+                              : '${session.rangeLabel} · ${session.count} сер.',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontFamily: AppTheme.bodyFont,
                             fontSize: 13,
-                            color: scheme.onSurfaceVariant,
+                            fontWeight: ms != null
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: headFgVariant,
                           ),
                         ),
                       ),
@@ -2740,7 +2806,7 @@ class _SeriesSessionCard extends StatelessWidget {
                       style: TextStyle(
                         fontFamily: AppTheme.bodyFont,
                         fontSize: 12,
-                        color: scheme.onSurfaceVariant.withValues(alpha: 0.85),
+                        color: headFgVariant.withValues(alpha: 0.85),
                       ),
                     ),
                   ],
@@ -2762,7 +2828,7 @@ class _SeriesSessionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            block(0, header),
+            block(0, header, fill: headColor),
             // В режиме выделения гасим внутренние тапы серий (иначе тап
             // открыл бы диалог оценки), а по касанию — переключаем выбор.
             GestureDetector(

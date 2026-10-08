@@ -11,10 +11,11 @@ import 'package:kadr/widgets/settings_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Три серии одним вечером: в ленте это одна сессия сериала.
-MovieRepository _repo() {
+MovieRepository _repo({SeriesAir? air}) {
   final series = LibrarySeries(
     tvShowId: 'got',
     title: 'Игра Престолов',
+    air: air,
     episodes: [
       Episode(
         season: 7,
@@ -140,5 +141,64 @@ void main() {
       );
     }
     expect(find.byIcon(Icons.play_circle_outline_rounded), findsNothing);
+  });
+
+  Future<ColorScheme> pumpFeed(WidgetTester tester, SeriesAir air) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(() => LocaleController.instance.setCode('ru'));
+    final theme = AppTheme.dark(AppTheme.defaultSeed);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: theme,
+        home: Scaffold(
+          body: LibraryTab(
+            mode: LibraryMode.watched,
+            repository: _repo(air: air),
+            readOnly: true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    return theme.colorScheme;
+  }
+
+  testWidgets('финал: шапка залита акцентом, вместо серий итог', (
+    tester,
+  ) async {
+    final scheme = await pumpFeed(
+      tester,
+      const SeriesAir(status: 'Ended', aired: 3, lastSeason: 7),
+    );
+    expect(find.text('Финал · 3 серии за один день'), findsOneWidget);
+    expect(find.textContaining('E2–E4'), findsNothing);
+    expect(_blockOf(tester, 'Игра Престолов').color, scheme.primaryContainer);
+    expect(find.byIcon(Icons.flag_rounded), findsWidgets);
+    // Серии остаются обычными блоками.
+    expect(_blockOf(tester, 'S7·E4').color, scheme.surfaceContainerHigh);
+  });
+
+  testWidgets('догнал: шапка тише финала и говорит, что ждём', (tester) async {
+    final scheme = await pumpFeed(
+      tester,
+      const SeriesAir(status: 'Returning Series', aired: 3, lastSeason: 7),
+    );
+    expect(find.text('Догнал · ждём 8-й сезон'), findsOneWidget);
+    expect(
+      _blockOf(tester, 'Игра Престолов').color,
+      scheme.surfaceContainerHighest,
+    );
+    expect(find.byIcon(Icons.update_rounded), findsWidgets);
+  });
+
+  testWidgets('сериал ещё смотрят: шапка как раньше', (tester) async {
+    final scheme = await pumpFeed(
+      tester,
+      const SeriesAir(status: 'Returning Series', aired: 5, lastSeason: 7),
+    );
+    expect(find.textContaining('E2–E4'), findsOneWidget);
+    expect(_blockOf(tester, 'Игра Престолов').color, scheme.surfaceContainerHigh);
   });
 }

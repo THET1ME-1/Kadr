@@ -18,6 +18,8 @@ import '../utils/format.dart';
 import '../utils/score.dart';
 import '../utils/season_pick.dart';
 import '../utils/season_progress.dart';
+import '../utils/series_finale.dart';
+import '../widgets/series_progress.dart';
 import '../widgets/facts_section.dart';
 import '../widgets/pop_icon.dart';
 import '../widgets/poster.dart';
@@ -276,6 +278,8 @@ class _SeriesScreenState extends State<SeriesScreen> {
     final total = _seasons.fold<int>(0, (a, b) => a + b.episodeCount);
     await _repo.setSeriesTotal(s.tvShowId, total);
     await _repo.setSeriesYear(s.tvShowId, _extra?.year);
+    final air = await TmdbService.airOf(id);
+    if (air != null) await _repo.setSeriesAir(s.tvShowId, air);
     // Импорт TV Time мог сохранить серии только датами (без сезона/номера) —
     // раскладываем их по сериям TMDB по порядку, чтобы галочки совпали со счётчиком.
     if (s.episodes.any((e) => e.season == null || e.number == null)) {
@@ -725,6 +729,12 @@ class _SeriesScreenState extends State<SeriesScreen> {
                           );
                         },
                       ),
+                      // Досмотрел или догнал: таблетка с датой финала или с
+                      // тем, чего ждём.
+                      if (statusPill(s) != null) ...[
+                        const SizedBox(height: 10),
+                        SeriesStatusPill(series: s),
+                      ],
                     ],
                   ),
                 ),

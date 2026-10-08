@@ -275,6 +275,8 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
     finished: a.finished || b.finished,
     totalEpisodes: a.totalEpisodes ?? b.totalEpisodes,
     year: a.year ?? b.year,
+    air: _newerAir(a.air, b.air),
+    caughtUpAt: {...a.caughtUpAt, ...b.caughtUpAt}.toList()..sort(),
     score: a.score ?? b.score,
     review: _pickReview(a, b).review,
     reviewMeta: _pickReview(a, b).reviewMeta?.copy(),
@@ -287,6 +289,15 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
     posterUrl: a.posterUrl ?? b.posterUrl,
     posterFile: a.posterFile ?? b.posterFile,
   );
+}
+
+/// Сведения о выходе с более поздней проверкой TMDB.
+SeriesAir? _newerAir(SeriesAir? a, SeriesAir? b) {
+  if (a == null || b == null) return a ?? b;
+  final at = a.checkedAt, bt = b.checkedAt;
+  if (at == null) return b;
+  if (bt == null) return a;
+  return bt.isAfter(at) ? b : a;
 }
 
 /// Чья рецензия остаётся после слияния. Текст и разбор едут парой, иначе

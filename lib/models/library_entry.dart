@@ -598,6 +598,14 @@ class LibrarySeries with HasReview {
 
   /// Год выхода (первый эфир) — из TMDB. Для статистики оценок по годам выхода.
   int? year;
+
+  /// Выходит ли сериал и сколько серий уже вышло (TMDB). По ним решается,
+  /// досмотрен сериал или догнан, см. `utils/series_finale.dart`.
+  SeriesAir? air;
+
+  /// Даты, когда человек догонял вышедшие серии. Пишутся в момент, когда
+  /// вышла новая серия, чтобы плашка «Догнал» осталась в истории ленты.
+  List<DateTime> caughtUpAt;
   double? score;
 
   /// Текст рецензии (Markdown). Разбор критика лежит в [reviewMeta].
@@ -634,6 +642,8 @@ class LibrarySeries with HasReview {
     this.finished = false,
     this.totalEpisodes,
     this.year,
+    this.air,
+    List<DateTime>? caughtUpAt,
     this.score,
     this.review,
     this.reviewMeta,
@@ -650,7 +660,8 @@ class LibrarySeries with HasReview {
             ((ruTitle != null && ruTitle.isNotEmpty)
                 ? LocaleController.instance.code
                 : null),
-        episodes = episodes ?? [];
+        episodes = episodes ?? [],
+        caughtUpAt = caughtUpAt ?? [];
 
   /// Полностью ли просмотрен сериал (известно общее число серий и все отмечены).
   bool get isCompleted =>
@@ -771,6 +782,13 @@ class LibrarySeries with HasReview {
       finished: j['finished'] == true,
       totalEpisodes: (j['totalEpisodes'] as num?)?.toInt(),
       year: (j['year'] as num?)?.toInt(),
+      air: j['air'] is Map<String, dynamic>
+          ? SeriesAir.fromJson(j['air'] as Map<String, dynamic>)
+          : null,
+      caughtUpAt: [
+        for (final d in (j['caughtUpAt'] as List? ?? []))
+          ?DateTime.tryParse('$d'),
+      ],
       score: (j['score'] as num?)?.toDouble(),
       review: j['review'] as String?,
       reviewMeta: _meta(j['reviewMeta']),
@@ -798,6 +816,9 @@ class LibrarySeries with HasReview {
         'finished': finished,
         'totalEpisodes': totalEpisodes,
         'year': year,
+        if (air != null) 'air': air!.toJson(),
+        if (caughtUpAt.isNotEmpty)
+          'caughtUpAt': [for (final d in caughtUpAt) d.toIso8601String()],
         'score': score,
         'review': review,
         if (reviewMeta != null) 'reviewMeta': reviewMeta!.toJson(),
@@ -809,6 +830,62 @@ class LibrarySeries with HasReview {
         'enrichTried': enrichTried,
         'posterUrl': posterUrl,
         if (posterFile != null) 'posterFile': posterFile,
+      };
+}
+
+/// Сведения TMDB о выходе сериала: закрыт ли он, сколько серий вышло и когда
+/// ждать следующую.
+class SeriesAir {
+  /// Статус TMDB: `Ended`, `Canceled`, `Returning Series`, `In Production`…
+  final String? status;
+
+  /// Вышедших серий без спецвыпусков.
+  final int? aired;
+
+  /// Сезон последней вышедшей серии.
+  final int? lastSeason;
+
+  /// Ближайшая невышедшая серия, дата ISO `YYYY-MM-DD`.
+  final int? nextSeason;
+  final int? nextNumber;
+  final String? nextDate;
+
+  /// Когда сведения пришли из TMDB: по нему обход решает, пора ли обновить.
+  final DateTime? checkedAt;
+
+  const SeriesAir({
+    this.status,
+    this.aired,
+    this.lastSeason,
+    this.nextSeason,
+    this.nextNumber,
+    this.nextDate,
+    this.checkedAt,
+  });
+
+  /// Новых серий у сериала уже не будет.
+  bool get ended => status == 'Ended' || status == 'Canceled';
+
+  factory SeriesAir.fromJson(Map<String, dynamic> j) => SeriesAir(
+        status: j['status'] as String?,
+        aired: (j['aired'] as num?)?.toInt(),
+        lastSeason: (j['lastSeason'] as num?)?.toInt(),
+        nextSeason: (j['nextSeason'] as num?)?.toInt(),
+        nextNumber: (j['nextNumber'] as num?)?.toInt(),
+        nextDate: j['nextDate'] as String?,
+        checkedAt: j['checkedAt'] == null
+            ? null
+            : DateTime.tryParse('${j['checkedAt']}'),
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (status != null) 'status': status,
+        if (aired != null) 'aired': aired,
+        if (lastSeason != null) 'lastSeason': lastSeason,
+        if (nextSeason != null) 'nextSeason': nextSeason,
+        if (nextNumber != null) 'nextNumber': nextNumber,
+        if (nextDate != null) 'nextDate': nextDate,
+        if (checkedAt != null) 'checkedAt': checkedAt!.toIso8601String(),
       };
 }
 
