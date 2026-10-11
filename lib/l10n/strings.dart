@@ -1146,8 +1146,8 @@ const Map<String, Map<String, String>> _strings = {
   'not_rated': {'ru': 'Без оценки', 'en': 'Not rated'},
   'viewings_n': {'ru': 'Просмотров: {n}', 'en': 'Viewings: {n}'},
   'watched_month': {
-    'ru': 'Просмотры {month} {year} г.',
-    'en': 'Watched · {month} {year}',
+    'ru': '{month} {year} г.',
+    'en': '{month} {year}',
   },
   'watched_date': {'ru': 'Дата просмотра: {date}', 'en': 'Watched on {date}'},
   'lib_empty_watched': {
