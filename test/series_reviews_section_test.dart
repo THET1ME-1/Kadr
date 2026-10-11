@@ -213,4 +213,153 @@ void main() {
       isEmpty,
     );
   });
+
+  group('рецензии на пересмотр', () {
+    const seasons = [
+      TmdbSeason(number: 1, name: 'Сезон 1', episodeCount: 9),
+      TmdbSeason(number: 2, name: 'Сезон 2', episodeCount: 9),
+    ];
+
+    /// «Аркейн» из макета: первый сезон смотрен трижды (рецензии на первый
+    /// и третий просмотр), второй дважды (рецензии на оба).
+    MovieRepository arcane() {
+      Episode ep(int s, int n, int views) => Episode(
+            season: s,
+            number: n,
+            watchedAt: DateTime(2023, 5, 29),
+            score: 10,
+            rewatchViews: [
+              for (var i = 1; i < views; i++)
+                Viewing(date: DateTime(2023 + i, 8, 18)),
+            ],
+          );
+      SeasonReview rv(String id, int season, int pass, String title, double v) =>
+          SeasonReview(
+            id: id,
+            from: season,
+            to: season,
+            pass: pass,
+            review: 'текст',
+            reviewMeta: _m(title, v, verdict: Verdict.must),
+          );
+      return MovieRepository.detached({
+        'series': [
+          LibrarySeries(
+            tvShowId: 'arcane',
+            title: 'Аркейн',
+            episodes: [ep(1, 1, 3), ep(1, 2, 3), ep(2, 1, 2)],
+            seasonReviews: [
+              rv('a1', 1, 1, 'Город из двух половин', 9.6),
+              rv('a3', 1, 3, 'Трагедия, которая не стареет', 9.8),
+              rv('b1', 2, 1, 'Слишком быстро к финалу', 8.4),
+              rv('b2', 2, 2, 'Подряд работает лучше', 9.0),
+            ],
+          ).toJson(),
+        ],
+      });
+    }
+
+    Future<MovieRepository> pump(WidgetTester tester,
+        {String lang = 'ru', double width = 380, bool collapsed = false}) async {
+      await tester.runAsync(() => Store.instance
+          .setBool(SeriesReviewsSection.collapsedKey, collapsed));
+      tester.view.physicalSize = Size(width, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.runAsync(() => LocaleController.instance.setCode(lang));
+      final repo = arcane();
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(AppTheme.defaultSeed),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: ListenableBuilder(
+              listenable: repo,
+              builder: (_, _) => SeriesReviewsSection(
+                series: repo.seriesById('arcane')!,
+                repo: repo,
+                seasons: seasons,
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      return repo;
+    }
+
+    testWidgets('последняя рецензия строкой, прошлые короткой строкой под ней',
+        (tester) async {
+      await pump(tester);
+      expect(find.text('Мои рецензии · 4'), findsOneWidget);
+      // У последних рецензий номер просмотра стоит таблеткой рядом с охватом.
+      expect(find.text('3-й'), findsOneWidget);
+      expect(find.text('2-й'), findsOneWidget);
+      expect(find.text('1-й'), findsNWidgets(2));
+      final ys = [
+        for (final t in [
+          'Трагедия, которая не стареет',
+          'Город из двух половин',
+          'Подряд работает лучше',
+          'Слишком быстро к финалу',
+        ])
+          tester.getTopLeft(find.text(t)).dy,
+      ];
+      expect(ys, [...ys]..sort());
+      // Вердикт и подпись есть только у полной строки.
+      expect(find.text('Обязательно'), findsNWidgets(2));
+    });
+
+    testWidgets('в свод идёт последняя рецензия каждого сезона', (tester) async {
+      await pump(tester);
+      // (9.8 + 9.0) / 2
+      expect(find.text('Выставить сериалу 9.4'), findsOneWidget);
+    });
+
+    testWidgets('вкладка «Пересмотры»: сезоны по просмотрам', (tester) async {
+      await pump(tester);
+      expect(find.text('Серии и рецензии'), findsOneWidget);
+      // Первая вкладка открыта как раньше.
+      expect(find.text('По сериям'), findsOneWidget);
+      await tester.tap(find.text('Пересмотры'));
+      await tester.pumpAndSettle();
+      expect(find.text('По сериям'), findsNothing);
+      expect(find.text('Первый раз'), findsOneWidget);
+      expect(find.text('Последний раз'), findsOneWidget);
+      // (9.6 + 8.4) / 2 против (9.8 + 9.0) / 2
+      expect(find.text('9.0'), findsWidgets);
+      expect(find.text('9.4'), findsWidgets);
+      expect(
+        find.text('При пересмотре сериал вырос на 0.4. '
+            'Сильнее всего изменился сезон 2.'),
+        findsOneWidget,
+      );
+      expect(find.text('+0.2'), findsOneWidget);
+      expect(find.text('+0.6'), findsOneWidget);
+      // Второй просмотр первого сезона был, а рецензии на него нет.
+      expect(find.text('нет'), findsOneWidget);
+      expect(find.textContaining('она идёт в свод'), findsOneWidget);
+      // Кнопка общая для обеих вкладок.
+      expect(find.text('Выставить сериалу 9.4'), findsOneWidget);
+    });
+
+    testWidgets('в свёрнутой строке от сезона одна рецензия, последняя',
+        (tester) async {
+      await pump(tester, collapsed: true);
+      expect(find.text('S1'), findsOneWidget);
+      expect(find.text('S2'), findsOneWidget);
+      expect(find.text('9.8'), findsOneWidget);
+      expect(find.text('9.6'), findsNothing);
+      expect(find.text('Свод 9.4'), findsOneWidget);
+    });
+
+    for (final lang in LocaleController.languages.map((l) => l.code)) {
+      testWidgets('320 dp, вкладка «Пересмотры», $lang', (tester) async {
+        await pump(tester, lang: lang, width: 320);
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.text(tr('rvs_tab_passes')));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      });
+    }
+  });
 }

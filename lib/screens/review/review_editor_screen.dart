@@ -10,7 +10,9 @@ import '../../services/social/social_controller.dart';
 import '../../services/store.dart';
 import '../../services/tmdb_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
 import '../../utils/score.dart';
+import '../../utils/season_pass.dart';
 import '../../widgets/poster.dart';
 import '../../widgets/rating_slider.dart';
 import '../../widgets/score_pad.dart';
@@ -22,6 +24,7 @@ import 'review_screen.dart';
 import 'series_reviews_section.dart' show confirmSetSeriesScore;
 import 'review_target.dart';
 import 'review_text_step.dart';
+import 'review_viewing_sheet.dart';
 
 /// Открывает редактор рецензии. [step]: 0 — оценка, 1 — текст, 2 — публикация.
 Future<void> openReviewEditor(BuildContext context, ReviewTarget target,
@@ -462,6 +465,9 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen>
         if (t.isSeries) ...[
           const SizedBox(height: 14),
           _scopeBar(context),
+        ] else if ((t.movie?.viewings.length ?? 0) >= 2) ...[
+          const SizedBox(height: 14),
+          _viewBar(context),
         ],
         const SizedBox(height: 26),
         if (t.isSeries) _seriesOverall(context) else _overall(context),
@@ -532,7 +538,11 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen>
     final epAvg = part ? _rangeEpisodeAverage(s) : s.episodeScoreAvg;
     // У рецензии на сезоны — серии и их средняя, у всего сериала — сезоны
     // и серии: средняя по сериям стоит в подсказке под оценкой.
+    // Номер просмотра виден у рецензии на пересмотр и когда сезоны смотрели
+    // не один раз.
+    final passes = part ? scopePasses(s, t.from, t.to).length : 1;
     final sub = [
+      if (part && (t.pass > 1 || passes > 1)) trf('viewing_n', {'n': t.pass}),
       if (!part && _seasons.isNotEmpty) trn('rvs_seasons', _seasons.length),
       if (eps > 0) trn('ss_episodes', eps),
       if (part && epAvg != null)
@@ -595,14 +605,15 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen>
     );
   }
 
-  /// Средняя по сериям сезонов этой рецензии.
+  /// Средняя по сериям сезонов этой рецензии; у пересмотренной серии идёт
+  /// её последняя оценка.
   double? _rangeEpisodeAverage(LibrarySeries s) {
     final scores = [
       for (final e in s.episodes)
-        if (e.score != null &&
+        if (e.currentScore != null &&
             (e.season ?? 0) >= t.from! &&
             (e.season ?? 0) <= t.to!)
-          e.score!,
+          e.currentScore!,
     ];
     if (scores.isEmpty) return null;
     return (scores.reduce((a, b) => a + b) / scores.length * 10).round() / 10;
@@ -614,10 +625,10 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen>
       series: t.series!,
       seasons: _seasons,
       exceptPartId: t.partId,
-      initial: (from: t.from, to: t.to),
+      initial: (from: t.from, to: t.to, pass: t.pass),
     );
     if (scope == null || !mounted) return;
-    final ok = await t.setScope(scope.from, scope.to);
+    final ok = await t.setScope(scope.from, scope.to, newPass: scope.pass);
     if (!mounted) return;
     if (!ok) {
       ScaffoldMessenger.of(
@@ -625,6 +636,92 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen>
       ).showSnackBar(SnackBar(content: Text(tr('rvs_scope_failed'))));
     }
     setState(() {});
+  }
+
+  /// Полоса просмотра у фильма с несколькими просмотрами: о каком из них
+  /// рецензия, его дата, оценка прошлой рецензии и «Изменить».
+  Widget _viewBar(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final fg = scheme.onSecondaryContainer;
+    final v = t.viewing;
+    final prev = t.previous?.displayScore;
+    final sub = [
+      if (v?.date != null) numericDate(v!.date!),
+      if (prev != null)
+        trf('rv_prev_review_score', {'v': prev.toStringAsFixed(1)}),
+    ].join(' · ');
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        spacing: 10,
+        children: [
+          Icon(Icons.repeat_rounded, size: 20, color: fg),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 2,
+              children: [
+                Text(
+                  t.ordinal > 0
+                      ? trf('viewing_n', {'n': t.ordinal})
+                      : tr('mrv_no_view'),
+                  style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: fg,
+                  ),
+                ),
+                // Дата и прошлая оценка в одну строку не помещаются рядом с
+                // «Изменить»: даём перенос, а не обрезаем оценку.
+                if (sub.isNotEmpty)
+                  Text(
+                    sub,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: AppTheme.bodyFont,
+                      fontSize: 12.5,
+                      color: fg.withValues(alpha: 0.85),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          FilledButton(
+            onPressed: _changeViewing,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              backgroundColor: scheme.surface,
+              foregroundColor: scheme.onSurface,
+            ),
+            child: Text(tr('rvs_change')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _changeViewing() async {
+    final id = await showReviewViewingSheet(
+      context,
+      movie: t.movie!,
+      current: t.viewId,
+    );
+    if (id == null || !mounted) return;
+    final ok = await t.setViewing(id);
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(tr('mrv_view_taken'))));
+    }
+    // Общая оценка в редакторе — оценка выбранного просмотра.
+    setState(() => _score = t.score);
   }
 
   /// Общая оценка рецензии на сериал: средняя по пунктам. У рецензии на
@@ -829,6 +926,9 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen>
   Widget _criteria(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final ids = orderedCriteria({..._shown, ..._meta.criteria.keys});
+    // Рецензия на пересмотр: на полосах стоят метки оценок из прошлой.
+    final prev = t.previous;
+    final ghost = prev?.meta?.criteria ?? const <String, double>{};
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: 8,
@@ -855,6 +955,7 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen>
                 _CriterionRow(
                   label: critLabel(id),
                   value: _meta.criteria[id],
+                  ghost: ghost[id],
                   onChanged: (v) => _change(() => _meta.criteria[id] = v),
                   onPick: () => _pickCriterion(id),
                   onClear: () {
@@ -865,6 +966,23 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen>
             ],
           ),
         ),
+        if (ghost.isNotEmpty)
+          Row(
+            spacing: 6,
+            children: [
+              const _GhostTick(),
+              Expanded(
+                child: Text(
+                    trf('rv_ghost_key', {
+                      'view': trf('viewing_n', {'n': prev!.ordinal}),
+                    }),
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant)),
+              ),
+            ],
+          ),
         Text(tr('rv_criteria_hint'),
             style: TextStyle(
                 fontFamily: AppTheme.bodyFont,
@@ -1243,6 +1361,9 @@ const _kConsPresets = [
 class _CriterionRow extends StatelessWidget {
   final String label;
   final double? value;
+
+  /// Оценка этого пункта в прошлой рецензии: метка на полосе.
+  final double? ghost;
   final ValueChanged<double> onChanged;
   final VoidCallback onPick;
   final VoidCallback onClear;
@@ -1253,7 +1374,11 @@ class _CriterionRow extends StatelessWidget {
     required this.onChanged,
     required this.onPick,
     required this.onClear,
+    this.ghost,
   });
+
+  /// Поле слайдера по краям дорожки: радиус его ореола.
+  static const double _trackInset = 20;
 
   @override
   Widget build(BuildContext context) {
@@ -1289,18 +1414,33 @@ class _CriterionRow extends StatelessWidget {
                 tickMarkShape: SliderTickMarkShape.noTickMark,
                 showValueIndicator: ShowValueIndicator.never,
               ),
-              child: Semantics(
-                label: label,
-                child: Slider(
-                  value: v ?? 1.0,
-                  min: 1,
-                  max: 10,
-                  divisions: 90,
-                  onChanged: (x) {
-                    final r = clampScore(x);
-                    if (r != v) HapticFeedback.selectionClick();
-                    onChanged(r);
-                  },
+              child: LayoutBuilder(
+                builder: (context, box) => Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    Semantics(
+                      label: label,
+                      child: Slider(
+                        value: v ?? 1.0,
+                        min: 1,
+                        max: 10,
+                        divisions: 90,
+                        onChanged: (x) {
+                          final r = clampScore(x);
+                          if (r != v) HapticFeedback.selectionClick();
+                          onChanged(r);
+                        },
+                      ),
+                    ),
+                    if (ghost != null)
+                      Positioned(
+                        left: _trackInset +
+                            (box.maxWidth - _trackInset * 2) *
+                                ((ghost! - 1) / 9).clamp(0.0, 1.0) -
+                            _GhostTick.width / 2,
+                        child: const IgnorePointer(child: _GhostTick()),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -1330,6 +1470,23 @@ class _CriterionRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Метка оценки из прошлой рецензии: короткая черта поперёк полосы.
+class _GhostTick extends StatelessWidget {
+  const _GhostTick();
+
+  static const double width = 3;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: width,
+        height: 14,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.onSurface,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      );
 }
 
 /// Выбор вердикта: у выбранного тональная заливка и «печенье» со значком.

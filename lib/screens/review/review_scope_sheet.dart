@@ -5,10 +5,16 @@ import '../../l10n/strings.dart';
 import '../../models/library_entry.dart';
 import '../../services/tmdb_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
+import '../../utils/season_pass.dart';
 import '../../utils/season_reviews.dart';
+import '../../widgets/review/review_parts.dart';
+import '../../widgets/review/review_rows.dart';
+import '../../widgets/settings_kit.dart';
 
-/// Охват рецензии на сериал: сезоны [from]..[to]; оба null — весь сериал.
-typedef ReviewScope = ({int? from, int? to});
+/// Охват рецензии на сериал: сезоны [from]..[to] на их просмотр [pass];
+/// оба сезона null — весь сериал.
+typedef ReviewScope = ({int? from, int? to, int pass});
 
 /// Сезоны для листа: из TMDB, без него — по отмеченным сериям.
 Future<List<TmdbSeason>> reviewSeasons(LibrarySeries s) async {
@@ -28,9 +34,11 @@ Future<List<TmdbSeason>> reviewSeasons(LibrarySeries s) async {
   ];
 }
 
-/// Лист «О чём рецензия»: один сезон, диапазон подряд или весь сериал.
-/// Сезоны, взятые другой рецензией, выбрать нельзя. [exceptPartId] — своя
-/// рецензия на сезоны, её сезоны свободны. [initial] — нынешний охват.
+/// Лист «О чём рецензия»: один сезон, диапазон подряд или весь сериал. У
+/// сезонов, которые смотрели не один раз, ниже выбирается просмотр.
+/// Просмотр, на который рецензия уже есть, выбрать нельзя, а сезон занят,
+/// когда заняты все его просмотры. [exceptPartId] — своя рецензия на
+/// сезоны, её место свободно. [initial] — нынешний охват.
 Future<ReviewScope?> showReviewScopeSheet(
   BuildContext context, {
   required LibrarySeries series,
@@ -72,6 +80,10 @@ class _ScopeSheetState extends State<_ScopeSheet> {
   late _Mode _mode;
   int? _from, _to;
 
+  /// Выбранный просмотр сезонов. null, пока сезоны не выбраны и когда
+  /// свободных просмотров у них не осталось.
+  int? _pass;
+
   /// Рецензия на весь сериал уже есть, а эта — не она.
   late final bool _wholeTaken = widget.series.hasReview &&
       !(widget.initial != null && widget.initial!.from == null);
@@ -86,14 +98,41 @@ class _ScopeSheetState extends State<_ScopeSheet> {
     } else if (i != null) {
       _from = i.from;
       _to = i.to;
+      _pass = i.pass;
       _mode = i.from == i.to ? _Mode.one : _Mode.range;
     } else {
       _mode = _Mode.one;
     }
   }
 
-  SeasonReview? _taken(int n) =>
-      takenBy(widget.series, n, exceptId: widget.exceptPartId);
+  /// Свободен ли просмотр [pass] сезонов [a]..[b] для этой рецензии.
+  bool _free(int a, int b, int pass) =>
+      canCover(widget.series, a, b, exceptId: widget.exceptPartId, pass: pass);
+
+  /// Просмотры сезонов [a]..[b], на которые рецензии ещё нет.
+  List<int> _freePasses(int a, int b) => [
+        for (final p in scopePasses(widget.series, a, b))
+          if (_free(a, b, p.pass)) p.pass,
+      ];
+
+  /// Рецензия, из-за которой сезон [n] выбрать нельзя: заняты все его
+  /// просмотры. null, пока свободен хотя бы один.
+  SeasonReview? _taken(int n) {
+    if (_freePasses(n, n).isNotEmpty) return null;
+    final passes = scopePasses(widget.series, n, n);
+    return takenBy(widget.series, n,
+        exceptId: widget.exceptPartId, pass: passes.last.pass);
+  }
+
+  /// После смены сезонов: прежний просмотр, если он свободен, иначе самый
+  /// поздний свободный.
+  void _repick() {
+    final a = _from, b = _to;
+    if (a == null || b == null) return;
+    final free = _freePasses(a, b);
+    if (_pass != null && free.contains(_pass)) return;
+    _pass = free.isEmpty ? null : free.last;
+  }
 
   void _setMode(_Mode m) {
     HapticFeedback.selectionClick();
@@ -105,6 +144,7 @@ class _ScopeSheetState extends State<_ScopeSheet> {
       _wholeNote = false;
       _mode = m;
       if (m == _Mode.one && _from != null) _to = _from;
+      _repick();
     });
   }
 
@@ -114,20 +154,23 @@ class _ScopeSheetState extends State<_ScopeSheet> {
     setState(() {
       if (_mode == _Mode.one || _from == null || _from != _to) {
         _from = _to = n;
+        _repick();
         return;
       }
       // Второй тап в диапазоне — конец; через занятый сезон не тянем.
       final a = n < _from! ? n : _from!, b = n < _from! ? _from! : n;
-      if (canCover(widget.series, a, b, exceptId: widget.exceptPartId)) {
+      if (_freePasses(a, b).isNotEmpty) {
         _from = a;
         _to = b;
       } else {
         _from = _to = n;
       }
+      _repick();
     });
   }
 
-  bool get _ready => _mode == _Mode.whole || (_from != null && _to != null);
+  bool get _ready =>
+      _mode == _Mode.whole || (_from != null && _to != null && _pass != null);
 
   int _episodes(int a, int b) => widget.seasons
       .where((s) => s.number >= a && s.number <= b)
@@ -138,7 +181,67 @@ class _ScopeSheetState extends State<_ScopeSheet> {
       final all = widget.seasons.fold(0, (sum, s) => sum + s.episodeCount);
       return '${tr('scope_whole')} · ${trn('ss_episodes', all)}';
     }
-    return '${scopeLong(_from, _to)} · ${trn('ss_episodes', _episodes(_from!, _to!))}';
+    final many = scopePasses(widget.series, _from, _to).length > 1;
+    return [
+      scopeLong(_from, _to),
+      if (many) trf('viewing_n', {'n': _pass!}),
+      trn('ss_episodes', _episodes(_from!, _to!)),
+    ].join(' · ');
+  }
+
+  /// «Какой просмотр»: строка на каждый просмотр выбранных сезонов, свежие
+  /// сверху. Пусто, если сезоны смотрели один раз.
+  List<Widget> _passSection() {
+    final a = _from, b = _to;
+    if (_mode == _Mode.whole || a == null || b == null) return const [];
+    final passes = scopePasses(widget.series, a, b);
+    if (passes.length < 2) return const [];
+    final rows = passes.reversed.toList();
+    return [
+      ReviewCaps(tr('rvs_which_pass')),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < rows.length; i++)
+            Padding(
+              padding: EdgeInsets.only(top: i == 0 ? 0 : SettingsGroup.gap),
+              child: _passRow(
+                  rows[i], a, b, groupBlockRadius(i, rows.length, outer: 22)),
+            ),
+        ],
+      ),
+    ];
+  }
+
+  Widget _passRow(ScopePass p, int a, int b, BorderRadius radius) {
+    final free = _free(a, b, p.pass);
+    SeasonReview? by;
+    if (!free) {
+      for (var n = a; n <= b && by == null; n++) {
+        by = takenBy(widget.series, n,
+            exceptId: widget.exceptPartId, pass: p.pass);
+      }
+    }
+    final title = by?.reviewMeta?.title?.trim();
+    final sub = [
+      if (p.from != null && p.to != null) dateRangeNumeric(p.from!, p.to!),
+      if (by != null)
+        title == null || title.isEmpty
+            ? tr('view_has_review')
+            : trf('view_review_named', {'title': title}),
+    ].join(' · ');
+    return ViewChoiceRow(
+      ordinal: p.pass,
+      title: trf('viewing_n', {'n': p.pass}),
+      sub: sub,
+      selected: free && p.pass == _pass,
+      taken: !free,
+      radius: radius,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _pass = p.pass);
+      },
+    );
   }
 
   @override
@@ -202,6 +305,7 @@ class _ScopeSheetState extends State<_ScopeSheet> {
                   ],
                 ),
               ),
+            ..._passSection(),
             if (_ready)
               Text(_summary,
                   style: TextStyle(
@@ -219,8 +323,8 @@ class _ScopeSheetState extends State<_ScopeSheet> {
               onPressed: _ready
                   ? () => Navigator.of(context).pop<ReviewScope>(
                       _mode == _Mode.whole
-                          ? (from: null, to: null)
-                          : (from: _from, to: _to))
+                          ? (from: null, to: null, pass: 1)
+                          : (from: _from, to: _to, pass: _pass!))
                   : null,
               child: Text(tr('rv_next')),
             ),

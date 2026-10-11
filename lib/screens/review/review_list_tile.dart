@@ -29,7 +29,7 @@ class ReviewListTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final meta = target.meta;
     final title = meta?.title?.trim();
-    final score = target.score;
+    final score = target.displayScore;
     final date = meta?.shownDate;
     final sub = [
       '${target.title}${target.year != null ? ' · ${target.year}' : ''}',

@@ -88,7 +88,7 @@ void main() {
       expect(find.text('Сезоны 2–3 · 34 серии'), findsOneWidget);
       await tester.tap(find.text('Далее'));
     });
-    expect(r, (from: 2, to: 3));
+    expect(r, (from: 2, to: 3, pass: 1));
   });
 
   testWidgets('занятый сезон не выбирается и подписан, где он', (tester) async {
@@ -101,7 +101,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Далее'));
     });
-    expect(r, (from: 4, to: 4));
+    expect(r, (from: 4, to: 4, pass: 1));
   });
 
   testWidgets('свою рецензию лист считает свободной', (tester) async {
@@ -111,7 +111,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Далее'));
     });
-    expect(r, (from: 1, to: 1));
+    expect(r, (from: 1, to: 1, pass: 1));
   });
 
   testWidgets('весь сериал', (tester) async {
@@ -120,7 +120,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Далее'));
     });
-    expect(r, (from: null, to: null));
+    expect(r, (from: null, to: null, pass: 1));
   });
 
   testWidgets('рецензия на весь сериал уже есть: режим недоступен', (
@@ -134,6 +134,60 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Далее'));
     });
-    expect(r, (from: 2, to: 2));
+    expect(r, (from: 2, to: 2, pass: 1));
+  });
+
+  group('просмотр сезона', () {
+    /// Первый сезон смотрели дважды, рецензия есть на первый просмотр.
+    LibrarySeries rewatched() => _series()
+      ..episodes.addAll([
+        for (var n = 1; n <= 3; n++)
+          Episode(
+            season: 1,
+            number: n,
+            watchedAt: DateTime(2023, 5, 29, 12, n),
+            rewatchViews: [Viewing(date: DateTime(2026, 8, 18, 20, n))],
+          ),
+        Episode(season: 2, number: 1, watchedAt: DateTime(2023, 6, 1)),
+      ]);
+
+    testWidgets('пересмотренный сезон не занят: выбран свободный просмотр', (
+      tester,
+    ) async {
+      final r = await _run(tester, rewatched(), () async {
+        // Рецензия на первый просмотр сезон целиком не занимает.
+        expect(find.text('занят'), findsNothing);
+        await tester.tap(find.text('S1'));
+        await tester.pumpAndSettle();
+        expect(find.text('КАКОЙ ПРОСМОТР'), findsOneWidget);
+        expect(find.text('2-й просмотр'), findsOneWidget);
+        expect(find.text('1-й просмотр'), findsOneWidget);
+        // Занятый просмотр назван рецензией, которая его занимает.
+        expect(
+          find.textContaining('рецензия «Стены держат крепче сюжета»'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Сезон 1 · 2-й просмотр'), findsOneWidget);
+        // Тап по занятому просмотру выбор не меняет.
+        await tester.tap(find.text('1-й просмотр'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Далее'));
+        await tester.tap(find.text('Далее'));
+      });
+      expect(r, (from: 1, to: 1, pass: 2));
+    });
+
+    testWidgets('у сезона с одним просмотром выбора просмотра нет', (
+      tester,
+    ) async {
+      final r = await _run(tester, rewatched(), () async {
+        await tester.tap(find.text('S2'));
+        await tester.pumpAndSettle();
+        expect(find.text('КАКОЙ ПРОСМОТР'), findsNothing);
+        expect(find.text('Сезон 2 · 12 серий'), findsOneWidget);
+        await tester.tap(find.text('Далее'));
+      });
+      expect(r, (from: 2, to: 2, pass: 1));
+    });
   });
 }

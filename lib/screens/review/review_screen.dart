@@ -14,6 +14,7 @@ import '../../utils/format.dart';
 import '../../utils/review_markdown.dart';
 import '../../widgets/review/markdown_view.dart';
 import '../../widgets/review/review_parts.dart';
+import '../../widgets/review/review_rows.dart';
 import '../../widgets/review/verdict_badge.dart';
 import '../../widgets/user_avatar.dart';
 import 'review_editor_screen.dart';
@@ -87,7 +88,19 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   String? get _text => widget.isPreview ? widget.previewText : t.text;
   ReviewMeta? get _meta => widget.isPreview ? widget.previewMeta : t.meta;
-  double? get _score => widget.isPreview ? widget.previewScore : t.score;
+  double? get _score =>
+      widget.isPreview ? widget.previewScore : t.displayScore;
+
+  /// Номер просмотра для подписи: у фильма с несколькими просмотрами и у
+  /// рецензии на пересмотр сезонов. null — номер не нужен.
+  int? get _viewOrdinal {
+    final m = t.movie;
+    if (m != null) {
+      return m.viewings.length >= 2 && t.ordinal > 0 ? t.ordinal : null;
+    }
+    if (!t.isPart) return null;
+    return t.pass > 1 || t.previous != null ? t.pass : null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -187,9 +200,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final meta = _meta;
     final text = _text?.trim() ?? '';
     final title = meta?.title?.trim();
-    // У рецензии на сезоны охват идёт следом: «…, 2013 · S2–S3».
+    // У рецензии на сезоны охват идёт следом: «…, 2013 · S2–S3», у рецензии
+    // на пересмотр за ним номер просмотра: «… · 3-й просмотр».
+    final ordinal = _viewOrdinal;
     final year = '${t.year != null ? ', ${t.year}' : ''}'
-        '${t.isPart ? ' · ${t.scopeShortLabel}' : ''}';
+        '${t.isPart ? ' · ${t.scopeShortLabel}' : ''}'
+        '${ordinal != null ? ' · ${trf('viewing_n', {'n': ordinal})}' : ''}';
     final label = _isFriend
         ? trf('rv_label_friend', {'title': '${t.title}$year'})
         : trf('rv_label_mine', {'title': '${t.title}$year'});
@@ -319,11 +335,105 @@ class _ReviewScreenState extends State<ReviewScreen> {
     );
   }
 
-  /// «По пунктам» у своей, «Вы и друг» у чужой.
+  /// Подпись плитки сравнения: «3-й · авг 2026».
+  String _thenLabel(ReviewTarget r) {
+    final date = r.viewing?.date ?? r.meta?.shownDate;
+    return [
+      if (r.ordinal > 0) ordinalShort(r.ordinal),
+      if (date != null) monthYearShort(date),
+    ].join(' · ');
+  }
+
+  /// «Тогда и сейчас»: рецензия на пересмотр против прошлой рецензии на тот
+  /// же фильм или те же сезоны. Стоит на месте блока «По пунктам».
+  List<Widget> _thenNowCard(BuildContext context, ReviewTarget prev) {
+    final scheme = Theme.of(context).colorScheme;
+    final now = _meta?.criteria ?? const <String, double>{};
+    final then = prev.meta?.criteria ?? const <String, double>{};
+    // Пункт, который изменился сильнее всего.
+    String? most;
+    var gap = 0.05;
+    for (final id in now.keys) {
+      final was = then[id];
+      if (was == null) continue;
+      final d = (now[id]! - was).abs();
+      if (d > gap) {
+        gap = d;
+        most = id;
+      }
+    }
+    return [
+      const SizedBox(height: 24),
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 16,
+          children: [
+            Text(tr('rv_then_now'),
+                style: TextStyle(
+                    fontFamily: AppTheme.displayFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: scheme.onSurface)),
+            BeforeAfterTiles(
+              joined: true,
+              beforeLabel: _thenLabel(prev),
+              before: prev.displayScore,
+              afterLabel: _thenLabel(t),
+              after: _score,
+            ),
+            if (now.isNotEmpty || then.isNotEmpty)
+              CriteriaBars(criteria: then, other: now, past: true),
+            if (most != null)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: scheme.tertiaryContainer,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Text(
+                    trf('rv_then_most', {
+                      'crit': critLabel(most),
+                      'a': then[most]!.toStringAsFixed(1),
+                      'b': now[most]!.toStringAsFixed(1),
+                    }),
+                    style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 13.5,
+                        height: 1.4,
+                        color: scheme.onTertiaryContainer)),
+              ),
+            if (!widget.isPreview)
+              FilledButton.tonalIcon(
+                onPressed: () => openReview(context, prev),
+                style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(44)),
+                icon: const Icon(Icons.history_rounded, size: 20),
+                label: Text(trf('rv_open_prev', {
+                  'view': trf('viewing_n', {'n': prev.ordinal}),
+                })),
+              ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  /// «По пунктам» у своей, «Вы и друг» у чужой, «Тогда и сейчас» у своей
+  /// рецензии на пересмотр.
   List<Widget> _scoresCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final meta = _meta;
     final crit = meta?.criteria ?? const <String, double>{};
+    if (!_isFriend) {
+      final prev = t.previous;
+      if (prev != null) return _thenNowCard(context, prev);
+    }
     final mine = _isFriend ? t.mineCounterpart(mine: widget.myRepo) : null;
     final myCrit = mine?.meta?.criteria ?? const <String, double>{};
     final myScore = mine?.score;

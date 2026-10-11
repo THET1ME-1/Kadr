@@ -14,17 +14,8 @@ Color authorCompareColor() => scoreColor(9.2);
 
 String critLabel(String id) => tr('crit_$id');
 
-/// Пункты в каноническом порядке: сначала известные, потом незнакомые (от
-/// более новой версии приложения друга).
-List<String> orderedCriteria(Iterable<String> ids) {
-  final set = ids.toSet();
-  return [
-    for (final id in kCriteria)
-      if (set.contains(id)) id,
-    for (final id in set)
-      if (!kCriteria.contains(id)) id,
-  ];
-}
+/// Пункты в каноническом порядке (см. [sortCriteria]).
+List<String> orderedCriteria(Iterable<String> ids) => sortCriteria(ids);
 
 TextStyle _capsLabel(Color c) => TextStyle(
     fontFamily: AppTheme.bodyFont,
@@ -86,17 +77,26 @@ TextStyle _num(Color c, [double size = 14]) => TextStyle(
     color: c,
     fontFeatures: const [FontFeature.tabularFigures()]);
 
-/// Оценки по пунктам полосами. С [other] рисует пары «автор / я».
+/// Оценки по пунктам полосами. С [other] рисует пары: «автор / я» у чужой
+/// рецензии или «было / стало» у рецензии на пересмотр ([past]).
 class CriteriaBars extends StatelessWidget {
   final Map<String, double> criteria;
   final Map<String, double>? other;
-  const CriteriaBars({super.key, required this.criteria, this.other});
+
+  /// Первая полоса пары — прошлая рецензия: серая, а не золотая, как автор.
+  final bool past;
+  const CriteriaBars(
+      {super.key, required this.criteria, this.other, this.past = false});
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final o = other;
     final ids = orderedCriteria({...criteria.keys, ...?o?.keys});
+    final firstBar = past
+        ? scheme.onSurfaceVariant.withValues(alpha: 0.55)
+        : authorCompareColor();
+    final firstText = past ? scheme.onSurfaceVariant : authorCompareColor();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: 12,
@@ -125,9 +125,7 @@ class CriteriaBars extends StatelessWidget {
                         spacing: 4,
                         children: [
                           ScoreBar(
-                              value: criteria[id],
-                              color: authorCompareColor(),
-                              height: 6),
+                              value: criteria[id], color: firstBar, height: 6),
                           ScoreBar(
                               value: o[id], color: scheme.primary, height: 6),
                         ],
@@ -148,7 +146,7 @@ class CriteriaBars extends StatelessWidget {
                     TextSpan(children: [
                       TextSpan(
                           text: _fmt(criteria[id]),
-                          style: _num(authorCompareColor(), 12.5)),
+                          style: _num(firstText, 12.5)),
                       const TextSpan(text: '  '),
                       TextSpan(
                           text: _fmt(o[id]),
