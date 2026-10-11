@@ -17,22 +17,21 @@ import '../utils/actor_filter.dart';
 import '../utils/library_sort.dart';
 import '../utils/score.dart';
 import '../utils/series_finale.dart';
-import '../widgets/diary_sheet.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/floating_nav_bar.dart';
 import '../widgets/movie_cards.dart' show droppedBadge;
 import '../widgets/poster.dart';
 import '../widgets/pressable.dart';
-import '../widgets/rating_slider.dart';
 import '../widgets/reveal.dart';
 import '../widgets/settings_kit.dart';
-import '../widgets/score_pad.dart';
 import '../widgets/series_progress.dart';
 import 'movie_sheet.dart';
 import 'series_screen.dart';
 import 'series_stats_screen.dart';
 import 'social/roulette_screen.dart';
 import 'social/readonly_media.dart';
+import 'viewing/viewing_host.dart';
+import 'viewing/viewing_sheet.dart';
 
 enum LibraryMode { watched, watchlist }
 
@@ -1112,8 +1111,8 @@ class _LibraryTabState extends State<LibraryTab> {
     if (e.isSeries) return _LibEntry.session(e.session!);
     final movie = e.movie!;
     final viewing = e.viewing!;
-    // Номер просмотра — по порядку добавления (стабилен, не зависит от даты).
-    final ordinal = movie.viewings.indexOf(viewing) + 1;
+    // Номер просмотра — по дате, как в карточке фильма.
+    final ordinal = movie.ordinalOf(viewing);
     final rewatchNum = (movie.viewings.length > 1 && ordinal > 1)
         ? ordinal
         : null;
@@ -1262,13 +1261,17 @@ class _LibraryTabState extends State<LibraryTab> {
     // Режим «Дневник»: доступен в СВОЕЙ библиотеке (не read-only друга).
     final diaryOn = AppPrefs.instance.diaryEnabled && !widget.readOnly;
     if (e.session != null) {
-      // Сессия в ленте — из копий эпизодов; дневник вешаем на РЕАЛЬНУЮ первую серию.
+      // Сессия в ленте — из копий эпизодов, каждая копия знает свой просмотр.
+      // Дневник сессии — дневник просмотра её первой серии: у сессии из
+      // пересмотров это пересмотр, а не первый просмотр серии.
       final firstEp = e.session!.episodes.isNotEmpty
           ? e.session!.episodes.first
           : null;
-      final realEp = firstEp == null
-          ? null
-          : e.session!.series.watchedEpisode(firstEp.season, firstEp.number);
+      final viewId = firstEp?.eventViewId;
+      final canDiary = diaryOn &&
+          firstEp?.season != null &&
+          firstEp?.number != null &&
+          viewId != null;
       return _SeriesSessionCard(
         session: e.session!,
         selecting: _selecting,
@@ -1279,13 +1282,17 @@ class _LibraryTabState extends State<LibraryTab> {
         revealGroup: _revealed,
         revealId: key,
         heroTag: tag,
-        diary: realEp?.diary,
-        onDiary: (diaryOn && realEp != null)
-            ? () => _editDiary(
-                current: realEp.diary,
-                photoKey:
-                    'ep-${e.session!.series.tvShowId}-${firstEp!.season}-${firstEp.number}',
-                apply: (d) => realEp.diary = d,
+        diary: firstEp?.diary,
+        onDiary: canDiary
+            ? () => showViewingSheet(
+                context,
+                EpisodeViewingHost(
+                  e.session!.series.tvShowId,
+                  firstEp!.season!,
+                  firstEp.number!,
+                ),
+                viewId: viewId,
+                openDiary: true,
               )
             : null,
       );
@@ -1314,39 +1321,16 @@ class _LibraryTabState extends State<LibraryTab> {
       revealId: key,
       heroTag: tag,
       diary: e.viewing?.diary,
+      // Значок дневника открывает окно просмотра сразу с раскрытым дневником.
       onDiary: (diaryOn && e.viewing != null)
-          ? () => _editDiary(
-              current: e.viewing!.diary,
-              photoKey:
-                  '${e.movie!.uuid}-${e.viewing!.date?.millisecondsSinceEpoch ?? 0}',
-              apply: (d) => e.viewing!.diary = d,
+          ? () => showViewingSheet(
+              context,
+              MovieViewingHost(e.movie!.uuid),
+              viewId: e.viewing!.id,
+              openDiary: true,
             )
           : null,
     );
-  }
-
-  /// Открыть панель дневника, применить результат к просмотру и сохранить.
-  Future<void> _editDiary({
-    required DiaryEntry? current,
-    required String photoKey,
-    required void Function(DiaryEntry?) apply,
-  }) async {
-    final init = DiaryEntry(
-      moods: current == null ? null : [...current.moods],
-      withWhom: current?.withWhom,
-      friendIds: current == null ? null : [...current.friendIds],
-      place: current?.place,
-      photoFile: current?.photoFile,
-      note: current?.note,
-    );
-    final result = await showDiarySheet(
-      context,
-      initial: init,
-      photoKey: photoKey,
-    );
-    if (result == null || !mounted) return; // отменили
-    apply(result.isEmpty ? null : result);
-    await MovieRepository.instance.saveDiary();
   }
 
   Widget _posterFor(_LibEntry e, double w) {
@@ -2926,7 +2910,7 @@ class _EpisodeRow extends StatelessWidget {
         : scheme.onPrimaryContainer;
     // Строка — содержимое своего блока, форму и обрезку даёт блок.
     return InkWell(
-      onTap: readOnly ? null : () => _rate(context),
+      onTap: readOnly ? null : () => _openViewing(context),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
         child: Row(
@@ -3006,124 +2990,15 @@ class _EpisodeRow extends StatelessWidget {
     );
   }
 
-  void _rate(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    double val = ep.score ?? 1.0;
-    bool rated = ep.score != null;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: scheme.surfaceContainer,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetCtx) => StatefulBuilder(
-        builder: (sheetCtx, setSheet) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: scheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  ep.label,
-                  style: TextStyle(
-                    fontFamily: AppTheme.displayFont,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                    color: scheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () async {
-                    final r = await showScorePad(sheetCtx);
-                    if (r != null) {
-                      setSheet(() {
-                        val = r;
-                        rated = true;
-                      });
-                    }
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        rated ? val.toStringAsFixed(1) : '—',
-                        style: TextStyle(
-                          fontFamily: AppTheme.displayFont,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 44,
-                          color: rated
-                              ? scoreColor(val)
-                              : scheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.dialpad_rounded,
-                        size: 18,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                RatingSlider(
-                  value: val,
-                  onChanged: (x) => setSheet(() {
-                    val = x;
-                    rated = true;
-                  }),
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () {
-                          MovieRepository.instance.setEpisodeViewScoreByDate(
-                            seriesId,
-                            ep.season,
-                            ep.number,
-                            ep.watchedAt,
-                            null,
-                          );
-                          Navigator.pop(sheetCtx);
-                        },
-                        child: Text(tr('remove_score')),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () {
-                          MovieRepository.instance.setEpisodeViewScoreByDate(
-                            seriesId,
-                            ep.season,
-                            ep.number,
-                            ep.watchedAt,
-                            rated ? val : null,
-                          );
-                          Navigator.pop(sheetCtx);
-                        },
-                        child: Text(tr('done')),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+  /// Окно просмотра серии: строка в ленте — копия одного просмотра, за ней
+  /// стоит его id.
+  void _openViewing(BuildContext context) {
+    final season = ep.season, number = ep.number, viewId = ep.eventViewId;
+    if (season == null || number == null || viewId == null) return;
+    showViewingSheet(
+      context,
+      EpisodeViewingHost(seriesId, season, number),
+      viewId: viewId,
     );
   }
 }

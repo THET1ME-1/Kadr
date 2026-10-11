@@ -147,6 +147,53 @@ String longDate(DateTime d) {
   };
 }
 
+/// Короткий месяц с годом: «апр 2026».
+String monthYearShort(DateTime d) => '${monthShort(d.month)} ${d.year}';
+
+/// Порядковый номер коротко: «3-й», «3rd», «3.», «3e».
+String ordinalShort(int n) {
+  switch (_lang) {
+    case 'en':
+      final tens = n % 100;
+      if (tens >= 11 && tens <= 13) return '${n}th';
+      return switch (n % 10) {
+        1 => '${n}st',
+        2 => '${n}nd',
+        3 => '${n}rd',
+        _ => '${n}th',
+      };
+    case 'de':
+      return '$n.';
+    case 'fr':
+      return n == 1 ? '1er' : '${n}e';
+    case 'es' || 'pt':
+      return '$n.º';
+    case 'it':
+      return '$nº';
+    default:
+      return '$n-й';
+  }
+}
+
+/// «16.05» в пределах одного года и «16.05.26», когда годы разные.
+String dayMonthNumeric(DateTime d, {bool year = false}) =>
+    '${_two(d.day)}.${_two(d.month)}${year ? '.${_two(d.year % 100)}' : ''}';
+
+/// Промежуток дат числами: «18–20.08.2026», «30.08–02.09.2026», одна дата
+/// как есть.
+String dateRangeNumeric(DateTime a, DateTime b) {
+  if (a.year == b.year && a.month == b.month && a.day == b.day) {
+    return numericDate(a);
+  }
+  if (a.year == b.year && a.month == b.month) {
+    return '${_two(a.day)}–${numericDate(b)}';
+  }
+  if (a.year == b.year) {
+    return '${_two(a.day)}.${_two(a.month)}–${numericDate(b)}';
+  }
+  return '${numericDate(a)}–${numericDate(b)}';
+}
+
 /// «30.06.2026, 14:05».
 String dateTimeShort(DateTime d) =>
     '${_two(d.day)}.${_two(d.month)}.${d.year}, ${_two(d.hour)}:${_two(d.minute)}';

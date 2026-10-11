@@ -2536,6 +2536,202 @@ const Map<String, Map<String, String>> _strings = {
   'tag_flat_characters': {'ru': 'Плоские персонажи', 'en': 'Flat characters'},
   'tag_cliches': {'ru': 'Штампы', 'en': 'Clichés'},
   'tag_boring': {'ru': 'Скучно', 'en': 'Boring'},
+
+  // ---------------- Просмотры и рецензии по пересмотрам ----------------
+  'views_n_one': {'ru': '{n} просмотр', 'en': '{n} viewing'},
+  'views_n_few': {'ru': '{n} просмотра', 'en': '{n} viewings'},
+  'views_n_many': {'ru': '{n} просмотров', 'en': '{n} viewings'},
+  'score_of_view': {'ru': 'Оценка · {view}', 'en': 'Rating · {view}'},
+  'view_last_time': {'ru': 'в прошлый раз {v}', 'en': 'last time {v}'},
+  'view_same_first': {
+    'ru': 'Те же {v}, что в первый раз',
+    'en': 'Same {v} as the first time',
+  },
+  'view_same_last': {
+    'ru': 'Те же {v}, что в прошлый раз',
+    'en': 'Same {v} as last time',
+  },
+  'mark_q': {'ru': 'Когда посмотрели?', 'en': 'When did you watch it?'},
+  'mark_season_q': {
+    'ru': 'Когда досмотрели сезон?',
+    'en': 'When did you finish the season?',
+  },
+  'when_forgot': {'ru': 'Не помню', 'en': 'Can’t recall'},
+  'mark_left_one': {
+    'ru': 'осталась {n} серия из {total}',
+    'en': '{n} episode left of {total}',
+  },
+  'mark_left_few': {
+    'ru': 'осталось {n} серии из {total}',
+    'en': '{n} episodes left of {total}',
+  },
+  'mark_left_many': {
+    'ru': 'осталось {n} серий из {total}',
+    'en': '{n} episodes left of {total}',
+  },
+  'mark_more_n': {'ru': 'Отметить ещё {n}', 'en': 'Mark {n} more'},
+  'rewatch_season': {'ru': 'Пересмотреть сезон', 'en': 'Rewatch season'},
+  'season_clear_all_season': {
+    'ru': 'Снять все просмотры сезона',
+    'en': 'Remove all season watches',
+  },
+  'pass_progress': {
+    'ru': '{view} · {done} из {total}',
+    'en': '{view} · {done} of {total}',
+  },
+  'pass_started': {'ru': 'начат {date}', 'en': 'started {date}'},
+  'pass_done_one': {
+    'ru': 'Сезон просмотрен {n} раз',
+    'en': 'Season watched {n} time',
+  },
+  'pass_done_few': {
+    'ru': 'Сезон просмотрен {n} раза',
+    'en': 'Season watched {n} times',
+  },
+  'pass_done_many': {
+    'ru': 'Сезон просмотрен {n} раз',
+    'en': 'Season watched {n} times',
+  },
+  'pass_last': {'ru': 'в последний раз {dates}', 'en': 'last time {dates}'},
+  'view_title_episode': {'ru': 'Просмотр серии', 'en': 'Episode viewing'},
+  'view_when': {'ru': 'Когда', 'en': 'When'},
+  'view_undated': {'ru': 'Без даты', 'en': 'No date'},
+  'view_undated_short': {'ru': 'без даты', 'en': 'no date'},
+  'view_diary': {'ru': 'Дневник', 'en': 'Diary'},
+  'view_diary_hint': {
+    'ru': 'Настроение, где, с кем, фото, заметка',
+    'en': 'Mood, place, company, photo, note',
+  },
+  'diary_has_note': {'ru': 'есть запись', 'en': 'has an entry'},
+  'view_review': {'ru': 'Рецензия', 'en': 'Review'},
+  'view_review_none': {
+    'ru': 'На этот просмотр пока нет',
+    'en': 'None for this viewing yet',
+  },
+  'view_has_review': {'ru': 'есть рецензия', 'en': 'has a review'},
+  'view_review_named': {
+    'ru': 'рецензия «{title}»',
+    'en': 'review “{title}”',
+  },
+  'view_score_n': {'ru': 'оценка {v}', 'en': 'rated {v}'},
+  'view_list_title': {'ru': 'Просмотры · {n}', 'en': 'Viewings · {n}'},
+  'view_more': {'ru': 'ещё {n}', 'en': '{n} more'},
+  'view_numbers': {'ru': 'номера {range}', 'en': 'nos. {range}'},
+  'view_step_less': {
+    'ru': 'Убрать один просмотр',
+    'en': 'Remove one viewing',
+  },
+  'view_step_more': {
+    'ru': 'Добавить просмотр без даты',
+    'en': 'Add an undated viewing',
+  },
+  'view_trend': {
+    'ru': '{d} с первого раза',
+    'en': '{d} since the first time',
+  },
+  'view_trend_same': {'ru': 'оценка та же', 'en': 'same rating'},
+  'view_restore': {'ru': 'Вернуть', 'en': 'Restore'},
+  'view_delete_q': {
+    'ru': 'Удалить просмотр {date}?',
+    'en': 'Delete the viewing of {date}?',
+  },
+  'view_delete_q_undated': {
+    'ru': 'Удалить просмотр без даты?',
+    'en': 'Delete the undated viewing?',
+  },
+  'view_delete_body_1': {
+    'ru': 'Вместе с ним уйдёт {a}.',
+    'en': 'This also removes {a}.',
+  },
+  'view_delete_body_2': {
+    'ru': 'Вместе с ним уйдут {a} и {b}.',
+    'en': 'This also removes {a} and {b}.',
+  },
+  'view_delete_body_3': {
+    'ru': 'Вместе с ним уйдут {a}, {b} и {c}.',
+    'en': 'This also removes {a}, {b} and {c}.',
+  },
+  'view_part_score': {'ru': 'оценка {v}', 'en': 'the {v} rating'},
+  'view_part_diary': {'ru': 'запись дневника', 'en': 'the diary entry'},
+  'view_part_review': {'ru': 'рецензия', 'en': 'the review'},
+  'mrv_summary': {'ru': 'Свод по пересмотрам', 'en': 'Rewatch summary'},
+  'mrv_diff': {'ru': 'Разница {d}', 'en': 'Change {d}'},
+  'mrv_between': {'ru': 'Между рецензиями', 'en': 'Between the reviews'},
+  'mrv_over_one': {'ru': 'За {n} рецензию', 'en': 'Over {n} review'},
+  'mrv_over_few': {'ru': 'За {n} рецензии', 'en': 'Over {n} reviews'},
+  'mrv_over_many': {'ru': 'За {n} рецензий', 'en': 'Over {n} reviews'},
+  'mrv_score_down': {
+    'ru': '{span} оценка упала на {d}.',
+    'en': '{span} the rating dropped by {d}.',
+  },
+  'mrv_score_up': {
+    'ru': '{span} оценка выросла на {d}.',
+    'en': '{span} the rating rose by {d}.',
+  },
+  'mrv_score_same': {
+    'ru': '{span} оценка не изменилась.',
+    'en': '{span} the rating stayed the same.',
+  },
+  'mrv_strongest': {
+    'ru': 'Сильнее всего изменился пункт «{crit}».',
+    'en': '“{crit}” changed the most.',
+  },
+  'mrv_missing_one': {
+    'ru': '{view} без рецензии',
+    'en': '{view} has no review',
+  },
+  'mrv_missing_many': {
+    'ru': 'Без рецензии: {list}',
+    'en': 'No review: {list}',
+  },
+  'mrv_which_title': {'ru': 'О каком просмотре', 'en': 'Which viewing'},
+  'mrv_no_view': {'ru': 'Без просмотра', 'en': 'No viewing'},
+  'mrv_view_taken': {
+    'ru': 'На этот просмотр рецензия уже есть',
+    'en': 'That viewing already has a review',
+  },
+  'rv_prev_review_score': {
+    'ru': 'в прошлой рецензии {v}',
+    'en': 'previous review {v}',
+  },
+  'rv_ghost_key': {
+    'ru': 'оценка из рецензии на {view}',
+    'en': 'score from the earlier review ({view})',
+  },
+  'rv_then_now': {'ru': 'Тогда и сейчас', 'en': 'Then and now'},
+  'rv_then_most': {
+    'ru': 'Сильнее всего изменился пункт «{crit}»: было {a}, стало {b}.',
+    'en': '“{crit}” changed the most: {a} then, {b} now.',
+  },
+  'rv_open_prev': {'ru': 'Рецензия на {view}', 'en': 'Review: {view}'},
+  'rvs_none': {'ru': 'нет', 'en': 'none'},
+  'rvs_which_pass': {'ru': 'Какой просмотр', 'en': 'Which viewing'},
+  'rvs_tab_main': {'ru': 'Серии и рецензии', 'en': 'Episodes & reviews'},
+  'rvs_tab_passes': {'ru': 'Пересмотры', 'en': 'Rewatches'},
+  'rvs_pass_first': {'ru': 'Первый раз', 'en': 'First time'},
+  'rvs_pass_last': {'ru': 'Последний раз', 'en': 'Latest time'},
+  'rvs_pass_up': {
+    'ru': 'При пересмотре сериал вырос на {d}.',
+    'en': 'On rewatch the series gained {d}.',
+  },
+  'rvs_pass_down': {
+    'ru': 'При пересмотре сериал просел на {d}.',
+    'en': 'On rewatch the series lost {d}.',
+  },
+  'rvs_pass_same': {
+    'ru': 'При пересмотре оценка сериала не изменилась.',
+    'en': 'On rewatch the series rating held.',
+  },
+  'rvs_pass_most': {
+    'ru': 'Сильнее всего изменился сезон {n}.',
+    'en': 'Season {n} changed the most.',
+  },
+  'rvs_pass_note': {
+    'ru': 'Выделена последняя рецензия сезона: она идёт в свод. «Нет» '
+        'значит, что сезон смотрели, а рецензию не писали.',
+    'en': 'The highlighted cell is the season’s latest review: it goes into '
+        'the summary. “None” means the season was watched but not reviewed.',
+  },
 };
 
 /// Базовые ru/en-строки целиком — для теста полноты переводов.

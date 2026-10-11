@@ -23,20 +23,19 @@ import '../widgets/favorite_character.dart';
 import '../widgets/poster.dart';
 import '../widgets/poster_viewer.dart';
 import '../widgets/pressable.dart';
-import '../widgets/rating_slider.dart';
-import '../widgets/review/review_parts.dart';
 import '../widgets/facts_section.dart';
 import '../widgets/reveal.dart';
-import '../widgets/score_pad.dart';
 import '../widgets/user_avatar.dart';
+import '../widgets/viewing/score_card.dart';
 import 'browse_screens.dart';
 import 'social/auth_screen.dart';
 import 'social/media_image_picker.dart';
 import 'share_card_sheet.dart';
 import 'when_watched_sheet.dart';
-import 'review/review_editor_screen.dart';
-import 'review/review_screen.dart';
-import 'review/review_target.dart';
+import 'review/movie_reviews_section.dart';
+import 'viewing/viewing_delete.dart';
+import 'viewing/viewing_host.dart';
+import 'viewing/viewings_section.dart';
 
 /// Открывает полноэкранную карточку фильма (как экран сериала — отдельная
 /// страница, а не выезжающая панель).
@@ -66,9 +65,6 @@ class MovieScreen extends StatefulWidget {
 
 class _MovieScreenState extends State<MovieScreen> {
   final _repo = MovieRepository.instance;
-
-  /// Значение слайдера во время перетаскивания (иначе берём из модели).
-  double? _dragging;
 
   TmdbDetails? _details;
 
@@ -331,7 +327,7 @@ class _MovieScreenState extends State<MovieScreen> {
             _chip(
               scheme,
               Icons.repeat_rounded,
-              trf('rewatches_n', {'n': m.rewatchCount}),
+              trn('views_n', m.viewings.length),
               tone: true,
             ),
           if (m.kpRating != null && m.kpRating! > 0)
@@ -341,11 +337,14 @@ class _MovieScreenState extends State<MovieScreen> {
       const SizedBox(height: 16),
       _scoreCard(scheme, m),
       // Широкая мягко-красная кнопка сброса оценки — только если оценка есть.
-      if (m.currentScore != null) ...[
+      if (_shownScore(m) != null) ...[
         const SizedBox(height: 12),
         _clearScoreButton(scheme, m),
       ],
-      const SizedBox(height: 16),
+      // Рецензии стоят сразу под оценкой, как на экране сериала.
+      const SizedBox(height: 12),
+      MovieReviewsSection(movie: m, repo: _repo),
+      const SizedBox(height: 12),
       SizedBox(
         width: double.infinity,
         child: FilledButton.icon(
@@ -415,6 +414,10 @@ class _MovieScreenState extends State<MovieScreen> {
         const SizedBox(height: 12),
         _droppedButton(scheme, m),
       ],
+      if (m.viewings.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        ViewingsSection(host: MovieViewingHost(m.uuid, repo: _repo)),
+      ],
       ..._collectionSection(scheme, m),
       ..._detailsWidgets(scheme, m),
       if (m.emotions.isNotEmpty) ...[
@@ -433,26 +436,6 @@ class _MovieScreenState extends State<MovieScreen> {
           ],
         ),
       ],
-      if (m.hasScoreComparison) ...[
-        const SizedBox(height: 22),
-        _comparison(scheme, m),
-      ],
-      if (m.viewings.isNotEmpty) ...[
-        const SizedBox(height: 22),
-        Text(
-          tr('per_viewing_scores'),
-          style: TextStyle(
-            fontFamily: AppTheme.displayFont,
-            fontWeight: FontWeight.w700,
-            fontSize: 15,
-            color: scheme.primary,
-          ),
-        ),
-        const SizedBox(height: 8),
-        ..._viewingRows(scheme, m),
-      ],
-      const SizedBox(height: 18),
-      ..._reviewSection(scheme, m),
     ];
   }
 
@@ -1044,472 +1027,6 @@ class _MovieScreenState extends State<MovieScreen> {
     return '$buf \$';
   }
 
-  // ---- список просмотров: тап по строке = правка (дата+оценка+удаление) ----
-  List<Widget> _viewingRows(ColorScheme scheme, LibraryMovie m) {
-    // Порядок добавления (первый просмотр — внизу, последний — сверху),
-    // НЕЗАВИСИМО от даты: «Неизвестно» не прыгает при правке дат.
-    final list = m.viewings;
-    final rows = <Widget>[];
-    for (var i = list.length - 1; i >= 0; i--) {
-      final v = list[i];
-      final isRewatch = i > 0; // первый добавленный просмотр — не повтор
-      // Эффективная оценка просмотра (с учётом общей) — согласуется с верхней.
-      final sc = m.scoreOf(v);
-      rows.add(
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () => _editViewing(context, m, v, i + 1),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-              child: Row(
-                children: [
-                  Icon(
-                    isRewatch ? Icons.repeat_rounded : Icons.event_rounded,
-                    size: 20,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          v.hasDate
-                              ? dateExactWithTime(v.date!)
-                              : tr('when_unknown'),
-                          style: TextStyle(
-                            fontFamily: AppTheme.bodyFont,
-                            fontSize: 14,
-                            color: scheme.onSurface,
-                          ),
-                        ),
-                        if (isRewatch)
-                          Text(
-                            trf('viewing_n', {'n': i + 1}),
-                            style: TextStyle(
-                              fontFamily: AppTheme.bodyFont,
-                              fontSize: 11.5,
-                              color: scheme.onSurfaceVariant.withValues(
-                                alpha: 0.8,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: sc != null
-                          ? scoreColor(sc)
-                          : scheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          sc != null
-                              ? Icons.star_rounded
-                              : Icons.star_border_rounded,
-                          size: 16,
-                          color: sc != null
-                              ? onScoreColor(sc)
-                              : scheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          sc != null ? sc.toStringAsFixed(1) : tr('not_rated'),
-                          style: TextStyle(
-                            fontFamily: AppTheme.displayFont,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: sc != null
-                                ? onScoreColor(sc)
-                                : scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Icon(
-                    Icons.edit_rounded,
-                    size: 17,
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    return rows;
-  }
-
-  // ------------------ блок сравнения оценок ------------------
-  Widget _comparison(ColorScheme scheme, LibraryMovie m) {
-    // Эволюция оценки — в порядке добавления просмотров (как и список ниже).
-    final rated = m.viewings.where((v) => v.score != null).toList();
-    final delta = rated.last.score! - rated.first.score!;
-    final verdict = delta.abs() < 0.05
-        ? tr('cmp_same')
-        : (delta > 0
-              ? trf('cmp_improved', {'d': delta.toStringAsFixed(1)})
-              : trf('cmp_dropped', {'d': (-delta).toStringAsFixed(1)}));
-    final verdictColor = delta.abs() < 0.05
-        ? scheme.onSurfaceVariant
-        : (delta > 0 ? const Color(0xFF2E9B57) : const Color(0xFFD0433B));
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            tr('score_comparison'),
-            style: TextStyle(
-              fontFamily: AppTheme.displayFont,
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-              color: scheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 14),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (var i = 0; i < rated.length; i++) ...[
-                  if (i > 0)
-                    _arrow(scheme, rated[i].score! - rated[i - 1].score!),
-                  _scorePill(scheme, rated[i], i),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(
-                delta.abs() < 0.05
-                    ? Icons.drag_handle_rounded
-                    : (delta > 0
-                          ? Icons.trending_up_rounded
-                          : Icons.trending_down_rounded),
-                size: 18,
-                color: verdictColor,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                verdict,
-                style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13.5,
-                  color: verdictColor,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _scorePill(ColorScheme scheme, Viewing v, int i) => Column(
-    children: [
-      Container(
-        width: 52,
-        height: 52,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: scoreColor(v.score!),
-          shape: BoxShape.circle,
-        ),
-        child: Text(
-          v.score!.toStringAsFixed(1),
-          style: TextStyle(
-            fontFamily: AppTheme.displayFont,
-            fontWeight: FontWeight.w800,
-            fontSize: 16,
-            color: onScoreColor(v.score!),
-          ),
-        ),
-      ),
-      const SizedBox(height: 4),
-      Text(
-        v.hasDate ? numericDate(v.date!) : tr('when_unknown'),
-        style: TextStyle(
-          fontFamily: AppTheme.bodyFont,
-          fontSize: 10.5,
-          color: scheme.onSurfaceVariant,
-        ),
-      ),
-    ],
-  );
-
-  Widget _arrow(ColorScheme scheme, double d) {
-    final up = d > 0.05, down = d < -0.05;
-    final c = up
-        ? const Color(0xFF2E9B57)
-        : (down ? const Color(0xFFD0433B) : scheme.onSurfaceVariant);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.arrow_forward_rounded, size: 18, color: c),
-          Text(
-            d == 0 ? '' : '${d > 0 ? '+' : ''}${d.toStringAsFixed(1)}',
-            style: TextStyle(
-              fontFamily: AppTheme.bodyFont,
-              fontWeight: FontWeight.w700,
-              fontSize: 10,
-              color: c,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---- полный редактор просмотра: дата + оценка + удаление ----
-  void _editViewing(
-    BuildContext context,
-    LibraryMovie m,
-    Viewing v,
-    int ordinal,
-  ) {
-    DateTime? date = v.date;
-    bool rated = m.scoreOf(v) != null;
-    double val = m.scoreOf(v) ?? 1.0;
-    final scheme = Theme.of(context).colorScheme;
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: scheme.surfaceContainer,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetCtx) => StatefulBuilder(
-        builder: (sheetCtx, setSheet) => SafeArea(
-          child: Padding(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 14,
-              bottom: 20 + MediaQuery.of(sheetCtx).viewInsets.bottom,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: scheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    ordinal > 1
-                        ? trf('viewing_n', {'n': ordinal})
-                        : tr('edit_viewing'),
-                    style: TextStyle(
-                      fontFamily: AppTheme.displayFont,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
-                      color: scheme.onSurface,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // дата и время
-                Material(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(16),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () async {
-                      final now = DateTime.now();
-                      final picked = await showDatePicker(
-                        context: sheetCtx,
-                        initialDate: date ?? now,
-                        firstDate: DateTime(1900),
-                        lastDate: now,
-                      );
-                      if (picked == null || !sheetCtx.mounted) return;
-                      final time = await showTimePicker(
-                        context: sheetCtx,
-                        initialTime: TimeOfDay.fromDateTime(date ?? now),
-                      );
-                      setSheet(
-                        () => date = time == null
-                            ? DateTime(picked.year, picked.month, picked.day)
-                            : DateTime(
-                                picked.year,
-                                picked.month,
-                                picked.day,
-                                time.hour,
-                                time.minute,
-                              ),
-                      );
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.event_rounded, color: scheme.primary),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  tr('date_time'),
-                                  style: TextStyle(
-                                    fontFamily: AppTheme.bodyFont,
-                                    fontSize: 12,
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                Text(
-                                  date == null
-                                      ? tr('when_unknown')
-                                      : dateExactWithTime(date!),
-                                  style: TextStyle(
-                                    fontFamily: AppTheme.bodyFont,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 15,
-                                    color: scheme.onSurface,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (date != null)
-                            IconButton(
-                              icon: const Icon(Icons.close_rounded, size: 20),
-                              tooltip: tr('clear_date'),
-                              onPressed: () => setSheet(() => date = null),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // оценка — тап по числу/«—» открывает калькулятор ввода
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () async {
-                    final r = await showScorePad(sheetCtx);
-                    if (r != null) {
-                      setSheet(() {
-                        val = r;
-                        rated = true;
-                      });
-                    }
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        rated ? val.toStringAsFixed(1) : '—',
-                        style: TextStyle(
-                          fontFamily: AppTheme.displayFont,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 46,
-                          color: rated
-                              ? scoreColor(val)
-                              : scheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.dialpad_rounded,
-                        size: 18,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  tr('rate_this_viewing'),
-                  style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontSize: 12.5,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                RatingSlider(
-                  value: val,
-                  onChanged: (x) => setSheet(() {
-                    val = x;
-                    rated = true;
-                  }),
-                ),
-                Row(
-                  children: [
-                    IconButton.filledTonal(
-                      onPressed: () {
-                        _repo.removeViewing(m.uuid, v);
-                        Navigator.pop(sheetCtx);
-                        _snack(tr('viewing_deleted'));
-                      },
-                      icon: const Icon(Icons.delete_outline_rounded),
-                      style: IconButton.styleFrom(
-                        backgroundColor: scheme.errorContainer,
-                        foregroundColor: scheme.onErrorContainer,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => setSheet(() => rated = false),
-                        child: Text(tr('remove_score')),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () {
-                          _repo.setViewingDate(m.uuid, v, date);
-                          _repo.setViewingScore(m.uuid, v, rated ? val : null);
-                          Navigator.pop(sheetCtx);
-                        },
-                        child: Text(tr('done')),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   // ------------------ управление списками ------------------
   /// Посоветовать фильм другу: выбрать друга + необязательная заметка.
   void _recommendToFriend(LibraryMovie m) {
@@ -1788,32 +1305,12 @@ class _MovieScreenState extends State<MovieScreen> {
     );
   }
 
-  /// Открывает клавиатуру-калькулятор для ручного ввода оценки текущего фильма.
-  Future<void> _openScorePad(LibraryMovie m) async {
-    final v = await showScorePad(context);
-    if (v != null) {
-      _commitCurrentScore(m, v);
-      if (mounted) setState(() => _dragging = null);
-    }
-  }
-
-  /// Пишет оценку в текущий просмотр (или в общую, если просмотров ещё нет).
-  void _commitCurrentScore(LibraryMovie m, double v) {
+  /// Оценка в карточке: у последнего просмотра, а пока просмотров нет —
+  /// общая. У неоценённого пересмотра карточка пустая, даже если прошлые
+  /// просмотры оценены.
+  double? _shownScore(LibraryMovie m) {
     final cv = m.currentViewing;
-    if (cv != null) {
-      _repo.setViewingScore(m.uuid, cv, v);
-    } else {
-      _repo.setScore(m.uuid, v);
-    }
-  }
-
-  /// Убирает оценку текущего просмотра И общую: scoreOf() падает обратно на
-  /// общий m.score (импорт TV Time), иначе кнопка выглядит сломанной.
-  void _clearCurrentScore(LibraryMovie m) {
-    final cv = m.currentViewing;
-    if (cv != null) _repo.setViewingScore(m.uuid, cv, null);
-    _repo.setScore(m.uuid, null);
-    setState(() => _dragging = null);
+    return cv != null ? cv.score : m.score;
   }
 
   Widget _scoreCard(ColorScheme scheme, LibraryMovie m) {
@@ -1850,108 +1347,34 @@ class _MovieScreenState extends State<MovieScreen> {
       );
     }
 
-    // Пока не оценено — слайдер стоит на нейтральной середине, но число
-    // показываем как «—», а не как балл 7.0 (иначе выглядит будто оценка есть).
-    final rated = _dragging != null || m.currentScore != null;
-    final val = _dragging ?? m.currentScore ?? 1.0;
-    final accent = scoreColor(val);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      decoration: BoxDecoration(
-        color: scheme.primaryContainer,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        children: [
-          Text(
-            tr('current_viewing_score'),
-            style: TextStyle(
-              fontFamily: AppTheme.bodyFont,
-              fontWeight: FontWeight.w600,
-              fontSize: 12.5,
-              color: scheme.onPrimaryContainer.withValues(alpha: 0.8),
-            ),
-          ),
-          const SizedBox(height: 2),
-          // Тап по числу/«—» → калькулятор ручного ввода оценки.
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _openScorePad(m),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                // Плавно перетекающий цвет числа/звезды при изменении балла.
-                TweenAnimationBuilder<Color?>(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOut,
-                  tween: ColorTween(
-                    end: rated
-                        ? accent
-                        : scheme.onPrimaryContainer.withValues(alpha: 0.55),
-                  ),
-                  builder: (context, color, _) => Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Icon(
-                        rated ? Icons.star_rounded : Icons.star_border_rounded,
-                        color: color,
-                        size: 32,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        rated ? val.toStringAsFixed(1) : '—',
-                        style: TextStyle(
-                          fontFamily: AppTheme.displayFont,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 48,
-                          height: 1,
-                          color: color,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  ' / 10',
-                  style: TextStyle(
-                    fontFamily: AppTheme.displayFont,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 20,
-                    color: scheme.onPrimaryContainer.withValues(alpha: 0.7),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.dialpad_rounded,
-                  size: 18,
-                  color: scheme.onPrimaryContainer.withValues(alpha: 0.55),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-          RatingSlider(
-            value: val,
-            onChanged: (v) => setState(() => _dragging = v),
-            onChangeEnd: (v) {
-              _commitCurrentScore(m, v);
-              setState(() => _dragging = null);
-            },
-          ),
-          const SizedBox(height: 4),
-          Text(
-            rated ? tr('your_rating') : tr('no_rating_yet'),
-            style: TextStyle(
-              fontFamily: AppTheme.bodyFont,
-              fontSize: 13,
-              color: scheme.onPrimaryContainer.withValues(alpha: 0.8),
-            ),
-          ),
-        ],
-      ),
+    // Карточка показывает последний просмотр: его номер в подписи, его дату
+    // и прошлую оценку под слайдером.
+    final cv = m.currentViewing;
+    final score = _shownScore(m);
+    final host = MovieViewingHost(m.uuid, repo: _repo);
+    final prev = cv == null ? null : host.previousRated(cv);
+    final prevText = prev?.score.toStringAsFixed(1);
+    final footer = [
+      if (cv?.date != null) numericDate(cv!.date!),
+      if (prevText != null) trf('view_last_time', {'v': prevText}),
+    ].join(' · ');
+    return ScoreCard(
+      key: ValueKey('score-${cv?.id}'),
+      label: m.isRewatched
+          ? trf('score_of_view', {
+              'view': trf('viewing_n', {'n': m.viewings.length}),
+            })
+          : tr('current_viewing_score'),
+      value: score,
+      onChanged: (v) => _repo.setCurrentScore(m.uuid, v),
+      footer: footer.isNotEmpty
+          ? footer
+          : tr(score != null ? 'your_rating' : 'no_rating_yet'),
+      sameAs: prev?.score,
+      sameLabel: prevText == null
+          ? null
+          : trf(prev!.ordinal == 1 ? 'view_same_first' : 'view_same_last',
+              {'v': prevText}),
     );
   }
 
@@ -1963,7 +1386,7 @@ class _MovieScreenState extends State<MovieScreen> {
     return SizedBox(
       width: double.infinity,
       child: FilledButton.tonalIcon(
-        onPressed: () => _clearCurrentScore(m),
+        onPressed: () => _repo.setCurrentScore(m.uuid, null),
         icon: const Icon(Icons.star_outline_rounded),
         label: Text(tr('remove_score')),
         style: FilledButton.styleFrom(
@@ -1975,11 +1398,20 @@ class _MovieScreenState extends State<MovieScreen> {
   }
 
   /// Кнопка «Отменить просмотр» — для уже просмотренного фильма (в Expanded).
+  /// Убирает последний просмотр: с оценкой, дневником или рецензией сначала
+  /// спрашивает, после удаления висит «Вернуть».
   Widget _undoWatchButton(ColorScheme scheme, LibraryMovie m) {
     return FilledButton.tonalIcon(
       onPressed: () async {
-        final removed = await _repo.undoLastViewing(m.uuid);
-        _snack(tr(removed ? 'unwatched' : 'watch_undone'));
+        final cv = m.currentViewing;
+        if (cv != null) {
+          await deleteViewingFlow(
+              context, MovieViewingHost(m.uuid, repo: _repo), cv);
+          return;
+        }
+        // Старая запись «просмотрено» без единого просмотра.
+        await _repo.undoLastViewing(m.uuid);
+        if (mounted) _snack(tr('unwatched'));
       },
       icon: const Icon(Icons.remove_done_rounded),
       label: Text(tr('undo_watch')),
@@ -2018,49 +1450,6 @@ class _MovieScreenState extends State<MovieScreen> {
     );
   }
 
-  /// Секция «Моя рецензия»: карточка рецензии (тап → чтение) или кнопка
-  /// «Написать рецензию», которая открывает редактор критика.
-  List<Widget> _reviewSection(ColorScheme scheme, LibraryMovie m) {
-    final target = ReviewTarget.movie(m);
-    return [
-      Row(
-        children: [
-          _sectionTitle(scheme, tr('my_review')),
-          const Spacer(),
-          if (m.hasReview)
-            TextButton.icon(
-              onPressed: () => openReviewEditor(context, target),
-              icon: const Icon(Icons.edit_rounded, size: 17),
-              label: Text(tr('edit')),
-            ),
-        ],
-      ),
-      const SizedBox(height: 6),
-      if (m.hasReview)
-        GestureDetector(
-          onLongPress: m.hasReviewText ? () => _copy(m.review!) : null,
-          // Черновик продолжают писать, опубликованную читают.
-          child: ReviewPreviewCard(
-            text: m.review,
-            meta: m.reviewMeta,
-            openLabel:
-                (m.reviewMeta?.draft ?? false) ? tr('rv_continue') : null,
-            onOpen: (m.reviewMeta?.draft ?? false)
-                ? () => openReviewEditor(context, target)
-                : () => openReview(context, target),
-          ),
-        )
-      else
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.tonalIcon(
-            onPressed: () => openReviewEditor(context, target),
-            icon: const Icon(Icons.rate_review_rounded),
-            label: Text(tr('write_review')),
-          ),
-        ),
-    ];
-  }
 }
 
 /// Идеально круглая кнопка-сердечко (Избранное) — без надписи.

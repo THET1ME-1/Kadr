@@ -6,7 +6,7 @@ import '../models/library_entry.dart';
 import '../services/app_prefs.dart';
 import '../services/movie_repository.dart';
 import '../theme/app_theme.dart';
-import '../widgets/diary_sheet.dart' show kDiaryPlaces;
+import '../widgets/viewing/diary_form.dart' show kDiaryPlaces;
 import '../utils/format.dart';
 import '../utils/score.dart';
 import '../widgets/poster.dart';

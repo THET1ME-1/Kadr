@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
-import '../models/social.dart';
 import '../services/facts_service.dart';
 import '../services/movie_repository.dart';
 import '../services/social/social_controller.dart';
@@ -16,6 +15,7 @@ import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/score.dart';
+import '../utils/season_pass.dart';
 import '../utils/season_pick.dart';
 import '../utils/season_progress.dart';
 import '../utils/series_finale.dart';
@@ -30,13 +30,17 @@ import '../widgets/favorite_character.dart';
 import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
 import '../widgets/season_pill.dart';
+import '../widgets/viewing/pass_strip.dart';
 import 'browse_screens.dart';
 import 'delete_helpers.dart';
 import 'episode_grid_sheet.dart';
 import 'series_stats_screen.dart';
-import 'social/friend_pick_sheet.dart';
 import 'social/media_image_picker.dart';
 import 'review/series_reviews_section.dart';
+import 'viewing/episode_sheet.dart';
+import 'viewing/mark_sheet.dart';
+import 'viewing/viewing_host.dart';
+import 'viewing/viewing_sheet.dart';
 
 /// Экран сериала (M3 Expressive): крупная шапка с бэкдропом, оценка всего
 /// сериала, выбор сезона, отметка «весь сезон разом», а у каждой серии —
@@ -111,71 +115,52 @@ class _SeriesScreenState extends State<SeriesScreen> {
     return out;
   }
 
-  /// Серии от (season, number) включительно до конца.
-  List<List<int>> _orderedFrom(int season, int number) {
-    final out = <List<int>>[];
-    var started = false;
-    for (final e in _orderedAll) {
-      if (e[0] == season && e[1] == number) started = true;
-      if (started) out.add(e);
-    }
-    return out;
-  }
-
   // ---- действия с серией (учитывают последовательный режим) ----
 
-  void _markEpisode(TmdbEpisode ep) {
-    if (_sequential) {
-      _repo.markEpisodesBulk(s.tvShowId, _orderedUpTo(ep.season, ep.number));
-    } else {
-      _repo.markEpisodeWatched(s.tvShowId, ep.season, ep.number,
-          runtimeMin: ep.runtime);
-    }
-  }
+  EpisodeViewingHost _hostOf(TmdbEpisode ep) => EpisodeViewingHost(
+      s.tvShowId, ep.season, ep.number,
+      runtimeMin: ep.runtime, repo: _repo);
 
-  /// Снять просмотр серии целиком (в послед. режиме — и все следующие).
-  void _unmarkEpisode(TmdbEpisode ep) {
-    if (_sequential) {
-      _repo.unmarkEpisodesBulk(s.tvShowId, _orderedFrom(ep.season, ep.number));
-    } else {
-      _repo.unmarkEpisode(s.tvShowId, ep.season, ep.number);
-    }
-  }
-
-  /// Тап по галочке серии → всегда открываем меню «когда посмотрели?» (как у
-  /// сезона), чтобы отметить просмотр/пересмотр с выбранной датой.
-  void _tapCheck(TmdbEpisode ep) {
+  /// Тап по галочке серии и «Смотрел ещё раз» в окне серии: окно отметки с
+  /// номером будущего просмотра, затем запись с выбранной датой.
+  Future<void> _tapCheck(TmdbEpisode ep) async {
     final we = s.watchedEpisode(ep.season, ep.number);
-    final firstWatch = we == null;
-    if (firstWatch && !_aired(ep)) {
+    if (we == null && !_aired(ep)) {
       _snack(tr('episode_not_aired'));
       return;
     }
-    _showSeasonWhenSheet(
-      title: firstWatch ? tr('episode_mark_when') : tr('episode_rewatch_when'),
-      subtitle: ep.name,
-      onDate: (date) async {
-        if (firstWatch) {
-          // Отмечаем (учитывая последовательный режим), затем ставим дату именно
-          // этой серии (в т.ч. null = «неизвестно»).
-          if (_sequential) {
-            await _repo.markEpisodesBulk(
-                s.tvShowId, _orderedUpTo(ep.season, ep.number));
-          } else {
-            await _repo.markEpisodeWatched(s.tvShowId, ep.season, ep.number,
-                runtimeMin: ep.runtime);
-          }
-          await _repo.setEpisodeViewDate(
-              s.tvShowId, ep.season, ep.number, 0, date);
-        } else {
-          // Пересмотр — отдельный просмотр с выбранной датой.
-          await _repo.addEpisodeView(s.tvShowId, ep.season, ep.number,
-              date: date, runtimeMin: ep.runtime);
-        }
-        HapticFeedback.selectionClick();
-      },
+    final choice = await showMarkSheet(
+      context,
+      title: tr('mark_q'),
+      subject: 'S${ep.season} · E${ep.number} · ${ep.name}',
+      ordinal: (we?.watchCount ?? 0) + 1,
     );
+    if (choice == null || !mounted) return;
+    await _addEpisodeView(ep, choice.date);
   }
+
+  /// Записывает просмотр серии с датой [date] (null — «не помню»). Первый
+  /// просмотр в последовательном режиме отмечает и все серии до неё, с той
+  /// же датой; у уже отмеченной серии это пересмотр.
+  Future<void> _addEpisodeView(TmdbEpisode ep, DateTime? date) async {
+    if (s.isEpisodeWatched(ep.season, ep.number)) {
+      await _repo.addEpisodeView(s.tvShowId, ep.season, ep.number,
+          date: date, runtimeMin: ep.runtime);
+    } else if (_sequential) {
+      await _repo.markEpisodesBulk(
+          s.tvShowId, _orderedUpTo(ep.season, ep.number),
+          at: date, undated: date == null);
+    } else {
+      await _repo.markEpisodeWatched(s.tvShowId, ep.season, ep.number,
+          runtimeMin: ep.runtime, at: date, undated: date == null);
+    }
+    HapticFeedback.selectionClick();
+  }
+
+  /// Удержание галочки отмеченной серии: окно её последнего просмотра.
+  void _openViewing(TmdbEpisode ep, Episode watched) => showViewingSheet(
+      context, _hostOf(ep),
+      viewId: watched.orderedViews.last.id);
 
   /// Отмечает серию просмотренной с НЕИЗВЕСТНОЙ датой (удержание галочки у
   /// неотмеченной). Такая серия не попадает в ленту «Просмотрено».
@@ -215,17 +200,6 @@ class _SeriesScreenState extends State<SeriesScreen> {
     await deleteSeriesFromBase(context, s);
     if (mounted && _repo.seriesById(s.tvShowId) == null) {
       Navigator.of(context).maybePop();
-    }
-  }
-
-  /// «Убрать просмотр»: есть повторы → −1; иначе снять просмотр (с каскадом).
-  void _removeOneWatch(TmdbEpisode ep) {
-    final we = s.watchedEpisode(ep.season, ep.number);
-    if (we == null) return;
-    if (we.rewatchCount > 0) {
-      _repo.removeEpisodeRewatch(s.tvShowId, ep.season, ep.number);
-    } else {
-      _unmarkEpisode(ep);
     }
   }
 
@@ -1044,64 +1018,68 @@ class _SeriesScreenState extends State<SeriesScreen> {
     );
   }
 
-  /// Панель сезона: прогресс + широкая кнопка «Отметить/Снять весь сезон».
+  /// Панель сезона: оценка и дата разом и широкая кнопка просмотра сезона.
+  /// Под ней полоса пересмотра, когда сезон смотрят не в первый раз.
   Widget _seasonToolbar(ColorScheme scheme) {
     final eps = _eps;
     if (eps == null || eps.isEmpty || _season == null) {
       return const SizedBox.shrink();
     }
-    // «Отметить весь сезон» и прогресс считаем по ВЫШЕДШИМ сериям.
+    // Просмотр сезона считаем по ВЫШЕДШИМ сериям.
     final aired = eps.where(_aired).toList();
-    final seenInSeason =
-        aired.where((e) => s.isEpisodeWatched(e.season, e.number)).length;
-    final allWatched = aired.isNotEmpty && seenInSeason == aired.length;
+    final st = seasonPass(s, _season!, [for (final e in aired) e.number]);
+    // Кнопка называет следующий шаг: отметить сезон, досмотреть оставшиеся
+    // серии идущего просмотра или начать пересмотр.
+    final label = switch (st.action) {
+      SeasonAction.rewatch => tr('rewatch_season'),
+      SeasonAction.markRest => trf('mark_more_n', {'n': st.left}),
+      SeasonAction.markAll => tr('mark_season'),
+    };
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 12,
         children: [
-          // Разом поставить одну оценку всем просмотренным сериям сезона.
-          IconButton.filledTonal(
-            onPressed: _rateSeason,
-            icon: const Icon(Icons.star_rounded),
-            tooltip: tr('rate_season'),
-          ),
-          const SizedBox(width: 8),
-          // Массово задать дату просмотра всем сериям сезона.
-          IconButton.filledTonal(
-            onPressed: _seasonDate,
-            icon: const Icon(Icons.event_rounded),
-            tooltip: tr('season_date'),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            // Отметить весь сезон — тап открывает меню выбора даты первого
-            // просмотра. Удержание — меню повторного просмотра сезона.
-            child: GestureDetector(
-              onLongPress: () => _seasonRewatchMenu(scheme),
-              child: FilledButton.tonalIcon(
-                onPressed: () async {
-                  if (allWatched) {
-                    if (await _confirmUnmarkSeason(seenInSeason)) {
-                      _repo.unmarkSeason(s.tvShowId, _season!);
-                    }
-                  } else {
-                    _seasonMarkSheet();
-                  }
-                },
-                icon: Icon(allWatched
-                    ? Icons.remove_done_rounded
-                    : Icons.done_all_rounded),
-                label: Text(tr(allWatched ? 'unmark_season' : 'mark_season')),
-                style: allWatched
-                    ? FilledButton.styleFrom(
-                        backgroundColor: scheme.surfaceContainerHighest,
-                        foregroundColor: scheme.onSurfaceVariant)
-                    : null,
-              ),
-            ),
-          ),
+          _seasonButtons(
+              scheme, st, aired, label, st.action == SeasonAction.rewatch),
+          if (st.showsStrip) PassStrip(state: st),
         ],
       ),
+    );
+  }
+
+  Widget _seasonButtons(ColorScheme scheme, SeasonPassState st,
+      List<TmdbEpisode> aired, String label, bool rewatch) {
+    return Row(
+      children: [
+        // Разом поставить одну оценку всем просмотренным сериям сезона.
+        IconButton.filledTonal(
+          onPressed: _rateSeason,
+          icon: const Icon(Icons.star_rounded),
+          tooltip: tr('rate_season'),
+        ),
+        const SizedBox(width: 8),
+        // Массово задать дату просмотра всем сериям сезона.
+        IconButton.filledTonal(
+          onPressed: _seasonDate,
+          icon: const Icon(Icons.event_rounded),
+          tooltip: tr('season_date'),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          // Тап всегда открывает окно отметки; «Снять все просмотры
+          // сезона» лежит внутри него.
+          child: FilledButton.tonalIcon(
+            onPressed: () => _seasonSheet(st, aired),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+            icon: Icon(rewatch ? Icons.repeat_rounded : Icons.done_all_rounded),
+            label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1110,7 +1088,8 @@ class _SeriesScreenState extends State<SeriesScreen> {
   Widget _episodeTile(ColorScheme scheme, TmdbEpisode ep) {
     final watchedEp = s.watchedEpisode(ep.season, ep.number);
     final watched = watchedEp != null;
-    final sc = watchedEp?.score;
+    // Оценка серии — последняя: у пересмотренной её даёт пересмотр.
+    final sc = watchedEp?.currentScore;
     final watches = watchedEp?.watchCount ?? 0; // 0 если не смотрел
     final aired = _aired(ep);
     return Padding(
@@ -1207,14 +1186,15 @@ class _SeriesScreenState extends State<SeriesScreen> {
                   ),
                 ),
               ),
-              // Тап по галочке → +1 просмотр (×2, ×3…). Удержание: у отмеченной
-              // серии — меню (снять / дата / «Неизвестно»); у неотмеченной —
-              // отметить без даты («смотрел, но не знаю когда»).
+              // Тап по галочке → окно отметки (первый просмотр или ещё один).
+              // Удержание: у отмеченной серии — окно её просмотра (дата,
+              // оценка, дневник, удаление); у неотмеченной — отметить без
+              // даты («смотрел, но не знаю когда»).
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => _tapCheck(ep),
                 onLongPress: watched
-                    ? () => _checkmarkMenu(scheme, ep, watchedEp)
+                    ? () => _openViewing(ep, watchedEp)
                     : () => _markUnknownDate(ep),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(6, 8, 14, 8),
@@ -1319,75 +1299,6 @@ class _SeriesScreenState extends State<SeriesScreen> {
         ]),
       );
 
-  /// Меню по удержанию галочки: снять просмотр целиком или вернуть один просмотр.
-  void _checkmarkMenu(ColorScheme scheme, TmdbEpisode ep, Episode watchedEp) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: scheme.surfaceContainer,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetCtx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: scheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 6, 24, 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('S${ep.season} · E${ep.number} · ${ep.name}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                        color: scheme.onSurface)),
-              ),
-            ),
-            _menuTile(scheme, Icons.event_rounded, tr('edit_watch_date'), () {
-              Navigator.pop(sheetCtx);
-              _editEpisodeDate(watchedEp);
-            }),
-            if (watchedEp.watchedAt != null)
-              _menuTile(
-                  scheme, Icons.help_outline_rounded, tr('set_unknown_date'),
-                  () {
-                Navigator.pop(sheetCtx);
-                _repo.setEpisodeWatchedAt(s.tvShowId, watchedEp, null);
-                _snack(tr('marked_unknown'));
-              }),
-            _menuTile(scheme, Icons.exposure_minus_1_rounded,
-                tr('remove_one_watch'), () {
-              Navigator.pop(sheetCtx);
-              _removeOneWatch(ep);
-            }),
-            if (watchedEp.rewatchCount > 0)
-              _menuTile(scheme, Icons.looks_one_rounded, tr('reset_to_one'),
-                  () {
-                Navigator.pop(sheetCtx);
-                _repo.resetEpisodeToSingle(s.tvShowId, ep.season, ep.number);
-              }),
-            _menuTile(scheme, Icons.remove_done_rounded, tr('clear_all_checks'),
-                () {
-              Navigator.pop(sheetCtx);
-              _unmarkEpisode(ep);
-            }),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
-  }
-
   /// Массово задаёт дату/время просмотра всем просмотренным сериям сезона.
   /// Если серии смотрели в РАЗНЫЕ дни — спрашивает подтверждение перед тем как
   /// схлопнуть их даты в одну (иначе точная история терялась молча); снимок для
@@ -1468,63 +1379,101 @@ class _SeriesScreenState extends State<SeriesScreen> {
     );
   }
 
-  /// Тап по «Отметить весь сезон»: меню выбора даты ПЕРВОГО просмотра (как
-  /// «Когда вы посмотрели?» у фильма) — отмечает все вышедшие серии сезона с
-  /// выбранной датой (null = «Неизвестная дата»).
-  void _seasonMarkSheet() {
-    if (_season == null) return;
-    final eps = _eps;
-    if (eps == null) return;
-    final aired = eps
-        .where((e) => _aired(e) && !s.isEpisodeWatched(e.season, e.number))
-        .toList();
-    if (aired.isEmpty) {
-      _snack(tr('season_all_watched'));
+  /// Окно отметки сезона: одно на первый просмотр, досмотр оставшихся серий
+  /// и пересмотр. Первый просмотр отмечает ещё не отмеченные вышедшие серии,
+  /// пересмотр доводит все серии до одного числа просмотров. «Снять все
+  /// просмотры сезона» лежит здесь же.
+  Future<void> _seasonSheet(SeasonPassState st, List<TmdbEpisode> aired) async {
+    final season = _season;
+    if (season == null) return;
+    final watched = s.episodes.where((e) => e.season == season).length;
+    if (aired.isEmpty && watched == 0) {
+      _snack(tr('season_no_watched'));
       return;
     }
-    _showSeasonWhenSheet(
-      title: trf('season_mark_when', {'n': _season!}),
-      subtitle: trf('season_mark_sub', {'n': aired.length}),
-      coWatchEnabled: _hasFriends,
-      onDate: (date) {
-        final runtimes = {for (final e in aired) e.number: e.runtime};
-        _repo.markSeason(s.tvShowId, _season!, [for (final e in aired) e.number],
-            runtimes: runtimes, date: date);
-        // Честно предупреждаем: без даты сезон не попадёт в ленту «Просмотрено»
-        // (записи без даты туда намеренно не идут).
-        _snack(date == null
-            ? trf('season_done_undated', {'n': _season!})
-            : trf('season_done', {'n': _season!}));
-      },
-      onCoWatch: (date, friends) async {
-        final runtimes = {for (final e in aired) e.number: e.runtime};
-        await _repo.markSeason(
-            s.tvShowId, _season!, [for (final e in aired) e.number],
-            runtimes: runtimes, date: date);
-        final eps = [
-          for (final e in aired) [_season!, e.number]
-        ];
-        for (final f in friends) {
-          try {
-            await SocialController.instance.sendSeriesCoWatch(
-              toUserId: f.id,
-              title: s.displayTitle,
-              origTitle: s.title,
-              year: s.year,
-              tmdbId: s.tmdbId,
-              posterUrl: s.posterUrl,
-              watchedAt: date,
-              episodes: eps,
-            );
-          } catch (_) {/* пропускаем этого друга */}
-        }
-        if (mounted) _snack(trf('cowatch_marked', {'n': friends.length}));
-      },
+    // Что осталось отметить: весь сезон или часть идущего просмотра.
+    final subject = [
+      trf('season_n', {'n': season}),
+      if (aired.isNotEmpty)
+        st.left == st.total
+            ? trn('ss_episodes', st.total)
+            : trn('mark_left', st.left, {'total': st.total}),
+    ].join(' · ');
+    final first = st.completed == 0;
+    final choice = await showMarkSheet(
+      context,
+      title: tr('mark_season_q'),
+      subject: subject,
+      ordinal: st.current,
+      coWatch: first,
+      dangerLabel: watched > 0 ? tr('season_clear_all_season') : null,
     );
+    if (choice == null || !mounted) return;
+    if (choice.danger) {
+      await _clearSeason(season, watched);
+      return;
+    }
+    if (aired.isEmpty) return;
+    final date = choice.date;
+    if (!first) {
+      final n = await _repo.completeSeasonPass(
+          s.tvShowId, season, [for (final e in aired) e.number], date);
+      if (mounted && n > 0) _snack(trf('season_rewatched', {'c': n}));
+      return;
+    }
+    final fresh = [
+      for (final e in aired)
+        if (!s.isEpisodeWatched(e.season, e.number)) e,
+    ];
+    await _repo.markSeason(s.tvShowId, season, [for (final e in fresh) e.number],
+        runtimes: {for (final e in fresh) e.number: e.runtime}, date: date);
+    if (!mounted) return;
+    if (choice.friends.isEmpty) {
+      // Честно предупреждаем: без даты сезон не попадёт в ленту «Просмотрено»
+      // (записи без даты туда намеренно не идут).
+      _snack(date == null
+          ? trf('season_done_undated', {'n': season})
+          : trf('season_done', {'n': season}));
+      return;
+    }
+    final eps = [
+      for (final e in fresh) [season, e.number],
+    ];
+    for (final f in choice.friends) {
+      try {
+        await SocialController.instance.sendSeriesCoWatch(
+          toUserId: f.id,
+          title: s.displayTitle,
+          origTitle: s.title,
+          year: s.year,
+          tmdbId: s.tmdbId,
+          posterUrl: s.posterUrl,
+          watchedAt: date,
+          episodes: eps,
+        );
+      } catch (_) {/* пропускаем этого друга */}
+    }
+    if (mounted) _snack(trf('cowatch_marked', {'n': choice.friends.length}));
   }
 
-  bool get _hasFriends =>
-      SocialController.instance.friends.friends.isNotEmpty;
+  /// «Снять все просмотры сезона»: спрашивает, снимает и оставляет плашку
+  /// «Вернуть» со снимком сериала.
+  Future<void> _clearSeason(int season, int watched) async {
+    if (!await _confirmUnmarkSeason(watched) || !mounted) return;
+    final snap = s.toJson();
+    await _repo.unmarkSeason(s.tvShowId, season);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(tr('season_cleared')),
+        action: SnackBarAction(
+          label: tr('view_restore'),
+          onPressed: () => _repo.restoreFromSnapshot(const [], [snap]),
+        ),
+      ));
+  }
 
   /// Подтверждение перед снятием всех просмотров сезона: вместе с отметками
   /// теряются даты и оценки серий, вернуть их нечем.
@@ -1552,241 +1501,6 @@ class _SeriesScreenState extends State<SeriesScreen> {
     return ok == true;
   }
 
-  /// Меню по удержанию кнопки сезона: отметить ВЕСЬ сезон просмотренным ещё раз
-  /// с выбором даты + снять все просмотры.
-  void _seasonRewatchMenu(ColorScheme scheme) {
-    if (_season == null) return;
-    final watchedInSeason = s.episodes.where((e) => e.season == _season).length;
-    if (watchedInSeason == 0) {
-      // Сезон ещё не смотрели — предлагаем обычную отметку с датой.
-      _seasonMarkSheet();
-      return;
-    }
-    _showSeasonWhenSheet(
-      title: trf('season_rewatch_title', {'n': _season!}),
-      subtitle: trf('season_rewatch_sub', {'n': watchedInSeason}),
-      onDate: (date) async {
-        final n = await _repo.rewatchSeason(s.tvShowId, _season!, date);
-        if (!mounted) return;
-        _snack(n > 0
-            ? trf('season_rewatched', {'c': n})
-            : tr('season_no_watched'));
-      },
-      extra: (sheetCtx) => _seasonMenuTile(
-          Theme.of(sheetCtx).colorScheme,
-          Icons.remove_done_rounded,
-          tr('season_clear_all'), () async {
-        Navigator.pop(sheetCtx);
-        if (!await _confirmUnmarkSeason(watchedInSeason)) return;
-        _repo.unmarkSeason(s.tvShowId, _season!);
-        _snack(tr('season_cleared'));
-      }, danger: true),
-    );
-  }
-
-  /// Общий лист «когда» для сезона (в стиле «Когда вы посмотрели?»). [onDate]
-  /// получает выбранную дату (null = «Неизвестная дата»); [extra] — доп. плитка
-  /// внизу (напр. «Снять все просмотры»). Если [coWatchEnabled] и есть друзья —
-  /// показывается «Посмотрел с другом»: после выбора друзей дата уходит в
-  /// [onCoWatch] вместо [onDate].
-  void _showSeasonWhenSheet({
-    required String title,
-    required String subtitle,
-    required void Function(DateTime?) onDate,
-    Widget Function(BuildContext sheetCtx)? extra,
-    bool coWatchEnabled = false,
-    void Function(DateTime? date, List<SocialUser> friends)? onCoWatch,
-  }) {
-    final scheme = Theme.of(context).colorScheme;
-    final now = DateTime.now();
-
-    showModalBottomSheet<void>(
-      context: context,
-      // Прокручиваемый: лист может вырасти на всю высоту, и SafeArea поднимает
-      // содержимое над системными кнопками — иначе нижний (красный) пункт и
-      // заголовок обрезались на невысоком экране.
-      isScrollControlled: true,
-      backgroundColor: scheme.surfaceContainer,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetCtx) {
-        List<SocialUser>? picked; // с кем смотрели (co-watch)
-        return StatefulBuilder(
-          builder: (sheetCtx, setSheet) {
-            void choose(DateTime? d) {
-              Navigator.pop(sheetCtx);
-              if (picked != null && onCoWatch != null) {
-                onCoWatch(d, picked!);
-              } else {
-                onDate(d);
-              }
-            }
-
-            Future<void> pickDate() async {
-              final date = await showDatePicker(
-                context: sheetCtx,
-                initialDate: now,
-                firstDate: DateTime(1900),
-                lastDate: now,
-              );
-              if (date == null || !sheetCtx.mounted) return;
-              final time = await showTimePicker(
-                context: sheetCtx,
-                initialTime: TimeOfDay.now(),
-              );
-              final dt = time == null
-                  ? DateTime(date.year, date.month, date.day)
-                  : DateTime(
-                      date.year, date.month, date.day, time.hour, time.minute);
-              if (sheetCtx.mounted) choose(dt);
-            }
-
-            Future<void> pickFriends() async {
-              final fr = await pickCoWatchFriends(sheetCtx);
-              if (fr != null && fr.isNotEmpty) setSheet(() => picked = fr);
-            }
-
-            return SafeArea(
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 12),
-                    Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                            color: scheme.outlineVariant,
-                            borderRadius: BorderRadius.circular(2))),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 18, 24, 4),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(title,
-                            style: TextStyle(
-                                fontFamily: AppTheme.displayFont,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 20,
-                                color: scheme.primary)),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(subtitle,
-                            style: TextStyle(
-                                fontFamily: AppTheme.bodyFont,
-                                fontSize: 13,
-                                color: scheme.onSurfaceVariant)),
-                      ),
-                    ),
-                    if (picked != null)
-                      _seasonCoWatchBanner(scheme, picked!, pickFriends),
-                    _seasonMenuTile(scheme, Icons.help_outline_rounded,
-                        tr('when_unknown'), () => choose(null)),
-                    _seasonMenuTile(scheme, Icons.flag_rounded,
-                        tr('when_just_finished'), () => choose(now)),
-                    _seasonMenuTile(scheme, Icons.today_rounded,
-                        tr('when_today'), () => choose(now)),
-                    _seasonMenuTile(scheme, Icons.history_rounded,
-                        tr('when_yesterday'),
-                        () => choose(now.subtract(const Duration(days: 1)))),
-                    _seasonMenuTile(scheme, Icons.event_rounded,
-                        tr('when_pick_date'), pickDate),
-                    if (coWatchEnabled && picked == null && _hasFriends) ...[
-                      Divider(
-                          height: 18,
-                          indent: 24,
-                          endIndent: 24,
-                          color: scheme.outlineVariant),
-                      _seasonMenuTile(scheme, Icons.group_rounded,
-                          tr('cowatch_with_friend'), pickFriends),
-                    ],
-                    if (extra != null) ...[
-                      Divider(
-                          height: 20,
-                          indent: 24,
-                          endIndent: 24,
-                          color: scheme.outlineVariant),
-                      extra(sheetCtx),
-                    ],
-                    const SizedBox(height: 12),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  /// Плашка «С: имена» + «Изменить» на листе сезона (co-watch выбран).
-  Widget _seasonCoWatchBanner(
-      ColorScheme scheme, List<SocialUser> friends, VoidCallback onChange) {
-    final names = friends.map((f) => f.displayName).join(', ');
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-        decoration: BoxDecoration(
-            color: scheme.primaryContainer,
-            borderRadius: BorderRadius.circular(16)),
-        child: Row(
-          children: [
-            Icon(Icons.group_rounded,
-                size: 20, color: scheme.onPrimaryContainer),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(trf('cowatch_with', {'names': names}),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontFamily: AppTheme.bodyFont,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13.5,
-                      color: scheme.onPrimaryContainer)),
-            ),
-            TextButton(onPressed: onChange, child: Text(tr('cowatch_change'))),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Плитка меню сезона в стиле «Когда вы посмотрели?» (крупный круглый значок).
-  Widget _seasonMenuTile(
-      ColorScheme scheme, IconData icon, String label, VoidCallback onTap,
-      {bool danger = false}) {
-    final bg = danger ? kDroppedColor.withValues(alpha: 0.16) : scheme.primaryContainer;
-    final fg = danger ? kDroppedColor : scheme.onPrimaryContainer;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-              child: Icon(icon, color: fg, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Text(label,
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                    color: danger ? kDroppedColor : scheme.onSurface)),
-          ],
-        ),
-      ),
-    );
-  }
-
   /// Ставит одну оценку всем УЖЕ ПРОСМОТРЕННЫМ сериям сезона (не отмечает новые
   /// и не трогает невышедшие).
   Future<void> _rateSeason() async {
@@ -1800,46 +1514,6 @@ class _SeriesScreenState extends State<SeriesScreen> {
           : tr('season_no_watched'));
     }
   }
-
-  /// Правка даты и времени просмотра серии из меню списка (дата → время).
-  Future<void> _editEpisodeDate(Episode we) async {
-    final now = DateTime.now();
-    final initial = we.watchedAt ?? now;
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(1900),
-      lastDate: now,
-    );
-    if (picked == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(initial),
-    );
-    final dt = time == null
-        ? DateTime(picked.year, picked.month, picked.day)
-        : DateTime(picked.year, picked.month, picked.day, time.hour, time.minute);
-    await _repo.setEpisodeWatchedAt(s.tvShowId, we, dt);
-  }
-
-  Widget _menuTile(
-          ColorScheme scheme, IconData icon, String label, VoidCallback onTap) =>
-      InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          child: Row(children: [
-            Icon(icon, color: scheme.onSurfaceVariant),
-            const SizedBox(width: 16),
-            Text(label,
-                style: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                    color: scheme.onSurface)),
-          ]),
-        ),
-      );
 
   Widget _errorCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -2043,29 +1717,16 @@ class _SeriesScreenState extends State<SeriesScreen> {
         onCommit: (v) => _repo.setSeriesScore(s.tvShowId, v),
       );
 
-  /// Открывает полный экран серии (нижней панелью, как карточка фильма).
-  void _openEpisode(TmdbEpisode ep) {
-    final scheme = Theme.of(context).colorScheme;
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: scheme.surfaceContainer,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (_) => _EpisodeSheet(
+  /// Открывает окно серии (нижней панелью, как карточка фильма).
+  void _openEpisode(TmdbEpisode ep) => showEpisodeSheet(
+        context,
         seriesId: s.tvShowId,
         seriesTitle: s.displayTitle,
         ep: ep,
         canMark: _aired(ep),
-        onMark: () => _markEpisode(ep),
-        onRewatch: () => _repo.addEpisodeRewatch(
-            s.tvShowId, ep.season, ep.number,
-            runtimeMin: ep.runtime),
-        onUnmark: () => _unmarkEpisode(ep),
-      ),
-    );
-  }
+        onMark: () => _tapCheck(ep),
+        repo: _repo,
+      );
 
   /// Универсальный лист оценки (сериал / серия) со слайдером-линейкой.
   void _ratingSheet({
@@ -2180,739 +1841,3 @@ class _SeriesScreenState extends State<SeriesScreen> {
   }
 }
 
-/// Полный экран одной серии (нижней панелью) — как карточка фильма, но данные
-/// текущей серии: кадр, описание, оценка серии, управление просмотром.
-class _EpisodeSheet extends StatefulWidget {
-  final String seriesId;
-  final String seriesTitle;
-  final TmdbEpisode ep;
-  final bool canMark;
-  final VoidCallback onMark;
-  final VoidCallback onRewatch;
-  final VoidCallback onUnmark;
-  const _EpisodeSheet({
-    required this.seriesId,
-    required this.seriesTitle,
-    required this.ep,
-    required this.canMark,
-    required this.onMark,
-    required this.onRewatch,
-    required this.onUnmark,
-  });
-
-  @override
-  State<_EpisodeSheet> createState() => _EpisodeSheetState();
-}
-
-class _EpisodeSheetState extends State<_EpisodeSheet> {
-  final _repo = MovieRepository.instance;
-  final _messenger = GlobalKey<ScaffoldMessengerState>();
-  double? _dragging;
-
-  TmdbEpisode get ep => widget.ep;
-
-  Episode? get _we =>
-      _repo.seriesById(widget.seriesId)?.watchedEpisode(ep.season, ep.number);
-
-  void _copy(String text) {
-    Clipboard.setData(ClipboardData(text: text));
-    _messenger.currentState?.showSnackBar(SnackBar(
-        content: Text(tr('copied')), behavior: SnackBarBehavior.floating));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: _repo,
-      builder: (context, _) {
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.8,
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          builder: (context, controller) => ScaffoldMessenger(
-            key: _messenger,
-            child: Scaffold(
-              backgroundColor: Colors.transparent,
-              body: ListView(
-                controller: controller,
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-                children: _content(Theme.of(context).colorScheme),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  List<Widget> _content(ColorScheme scheme) {
-    final we = _we;
-    final watched = we != null;
-    final meta = [
-      if (ep.airDate != null && DateTime.tryParse(ep.airDate!) != null)
-        numericDate(DateTime.parse(ep.airDate!)),
-      if (ep.runtime != null && ep.runtime! > 0)
-        humanDuration(Duration(minutes: ep.runtime!)),
-    ].join(' · ');
-    return [
-      Center(
-        child: Container(
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-              color: scheme.outlineVariant,
-              borderRadius: BorderRadius.circular(2)),
-        ),
-      ),
-      const SizedBox(height: 16),
-      // Кадр серии → фулскрин по тапу.
-      GestureDetector(
-        onTap: ep.stillUrl != null
-            ? () => openPosterViewer(context,
-                title: ep.name,
-                url: ep.stillUrl,
-                heroTag: 'ep-${widget.seriesId}-${ep.season}-${ep.number}')
-            : null,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: ep.stillUrl != null
-                ? Hero(
-                    tag: 'ep-${widget.seriesId}-${ep.season}-${ep.number}',
-                    child: CachedNetworkImage(
-                      imageUrl: ep.stillUrl!,
-                      fit: BoxFit.cover,
-                      placeholder: (c, _) =>
-                          Container(color: scheme.surfaceContainerHighest),
-                      errorWidget: (c, u, e) =>
-                          Container(color: scheme.surfaceContainerHighest),
-                    ),
-                  )
-                : Container(
-                    color: scheme.surfaceContainerHighest,
-                    child: Icon(Icons.tv_rounded,
-                        size: 44, color: scheme.onSurfaceVariant)),
-          ),
-        ),
-      ),
-      const SizedBox(height: 14),
-      Text('${widget.seriesTitle}  ·  S${ep.season}·E${ep.number}',
-          style: TextStyle(
-              fontFamily: AppTheme.bodyFont,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-              color: scheme.primary)),
-      const SizedBox(height: 4),
-      GestureDetector(
-        onLongPress: () => _copy(ep.name),
-        child: Text(ep.name,
-            style: TextStyle(
-                fontFamily: AppTheme.displayFont,
-                fontWeight: FontWeight.w800,
-                fontSize: 22,
-                height: 1.1,
-                color: scheme.onSurface)),
-      ),
-      if (meta.isNotEmpty) ...[
-        const SizedBox(height: 6),
-        Text(meta,
-            style: TextStyle(
-                fontFamily: AppTheme.bodyFont,
-                fontSize: 14,
-                color: scheme.onSurfaceVariant)),
-      ],
-      // Несколько просмотров → список «Оценки по просмотрам»: у КАЖДОГО своя
-      // дата и оценка, каждый редактируется/удаляется (как у фильмов). Один
-      // просмотр → обычная карточка оценки + дата.
-      if (we != null && we.watchCount > 1) ...[
-        const SizedBox(height: 20),
-        Text(tr('per_viewing_scores'),
-            style: TextStyle(
-                fontFamily: AppTheme.displayFont,
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-                color: scheme.primary)),
-        const SizedBox(height: 8),
-        ..._episodeViewRows(scheme, we),
-      ] else ...[
-        // Дата и время просмотра — редактируемые (как у фильмов).
-        if (we != null) ...[
-          const SizedBox(height: 14),
-          _watchedAtTile(scheme, we),
-        ],
-        const SizedBox(height: 18),
-        _scoreCard(scheme, we),
-        if (we?.score != null) ...[
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.tonalIcon(
-              onPressed: () {
-                _repo.setEpisodeScore(widget.seriesId, we!, null);
-                setState(() => _dragging = null);
-              },
-              icon: const Icon(Icons.star_outline_rounded),
-              label: Text(tr('remove_score')),
-              style: FilledButton.styleFrom(
-                  backgroundColor: kDroppedColor.withValues(alpha: 0.16),
-                  foregroundColor: kDroppedColor),
-            ),
-          ),
-        ],
-      ],
-      const SizedBox(height: 16),
-      ..._watchButtons(scheme, watched),
-      if (ep.overview != null && ep.overview!.isNotEmpty) ...[
-        const SizedBox(height: 20),
-        Text(tr('overview'),
-            style: TextStyle(
-                fontFamily: AppTheme.displayFont,
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-                color: scheme.primary)),
-        const SizedBox(height: 6),
-        GestureDetector(
-          onLongPress: () => _copy(ep.overview!),
-          child: Text(ep.overview!,
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontSize: 14,
-                  height: 1.45,
-                  color: scheme.onSurface)),
-        ),
-      ],
-    ];
-  }
-
-  /// Список «Оценки по просмотрам» серии: каждый просмотр (первый + повторы) со
-  /// своей датой и оценкой; тап → редактор (как у фильмов).
-  List<Widget> _episodeViewRows(ColorScheme scheme, Episode we) {
-    final list = we.views;
-    final rows = <Widget>[];
-    for (var i = list.length - 1; i >= 0; i--) {
-      final v = list[i];
-      final isRewatch = i > 0;
-      final sc = we.scoreOfView(v);
-      rows.add(Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => _editEpisodeView(context, we, i),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-            child: Row(
-              children: [
-                Icon(isRewatch ? Icons.repeat_rounded : Icons.event_rounded,
-                    size: 20, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                          v.hasDate
-                              ? dateExactWithTime(v.date!)
-                              : tr('when_unknown'),
-                          style: TextStyle(
-                              fontFamily: AppTheme.bodyFont,
-                              fontSize: 14,
-                              color: scheme.onSurface)),
-                      if (isRewatch)
-                        Text(trf('viewing_n', {'n': i + 1}),
-                            style: TextStyle(
-                                fontFamily: AppTheme.bodyFont,
-                                fontSize: 11.5,
-                                color: scheme.onSurfaceVariant
-                                    .withValues(alpha: 0.8))),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: sc != null
-                        ? scoreColor(sc)
-                        : scheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                          sc != null
-                              ? Icons.star_rounded
-                              : Icons.star_border_rounded,
-                          size: 16,
-                          color: sc != null
-                              ? onScoreColor(sc)
-                              : scheme.onSurfaceVariant),
-                      const SizedBox(width: 4),
-                      Text(sc != null ? sc.toStringAsFixed(1) : tr('not_rated'),
-                          style: TextStyle(
-                              fontFamily: AppTheme.displayFont,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                              color: sc != null
-                                  ? onScoreColor(sc)
-                                  : scheme.onSurfaceVariant)),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Icon(Icons.edit_rounded,
-                    size: 17,
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.7)),
-              ],
-            ),
-          ),
-        ),
-      ));
-    }
-    return rows;
-  }
-
-  /// Редактор одного просмотра серии: дата + оценка + удаление (как у фильмов).
-  void _editEpisodeView(BuildContext context, Episode we, int viewIndex) {
-    final v = we.views[viewIndex];
-    DateTime? date = v.date;
-    bool rated = we.scoreOfView(v) != null;
-    double val = we.scoreOfView(v) ?? 1.0;
-    final scheme = Theme.of(context).colorScheme;
-    final sid = widget.seriesId;
-    final season = ep.season, number = ep.number;
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: scheme.surfaceContainer,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetCtx) => StatefulBuilder(
-        builder: (sheetCtx, setSheet) => SafeArea(
-          child: Padding(
-            padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 14,
-                bottom: 20 + MediaQuery.of(sheetCtx).viewInsets.bottom),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                        color: scheme.outlineVariant,
-                        borderRadius: BorderRadius.circular(2))),
-                const SizedBox(height: 14),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                      viewIndex > 0
-                          ? trf('viewing_n', {'n': viewIndex + 1})
-                          : tr('edit_viewing'),
-                      style: TextStyle(
-                          fontFamily: AppTheme.displayFont,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                          color: scheme.onSurface)),
-                ),
-                const SizedBox(height: 12),
-                Material(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(16),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () async {
-                      final now = DateTime.now();
-                      final picked = await showDatePicker(
-                        context: sheetCtx,
-                        initialDate: date ?? now,
-                        firstDate: DateTime(1900),
-                        lastDate: now,
-                      );
-                      if (picked == null || !sheetCtx.mounted) return;
-                      final time = await showTimePicker(
-                        context: sheetCtx,
-                        initialTime: TimeOfDay.fromDateTime(date ?? now),
-                      );
-                      setSheet(() => date = time == null
-                          ? DateTime(picked.year, picked.month, picked.day)
-                          : DateTime(picked.year, picked.month, picked.day,
-                              time.hour, time.minute));
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
-                      child: Row(
-                        children: [
-                          Icon(Icons.event_rounded, color: scheme.primary),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(tr('date_time'),
-                                    style: TextStyle(
-                                        fontFamily: AppTheme.bodyFont,
-                                        fontSize: 12,
-                                        color: scheme.onSurfaceVariant)),
-                                Text(
-                                    date == null
-                                        ? tr('when_unknown')
-                                        : dateExactWithTime(date!),
-                                    style: TextStyle(
-                                        fontFamily: AppTheme.bodyFont,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 15,
-                                        color: scheme.onSurface)),
-                              ],
-                            ),
-                          ),
-                          if (date != null)
-                            IconButton(
-                              icon: const Icon(Icons.close_rounded, size: 20),
-                              tooltip: tr('clear_date'),
-                              onPressed: () => setSheet(() => date = null),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () async {
-                    final r =
-                        await showScorePad(sheetCtx);
-                    if (r != null) {
-                      setSheet(() {
-                        val = r;
-                        rated = true;
-                      });
-                    }
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(rated ? val.toStringAsFixed(1) : '—',
-                          style: TextStyle(
-                              fontFamily: AppTheme.displayFont,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 46,
-                              color: rated
-                                  ? scoreColor(val)
-                                  : scheme.onSurfaceVariant)),
-                      const SizedBox(width: 8),
-                      Icon(Icons.dialpad_rounded,
-                          size: 18, color: scheme.onSurfaceVariant),
-                    ],
-                  ),
-                ),
-                Text(tr('rate_this_viewing'),
-                    style: TextStyle(
-                        fontFamily: AppTheme.bodyFont,
-                        fontSize: 12.5,
-                        color: scheme.onSurfaceVariant)),
-                const SizedBox(height: 4),
-                RatingSlider(
-                  value: val,
-                  onChanged: (x) => setSheet(() {
-                    val = x;
-                    rated = true;
-                  }),
-                ),
-                Row(
-                  children: [
-                    IconButton.filledTonal(
-                      onPressed: () {
-                        _repo.removeEpisodeView(sid, season, number, viewIndex);
-                        Navigator.pop(sheetCtx);
-                      },
-                      icon: const Icon(Icons.delete_outline_rounded),
-                      style: IconButton.styleFrom(
-                          backgroundColor: scheme.errorContainer,
-                          foregroundColor: scheme.onErrorContainer),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => setSheet(() => rated = false),
-                        child: Text(tr('remove_score')),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () {
-                          _repo.setEpisodeViewDate(
-                              sid, season, number, viewIndex, date);
-                          _repo.setEpisodeViewScore(
-                              sid, season, number, viewIndex, rated ? val : null);
-                          Navigator.pop(sheetCtx);
-                        },
-                        child: Text(tr('done')),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _watchButtons(ColorScheme scheme, bool watched) {
-    if (!watched) {
-      // Невышедшую серию отметить нельзя — показываем подсказку.
-      if (!widget.canMark) {
-        return [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(16)),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.schedule_rounded,
-                    size: 20, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Text(tr('episode_not_aired'),
-                      style: TextStyle(
-                          fontFamily: AppTheme.bodyFont,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: scheme.onSurfaceVariant)),
-                ),
-              ],
-            ),
-          ),
-        ];
-      }
-      return [
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: widget.onMark,
-            icon: const Icon(Icons.check_rounded),
-            label: Text(tr('mark_watched')),
-          ),
-        ),
-      ];
-    }
-    final watches = _we?.watchCount ?? 1;
-    return [
-      SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          onPressed: widget.onRewatch,
-          icon: const Icon(Icons.repeat_rounded),
-          label: Text('${tr('watch_again')}  ·  ×$watches'),
-        ),
-      ),
-      const SizedBox(height: 12),
-      SizedBox(
-        width: double.infinity,
-        child: FilledButton.tonalIcon(
-          onPressed: () {
-            widget.onUnmark();
-            Navigator.of(context).maybePop();
-          },
-          icon: const Icon(Icons.remove_done_rounded),
-          label: Text(tr('undo_watch')),
-          style: FilledButton.styleFrom(
-              backgroundColor: scheme.surfaceContainerHighest,
-              foregroundColor: scheme.onSurfaceVariant),
-        ),
-      ),
-    ];
-  }
-
-  /// Плитка «Дата и время просмотра» с правкой (дата+время) и очисткой.
-  Widget _watchedAtTile(ColorScheme scheme, Episode we) {
-    return Material(
-      color: scheme.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => _editWatchedAt(we),
-        // Удержание — быстро пометить дату как «Неизвестно».
-        onLongPress: we.watchedAt == null
-            ? null
-            : () {
-                _repo.setEpisodeWatchedAt(widget.seriesId, we, null);
-                _messenger.currentState?.showSnackBar(SnackBar(
-                    content: Text(tr('marked_unknown')),
-                    behavior: SnackBarBehavior.floating));
-              },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Icon(Icons.event_rounded, color: scheme.primary),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(tr('date_time'),
-                        style: TextStyle(
-                            fontFamily: AppTheme.bodyFont,
-                            fontSize: 12,
-                            color: scheme.onSurfaceVariant)),
-                    Text(
-                        we.watchedAt == null
-                            ? tr('when_unknown')
-                            : dateExactWithTime(we.watchedAt!),
-                        style: TextStyle(
-                            fontFamily: AppTheme.bodyFont,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            color: scheme.onSurface)),
-                  ],
-                ),
-              ),
-              if (we.watchedAt != null)
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20),
-                  tooltip: tr('clear_date'),
-                  onPressed: () =>
-                      _repo.setEpisodeWatchedAt(widget.seriesId, we, null),
-                )
-              else
-                Icon(Icons.edit_rounded,
-                    size: 18, color: scheme.onSurfaceVariant),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Диалоги выбора даты, затем времени просмотра серии.
-  Future<void> _editWatchedAt(Episode we) async {
-    final now = DateTime.now();
-    final initial = we.watchedAt ?? now;
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(1900),
-      lastDate: now,
-    );
-    if (picked == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(initial),
-    );
-    final dt = time == null
-        ? DateTime(picked.year, picked.month, picked.day)
-        : DateTime(picked.year, picked.month, picked.day, time.hour, time.minute);
-    await _repo.setEpisodeWatchedAt(widget.seriesId, we, dt);
-  }
-
-  Widget _scoreCard(ColorScheme scheme, Episode? we) {
-    if (we == null) {
-      return Container(
-        padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-        decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(24)),
-        child: Column(children: [
-          Icon(Icons.star_border_rounded,
-              size: 34, color: scheme.onSurfaceVariant),
-          const SizedBox(height: 8),
-          Text(tr('rate_after_watch_ep'),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontFamily: AppTheme.bodyFont,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                  color: scheme.onSurfaceVariant)),
-        ]),
-      );
-    }
-    final rated = _dragging != null || we.score != null;
-    final val = _dragging ?? we.score ?? 1.0;
-    final accent = scoreColor(val);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      decoration: BoxDecoration(
-          color: scheme.primaryContainer,
-          borderRadius: BorderRadius.circular(24)),
-      child: Column(children: [
-        Text(tr('episode_score'),
-            style: TextStyle(
-                fontFamily: AppTheme.bodyFont,
-                fontWeight: FontWeight.w600,
-                fontSize: 12.5,
-                color: scheme.onPrimaryContainer.withValues(alpha: 0.8))),
-        const SizedBox(height: 2),
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () async {
-            final r = await showScorePad(context);
-            if (r != null) {
-              _repo.setEpisodeScore(widget.seriesId, we, r);
-              if (mounted) setState(() => _dragging = null);
-            }
-          },
-          child: TweenAnimationBuilder<Color?>(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOut,
-            tween: ColorTween(
-                end: rated
-                    ? accent
-                    : scheme.onPrimaryContainer.withValues(alpha: 0.55)),
-            builder: (context, color, _) => Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Icon(rated ? Icons.star_rounded : Icons.star_border_rounded,
-                    color: color, size: 30),
-                const SizedBox(width: 6),
-                Text(rated ? val.toStringAsFixed(1) : '—',
-                    style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 44,
-                        height: 1,
-                        color: color)),
-                Text(' / 10',
-                    style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18,
-                        color:
-                            scheme.onPrimaryContainer.withValues(alpha: 0.7))),
-                const SizedBox(width: 8),
-                Icon(Icons.dialpad_rounded,
-                    size: 18,
-                    color: scheme.onPrimaryContainer.withValues(alpha: 0.55)),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        RatingSlider(
-          value: val,
-          onChanged: (v) => setState(() => _dragging = v),
-          onChangeEnd: (v) {
-            _repo.setEpisodeScore(widget.seriesId, we, v);
-            setState(() => _dragging = null);
-          },
-        ),
-      ]),
-    );
-  }
-}

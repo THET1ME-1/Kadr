@@ -6,6 +6,7 @@ import '../../models/social.dart';
 import '../../services/movie_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
+import '../../utils/movie_reviews.dart';
 import '../../utils/score.dart';
 import '../../widgets/poster.dart';
 import '../../widgets/review/review_parts.dart';
@@ -22,7 +23,7 @@ void showReadonlyMovieSheet(BuildContext context, LibraryMovie m,
     if (m.year != null) '${m.year}',
     if (m.runtimeMin != null) humanDuration(Duration(minutes: m.runtimeMin!)),
   ].join(' · ');
-  final views = m.sortedViewings.reversed.toList();
+  final views = m.orderedViewings.reversed.toList();
 
   showModalBottomSheet<void>(
     context: context,
@@ -91,11 +92,18 @@ void showReadonlyMovieSheet(BuildContext context, LibraryMovie m,
                 ],
               ),
             ],
-            if (m.reviewIsPublic) ...[
-              const SizedBox(height: 18),
-              _friendReview(
-                  ctx, ReviewTarget.movie(m, repo: repo), author),
-            ],
+            // У фильма бывает рецензия на каждый просмотр: свежие сверху.
+            for (final r in movieReviews(m).reversed)
+              if (r.item.reviewIsPublic) ...[
+                const SizedBox(height: 18),
+                _friendReview(
+                    ctx,
+                    ReviewTarget.movie(m,
+                        repo: repo,
+                        viewId: r.viewing?.id,
+                        unbound: r.viewing == null),
+                    author),
+              ],
             if (views.isNotEmpty) ...[
               const SizedBox(height: 18),
               Text(tr('nav_watched'),
@@ -304,7 +312,7 @@ Widget _viewingRow(ColorScheme scheme, LibraryMovie m, Viewing v) {
 }
 
 Widget _episodeRow(ColorScheme scheme, Episode e) {
-  final sc = e.score;
+  final sc = e.currentScore;
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 5),
     child: Row(

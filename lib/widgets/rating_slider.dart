@@ -16,12 +16,17 @@ class RatingSlider extends StatefulWidget {
   final ValueChanged<double>? onChangeStart;
   final ValueChanged<double>? onChangeEnd;
 
+  /// Оценка ещё не поставлена: бегунок нейтральный, с вопросом, дорожка
+  /// пустая. Иначе он стоял бы красной единицей, будто её уже поставили.
+  final bool rated;
+
   const RatingSlider({
     super.key,
     required this.value,
     required this.onChanged,
     this.onChangeStart,
     this.onChangeEnd,
+    this.rated = true,
   });
 
   @override
@@ -49,10 +54,12 @@ class _RatingSliderState extends State<RatingSlider> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final c = scoreColor(widget.value);
+    // Пока оценки нет и бегунок не трогают, он стоит слева пустым.
+    final empty = !widget.rated && !_active;
     return LayoutBuilder(builder: (context, box) {
       final width = box.maxWidth;
       final usable = (width - _knob).clamp(1.0, double.infinity);
-      final frac = ((widget.value - 1) / 9).clamp(0.0, 1.0);
+      final frac = empty ? 0.0 : ((widget.value - 1) / 9).clamp(0.0, 1.0);
       final knobX = _knob / 2 + frac * usable;
 
       void update(double dx) {
@@ -111,7 +118,7 @@ class _RatingSliderState extends State<RatingSlider> {
                   painter: _TrackPainter(
                     frac: frac,
                     knob: _knob,
-                    fill: c,
+                    fill: empty ? Colors.transparent : c,
                     track: scheme.surfaceContainerHighest,
                     tick: scheme.onSurfaceVariant.withValues(alpha: 0.35),
                   ),
@@ -130,23 +137,30 @@ class _RatingSliderState extends State<RatingSlider> {
                     height: _knob,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: c,
+                      color: empty ? scheme.surface : c,
                       shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: c.withValues(alpha: 0.45),
-                          blurRadius: _active ? 16 : 9,
-                          spreadRadius: _active ? 1 : 0,
-                        ),
-                      ],
+                      border: empty
+                          ? Border.all(color: scheme.outlineVariant, width: 2)
+                          : null,
+                      boxShadow: empty
+                          ? null
+                          : [
+                              BoxShadow(
+                                color: c.withValues(alpha: 0.45),
+                                blurRadius: _active ? 16 : 9,
+                                spreadRadius: _active ? 1 : 0,
+                              ),
+                            ],
                     ),
                     child: Text(
-                      widget.value.toStringAsFixed(1),
+                      empty ? '?' : widget.value.toStringAsFixed(1),
                       style: TextStyle(
                         fontFamily: AppTheme.displayFont,
                         fontWeight: FontWeight.w800,
                         fontSize: 15,
-                        color: onScoreColor(widget.value),
+                        color: empty
+                            ? scheme.onSurfaceVariant
+                            : onScoreColor(widget.value),
                       ),
                     ),
                   ),
