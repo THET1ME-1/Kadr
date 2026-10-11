@@ -5,6 +5,7 @@ import '../services/auto_backup_service.dart';
 import '../services/movie_repository.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
+import 'restore_dialog.dart';
 
 /// Настройки локальных автобекапов: папка, частота, «создать сейчас» и
 /// восстановление из копии (в т.ч. подсказка на свежей установке).
@@ -73,10 +74,14 @@ class _AutoBackupScreenState extends State<AutoBackupScreen> {
         ],
       ),
     );
-    if (ok == true) await _doRestore(latest);
+    if (ok == true && mounted) await _restoreAsking(latest);
   }
 
+  /// Кнопка «Восстановить» у копии. В библиотеке есть записи: спрашиваем,
+  /// добавить копию или заменить библиотеку ею. Пустая библиотека: прежнее
+  /// подтверждение.
   Future<void> _confirmRestore(BackupFile b) async {
+    if (MovieRepository.instance.hasData) return _restoreAsking(b);
     final scheme = Theme.of(context).colorScheme;
     final ok = await showDialog<bool>(
       context: context,
@@ -98,15 +103,24 @@ class _AutoBackupScreenState extends State<AutoBackupScreen> {
         ],
       ),
     );
-    if (ok == true) await _doRestore(b);
+    if (ok == true) await _doRestore(b, merge: false);
   }
 
-  Future<void> _doRestore(BackupFile b) async {
-    final done = await _svc.restore(b);
+  Future<void> _restoreAsking(BackupFile b) async {
+    final mode =
+        await askRestoreMode(context, when: dateExactWithTime(b.date));
+    if (mode == null || !mounted) return;
+    await _doRestore(b, merge: mode == RestoreMode.merge);
+  }
+
+  Future<void> _doRestore(BackupFile b, {required bool merge}) async {
+    final res = await _svc.restore(b, merge: merge);
     if (!mounted) return;
-    if (done) {
-      _snack(trf(
-          'restore_done_n', {'n': MovieRepository.instance.movies.length}));
+    if (res.ok) {
+      _snack([
+        trf('restore_done_n', {'n': MovieRepository.instance.movies.length}),
+        if (res.skipped > 0) trf('restore_skipped_n', {'n': res.skipped}),
+      ].join('. '));
       _loadBackups();
     } else {
       _snack(tr('restore_failed'));

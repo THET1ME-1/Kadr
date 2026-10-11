@@ -6,7 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:saf_stream/saf_stream.dart';
 import 'package:saf_util/saf_util.dart';
 
+import 'backup_service.dart';
 import 'movie_repository.dart';
+import 'poster_store.dart';
 import 'store.dart';
 
 /// Как часто делать локальный автобекап.
@@ -166,13 +168,15 @@ class AutoBackupService extends ChangeNotifier {
         _lastError = 'empty';
         return false;
       }
-      final json = MovieRepository.instance.exportJson();
+      final data = BackupService.buildBackup();
+      final json = const JsonEncoder.withIndent(' ').convert(data);
       final bytes = Uint8List.fromList(utf8.encode(json));
       await _safStream.writeFileBytes(
           _uri!, 'kadr_auto_${_stamp()}.json', 'application/json', bytes);
       _lastBackup = DateTime.now().millisecondsSinceEpoch;
       _lastError = null;
       await Store.instance.setInt('ab.last', _lastBackup);
+      await _copyImages(data);
       await _rotate();
       return true;
     } catch (e) {
@@ -214,15 +218,63 @@ class AutoBackupService extends ChangeNotifier {
     }
   }
 
-  /// Восстанавливает библиотеку из файла копии (мерж в текущую библиотеку —
-  /// на свежей установке это просто загрузка всех данных).
-  Future<bool> restore(BackupFile b) async {
+  /// Свои постеры и фото дневника лежат в папке копий рядом с JSON: в нём от
+  /// них только имена файлов. Каждая картинка кладётся один раз, поэтому
+  /// очередная копия остаётся небольшой. Сбой здесь саму копию не отменяет.
+  Future<void> _copyImages(Map<String, dynamic> data) async {
+    final uri = _uri;
+    final images = BackupService.localImages(data);
+    if (uri == null || images.isEmpty) return;
     try {
-      final bytes = await _safStream.readFileBytes(b.uri);
-      return MovieRepository.instance.importJson(utf8.decode(bytes));
+      final have = {for (final f in await _saf.list(uri)) f.name};
+      for (final e in images.entries) {
+        if (have.contains(e.key)) continue;
+        await _safStream.pasteLocalFile(
+            e.value.path, uri, e.key, 'image/jpeg',
+            overwrite: false);
+      }
+    } catch (e) {
+      debugPrint('AutoBackup: картинки в папку копий не легли: $e');
+    }
+  }
+
+  /// Возвращает из папки копий картинки, которых нет на устройстве. Без них
+  /// библиотека всё равно встанет: постеры откатятся на сетевые.
+  Future<void> _fetchImages(String raw) async {
+    final uri = _uri;
+    final dir = PosterStore.instance.directory;
+    if (uri == null || dir == null) return;
+    try {
+      final data = jsonDecode(raw);
+      if (data is! Map<String, dynamic>) return;
+      final missing = {
+        for (final name in backupImageNames(data))
+          if (!PosterStore.instance.has(name)) name,
+      };
+      if (missing.isEmpty) return;
+      for (final f in await _saf.list(uri)) {
+        if (f.isDir || !missing.contains(f.name)) continue;
+        await _safStream.copyToLocalFile(f.uri, '${dir.path}/${f.name}');
+        PosterStore.instance.adopt(f.name);
+      }
+    } catch (e) {
+      debugPrint('AutoBackup: картинки из папки копий не вернулись: $e');
+    }
+  }
+
+  /// Восстанавливает библиотеку из файла копии. С [merge] копия
+  /// складывается с библиотекой, без него заменяет её. Перед заменой
+  /// нынешняя библиотека сама уходит в папку копий: к ней можно вернуться.
+  Future<RestoreResult> restore(BackupFile b, {required bool merge}) async {
+    try {
+      // Читаем до страховочной копии: ротация могла бы удалить этот файл.
+      final raw = utf8.decode(await _safStream.readFileBytes(b.uri));
+      if (!merge && MovieRepository.instance.hasData) await backupNow();
+      await _fetchImages(raw);
+      return await BackupService.restore(raw, merge: merge);
     } catch (e) {
       debugPrint('AutoBackup restore error: $e');
-      return false;
+      return RestoreResult.failed;
     }
   }
 

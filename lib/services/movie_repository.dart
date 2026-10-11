@@ -513,13 +513,6 @@ class MovieRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Полная резервная копия (JSON-строка) — для переноса на другое устройство.
-  String exportJson() => const JsonEncoder.withIndent(' ').convert({
-        'app': 'kadr',
-        'version': 1,
-        ...toJson(),
-      });
-
   /// Снимок для синхронизации (без device-local настроек).
   Map<String, dynamic> buildSyncSnapshot() => {
         'kind': kSyncKind,

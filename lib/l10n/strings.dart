@@ -1042,8 +1042,28 @@ const Map<String, Map<String, String>> _strings = {
   },
   'restore_backup': {'ru': 'Восстановить из копии', 'en': 'Restore backup'},
   'restore_backup_sub': {
-    'ru': 'Выбрать JSON-файл резервной копии',
-    'en': 'Pick a backup JSON file',
+    'ru': 'Выбрать файл резервной копии',
+    'en': 'Pick a backup file',
+  },
+  'backup_contents': {
+    'ru':
+        'В копии: библиотека, просмотры, оценки, дневник, рецензии, списки, любимые актёры, свои постеры и фото дневника. Ключи TMDB и вход в аккаунт вводятся заново.',
+    'en':
+        'A backup holds your library, viewings, ratings, diary, reviews, lists, favourite actors, custom posters and diary photos. API keys and your account sign-in are entered again.',
+  },
+  'restore_mode_when': {
+    'ru': 'Копия от {when}.',
+    'en': 'Backup from {when}.',
+  },
+  'restore_mode_body': {
+    'ru':
+        'В библиотеке уже есть записи. «{add}» сложит их с копией, ничего не пропадёт. «{replace}» оставит только то, что в копии: отмеченное после неё исчезнет.',
+    'en':
+        'Your library already has entries. “{add}” combines them with the backup, nothing is lost. “{replace}” keeps only what the backup holds: anything marked after it disappears.',
+  },
+  'restore_skipped_n': {
+    'ru': 'Не прочиталось записей: {n}',
+    'en': 'Entries that could not be read: {n}',
   },
   'backup_hint': {
     'ru':

@@ -614,7 +614,13 @@ const Map<String, Map<String, String>> kTranslations = {
     'create_backup': 'Sicherung erstellen',
     'create_backup_sub': 'Eine Datei teilen (Telegram, Drive, …)',
     'restore_backup': 'Sicherung wiederherstellen',
-    'restore_backup_sub': 'Eine JSON-Sicherungsdatei auswählen',
+    'restore_backup_sub': 'Eine Sicherungsdatei auswählen',
+    'backup_contents':
+        'Die Sicherung enthält Bibliothek, Sichtungen, Bewertungen, Tagebuch, Rezensionen, Listen, Lieblingsdarsteller, eigene Poster und Tagebuchfotos. API-Schlüssel und Kontoanmeldung werden neu eingegeben.',
+    'restore_mode_when': 'Sicherung vom {when}.',
+    'restore_mode_body':
+        'Deine Bibliothek enthält bereits Einträge. „{add}“ führt sie mit der Sicherung zusammen, nichts geht verloren. „{replace}“ behält nur den Inhalt der Sicherung: Alles, was danach markiert wurde, verschwindet.',
+    'restore_skipped_n': 'Nicht lesbare Einträge: {n}',
     'backup_hint':
         'Umzug auf ein neues Handy: Erstelle hier eine Sicherung und stelle sie auf dem neuen Gerät wieder her.',
     'backup_import_ok': 'Bibliothek wiederhergestellt',
@@ -1953,7 +1959,13 @@ const Map<String, Map<String, String>> kTranslations = {
     'create_backup': 'Créer une sauvegarde',
     'create_backup_sub': 'Partager un fichier (Telegram, Drive, …)',
     'restore_backup': 'Restaurer une sauvegarde',
-    'restore_backup_sub': 'Choisir un fichier de sauvegarde JSON',
+    'restore_backup_sub': 'Choisir un fichier de sauvegarde',
+    'backup_contents':
+        'La sauvegarde contient la bibliothèque, les visionnages, les notes, le journal, les critiques, les listes, les acteurs favoris, vos affiches et les photos du journal. Les clés API et la connexion au compte sont à saisir de nouveau.',
+    'restore_mode_when': 'Sauvegarde du {when}.',
+    'restore_mode_body':
+        'Votre bibliothèque contient déjà des entrées. « {add} » les réunit avec la sauvegarde, rien n’est perdu. « {replace} » ne garde que le contenu de la sauvegarde : tout ce qui a été marqué ensuite disparaît.',
+    'restore_skipped_n': 'Entrées illisibles : {n}',
     'backup_hint':
         'Vous changez de téléphone : créez une sauvegarde ici et restaurez-la sur le nouvel appareil.',
     'backup_import_ok': 'Bibliothèque restaurée',
@@ -3282,7 +3294,13 @@ const Map<String, Map<String, String>> kTranslations = {
     'create_backup': 'Crear copia de seguridad',
     'create_backup_sub': 'Comparte un archivo (Telegram, Drive, …)',
     'restore_backup': 'Restaurar copia de seguridad',
-    'restore_backup_sub': 'Elige un archivo JSON de copia de seguridad',
+    'restore_backup_sub': 'Elige un archivo de copia de seguridad',
+    'backup_contents':
+        'La copia incluye la biblioteca, visionados, valoraciones, diario, reseñas, listas, actores favoritos, tus pósters y las fotos del diario. Las claves API y el inicio de sesión se introducen de nuevo.',
+    'restore_mode_when': 'Copia del {when}.',
+    'restore_mode_body':
+        'Tu biblioteca ya tiene registros. «{add}» los une con la copia y no se pierde nada. «{replace}» deja solo lo que hay en la copia: lo marcado después desaparece.',
+    'restore_skipped_n': 'Registros que no se pudieron leer: {n}',
     'backup_hint':
         '¿Cambias de teléfono? Crea aquí una copia de seguridad y restáurala en el nuevo dispositivo.',
     'backup_import_ok': 'Biblioteca restaurada',
@@ -4614,7 +4632,13 @@ const Map<String, Map<String, String>> kTranslations = {
     'create_backup': 'Crea backup',
     'create_backup_sub': 'Condividi un file (Telegram, Drive, …)',
     'restore_backup': 'Ripristina backup',
-    'restore_backup_sub': 'Scegli un file di backup JSON',
+    'restore_backup_sub': 'Scegli un file di backup',
+    'backup_contents':
+        'Il backup contiene libreria, visioni, voti, diario, recensioni, liste, attori preferiti, i tuoi poster e le foto del diario. Le chiavi API e l’accesso all’account vanno reinseriti.',
+    'restore_mode_when': 'Backup del {when}.',
+    'restore_mode_body':
+        'La tua libreria contiene già voci. «{add}» le unisce al backup e non si perde nulla. «{replace}» lascia solo ciò che è nel backup: quanto segnato dopo scompare.',
+    'restore_skipped_n': 'Voci non leggibili: {n}',
     'backup_hint':
         'Cambi telefono? Crea qui un backup e ripristinalo sul nuovo dispositivo.',
     'backup_import_ok': 'Libreria ripristinata',
@@ -5930,7 +5954,13 @@ const Map<String, Map<String, String>> kTranslations = {
     'create_backup': 'Criar backup',
     'create_backup_sub': 'Compartilhar um arquivo (Telegram, Drive, …)',
     'restore_backup': 'Restaurar backup',
-    'restore_backup_sub': 'Escolher um arquivo JSON de backup',
+    'restore_backup_sub': 'Escolher um arquivo de backup',
+    'backup_contents':
+        'A cópia inclui a biblioteca, exibições, notas, diário, resenhas, listas, atores favoritos, seus pôsteres e as fotos do diário. As chaves de API e o login da conta são inseridos novamente.',
+    'restore_mode_when': 'Cópia de {when}.',
+    'restore_mode_body':
+        'Sua biblioteca já tem registros. «{add}» junta-os à cópia e nada se perde. «{replace}» deixa só o que está na cópia: o que foi marcado depois desaparece.',
+    'restore_skipped_n': 'Registros que não puderam ser lidos: {n}',
     'backup_hint':
         'Trocando de celular: crie um backup aqui e restaure no novo dispositivo.',
     'backup_import_ok': 'Biblioteca restaurada',

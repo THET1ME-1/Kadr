@@ -3,6 +3,7 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import '../../l10n/strings.dart';
 import '../../services/app_prefs.dart';
+import '../../services/auto_backup_service.dart';
 import '../../services/backup_service.dart';
 import '../../services/import_service.dart';
 import '../../services/movie_repository.dart';
@@ -11,6 +12,7 @@ import '../../services/store.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/settings_kit.dart';
 import '../auto_backup_screen.dart';
+import '../restore_dialog.dart';
 import '../scrobble_screen.dart';
 import '../sync_screen.dart';
 import '../tmdb_key_screen.dart';
@@ -218,7 +220,7 @@ class SyncPage extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
           child: Text(
-            tr('backup_hint'),
+            '${tr('backup_hint')}\n\n${tr('backup_contents')}',
             style: TextStyle(
               fontFamily: AppTheme.bodyFont,
               fontSize: 13,
@@ -231,14 +233,31 @@ class SyncPage extends StatelessWidget {
     );
   }
 
+  /// Выбор файла копии, затем вопрос «добавить или заменить», если в
+  /// библиотеке уже есть записи. Перед заменой нынешняя библиотека уходит в
+  /// папку автокопий, когда она настроена.
   Future<void> _restore(BuildContext context) async {
-    final ok = await BackupService.importFromFile();
-    if (context.mounted) {
-      showSettingsSnack(
-        context,
-        tr(ok ? 'backup_import_ok' : 'backup_import_fail'),
-      );
+    final picked = await BackupService.pickBackup();
+    if (!context.mounted) return;
+    if (picked == null) {
+      showSettingsSnack(context, tr('backup_import_fail'));
+      return;
     }
+    final mode = await askRestoreMode(context);
+    if (mode == null || !context.mounted) return;
+    final merge = mode == RestoreMode.merge;
+    if (!merge && MovieRepository.instance.hasData) {
+      await AutoBackupService.instance.backupNow();
+    }
+    final res = await BackupService.restorePicked(picked, merge: merge);
+    if (!context.mounted) return;
+    showSettingsSnack(
+      context,
+      [
+        tr(res.ok ? 'backup_import_ok' : 'backup_import_fail'),
+        if (res.skipped > 0) trf('restore_skipped_n', {'n': res.skipped}),
+      ].join('. '),
+    );
   }
 
   Future<void> _importCsv(BuildContext context) async {

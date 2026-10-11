@@ -214,6 +214,54 @@ class AppPrefs extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Любимые персонаж и актёры для резервной копии; null, если их нет.
+  /// Лежат они в настройках, а не в библиотеке, поэтому в копию едут
+  /// отдельным блоком.
+  Map<String, dynamic>? favoritesJson() {
+    final c = favoriteCharacter;
+    if (c == null && favoriteActors.isEmpty) return null;
+    return {
+      if (c != null) 'character': c.toJson(),
+      'actors': [for (final a in favoriteActors) a.toJson()],
+    };
+  }
+
+  /// Возвращает любимых из блока копии [json]. С [merge] актёры
+  /// складываются, а свой персонаж остаётся; без него берётся то, что в
+  /// копии. Копия без блока (старая версия) ничего не меняет.
+  Future<void> restoreFavorites(Object? json, {required bool merge}) async {
+    if (json is! Map) return;
+    FavoriteCharacter? character;
+    final actors = <FavoriteActor>[];
+    try {
+      final c = json['character'];
+      if (c is Map) character = FavoriteCharacter.fromJson(c.cast());
+      for (final a in (json['actors'] as List? ?? const [])) {
+        if (a is Map) actors.add(FavoriteActor.fromJson(a.cast()));
+      }
+    } catch (e) {
+      debugPrint('AppPrefs: любимые из копии не прочитались: $e');
+      return;
+    }
+    if (merge) {
+      favoriteCharacter ??= character;
+      favoriteActors = [
+        ...favoriteActors,
+        for (final a in actors)
+          if (!isFavoriteActor(a.id)) a,
+      ];
+    } else {
+      favoriteCharacter = character;
+      favoriteActors = actors;
+    }
+    final c = favoriteCharacter;
+    await Store.instance
+        .setString('favChar', c == null ? '' : jsonEncode(c.toJson()));
+    await Store.instance.setString(
+        'favActors', jsonEncode([for (final x in favoriteActors) x.toJson()]));
+    notifyListeners();
+  }
+
   Future<void> setFavoriteCharacter(FavoriteCharacter? c) async {
     favoriteCharacter = c;
     await Store.instance
