@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/library_entry.dart';
+import '../../services/app_prefs.dart';
 import '../../services/movie_repository.dart';
-import '../../services/store.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/movie_reviews.dart';
@@ -50,30 +50,25 @@ class MovieReviewsSection extends StatefulWidget {
   const MovieReviewsSection(
       {super.key, required this.movie, required this.repo});
 
-  static const collapsedKey = 'movieReviewsCollapsed';
+  static const collapsedKey = AppPrefs.movieReviewsCollapsedKey;
 
   @override
   State<MovieReviewsSection> createState() => _MovieReviewsSectionState();
 }
 
 class _MovieReviewsSectionState extends State<MovieReviewsSection> {
-  bool _collapsed = false;
+  // Ответ берётся сразу, а не из настроек кадром позже: блок живёт в ленивом
+  // списке карточки и создаётся заново каждый раз, когда возвращается на
+  // экран. См. [AppPrefs.movieReviewsCollapsed].
+  bool _collapsed = AppPrefs.instance.movieReviewsCollapsed;
 
   LibraryMovie get m => widget.movie;
   MovieRepository get repo => widget.repo;
 
-  @override
-  void initState() {
-    super.initState();
-    Store.instance.getBool(MovieReviewsSection.collapsedKey).then((v) {
-      if (mounted && v != _collapsed) setState(() => _collapsed = v);
-    });
-  }
-
   void _toggle() {
     HapticFeedback.selectionClick();
     setState(() => _collapsed = !_collapsed);
-    Store.instance.setBool(MovieReviewsSection.collapsedKey, _collapsed);
+    AppPrefs.instance.setMovieReviewsCollapsed(_collapsed);
   }
 
   void _write() => startMovieReview(context, m, repo: repo);

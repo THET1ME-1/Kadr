@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/library_entry.dart';
+import '../../services/app_prefs.dart';
 import '../../services/movie_repository.dart';
 import '../../services/store.dart';
 import '../../services/tmdb_service.dart';
@@ -94,7 +95,7 @@ class SeriesReviewsSection extends StatefulWidget {
     required this.seasons,
   });
 
-  static const collapsedKey = 'seriesReviewsCollapsed';
+  static const collapsedKey = AppPrefs.seriesReviewsCollapsedKey;
 
   /// Сериалы, у которых человек убрал кнопку «Выставить сериалу» крестиком.
   static const hiddenSetKey = 'seriesReviewsSetHidden';
@@ -104,7 +105,9 @@ class SeriesReviewsSection extends StatefulWidget {
 }
 
 class _SeriesReviewsSectionState extends State<SeriesReviewsSection> {
-  bool _collapsed = false;
+  // Ответ известен сразу, см. [AppPrefs.movieReviewsCollapsed]: блок не
+  // должен менять высоту после того, как появился.
+  bool _collapsed = AppPrefs.instance.seriesReviewsCollapsed;
   bool _setHidden = false;
 
   LibrarySeries get series => widget.series;
@@ -114,9 +117,6 @@ class _SeriesReviewsSectionState extends State<SeriesReviewsSection> {
   @override
   void initState() {
     super.initState();
-    Store.instance.getBool(SeriesReviewsSection.collapsedKey).then((v) {
-      if (mounted && v != _collapsed) setState(() => _collapsed = v);
-    });
     Store.instance.getStringList(SeriesReviewsSection.hiddenSetKey).then((l) {
       final v = l.contains(series.tvShowId);
       if (mounted && v != _setHidden) setState(() => _setHidden = v);
@@ -166,7 +166,7 @@ class _SeriesReviewsSectionState extends State<SeriesReviewsSection> {
   void _toggle() {
     HapticFeedback.selectionClick();
     setState(() => _collapsed = !_collapsed);
-    Store.instance.setBool(SeriesReviewsSection.collapsedKey, _collapsed);
+    AppPrefs.instance.setSeriesReviewsCollapsed(_collapsed);
   }
 
   /// Рецензии по охвату: на каждые сезоны последняя и прошлые, в конце

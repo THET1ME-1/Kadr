@@ -28,7 +28,7 @@ import 'package:kadr/screens/viewing/viewing_host.dart';
 import 'package:kadr/screens/viewing/viewing_sheet.dart';
 import 'package:kadr/screens/viewing/viewings_section.dart';
 import 'package:kadr/services/movie_repository.dart';
-import 'package:kadr/services/store.dart';
+import 'package:kadr/services/app_prefs.dart';
 import 'package:kadr/services/tmdb_service.dart';
 import 'package:kadr/theme/app_theme.dart';
 import 'package:kadr/utils/season_pass.dart';
@@ -351,8 +351,7 @@ Future<void> _all(WidgetTester tester) async {
     height: 1150,
   );
 
-  await tester.runAsync(
-      () => Store.instance.setBool(MovieReviewsSection.collapsedKey, true));
+  await tester.runAsync(() => AppPrefs.instance.setMovieReviewsCollapsed(true));
   repo = _repo();
   await _shoot(
     tester,
@@ -364,7 +363,7 @@ Future<void> _all(WidgetTester tester) async {
     height: 640,
   );
   await tester.runAsync(
-      () => Store.instance.setBool(MovieReviewsSection.collapsedKey, false));
+      () => AppPrefs.instance.setMovieReviewsCollapsed(false));
 
   // Окно отметки: фильм и сезон.
   await _shoot(

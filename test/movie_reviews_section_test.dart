@@ -6,6 +6,7 @@ import 'package:kadr/models/library_entry.dart';
 import 'package:kadr/models/review.dart';
 import 'package:kadr/screens/review/movie_reviews_section.dart';
 import 'package:kadr/services/movie_repository.dart';
+import 'package:kadr/services/app_prefs.dart';
 import 'package:kadr/services/store.dart';
 import 'package:kadr/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -90,9 +91,9 @@ Future<MovieRepository> _pump(
   double width = 380,
   bool collapsed = false,
 }) async {
-  // Store держит один экземпляр настроек на весь прогон: пишем через него.
+  // Блок берёт ответ из AppPrefs сразу при создании: задаём его там же.
   await tester.runAsync(
-    () => Store.instance.setBool(MovieReviewsSection.collapsedKey, collapsed),
+    () => AppPrefs.instance.setMovieReviewsCollapsed(collapsed),
   );
   tester.view.physicalSize = Size(width, 2400);
   tester.view.devicePixelRatio = 1;

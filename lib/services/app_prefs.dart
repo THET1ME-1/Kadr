@@ -100,6 +100,30 @@ class AppPrefs extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Свёрнут ли блок «Мои рецензии»: один ответ на все фильмы и один на все
+  /// сериалы. Блоку ответ нужен сразу при создании, а не кадром позже.
+  /// Список карточки фильма ленивый: блок, ушедший далеко вверх,
+  /// выбрасывается и при возврате создаётся заново. Пока он узнавал ответ
+  /// из настроек уже после первого кадра, он появлялся развёрнутым, тут же
+  /// сворачивался и сдвигал всё под собой: страница не листалась вверх.
+  bool movieReviewsCollapsed = false;
+  bool seriesReviewsCollapsed = false;
+
+  static const movieReviewsCollapsedKey = 'movieReviewsCollapsed';
+  static const seriesReviewsCollapsedKey = 'seriesReviewsCollapsed';
+
+  // Слушателей не будим: сворачивание перерисовывает сам блок, а будить
+  // корень приложения из-за него незачем.
+  Future<void> setMovieReviewsCollapsed(bool v) async {
+    movieReviewsCollapsed = v;
+    await Store.instance.setBool(movieReviewsCollapsedKey, v);
+  }
+
+  Future<void> setSeriesReviewsCollapsed(bool v) async {
+    seriesReviewsCollapsed = v;
+    await Store.instance.setBool(seriesReviewsCollapsedKey, v);
+  }
+
   /// Какой экран открывать при старте.
   StartScreen startScreen = StartScreen.watchlist;
 
@@ -152,6 +176,10 @@ class AppPrefs extends ChangeNotifier {
       'sequentialUnmark',
       def: await Store.instance.getBool('sequentialEpisodes', def: true),
     );
+    movieReviewsCollapsed =
+        await Store.instance.getBool(movieReviewsCollapsedKey);
+    seriesReviewsCollapsed =
+        await Store.instance.getBool(seriesReviewsCollapsedKey);
     final raw = await Store.instance.getString('startScreen');
     startScreen = _parse(raw);
     navStyle = await Store.instance.getString('navStyle') == 'classic'

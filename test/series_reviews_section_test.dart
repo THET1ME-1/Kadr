@@ -6,6 +6,7 @@ import 'package:kadr/models/library_entry.dart';
 import 'package:kadr/models/review.dart';
 import 'package:kadr/screens/review/series_reviews_section.dart';
 import 'package:kadr/services/movie_repository.dart';
+import 'package:kadr/services/app_prefs.dart';
 import 'package:kadr/services/store.dart';
 import 'package:kadr/services/tmdb_service.dart';
 import 'package:kadr/theme/app_theme.dart';
@@ -57,9 +58,9 @@ MovieRepository _repo({bool parts = true}) {
 Future<MovieRepository> _pump(WidgetTester tester,
     {bool parts = true, String lang = 'ru', double width = 380,
     bool collapsed = false}) async {
-  // Store держит один экземпляр настроек на весь прогон: пишем через него.
-  await tester.runAsync(() => Store.instance
-      .setBool(SeriesReviewsSection.collapsedKey, collapsed));
+  // Блок берёт ответ из AppPrefs сразу при создании: задаём его там же.
+  await tester.runAsync(
+      () => AppPrefs.instance.setSeriesReviewsCollapsed(collapsed));
   tester.view.physicalSize = Size(width, 2400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -261,8 +262,8 @@ void main() {
 
     Future<MovieRepository> pump(WidgetTester tester,
         {String lang = 'ru', double width = 380, bool collapsed = false}) async {
-      await tester.runAsync(() => Store.instance
-          .setBool(SeriesReviewsSection.collapsedKey, collapsed));
+      await tester.runAsync(
+          () => AppPrefs.instance.setSeriesReviewsCollapsed(collapsed));
       tester.view.physicalSize = Size(width, 2400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
