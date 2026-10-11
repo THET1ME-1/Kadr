@@ -49,7 +49,10 @@ void main() {
         data.movies.firstWhere((m) => m.uuid == 'm1'));
     expect(m1.status, LibraryStatus.watched);
     expect(m1.viewings.length, 2);
-    expect(m1.score, 8.5);
+    // Оценка из эмоций TV Time достаётся последнему просмотру.
+    expect(m1.currentScore, 8.5);
+    expect(m1.currentViewing!.score, 8.5);
+    expect(m1.score, isNull);
     expect(m1.emotions.length, 1);
     expect(m1.emotions.first.emoji, '😍');
 

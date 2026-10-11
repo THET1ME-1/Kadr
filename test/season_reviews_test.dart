@@ -127,6 +127,76 @@ void main() {
     });
   });
 
+  group('рецензии на пересмотр', () {
+    /// «Аркейн» из макета: S1 смотрен трижды, S2 дважды.
+    LibrarySeries arcane({bool onlyFirst = false}) {
+      Episode ep(int s, int n, int views) => Episode(
+            season: s,
+            number: n,
+            watchedAt: DateTime(2023, 5, 29),
+            score: 10.0,
+            rewatchViews: [
+              for (var i = 1; i < views; i++) Viewing(date: DateTime(2023 + i)),
+            ],
+          );
+      SeasonReview part(String id, int season, int pass, double avg) =>
+          SeasonReview(
+              id: id, from: season, to: season, pass: pass, reviewMeta: _meta(avg));
+      return LibrarySeries(
+        tvShowId: 'arcane',
+        title: 'Аркейн',
+        episodes: [ep(1, 1, 3), ep(1, 2, 3), ep(2, 1, 2), ep(2, 2, 2)],
+        seasonReviews: [
+          part('a1', 1, 1, 9.6),
+          if (!onlyFirst) part('a3', 1, 3, 9.8),
+          part('b1', 2, 1, 8.4),
+          if (!onlyFirst) part('b2', 2, 2, 9.0),
+        ],
+      );
+    }
+
+    test('на один просмотр сезона одна рецензия, на другой можно ещё', () {
+      final s = arcane();
+      expect(canCover(s, 1, 1), isFalse);
+      expect(canCover(s, 1, 1, pass: 2), isTrue);
+      expect(canCover(s, 1, 1, pass: 3), isFalse);
+      expect(canCover(s, 1, 1, pass: 3, exceptId: 'a3'), isTrue);
+      expect(takenBy(s, 2, pass: 2)?.id, 'b2');
+    });
+
+    test('в свод и в сравнение с сериями идёт последняя рецензия сезона', () {
+      final s = arcane();
+      expect(reviewsAverage(s), 9.4);
+      final rows = compareSeasons(s);
+      expect(rows[0].review, 9.8);
+      expect(rows[1].review, 9.0);
+    });
+
+    test('таблица: сезоны по строкам, просмотры по столбцам', () {
+      final t = passTable(arcane())!;
+      expect(t.passes, 3);
+      expect([for (final r in t.rows) r.season], [1, 2]);
+      final s1 = t.rows[0].cells, s2 = t.rows[1].cells;
+      expect([for (final c in s1) c.value], [9.6, null, 9.8]);
+      expect(s1[1].missing, isTrue, reason: 'второй просмотр был, рецензии нет');
+      expect(s1[2].inSummary, isTrue);
+      expect(s1[0].inSummary, isFalse);
+      expect([for (final c in s2) c.value], [8.4, 9.0, null]);
+      expect(s2[2].none, isTrue, reason: 'третьего просмотра у S2 не было');
+      expect(t.rows[0].delta, closeTo(0.2, 0.001));
+      expect(t.rows[1].delta, closeTo(0.6, 0.001));
+      expect(t.first, 9.0);
+      expect(t.last, 9.4);
+      expect(t.delta, closeTo(0.4, 0.001));
+      expect(t.strongest, 2);
+    });
+
+    test('без рецензий на два просмотра таблицы нет', () {
+      expect(passTable(arcane(onlyFirst: true)), isNull);
+      expect(passTable(_aot()), isNull);
+    });
+  });
+
   test('части, источник и дата источника переживают сохранение', () {
     final s = _aot()
       ..scoreSource = SeriesScoreSource.reviews

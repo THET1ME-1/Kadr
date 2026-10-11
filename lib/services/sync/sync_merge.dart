@@ -127,16 +127,51 @@ Map<String, dynamic> mergeSnapshots(
   };
 }
 
+/// Объединяет просмотры двух сторон. Запись узнаётся по id, а если id разные
+/// (одна сторона писалась старой версией) — по точной дате. У общей записи
+/// побеждает локальная сторона [a], пустые поля дозаполняются с удалённой:
+/// так правка оценки или даты не плодит второй просмотр, а дневник не
+/// теряется. Порядок — по дате, без даты первыми.
+List<Viewing> _mergeViewings(List<Viewing> a, List<Viewing> b) {
+  final out = [for (final v in a) Viewing.fromAny(v.toJson())];
+  for (final v in b) {
+    var mine = out.where((x) => x.id == v.id).firstOrNull;
+    mine ??= v.date == null
+        ? null
+        : out.where((x) => x.date == v.date).firstOrNull;
+    if (mine == null) {
+      out.add(Viewing.fromAny(v.toJson()));
+    } else {
+      mine.score ??= v.score;
+      mine.diary ??= v.diary;
+    }
+  }
+  return orderViewings(out);
+}
+
 // --------------------------- слияние фильма ---------------------------
 LibraryMovie _mergeMovie(LibraryMovie a, LibraryMovie b) {
-  // Просмотры — объединение с дедупом по (дата, оценка).
-  String vk(Viewing v) => '${v.date?.toIso8601String() ?? ''}|${v.score ?? ''}';
-  final vmap = <String, Viewing>{};
-  for (final v in [...a.viewings, ...b.viewings]) {
-    vmap.putIfAbsent(vk(v), () => v);
+  final viewings = _mergeViewings(a.viewings, b.viewings);
+
+  // В старых полях остаётся более свежая рецензия. Если проигравшая была про
+  // другой просмотр (на двух устройствах написали по рецензии), она не
+  // пропадает, а уходит в дополнительные.
+  final main = _pickReview(a, b);
+  final other = identical(main, a) ? b : a;
+  final more = _mergeExtraReviews(a.moreReviews, b.moreReviews);
+  final mainView = main.reviewMeta?.viewId, otherView = other.reviewMeta?.viewId;
+  if (other.hasReview &&
+      main.hasReview &&
+      otherView != null &&
+      mainView != null &&
+      otherView != mainView &&
+      !more.any((r) => r.reviewMeta?.viewId == otherView)) {
+    more.add(ExtraReview(
+      id: 'mr-$otherView',
+      review: other.review,
+      reviewMeta: other.reviewMeta?.copy(),
+    ));
   }
-  final viewings = vmap.values.toList()
-    ..sort((x, y) => (x.date ?? DateTime(0)).compareTo(y.date ?? DateTime(0)));
 
   // Эмоции — объединение по id.
   final emo = <String, MovieEmotion>{};
@@ -183,20 +218,33 @@ LibraryMovie _mergeMovie(LibraryMovie a, LibraryMovie b) {
     status: status,
     addedAt: earliest(a.addedAt, b.addedAt),
     viewings: viewings,
-    rewatchCount:
-        a.rewatchCount > b.rewatchCount ? a.rewatchCount : b.rewatchCount,
     score: a.score ?? b.score,
     emotions: emo.values.toList(),
     favorite: a.favorite || b.favorite,
     lists: lists,
-    review: _pickReview(a, b).review,
-    reviewMeta: _pickReview(a, b).reviewMeta?.copy(),
+    review: main.review,
+    reviewMeta: main.reviewMeta?.copy(),
+    moreReviews: more,
     kinopoiskId: a.kinopoiskId ?? b.kinopoiskId,
+    tvdbId: a.tvdbId ?? b.tvdbId,
+    imdbId: a.imdbId ?? b.imdbId,
     posterUrl: a.posterUrl ?? b.posterUrl,
+    posterFile: a.posterFile ?? b.posterFile,
     genres: genres,
     countries: countries,
     detailsTried: a.detailsTried || b.detailsTried,
   );
+}
+
+/// Рецензии на другие просмотры обеих сторон по id; у общей побеждает свежая
+/// правка.
+List<ExtraReview> _mergeExtraReviews(List<ExtraReview> a, List<ExtraReview> b) {
+  final byId = <String, ExtraReview>{for (final r in a) r.id: r};
+  for (final r in b) {
+    final mine = byId[r.id];
+    byId[r.id] = mine == null ? r : _pickReview(mine, r) as ExtraReview;
+  }
+  return [for (final r in byId.values) ExtraReview.fromJson(r.toJson())];
 }
 
 // --------------------------- слияние сериала ---------------------------
@@ -212,7 +260,7 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
     if (prev == null) {
       emap[k] = e;
     } else {
-      // Общая серия: ранняя дата, непустая оценка, больший счётчик повторов.
+      // Общая серия. Первый просмотр: ранняя дата, непустая оценка и дневник.
       DateTime? at;
       if (prev.watchedAt == null) {
         at = e.watchedAt;
@@ -223,15 +271,10 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
             ? prev.watchedAt
             : e.watchedAt;
       }
-      // Повторы серии: берём БОЛЕЕ ПОЛНЫЙ список (без склейки — чтобы не
-      // задвоить одни и те же просмотры), число просмотров — максимум. Раньше
-      // rewatchViews здесь ТЕРЯЛИСЬ (оставался только счётчик) → ×N расходился
-      // со списком «Оценки по просмотрам».
-      final rv = prev.rewatchViews.length >= e.rewatchViews.length
-          ? prev.rewatchViews
-          : e.rewatchViews;
-      final rc = [prev.rewatchCount, e.rewatchCount, rv.length]
-          .reduce((x, y) => x > y ? x : y);
+      // Повторы объединяются по id (без него — по точной дате), поэтому один и
+      // тот же просмотр не задваивается, а сделанный на другом устройстве
+      // добавляется. Раньше бралась только более длинная сторона, и повтор
+      // с короткой пропадал вместе с дневником.
       emap[k] = Episode(
         season: prev.season ?? e.season,
         number: prev.number ?? e.number,
@@ -239,8 +282,9 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
         runtimeMin: prev.runtimeMin ?? e.runtimeMin,
         score: prev.score ?? e.score,
         epId: prev.epId ?? e.epId,
-        rewatchCount: rc,
-        rewatchViews: List<Viewing>.from(rv),
+        vid: prev.vid,
+        rewatchViews: _mergeViewings(prev.rewatchViews, e.rewatchViews),
+        diary: prev.diary ?? e.diary,
       );
     }
   }

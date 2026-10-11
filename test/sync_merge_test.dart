@@ -212,4 +212,153 @@ void main() {
           ((ba['series'] as List).single as Map)['episodes'].length);
     });
   });
+
+  group('просмотры по id', () {
+    Map<String, dynamic> mergedMovie(
+            Map<String, dynamic> a, Map<String, dynamic> b) =>
+        (mergeSnapshots({
+          'movies': [a]
+        }, {
+          'movies': [b]
+        }, SyncStats())['movies'] as List)
+            .single as Map<String, dynamic>;
+
+    Map<String, dynamic> mergedSeries(
+            Map<String, dynamic> a, Map<String, dynamic> b) =>
+        (mergeSnapshots({
+          'series': [a]
+        }, {
+          'series': [b]
+        }, SyncStats())['series'] as List)
+            .single as Map<String, dynamic>;
+
+    test('правка оценки на одном устройстве не даёт второй просмотр', () {
+      const date = '2024-01-01T10:00:00.000';
+      final m = mergedMovie(
+        movie('a', viewings: [viewing(date, 9.0)]),
+        movie('a', viewings: [viewing(date, 8.0)]),
+      );
+      final views = m['viewings'] as List;
+      expect(views.length, 1);
+      expect((views.single as Map)['score'], 9.0, reason: 'побеждает локальная');
+    });
+
+    test('правка даты не даёт второй просмотр: записи узнаются по id', () {
+      final m = mergedMovie(
+        movie('a', viewings: [
+          {'id': 'v1', 'date': '2020-05-05T10:00:00.000', 'score': 8.0}
+        ]),
+        movie('a', viewings: [
+          {'id': 'v1', 'date': '2024-01-01T10:00:00.000', 'score': 8.0}
+        ]),
+      );
+      expect((m['viewings'] as List).length, 1);
+      expect(((m['viewings'] as List).single as Map)['date'],
+          '2020-05-05T10:00:00.000');
+    });
+
+    test('дневник просмотра фильма переживает слияние с любой стороны', () {
+      const date = '2024-01-01T10:00:00.000';
+      final withDiary = {
+        'date': date,
+        'score': 8.0,
+        'diary': {'note': 'личное', 'moods': ['🔥']},
+      };
+      for (final pair in [
+        (withDiary, viewing(date, 8.0)),
+        (viewing(date, 8.0), withDiary),
+      ]) {
+        final m = mergedMovie(
+            movie('a', viewings: [pair.$1]), movie('a', viewings: [pair.$2]));
+        final v = (m['viewings'] as List).single as Map;
+        expect((v['diary'] as Map)['note'], 'личное');
+      }
+    });
+
+    test('мост между источниками и свой постер не теряются', () {
+      final a = movie('a')
+        ..['imdbId'] = 'tt1'
+        ..['posterFile'] = 'p.jpg';
+      final b = movie('a')..['tvdbId'] = 77;
+      final m = mergedMovie(a, b);
+      expect(m['imdbId'], 'tt1');
+      expect(m['posterFile'], 'p.jpg');
+      expect(m['tvdbId'], 77);
+      final back = mergedMovie(b, a);
+      expect(back['imdbId'], 'tt1');
+      expect(back['tvdbId'], 77);
+    });
+
+    test('просмотры серии объединяются, дневник и оценки остаются', () {
+      final a = series('s', episodes: [
+        ep(1, 1, watchedAt: '2023-05-29T13:41:00.000', score: 10.0)
+          ..['diary'] = {'note': 'первый раз'}
+          ..['rewatchViews'] = [
+            {'id': 'r1', 'date': '2023-10-02T17:44:00.000', 'score': 9.0}
+          ],
+      ]);
+      final b = series('s', episodes: [
+        ep(1, 1, watchedAt: '2023-05-29T13:41:00.000', score: 10.0)
+          ..['rewatchViews'] = [
+            {'id': 'r1', 'date': '2023-10-02T17:44:00.000'},
+            {
+              'id': 'r2',
+              'date': '2026-08-18T15:47:00.000',
+              'diary': {'note': 'третий раз'}
+            },
+          ],
+      ]);
+      for (final s in [mergedSeries(a, b), mergedSeries(b, a)]) {
+        final e = (s['episodes'] as List).single as Map;
+        expect((e['diary'] as Map)['note'], 'первый раз');
+        final views = (e['rewatchViews'] as List).cast<Map>();
+        expect(views.map((v) => v['id']), ['r1', 'r2']);
+        expect(views[0]['score'], 9.0);
+        expect((views[1]['diary'] as Map)['note'], 'третий раз');
+        expect(e['rewatchCount'], 2);
+      }
+    });
+
+    test('доп. рецензии сливаются по id, у общей побеждает свежая', () {
+      Map<String, dynamic> extra(String id, String text, String updated) => {
+            'id': id,
+            'review': text,
+            'reviewMeta': {'shared': true, 'updatedAt': updated, 'viewId': id},
+          };
+      final a = movie('a')
+        ..['moreReviews'] = [
+          extra('x1', 'старая', '2026-01-01T00:00:00.000'),
+          extra('x2', 'только тут', '2026-01-01T00:00:00.000'),
+        ];
+      final b = movie('a')
+        ..['moreReviews'] = [extra('x1', 'свежая', '2026-02-01T00:00:00.000')];
+      final more = (mergedMovie(a, b)['moreReviews'] as List).cast<Map>();
+      expect(more.length, 2);
+      expect(more.firstWhere((r) => r['id'] == 'x1')['review'], 'свежая');
+      expect(more.firstWhere((r) => r['id'] == 'x2')['review'], 'только тут');
+    });
+
+    test('две первые рецензии на разные просмотры обе выживают', () {
+      final views = [
+        {'id': 'v1', 'date': '2026-04-15T00:00:00.000'},
+        {'id': 'v2', 'date': '2026-08-16T00:00:00.000'},
+      ];
+      Map<String, dynamic> withMain(String text, String viewId, String at) =>
+          movie('a', viewings: views)
+            ..['review'] = text
+            ..['reviewMeta'] = {
+              'shared': true,
+              'updatedAt': at,
+              'viewId': viewId,
+            };
+      final m = mergedMovie(
+        withMain('про первый', 'v1', '2026-04-15T12:00:00.000'),
+        withMain('про второй', 'v2', '2026-08-16T12:00:00.000'),
+      );
+      expect(m['review'], 'про второй', reason: 'в старых полях свежая');
+      final more = (m['moreReviews'] as List).cast<Map>();
+      expect(more.single['review'], 'про первый');
+      expect((more.single['reviewMeta'] as Map)['viewId'], 'v1');
+    });
+  });
 }

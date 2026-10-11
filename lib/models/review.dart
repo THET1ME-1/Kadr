@@ -51,6 +51,18 @@ const List<String> kDefaultCriteria = [
   'pace',
 ];
 
+/// Пункты в каноническом порядке: сначала известные, потом незнакомые (от
+/// более новой версии приложения друга).
+List<String> sortCriteria(Iterable<String> ids) {
+  final set = ids.toSet();
+  return [
+    for (final id in kCriteria)
+      if (set.contains(id)) id,
+    for (final id in set)
+      if (!kCriteria.contains(id)) id,
+  ];
+}
+
 /// Среднее по оценённым пунктам, округлённое до 0.1. Пусто — null.
 double? criteriaAverage(Map<String, double> criteria) {
   if (criteria.isEmpty) return null;
@@ -88,6 +100,11 @@ class ReviewMeta {
   /// Первая публикация — дата под заголовком и в ленте друзей.
   DateTime? publishedAt;
 
+  /// Просмотр фильма, о котором рецензия ([Viewing.id]). У сериала пусто. У
+  /// рецензий, написанных до привязки, тоже пусто: их просмотр находит
+  /// `reviewViewing` по дате.
+  String? viewId;
+
   ReviewMeta({
     this.title,
     Map<String, double>? criteria,
@@ -100,6 +117,7 @@ class ReviewMeta {
     this.createdAt,
     this.updatedAt,
     this.publishedAt,
+    this.viewId,
   })  : criteria = criteria ?? {},
         pros = pros ?? [],
         cons = cons ?? [];
@@ -147,6 +165,7 @@ class ReviewMeta {
       createdAt: _date(j['createdAt']),
       updatedAt: _date(j['updatedAt']),
       publishedAt: _date(j['publishedAt']),
+      viewId: j['viewId'] as String?,
     );
   }
 
@@ -162,6 +181,7 @@ class ReviewMeta {
         if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
         if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
         if (publishedAt != null) 'publishedAt': publishedAt!.toIso8601String(),
+        if (viewId != null) 'viewId': viewId,
       };
 }
 

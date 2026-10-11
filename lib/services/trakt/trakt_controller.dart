@@ -209,8 +209,9 @@ class TraktController extends ChangeNotifier {
       final rated = await TraktService.ratedMovies(token);
       for (final e in rated.entries) {
         final m = repo.movieByTmdb(e.key);
+        // Оценка фильма живёт в его последнем просмотре: туда и пишем.
         if (m != null && m.currentScore == null) {
-          await repo.setScore(m.uuid, e.value.toDouble());
+          await repo.setCurrentScore(m.uuid, e.value.toDouble());
         }
       }
     }

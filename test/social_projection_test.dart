@@ -67,9 +67,10 @@ void main() {
     }
 
     // Оценки/просмотры/жанры при этом сохранены (нужны для ленты и статистики).
+    // Оценка фильма живёт в просмотре: общая переезжает в него и обнуляется.
     final m1 = movies.firstWhere((m) => m['uuid'] == 'm1');
-    expect(m1['score'], 8.0);
-    expect((m1['viewings'] as List), isNotEmpty);
+    expect(m1['score'], isNull);
+    expect(((m1['viewings'] as List).single as Map)['score'], 8.0);
     expect((m1['genres'] as List), contains('драма'));
   });
 

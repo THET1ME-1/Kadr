@@ -15,9 +15,10 @@ void main() {
     // Одна сессия (вчера).
     expect(s.sessions().length, 1);
 
-    // Отметил пересмотр сегодня (как addEpisodeRewatch).
-    s.episodes.first.rewatchCount += 1;
+    // Отметил пересмотр сегодня (как addEpisodeView): счётчик считается из
+    // списка, отдельно его никто не ведёт.
     s.episodes.first.rewatchViews.add(Viewing(date: today));
+    expect(s.episodes.first.rewatchCount, 1);
 
     final sessions = s.sessions();
     // Теперь ДВЕ сессии: вчерашняя и сегодняшняя.
