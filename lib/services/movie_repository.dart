@@ -58,6 +58,38 @@ class RemovedView {
   });
 }
 
+/// Чем закончилось восстановление из копии.
+class RestoreResult {
+  /// Копия прочиталась и встала в библиотеку.
+  final bool ok;
+
+  /// Сколько записей копии не разобралось и пропущено.
+  final int skipped;
+
+  const RestoreResult({required this.ok, this.skipped = 0});
+  static const failed = RestoreResult(ok: false);
+}
+
+/// Разобранный файл библиотеки. Собирается целиком до того, как что-то
+/// меняется в памяти.
+class _Parsed {
+  final List<LibraryMovie> movies;
+  final List<LibrarySeries> series;
+  final List<MovieList> lists;
+
+  /// Записи, на которых разбор упал (только в терпимом режиме).
+  final int skipped;
+  const _Parsed(this.movies, this.series, this.lists, this.skipped);
+
+  bool get isEmpty => movies.isEmpty && series.isEmpty && lists.isEmpty;
+
+  Map<String, dynamic> toJson() => {
+        'movies': [for (final m in movies) m.toJson()],
+        'series': [for (final s in series) s.toJson()],
+        'lists': [for (final l in lists) l.toJson()],
+      };
+}
+
 /// Единое хранилище библиотеки фильмов/сериалов Kadr.
 ///
 /// При первом запуске подгружает импортированную базу из ассета
@@ -80,9 +112,22 @@ class MovieRepository extends ChangeNotifier {
     return r;
   }
 
+  /// Отдельный экземпляр с настоящей записью на диск: тестам загрузки нужна
+  /// библиотека, которую ещё не загружали.
+  @visibleForTesting
+  factory MovieRepository.fresh() => MovieRepository._();
+
   /// true — это read-only копия чужой библиотеки: любые записи на диск заглушены.
   bool _detached = false;
   bool get isDetached => _detached;
+
+  /// Сколько записей файла библиотеки не разобралось при загрузке.
+  int get loadSkipped => _loadSkipped;
+  int _loadSkipped = 0;
+
+  /// Файл библиотеки при загрузке не прочитался вовсе.
+  bool get loadFailed => _loadFailed;
+  bool _loadFailed = false;
 
   final List<LibraryMovie> _movies = [];
   final List<LibrarySeries> _series = [];
@@ -140,7 +185,7 @@ class MovieRepository extends ChangeNotifier {
         await Store.instance.setInt('seedVersion', seedVersion);
         await _persist(); // первый запуск — сохранить сид
       } else {
-        _ingest(jsonDecode(await f.readAsString()) as Map<String, dynamic>);
+        await _loadFile(f);
         final applied = await Store.instance.getInt('seedVersion') ?? 0;
         if (seedVersion > applied) {
           // Обновился сид (напр. добавились русские названия/постеры из дампа) —
@@ -275,21 +320,75 @@ class MovieRepository extends ChangeNotifier {
     }
   }
 
-  void _ingest(Map<String, dynamic> data) {
+  /// Читает файл библиотеки при старте. Запись, на которой разбор падает,
+  /// пропускается: одна битая серия не должна стоить всей базы. Если файл
+  /// прочитался не целиком, он сначала копируется рядом: следующая запись на
+  /// диск уже не будет содержать пропущенного.
+  Future<void> _loadFile(File f) async {
+    final raw = await f.readAsString();
+    Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } on FormatException catch (e) {
+      debugPrint('MovieRepository: файл библиотеки не читается: $e');
+    }
+    if (decoded is Map<String, dynamic>) {
+      _loadSkipped = _ingest(decoded, tolerant: true);
+    } else {
+      _loadFailed = true;
+    }
+    if (_loadFailed || _loadSkipped > 0) {
+      final dot = f.path.lastIndexOf('.');
+      await f.copy('${f.path.substring(0, dot)}.unreadable.json');
+    }
+  }
+
+  /// Разбирает библиотеку, ничего не меняя в памяти. Строгий разбор падает
+  /// на первой же ошибке; терпимый ([tolerant]) пропускает запись и считает
+  /// пропуски.
+  static _Parsed _parse(Map<String, dynamic> data, {bool tolerant = false}) {
+    var skipped = 0;
+    List<T> each<T>(String key, T Function(Map<String, dynamic>) make) {
+      final out = <T>[];
+      for (final e in (data[key] as List? ?? const [])) {
+        try {
+          out.add(make((e as Map).cast<String, dynamic>()));
+        } catch (err) {
+          if (!tolerant) rethrow;
+          skipped++;
+          debugPrint('MovieRepository: запись из «$key» пропущена: $err');
+        }
+      }
+      return out;
+    }
+
+    final movies = each('movies', LibraryMovie.fromJson);
+    final series = each('series', LibrarySeries.fromJson);
+    final lists = each('lists', MovieList.fromJson);
+    return _Parsed(movies, series, lists, skipped);
+  }
+
+  /// Подменяет библиотеку разобранной. Возвращает число пропущенных записей.
+  ///
+  /// Разбор идёт до подмены. Раньше списки чистились и наполнялись по ходу
+  /// чтения: ошибка посреди файла оставляла в памяти обрубок, и следующая
+  /// запись на диск стирала им настоящую базу.
+  int _ingest(Map<String, dynamic> data, {bool tolerant = false}) =>
+      _adopt(_parse(data, tolerant: tolerant));
+
+  int _adopt(_Parsed parsed) {
     _movies
       ..clear()
-      ..addAll((data['movies'] as List? ?? [])
-          .map((e) => LibraryMovie.fromJson(e as Map<String, dynamic>)));
+      ..addAll(parsed.movies);
     _series
       ..clear()
-      ..addAll((data['series'] as List? ?? [])
-          .map((e) => LibrarySeries.fromJson(e as Map<String, dynamic>)));
+      ..addAll(parsed.series);
     _lists
       ..clear()
-      ..addAll((data['lists'] as List? ?? [])
-          .map((e) => MovieList.fromJson(e as Map<String, dynamic>)));
+      ..addAll(parsed.lists);
     _stampWatchlistDates();
     _movies.forEach(bindLooseReviews);
+    return parsed.skipped;
   }
 
   /// Сериалы из импорта TV Time и версий до 0.20 лежат в «Буду смотреть» без
@@ -613,19 +712,47 @@ class MovieRepository extends ChangeNotifier {
     return stats;
   }
 
-  /// Восстанавливает библиотеку из резервной копии (заменяет текущую).
-  Future<bool> importJson(String raw) async {
+  /// Восстанавливает библиотеку из резервной копии, заменяя текущую.
+  Future<bool> importJson(String raw) async =>
+      (await restoreBackup(raw, merge: false)).ok;
+
+  /// Восстанавливает библиотеку из резервной копии [raw].
+  ///
+  /// С [merge] копия складывается с библиотекой, как при синхронизации:
+  /// ничего не пропадает. Без него библиотека заменяется копией, и всё,
+  /// что отмечено после неё, исчезает.
+  ///
+  /// Запись копии, на которой разбор падает, пропускается: в беде важнее
+  /// поднять остальное. Если в файле нет библиотеки или из неё не
+  /// прочиталось ничего, текущая библиотека остаётся как была.
+  Future<RestoreResult> restoreBackup(String raw, {required bool merge}) async {
+    final _Parsed parsed;
     try {
-      final data = jsonDecode(raw) as Map<String, dynamic>;
-      if (data['movies'] == null && data['series'] == null) return false;
-      _ingest(data);
-      await _persist();
-      notifyListeners();
-      return true;
+      final data = jsonDecode(raw);
+      if (data is! Map<String, dynamic>) return RestoreResult.failed;
+      if (data['movies'] == null && data['series'] == null) {
+        return RestoreResult.failed;
+      }
+      parsed = _parse(data, tolerant: true);
     } catch (e) {
-      debugPrint('MovieRepository.import error: $e');
-      return false;
+      debugPrint('MovieRepository.restoreBackup error: $e');
+      return RestoreResult.failed;
     }
+    if (parsed.isEmpty && parsed.skipped > 0) return RestoreResult.failed;
+    try {
+      if (merge) {
+        _ingest(mergeSnapshots(
+            buildSyncSnapshot(), parsed.toJson(), SyncStats()));
+      } else {
+        _adopt(parsed);
+      }
+    } catch (e) {
+      debugPrint('MovieRepository.restoreBackup error: $e');
+      return RestoreResult.failed;
+    }
+    await _persist();
+    notifyListeners();
+    return RestoreResult(ok: true, skipped: parsed.skipped);
   }
 
   /// Импорт фильмов из другого трекера (Letterboxd/IMDb/…): добавляет новые
