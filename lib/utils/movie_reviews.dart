@@ -71,6 +71,26 @@ List<MovieReviewRef> movieReviews(LibraryMovie m) {
   return refs;
 }
 
+/// Записывает рецензиям фильма просмотр, который им достался по дате.
+///
+/// Делается один раз при загрузке библиотеки. Пока привязка считалась при
+/// каждом чтении, рецензия без дат уходила к новому пересмотру и пропадала,
+/// когда его удаляли. Рецензия старой версии получает разбор закрытым от
+/// друзей, как и была; дата правки не появляется.
+void bindLooseReviews(LibraryMovie m) {
+  if (m.viewings.isEmpty || (!m.hasReview && m.moreReviews.isEmpty)) return;
+  for (final r in movieReviews(m)) {
+    final v = r.viewing;
+    if (v == null || r.meta?.viewId == v.id) continue;
+    final item = r.item;
+    if (item is LibraryMovie) {
+      (item.reviewMeta ??= ReviewMeta(shared: false)).viewId = v.id;
+    } else if (item is ExtraReview) {
+      (item.reviewMeta ??= ReviewMeta(shared: false)).viewId = v.id;
+    }
+  }
+}
+
 /// Рецензия на просмотр [viewId]; с null — рецензия без просмотра.
 HasReview? reviewOfViewing(LibraryMovie m, String? viewId) {
   for (final r in movieReviews(m)) {

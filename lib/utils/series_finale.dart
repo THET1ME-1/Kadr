@@ -105,8 +105,11 @@ class SessionMilestone {
 SessionMilestone? milestoneOf(EpisodeSession session) {
   final s = session.series;
   if (s.dropped) return null;
+  // Первый просмотр узнаётся по id, а не по номеру: номер считается по дате,
+  // и повтор без даты или с датой раньше первого сдвигает первый на второе
+  // место.
   bool has(DateTime at) => session.episodes.any(
-    (e) => e.rewatchOrdinal <= 1 && e.watchedAt == at,
+    (e) => e.eventIsFirst && e.watchedAt == at,
   );
   final run = seriesRun(s);
   final at = completedAt(s);

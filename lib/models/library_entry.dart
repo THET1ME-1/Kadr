@@ -155,7 +155,12 @@ class Viewing {
   /// Дневник этого просмотра (настроение/с кем/где/фото/заметка) — опционально.
   DiaryEntry? diary;
 
-  Viewing({String? id, this.date, this.score, this.diary})
+  /// Когда просмотр правили в последний раз (оценка, дата или дневник). По
+  /// нему синхронизация выбирает из двух версий одной записи более свежую.
+  /// Пусто у записей, которые после отметки не трогали.
+  DateTime? editedAt;
+
+  Viewing({String? id, this.date, this.score, this.diary, this.editedAt})
       : id = id ?? newViewingId();
 
   bool get hasDate => date != null;
@@ -179,6 +184,7 @@ class Viewing {
         diary: j['diary'] is Map
             ? DiaryEntry.fromJson((j['diary'] as Map).cast<String, dynamic>())
             : null,
+        editedAt: _parseDate(j['edited']),
       );
     }
     return Viewing(id: '', date: _parseDate(j));
@@ -189,6 +195,7 @@ class Viewing {
         'date': date?.toIso8601String(),
         'score': score,
         if (diary != null && diary!.isNotEmpty) 'diary': diary!.toJson(),
+        if (editedAt != null) 'edited': editedAt!.toIso8601String(),
       };
 }
 
@@ -377,7 +384,13 @@ class LibraryMovie with HasReview {
   }
 
   /// Оценка фильма: последний оценённый просмотр. Без просмотров — общая.
-  double? get currentScore => lastRatedScore(orderedViewings) ?? score;
+  /// С одним просмотром список не сортируем: геттер зовёт каждое сравнение в
+  /// сортировке ленты.
+  double? get currentScore => switch (viewings.length) {
+        0 => score,
+        1 => viewings.first.score ?? score,
+        _ => lastRatedScore(orderedViewings) ?? score,
+      };
 
   /// Оценка ближайшего оценённого просмотра перед [v]: «в прошлый раз».
   double? previousScore(Viewing v) {
@@ -552,6 +565,9 @@ class Episode {
   /// Дневник первого просмотра серии (настроение/с кем/где/фото/заметка).
   DiaryEntry? diary;
 
+  /// Когда правили первый просмотр, см. [Viewing.editedAt].
+  DateTime? editedAt;
+
   /// [rewatchCount] — счётчик старых версий: если он обогнал [rewatchViews],
   /// недостающие повторы достраиваются без даты, чтобы ×N совпадал со списком.
   Episode({
@@ -565,6 +581,7 @@ class Episode {
     int rewatchCount = 0,
     List<Viewing>? rewatchViews,
     this.diary,
+    this.editedAt,
   })  : vid = vid ?? 'f',
         rewatchViews = rewatchViews ?? [] {
     for (var i = this.rewatchViews.length; i < rewatchCount; i++) {
@@ -579,7 +596,13 @@ class Episode {
   /// Все просмотры серии в порядке записи: первый = watchedAt+score, затем
   /// повторы. Первый отдаётся копией: менять его через репозиторий по [vid].
   List<Viewing> get views => [
-        Viewing(id: vid, date: watchedAt, score: score, diary: diary),
+        Viewing(
+          id: vid,
+          date: watchedAt,
+          score: score,
+          diary: diary,
+          editedAt: editedAt,
+        ),
         ...rewatchViews,
       ];
 
@@ -589,14 +612,18 @@ class Episode {
   /// Оценка конкретного просмотра.
   double? scoreOfView(Viewing v) => v.score;
 
-  /// Оценка серии: последний оценённый просмотр.
-  double? get currentScore => lastRatedScore(orderedViews);
+  /// Оценка серии: последний оценённый просмотр. У серии без повторов это
+  /// её собственная оценка: список собирать незачем, а зовут геттер часто
+  /// (средняя сериала, сортировка ленты).
+  double? get currentScore =>
+      rewatchViews.isEmpty ? score : lastRatedScore(orderedViews);
 
   /// Всего просмотров серии (первый + повторы).
   int get watchCount => 1 + rewatchViews.length;
 
   /// Копия-«событие» одного просмотра (дата, его оценка и дневник) — для
-  /// ленты, где один просмотр = одна запись.
+  /// ленты, где один просмотр = одна запись. Id первого просмотра у копии
+  /// тот же, что у серии: по нему видно, первый это просмотр или повтор.
   Episode copyForView(Viewing v) => Episode(
         season: season,
         number: number,
@@ -604,8 +631,13 @@ class Episode {
         runtimeMin: runtimeMin,
         score: v.score,
         epId: epId,
+        vid: vid,
         diary: v.diary,
       )..eventViewId = v.id;
+
+  /// У копии-события: это первый просмотр серии, а не повтор. Сама серия,
+  /// не копия, тоже отвечает «да»: её поля и есть первый просмотр.
+  bool get eventIsFirst => eventViewId == null || eventViewId == vid;
 
   /// Метка «S1E5» / «Серия 5» / «Эпизод».
   String get label {
@@ -638,6 +670,7 @@ class Episode {
         diary: j['diary'] is Map
             ? DiaryEntry.fromJson((j['diary'] as Map).cast<String, dynamic>())
             : null,
+        editedAt: _parse(j['vEdited']),
       );
 
   /// Читает повторы: новый формат rewatchViews (дата+оценка) или старый
@@ -668,6 +701,7 @@ class Episode {
         if (rewatchViews.isNotEmpty)
           'rewatchViews': [for (final v in rewatchViews) v.toJson()],
         if (diary != null && diary!.isNotEmpty) 'diary': diary!.toJson(),
+        if (editedAt != null) 'vEdited': editedAt!.toIso8601String(),
       };
 }
 
@@ -1085,7 +1119,6 @@ class SeasonReview with HasReview {
     this.reviewMeta,
   });
 
-  int get seasonCount => to - from + 1;
   bool covers(int season) => season >= from && season <= to;
 
   /// Идёт ли рецензия в свод: не черновик и с оценками по пунктам.

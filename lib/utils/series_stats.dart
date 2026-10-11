@@ -258,13 +258,9 @@ bool _airedBy(TmdbEpisode e, DateTime now) {
   return d == null || !d.isAfter(now);
 }
 
-double? _scoreOf(Episode e) {
-  if (e.score != null) return e.score;
-  for (final v in e.rewatchViews.reversed) {
-    if (v.score != null) return v.score;
-  }
-  return null;
-}
+/// Оценка серии та же, что в шапке сериала и на плитке: последний оценённый
+/// просмотр.
+double? _scoreOf(Episode e) => e.currentScore;
 
 class _Watched {
   final Episode e;

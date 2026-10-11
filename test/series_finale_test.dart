@@ -141,6 +141,25 @@ void main() {
       expect(milestoneOf(sessions.last), isNull);
     });
 
+    // Номер просмотра считается по дате, без даты раньше всех. Финал от
+    // номера не зависит: он стоит на первом просмотре серии.
+    test('повтор без даты плашку не забирает', () {
+      final eps = _run(1, 2, DateTime(2026, 10, 1, 20));
+      eps.last.rewatchViews.add(Viewing());
+      final s = _series(eps, air: _ended(2));
+      expect(milestoneOf(s.sessions().first)!.finale, isTrue);
+    });
+
+    test('повтор с датой раньше первого просмотра плашку не забирает', () {
+      final eps = _run(1, 2, DateTime(2026, 10, 1, 20));
+      eps.last.rewatchViews.add(Viewing(date: DateTime(2026, 9, 1, 21)));
+      final s = _series(eps, air: _ended(2));
+      final sessions = s.sessions();
+      expect(sessions, hasLength(2));
+      expect(milestoneOf(sessions.first), isNull);
+      expect(milestoneOf(sessions.last)!.finale, isTrue);
+    });
+
     test('догнал: ждём следующий сезон', () {
       final s = _series(
         _run(3, 2, DateTime(2026, 10, 2, 22)),

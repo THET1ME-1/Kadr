@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kadr/models/library_entry.dart';
 import 'package:kadr/models/review.dart';
 import 'package:kadr/services/movie_repository.dart';
+import 'package:kadr/utils/movie_reviews.dart';
 
 /// Просмотры в репозитории: фильм и серия по id, просмотр сезона, проекция.
 void main() {
@@ -84,17 +85,79 @@ void main() {
       expect(first.diary, isNull);
     });
 
-    test('удаление возвращает снимок, по нему просмотр возвращается',
+    // Синхронизация и «Вернуть» пересоздают объекты библиотеки. Экран, который
+    // держал прежний просмотр, обязан писать в новый, а не в пустоту.
+    test('оценка, дата и дневник пишутся и после подмены объектов', () async {
+      final repo = movieRepo();
+      final stale = repo.byUuid('m')!.viewingById(v2.id)!;
+      await repo.mergeSyncSnapshot(const {});
+      expect(identical(repo.byUuid('m')!.viewingById(v2.id), stale), isFalse);
+      await repo.setViewingScore('m', stale, 9.5);
+      await repo.setViewingDate('m', stale, DateTime(2026, 6, 1));
+      await repo.setViewingDiary('m', stale, DiaryEntry(note: 'новое'));
+      final live = repo.byUuid('m')!.viewingById(v2.id)!;
+      expect(live.score, 9.5);
+      expect(live.date, DateTime(2026, 6, 1));
+      expect(live.diary!.note, 'новое');
+      expect(await repo.removeViewing('m', stale), isNotNull);
+      expect(repo.byUuid('m')!.viewingById(v2.id), isNull);
+    });
+
+    test('удалённый просмотр возвращается на место вместе с дневником',
         () async {
       final repo = movieRepo();
       final m = repo.byUuid('m')!;
-      final snap = await repo.removeViewing('m', m.viewingById(v2.id)!);
+      final removed = await repo.removeViewing('m', m.viewingById(v2.id)!);
       expect(repo.byUuid('m')!.viewings.length, 1);
-      expect(snap, isNotNull);
-      await repo.restoreFromSnapshot([snap!], const []);
+      expect(removed, isNotNull);
+      await repo.restoreViewing('m', removed!);
       final back = repo.byUuid('m')!;
-      expect(back.viewings.length, 2);
+      expect([for (final v in back.viewings) v.id], [v1.id, v2.id]);
       expect(back.viewingById(v2.id)!.diary!.note, 'личное');
+      expect(back.viewingById(v2.id)!.score, 8.5);
+    });
+
+    // Плашка «Вернуть» может провисеть долго. Всё, что человек успел сделать
+    // с фильмом после удаления, остаётся при нём.
+    test('«Вернуть» не стирает сделанное после удаления', () async {
+      final repo = movieRepo();
+      final m = repo.byUuid('m')!;
+      final removed = await repo.removeViewing('m', m.viewingById(v2.id)!);
+      await repo.toggleFavorite('m');
+      await repo.addViewing('m', DateTime(2026, 9, 1), score: 7.0);
+      await repo.restoreViewing('m', removed!);
+      final back = repo.byUuid('m')!;
+      expect(back.favorite, isTrue);
+      expect(back.viewings.length, 3);
+      expect(back.currentScore, 7.0);
+      // Повторное нажатие второй раз просмотр не добавляет.
+      await repo.restoreViewing('m', removed);
+      expect(repo.byUuid('m')!.viewings.length, 3);
+    });
+
+    test('вместе с просмотром возвращается его рецензия', () async {
+      final repo = movieRepo();
+      await repo.saveMovieReview('m',
+          viewId: v1.id, text: 'про первый', meta: ReviewMeta());
+      await repo.saveMovieReview('m',
+          viewId: v2.id, text: 'про второй', meta: ReviewMeta());
+      final removed = await repo.removeViewing(
+          'm', repo.byUuid('m')!.viewingById(v2.id)!);
+      expect(repo.byUuid('m')!.allReviews.single.review, 'про первый');
+      await repo.restoreViewing('m', removed!);
+      final m = repo.byUuid('m')!;
+      expect(reviewOfViewing(m, v2.id)!.review, 'про второй');
+      expect(reviewOfViewing(m, v1.id)!.review, 'про первый');
+    });
+
+    test('единственный просмотр возвращается вместе со статусом', () async {
+      final repo = movieRepo(viewings: [Viewing.fromAny(v1.toJson())]);
+      final removed = await repo.removeViewing(
+          'm', repo.byUuid('m')!.viewingById(v1.id)!);
+      expect(repo.byUuid('m')!.status, LibraryStatus.library);
+      await repo.restoreViewing('m', removed!);
+      expect(repo.byUuid('m')!.status, LibraryStatus.watched);
+      expect(repo.byUuid('m')!.viewings.single.id, v1.id);
     });
 
     test('удаление просмотра убирает и его рецензию', () async {
@@ -149,13 +212,51 @@ void main() {
       final repo = seriesRepo([ep(1, [d1, d2], score: 10.0)]);
       final e = repo.seriesById('s')!.episodes.single;
       final rewatchId = e.rewatchViews.single.id;
-      final snap = await repo.removeEpisodeViewById('s', 1, 1, e.vid);
+      final firstId = e.vid;
+      final removed = await repo.removeEpisodeViewById('s', 1, 1, e.vid);
       expect(e.watchCount, 1);
       expect(e.vid, rewatchId);
       expect(e.watchedAt, d2);
       expect(e.score, isNull);
-      await repo.restoreFromSnapshot(const [], [snap!]);
-      expect(repo.seriesById('s')!.episodes.single.watchCount, 2);
+      // «Вернуть» ставит просмотр обратно первым, повтор снова повтор.
+      await repo.restoreEpisodeView('s', 1, 1, removed!);
+      final back = repo.seriesById('s')!.episodes.single;
+      expect(back.watchCount, 2);
+      expect(back.vid, firstId);
+      expect(back.watchedAt, d1);
+      expect(back.score, 10.0);
+      expect(back.rewatchViews.single.id, rewatchId);
+      expect(back.rewatchViews.single.date, d2);
+    });
+
+    test('«Вернуть» просмотр серии не трогает остальные серии', () async {
+      final repo = seriesRepo([ep(5, [d1, d2])]);
+      final e = repo.seriesById('s')!.episodes.single;
+      final removed =
+          await repo.removeEpisodeViewById('s', 1, 5, e.rewatchViews.single.id);
+      await repo.markEpisodesBulk('s', [
+        [1, 6],
+        [1, 7],
+        [1, 8],
+      ], at: DateTime(2026, 8, 1, 20));
+      await repo.restoreEpisodeView('s', 1, 5, removed!);
+      final s = repo.seriesById('s')!;
+      expect(s.episodes.length, 4, reason: 'серии 6–8 остались');
+      expect(s.watchedEpisode(1, 5)!.watchCount, 2);
+    });
+
+    test('единственный просмотр серии возвращается вместе с серией', () async {
+      final repo = seriesRepo([
+        Episode(season: 1, number: 1, watchedAt: d1, score: 9.0, runtimeMin: 42),
+      ]);
+      final e = repo.seriesById('s')!.episodes.single;
+      final removed = await repo.removeEpisodeViewById('s', 1, 1, e.vid);
+      expect(repo.seriesById('s')!.episodes, isEmpty);
+      await repo.restoreEpisodeView('s', 1, 1, removed!);
+      final back = repo.seriesById('s')!.episodes.single;
+      expect(back.watchedAt, d1);
+      expect(back.score, 9.0);
+      expect(back.runtimeMin, 42);
     });
 
     test('удаление единственного просмотра снимает серию', () async {
@@ -231,6 +332,59 @@ void main() {
     });
   });
 
+  group('импорт из другого трекера', () {
+    MovieRepository withDune(List<Viewing> viewings) =>
+        MovieRepository.detached({
+          'movies': [
+            LibraryMovie(
+              uuid: 'm',
+              title: 'Дюна',
+              year: 2021,
+              status: LibraryStatus.watched,
+              enrichTried: true,
+              viewings: viewings,
+            ).toJson(),
+          ],
+        });
+
+    LibraryMovie incoming(List<Viewing> viewings, {double? score}) =>
+        LibraryMovie(
+          uuid: 'x',
+          title: 'Дюна',
+          year: 2021,
+          status: LibraryStatus.watched,
+          enrichTried: true,
+          viewings: viewings,
+          score: score,
+        );
+
+    test('оценка из файла ложится в просмотр с той же датой', () async {
+      final d = DateTime(2024, 3, 1);
+      final repo = withDune([Viewing(date: d)]);
+      final (added, updated) =
+          await repo.importMovies([incoming([Viewing(date: d)], score: 9.0)]);
+      final m = repo.byUuid('m')!;
+      expect((added, updated), (0, 1));
+      expect(m.viewings.length, 1, reason: 'дубля просмотра нет');
+      expect(m.currentScore, 9.0);
+    });
+
+    test('оценка из файла ложится в просмотр без даты', () async {
+      final repo = withDune([Viewing()]);
+      await repo.importMovies([incoming([Viewing()], score: 8.0)]);
+      final m = repo.byUuid('m')!;
+      expect(m.viewings.length, 1);
+      expect(m.currentScore, 8.0);
+    });
+
+    test('своя оценка просмотра импортом не затирается', () async {
+      final d = DateTime(2024, 3, 1);
+      final repo = withDune([Viewing(date: d, score: 7.0)]);
+      await repo.importMovies([incoming([Viewing(date: d)], score: 9.0)]);
+      expect(repo.byUuid('m')!.currentScore, 7.0);
+    });
+  });
+
   group('что видят друзья', () {
     test('дневник просмотров не уезжает', () {
       final repo = MovieRepository.detached({
@@ -297,8 +451,9 @@ void main() {
       });
       final movie = (repo.buildPublicProfile()['movies'] as List).single as Map;
       expect(movie['review'], 'открытая');
+      // Черновик не уехал; id наружу уходит порядковый, а не свой.
       final more = movie['moreReviews'] as List;
-      expect([for (final r in more) (r as Map)['id']], ['x2']);
+      expect([for (final r in more) (r as Map)['review']], ['тоже открытая']);
     });
   });
 }

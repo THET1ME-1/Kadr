@@ -97,12 +97,7 @@ void showReadonlyMovieSheet(BuildContext context, LibraryMovie m,
               if (r.item.reviewIsPublic) ...[
                 const SizedBox(height: 18),
                 _friendReview(
-                    ctx,
-                    ReviewTarget.movie(m,
-                        repo: repo,
-                        viewId: r.viewing?.id,
-                        unbound: r.viewing == null),
-                    author),
+                    ctx, ReviewTarget.ofRef(m, r, repo: repo), author),
               ],
             if (views.isNotEmpty) ...[
               const SizedBox(height: 18),

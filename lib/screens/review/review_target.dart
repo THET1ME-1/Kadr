@@ -22,6 +22,10 @@ class ReviewTarget {
   /// просмотров и у старой рецензии, которой не досталось просмотра.
   String? viewId;
 
+  /// Id рецензии из `moreReviews`, если цель — именно она. Нужен рецензии
+  /// без просмотра: иначе её не отличить от первой, что лежит в полях фильма.
+  final String? extraId;
+
   /// Рецензия на сезоны, уже записанная в библиотеку. null у фильма, у
   /// рецензии на весь сериал и у новой рецензии на сезоны до первой записи.
   String? partId;
@@ -35,12 +39,26 @@ class ReviewTarget {
   /// не в read-only копии чужой библиотеки. [unbound] — рецензия в старых
   /// полях фильма как есть, без подбора просмотра.
   ReviewTarget.movie(LibraryMovie this.movie,
-      {MovieRepository? repo, bool? mine, String? viewId, bool unbound = false})
+      {MovieRepository? repo,
+      bool? mine,
+      String? viewId,
+      bool unbound = false,
+      this.extraId})
       : series = null,
         repo = repo ?? MovieRepository.instance,
         viewId = unbound ? null : (viewId ?? _defaultViewId(movie)),
         pass = 1,
         _mine = mine;
+
+  /// Цель для строки списка рецензий фильма.
+  ReviewTarget.ofRef(LibraryMovie movie, MovieReviewRef ref,
+      {MovieRepository? repo, bool? mine})
+      : this.movie(movie,
+            repo: repo,
+            mine: mine,
+            viewId: ref.viewing?.id,
+            unbound: ref.viewing == null,
+            extraId: ref.viewing == null ? ref.extraId : null);
 
   ReviewTarget.series(LibrarySeries this.series,
       {MovieRepository? repo,
@@ -50,6 +68,7 @@ class ReviewTarget {
       int? to,
       int pass = 1})
       : movie = null,
+        extraId = null,
         repo = repo ?? MovieRepository.instance,
         partId = part?.id,
         from = part?.from ?? from,
@@ -88,12 +107,22 @@ class ReviewTarget {
   HasReview get item {
     final m = movie;
     if (m != null) {
-      final found =
-          viewId == null ? (m.hasReview ? m : null) : reviewOfViewing(m, viewId);
+      final HasReview? found;
+      if (extraId != null && viewId == null) {
+        found = m.moreReviews.where((r) => r.id == extraId).firstOrNull;
+      } else {
+        found = viewId == null
+            ? (m.hasReview ? m : null)
+            : reviewOfViewing(m, viewId);
+      }
       return found ?? _blankMovie;
     }
     return isPart ? (part ?? _blankPart) : series!;
   }
+
+  /// Как хранилище находит рецензию фильма: по [extraId], пока она без
+  /// просмотра, иначе по просмотру.
+  String? get _looseId => viewId == null ? extraId : null;
 
   /// Просмотр фильма, о котором рецензия.
   Viewing? get viewing => movie?.viewingById(viewId);
@@ -194,7 +223,7 @@ class ReviewTarget {
   Future<void> save(String? text, ReviewMeta meta) async {
     if (movie != null) {
       return repo.saveMovieReview(movie!.uuid,
-          viewId: viewId, text: text, meta: meta);
+          viewId: viewId, extraId: _looseId, text: text, meta: meta);
     }
     if (!isPart) {
       return repo.saveSeriesReview(series!.tvShowId, text: text, meta: meta);
@@ -206,7 +235,8 @@ class ReviewTarget {
 
   Future<void> delete() async {
     if (movie != null) {
-      return repo.deleteMovieReview(movie!.uuid, viewId: viewId);
+      return repo.deleteMovieReview(movie!.uuid,
+          viewId: viewId, extraId: _looseId);
     }
     if (!isPart) return repo.deleteSeriesReview(series!.tvShowId);
     if (partId != null) {
@@ -258,8 +288,8 @@ class ReviewTarget {
       viewId = newViewId;
       return true;
     }
-    final ok =
-        await repo.moveMovieReview(m.uuid, from: viewId, to: newViewId);
+    final ok = await repo.moveMovieReview(m.uuid,
+        from: viewId, extraId: _looseId, to: newViewId);
     if (ok) viewId = newViewId;
     return ok;
   }
@@ -304,11 +334,7 @@ class ReviewTarget {
     final out = <ReviewTarget>[
       for (final m in repo.movies)
         for (final r in movieReviews(m))
-          if (r.item.reviewIsPublic)
-            ReviewTarget.movie(m,
-                repo: repo,
-                viewId: r.viewing?.id,
-                unbound: r.viewing == null),
+          if (r.item.reviewIsPublic) ReviewTarget.ofRef(m, r, repo: repo),
       for (final s in repo.series) ...[
         if (s.reviewIsPublic) ReviewTarget.series(s, repo: repo),
         for (final p in s.seasonReviews)

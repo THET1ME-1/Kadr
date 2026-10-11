@@ -109,9 +109,9 @@ class MovieViewingHost extends ViewingHost {
   Future<ViewingUndo?> remove(Viewing v) async {
     final live = byId(v.id);
     if (live == null) return null;
-    final snap = await repo.removeViewing(uuid, live);
-    if (snap == null) return null;
-    return () => repo.restoreFromSnapshot([snap], const []);
+    final removed = await repo.removeViewing(uuid, live);
+    if (removed == null) return null;
+    return () => repo.restoreViewing(uuid, removed);
   }
 
   @override
@@ -175,10 +175,10 @@ class EpisodeViewingHost extends ViewingHost {
 
   @override
   Future<ViewingUndo?> remove(Viewing v) async {
-    final snap =
+    final removed =
         await repo.removeEpisodeViewById(seriesId, season, number, v.id);
-    if (snap == null) return null;
-    return () => repo.restoreFromSnapshot(const [], [snap]);
+    if (removed == null) return null;
+    return () => repo.restoreEpisodeView(seriesId, season, number, removed);
   }
 
   @override

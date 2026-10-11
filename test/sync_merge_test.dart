@@ -373,11 +373,14 @@ void main() {
         {'id': 'v1', 'date': '2026-04-15T00:00:00.000'},
         {'id': 'v2', 'date': '2026-08-16T00:00:00.000'},
       ];
+      // Момент создания ставит первая запись рецензии: по нему видно, что
+      // рецензии разные.
       Map<String, dynamic> withMain(String text, String viewId, String at) =>
           movie('a', viewings: views)
             ..['review'] = text
             ..['reviewMeta'] = {
               'shared': true,
+              'createdAt': at,
               'updatedAt': at,
               'viewId': viewId,
             };
@@ -389,6 +392,117 @@ void main() {
       final more = (m['moreReviews'] as List).cast<Map>();
       expect(more.single['review'], 'про первый');
       expect((more.single['reviewMeta'] as Map)['viewId'], 'v1');
+    });
+
+    // На одном устройстве рецензию перенесли на другой просмотр. Это та же
+    // рецензия, а не вторая: копии на прежнем просмотре быть не должно.
+    test('перенесённая рецензия не превращается во вторую', () {
+      final views = [
+        {'id': 'v1', 'date': '2026-04-15T00:00:00.000'},
+        {'id': 'v2', 'date': '2026-08-16T00:00:00.000'},
+      ];
+      Map<String, dynamic> at(String viewId, String updated) =>
+          movie('a', viewings: views)
+            ..['review'] = 'одна рецензия'
+            ..['reviewMeta'] = {
+              'shared': true,
+              'createdAt': '2026-04-15T12:00:00.000',
+              'updatedAt': updated,
+              'viewId': viewId,
+            };
+      final stay = at('v1', '2026-04-15T12:00:00.000');
+      final moved = at('v2', '2026-09-01T10:00:00.000');
+      for (final pair in [(moved, stay), (stay, moved)]) {
+        final m = mergedMovie(pair.$1, pair.$2);
+        expect(m['moreReviews'], isNull);
+        expect((m['reviewMeta'] as Map)['viewId'], 'v2',
+            reason: 'перенос свежее и побеждает на обоих устройствах');
+      }
+      // Перенос из сборки, которая не обновляла дату правки: дубля тоже нет.
+      final silent = at('v2', '2026-04-15T12:00:00.000');
+      expect(mergedMovie(silent, stay)['moreReviews'], isNull);
+      expect(mergedMovie(stay, silent)['moreReviews'], isNull);
+    });
+
+    test('старая рецензия, привязанная к разным просмотрам, остаётся одной',
+        () {
+      final views = [
+        {'id': 'v1', 'date': '2026-04-15T00:00:00.000'},
+        {'id': 'v2', 'date': '2026-08-16T00:00:00.000'},
+      ];
+      Map<String, dynamic> at(String viewId) => movie('a', viewings: views)
+        ..['review'] = 'текст старой версии'
+        ..['reviewMeta'] = {'shared': false, 'viewId': viewId};
+      expect(mergedMovie(at('v1'), at('v2'))['moreReviews'], isNull);
+    });
+
+    group('правка общего просмотра', () {
+      const d = '2024-01-01T10:00:00.000';
+      const early = '2026-09-01T10:00:00.000';
+      const late = '2026-09-02T10:00:00.000';
+
+      Map<String, dynamic> one(Map<String, dynamic> v) =>
+          movie('a', viewings: [v]);
+
+      Map viewOf(Map<String, dynamic> m) => (m['viewings'] as List).single as Map;
+
+      // «Не помню» на одном устройстве, дату поставили на другом: без
+      // дозаполнения запись у одного в ленте есть, у другого нет, а файл на
+      // сервере при каждом заходе меняется туда и обратно.
+      test('дата, поставленная на другом устройстве, доезжает', () {
+        final undated = one({'id': 'v1', 'date': null, 'score': 8.0});
+        final dated = one({'id': 'v1', 'date': d, 'score': 8.0, 'edited': late});
+        for (final pair in [(undated, dated), (dated, undated)]) {
+          expect(viewOf(mergedMovie(pair.$1, pair.$2))['date'], d);
+        }
+      });
+
+      test('побеждает более поздняя правка, с какой бы стороны она ни была',
+          () {
+        final old = one({'id': 'v1', 'date': d, 'score': 7.0, 'edited': early});
+        final fresh = one({'id': 'v1', 'date': d, 'score': 9.0, 'edited': late});
+        for (final pair in [(old, fresh), (fresh, old)]) {
+          final v = viewOf(mergedMovie(pair.$1, pair.$2));
+          expect(v['score'], 9.0);
+          expect(v['edited'], late);
+        }
+      });
+
+      test('убранная оценка не возвращается с другого устройства', () {
+        final rated = one({'id': 'v1', 'date': d, 'score': 8.0});
+        final cleared =
+            one({'id': 'v1', 'date': d, 'score': null, 'edited': late});
+        for (final pair in [(rated, cleared), (cleared, rated)]) {
+          expect(viewOf(mergedMovie(pair.$1, pair.$2))['score'], isNull);
+        }
+      });
+
+      test('первый просмотр серии правится по тем же правилам', () {
+        final old = series('s', episodes: [ep(1, 1, watchedAt: d, score: 10.0)]);
+        final fresh = series('s', episodes: [
+          ep(1, 1, watchedAt: d, score: 9.0)..['vEdited'] = late,
+        ]);
+        for (final pair in [(old, fresh), (fresh, old)]) {
+          final e =
+              (mergedSeries(pair.$1, pair.$2)['episodes'] as List).single as Map;
+          expect(e['score'], 9.0);
+          expect(e['vEdited'], late);
+        }
+      });
+
+      test('повтор серии правится по тем же правилам', () {
+        Map<String, dynamic> withRewatch(Map<String, dynamic> v) =>
+            series('s', episodes: [
+              ep(1, 1, watchedAt: d)..['rewatchViews'] = [v],
+            ]);
+        final undated = withRewatch({'id': 'r1', 'date': null});
+        final dated = withRewatch({'id': 'r1', 'date': early, 'edited': late});
+        for (final pair in [(undated, dated), (dated, undated)]) {
+          final e =
+              (mergedSeries(pair.$1, pair.$2)['episodes'] as List).single as Map;
+          expect(((e['rewatchViews'] as List).single as Map)['date'], early);
+        }
+      });
     });
   });
 }

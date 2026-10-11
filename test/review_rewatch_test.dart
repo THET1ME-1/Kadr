@@ -162,6 +162,49 @@ void main() {
       expect(m.viewingById('v3')!.score, 8.0);
     });
 
+    // Редактор открыт, приложение свернули и вернули: синхронизация
+    // пересоздала объекты библиотеки, а цель держит прежние.
+    test('оценка пишется и после синхронизации под открытым редактором',
+        () async {
+      final repo = _repo();
+      final t = _target(repo, 'v1');
+      await repo.mergeSyncSnapshot(const {});
+      await t.setScore(9.5);
+      expect(repo.byUuid('aang')!.viewingById('v1')!.score, 9.5);
+    });
+
+    // Две рецензии на один просмотр: вторая остаётся без него, и строка
+    // такой рецензии обязана открывать и удалять её саму.
+    test('рецензия без просмотра открывает себя, а не первую рецензию',
+        () async {
+      final repo = MovieRepository.detached({
+        'movies': [
+          LibraryMovie(
+            uuid: 'x',
+            title: 'Мэйдэй',
+            status: LibraryStatus.watched,
+            viewings: [Viewing(id: 'a', date: DateTime(2026, 1, 1))],
+            review: 'главная',
+            reviewMeta: ReviewMeta(viewId: 'a', title: 'Главная'),
+            moreReviews: [
+              ExtraReview(
+                id: 'mr-dup',
+                review: 'лишняя',
+                reviewMeta: ReviewMeta(viewId: 'a', title: 'Лишняя'),
+              ),
+            ],
+          ).toJson(),
+        ],
+      });
+      final loose = ReviewTarget.publicReviews(repo)
+          .firstWhere((t) => t.meta!.title == 'Лишняя');
+      expect(loose.text, 'лишняя');
+      await loose.delete();
+      final m = repo.byUuid('x')!;
+      expect(m.review, 'главная');
+      expect(m.moreReviews, isEmpty);
+    });
+
     test('без указания просмотра цель берёт последнюю рецензию', () {
       final repo = _repo();
       final t = ReviewTarget.movie(repo.byUuid('aang')!, repo: repo);

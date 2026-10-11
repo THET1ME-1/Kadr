@@ -378,7 +378,12 @@ void main() {
       await tester.pump();
       await tester.tap(find.byTooltip(tr('close')));
       await tester.pumpAndSettle();
-      expect(repo.byUuid('m1')!.reviewMeta, isNull);
+      // При загрузке рецензия получает только привязку к просмотру. Разбор
+      // пуст, даты правки нет, друзьям она по-прежнему закрыта.
+      final meta = repo.byUuid('m1')!.reviewMeta!;
+      expect(meta.isEmptyContent, isTrue);
+      expect(meta.updatedAt, isNull);
+      expect(meta.shared, isFalse);
     });
   });
 

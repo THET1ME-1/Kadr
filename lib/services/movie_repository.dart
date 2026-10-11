@@ -22,6 +22,42 @@ import 'sync/sync_merge.dart';
 import 'tmdb_service.dart';
 import 'tvdb_service.dart';
 
+/// Удалённый просмотр: всё, чтобы «Вернуть» поставило на место его одного.
+///
+/// Раньше «Вернуть» подменяло фильм или сериал целиком снимком, снятым до
+/// удаления, и стирало всё, что человек успел сделать после.
+class RemovedView {
+  /// Копия просмотра с его id, датой, оценкой и дневником.
+  final Viewing view;
+
+  /// Где он стоял в списке, чтобы вернуться на то же место.
+  final int index;
+
+  /// Рецензия фильма на этот просмотр, если была.
+  final ExtraReview? review;
+
+  /// Статус фильма до удаления.
+  final LibraryStatus? status;
+
+  /// Это был первый просмотр серии, см. [Episode.vid].
+  final bool wasFirst;
+
+  /// Длительность и id серии: нужны, когда вместе с единственным просмотром
+  /// ушла сама серия.
+  final int? runtimeMin;
+  final String? epId;
+
+  const RemovedView({
+    required this.view,
+    this.index = 0,
+    this.review,
+    this.status,
+    this.wasFirst = false,
+    this.runtimeMin,
+    this.epId,
+  });
+}
+
 /// Единое хранилище библиотеки фильмов/сериалов Kadr.
 ///
 /// При первом запуске подгружает импортированную базу из ассета
@@ -253,6 +289,7 @@ class MovieRepository extends ChangeNotifier {
       ..addAll((data['lists'] as List? ?? [])
           .map((e) => MovieList.fromJson(e as Map<String, dynamic>)));
     _stampWatchlistDates();
+    _movies.forEach(bindLooseReviews);
   }
 
   /// Сериалы из импорта TV Time и версий до 0.20 лежат в «Буду смотреть» без
@@ -407,9 +444,43 @@ class MovieRepository extends ChangeNotifier {
       return d == null ? null : DateTime(d.year, d.month).toIso8601String();
     }
 
+    // Id просмотра выводится из его даты или из момента отметки, id рецензии
+    // — из момента создания: при скрытых датах по ним читалось бы точное
+    // время. Наружу уходят порядковые номера, рецензии переезжают на них же.
+    // Момент правки просмотра нужен только синхронизации.
+    Map<String, String> renumber(List views) {
+      final ids = <String, String>{};
+      for (final v in views) {
+        final id = 'p${ids.length + 1}';
+        ids['${(v as Map)['id']}'] = id;
+        v
+          ..['id'] = id
+          ..remove('edited');
+      }
+      return ids;
+    }
+
+    void relink(Map? review, Map<String, String> ids) {
+      final meta = review?['reviewMeta'] as Map?;
+      if (meta == null) return;
+      final id = ids[meta['viewId']];
+      if (id == null) {
+        meta.remove('viewId');
+      } else {
+        meta['viewId'] = id;
+      }
+    }
+
     // Дневник просмотра личный: настроение, с кем, где, фото и заметка не
     // уезжают ни при каких настройках.
     void stripMovie(Map m) {
+      final ids = renumber(m['viewings'] as List? ?? []);
+      relink(m, ids);
+      final more = (m['moreReviews'] as List? ?? []);
+      for (var i = 0; i < more.length; i++) {
+        (more[i] as Map)['id'] = 'r${i + 1}';
+        relink(more[i] as Map, ids);
+      }
       for (final v in (m['viewings'] as List? ?? [])) {
         (v as Map).remove('diary');
       }
@@ -429,10 +500,26 @@ class MovieRepository extends ChangeNotifier {
 
     void stripSeries(Map s) {
       if (hideRatings) s['score'] = null;
-      if (hideDates) s['addedAt'] = coarse(s['addedAt']);
+      // Когда выбрали источник оценки, нужно только синхронизации.
+      s.remove('scoreSourceAt');
+      final parts = (s['seasonReviews'] as List? ?? []);
+      for (var i = 0; i < parts.length; i++) {
+        (parts[i] as Map)['id'] = 'r${i + 1}';
+      }
+      if (hideDates) {
+        s['addedAt'] = coarse(s['addedAt']);
+        // «Догнал» записан моментом просмотра последней серии.
+        if (s['caughtUpAt'] is List) {
+          s['caughtUpAt'] = [for (final d in s['caughtUpAt'] as List) coarse(d)];
+        }
+      }
       for (final e in (s['episodes'] as List? ?? [])) {
         final em = e as Map;
-        em.remove('diary');
+        em
+          ..remove('diary')
+          ..remove('vid')
+          ..remove('vEdited');
+        renumber(em['rewatchViews'] as List? ?? []);
         for (final v in (em['rewatchViews'] as List? ?? [])) {
           (v as Map).remove('diary');
         }
@@ -563,14 +650,23 @@ class MovieRepository extends ChangeNotifier {
             existing.status == LibraryStatus.library) {
           existing.status = LibraryStatus.watchlist;
         }
-        final dates = existing.viewings.map((v) => v.date).toSet();
+        // Просмотр с той же датой второй раз не добавляется, но оценку из
+        // файла забирает: у импортируемого фильма она уже лежит в просмотре.
         for (final v in inc.viewings) {
-          if (!dates.contains(v.date)) existing.viewings.add(v);
+          final same =
+              existing.viewings.where((x) => x.date == v.date).firstOrNull;
+          if (same == null) {
+            existing.viewings.add(v);
+          } else {
+            same.score ??= v.score;
+          }
         }
         existing.score ??= inc.score;
+        existing.adoptHeadlineScore();
         existing.addedAt ??= inc.addedAt;
         updated++;
       } else {
+        bindLooseReviews(inc);
         _movies.add(inc);
         index[key] = inc;
         added++;
@@ -936,7 +1032,9 @@ class MovieRepository extends ChangeNotifier {
       s.episodes.add(Episode(
           season: season, number: number, watchedAt: null, runtimeMin: runtimeMin));
     } else {
-      ep.watchedAt = null;
+      ep
+        ..watchedAt = null
+        ..editedAt = DateTime.now();
     }
     notifyListeners();
     await _persist();
@@ -956,15 +1054,6 @@ class MovieRepository extends ChangeNotifier {
         runtimeMin: runtimeMin));
     // Отметили новую серию → сериал снова «смотрю» (напр. вышел новый сезон).
     s.finished = false;
-    notifyListeners();
-    await _persist();
-  }
-
-  /// Снимает отметку просмотра серии.
-  Future<void> unmarkEpisode(String seriesId, int season, int number) async {
-    final s = seriesById(seriesId);
-    if (s == null) return;
-    s.episodes.removeWhere((e) => e.season == season && e.number == number);
     notifyListeners();
     await _persist();
   }
@@ -1102,9 +1191,12 @@ class MovieRepository extends ChangeNotifier {
     if (s == null) return 0;
     final eps = s.episodes.where((e) => e.season == season).toList()
       ..sort((a, b) => (a.number ?? 0).compareTo(b.number ?? 0));
+    final now = DateTime.now();
     var i = 0;
     for (final e in eps) {
-      e.watchedAt = at?.add(Duration(seconds: i));
+      e
+        ..watchedAt = at?.add(Duration(seconds: i))
+        ..editedAt = now;
       i++;
     }
     if (eps.isNotEmpty) {
@@ -1134,20 +1226,6 @@ class MovieRepository extends ChangeNotifier {
       }
     }
     if (added > 0) {
-      notifyListeners();
-      await _persist();
-    }
-  }
-
-  /// Массово снимает отметки с переданных серий (последовательный режим:
-  /// «снял серию → все после неё»). [eps] — список [сезон, номер].
-  Future<void> unmarkEpisodesBulk(String seriesId, List<List<int>> eps) async {
-    final s = seriesById(seriesId);
-    if (s == null) return;
-    final keys = {for (final e in eps) '${e[0]}-${e[1]}'};
-    final before = s.episodes.length;
-    s.episodes.removeWhere((e) => keys.contains('${e.season}-${e.number}'));
-    if (s.episodes.length != before) {
       notifyListeners();
       await _persist();
     }
@@ -1183,13 +1261,18 @@ class MovieRepository extends ChangeNotifier {
   /// Ставит оценку просмотру [viewId] серии; первый просмотр лежит в полях
   /// самой серии. false, если такого просмотра нет.
   bool _setViewScore(Episode ep, String viewId, double? score) {
+    final now = DateTime.now();
     if (viewId == ep.vid) {
-      ep.score = score;
+      ep
+        ..score = score
+        ..editedAt = now;
       return true;
     }
     final v = ep.rewatchViews.where((v) => v.id == viewId).firstOrNull;
     if (v == null) return false;
-    v.score = score;
+    v
+      ..score = score
+      ..editedAt = now;
     return true;
   }
 
@@ -1208,7 +1291,8 @@ class MovieRepository extends ChangeNotifier {
       ..vid = next.id
       ..watchedAt = next.date
       ..score = next.score
-      ..diary = next.diary;
+      ..diary = next.diary
+      ..editedAt = next.editedAt;
     return true;
   }
 
@@ -1284,12 +1368,17 @@ class MovieRepository extends ChangeNotifier {
       int? number, String viewId, DateTime? date) async {
     final ep = seriesById(seriesId)?.watchedEpisode(season, number);
     if (ep == null) return;
+    final now = DateTime.now();
     if (viewId == ep.vid) {
-      ep.watchedAt = date;
+      ep
+        ..watchedAt = date
+        ..editedAt = now;
     } else {
       final v = ep.rewatchViews.where((v) => v.id == viewId).firstOrNull;
       if (v == null) return;
-      v.date = date;
+      v
+        ..date = date
+        ..editedAt = now;
     }
     notifyListeners();
     await _persist();
@@ -1301,12 +1390,17 @@ class MovieRepository extends ChangeNotifier {
     final ep = seriesById(seriesId)?.watchedEpisode(season, number);
     if (ep == null) return;
     final value = diary == null || diary.isEmpty ? null : diary;
+    final now = DateTime.now();
     if (viewId == ep.vid) {
-      ep.diary = value;
+      ep
+        ..diary = value
+        ..editedAt = now;
     } else {
       final v = ep.rewatchViews.where((v) => v.id == viewId).firstOrNull;
       if (v == null) return;
-      v.diary = value;
+      v
+        ..diary = value
+        ..editedAt = now;
     }
     notifyListeners();
     await _persist();
@@ -1334,18 +1428,65 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
-  /// Удаляет просмотр [viewId] серии и возвращает снимок сериала для
-  /// «Вернуть» ([restoreFromSnapshot]). Единственный просмотр снимает серию.
-  Future<Map<String, dynamic>?> removeEpisodeViewById(
+  /// Удаляет просмотр [viewId] серии и возвращает его для «Вернуть»
+  /// ([restoreEpisodeView]). Единственный просмотр снимает серию.
+  Future<RemovedView?> removeEpisodeViewById(
       String seriesId, int? season, int? number, String viewId) async {
     final s = seriesById(seriesId);
     final ep = s?.watchedEpisode(season, number);
     if (s == null || ep == null) return null;
-    final snap = s.toJson();
+    final view = ep.views.where((v) => v.id == viewId).firstOrNull;
+    if (view == null) return null;
+    final removed = RemovedView(
+      view: Viewing.fromAny(view.toJson()),
+      index: ep.rewatchViews.indexWhere((v) => v.id == viewId),
+      wasFirst: viewId == ep.vid,
+      runtimeMin: ep.runtimeMin,
+      epId: ep.epId,
+    );
     if (!_removeView(s, ep, viewId)) return null;
     notifyListeners();
     await _persist();
-    return snap;
+    return removed;
+  }
+
+  /// Возвращает просмотр серии, убранный [removeEpisodeViewById]. Остальное в
+  /// сериале не трогает: серии, отмеченные после удаления, остаются.
+  Future<void> restoreEpisodeView(
+      String seriesId, int? season, int? number, RemovedView removed) async {
+    final s = seriesById(seriesId);
+    if (s == null) return;
+    final v = Viewing.fromAny(removed.view.toJson());
+    final ep = s.watchedEpisode(season, number);
+    if (ep == null) {
+      s.episodes.add(Episode(
+        season: season,
+        number: number,
+        watchedAt: v.date,
+        score: v.score,
+        diary: v.diary,
+        vid: v.id,
+        editedAt: v.editedAt,
+        runtimeMin: removed.runtimeMin,
+        epId: removed.epId,
+      ));
+    } else if (ep.views.any((x) => x.id == v.id)) {
+      return;
+    } else if (removed.wasFirst) {
+      // Первый просмотр встаёт на своё место, а тот, что его заменил, снова
+      // становится повтором: так [_removeView] их и переставил.
+      ep.rewatchViews.insert(0, ep.views.first);
+      ep
+        ..vid = v.id
+        ..watchedAt = v.date
+        ..score = v.score
+        ..diary = v.diary
+        ..editedAt = v.editedAt;
+    } else {
+      ep.rewatchViews.insert(removed.index.clamp(0, ep.rewatchViews.length), v);
+    }
+    notifyListeners();
+    await _persist();
   }
 
   /// Сериалы «сейчас смотрю» — с просмотренными сериями, по свежести.
@@ -1509,14 +1650,18 @@ class MovieRepository extends ChangeNotifier {
   /// На один просмотр одна рецензия: повторная запись обновляет её. Первая
   /// рецензия фильма ложится в старые поля, остальные — в `moreReviews`. Без
   /// [viewId] пишется рецензия в старых полях (у фильма без просмотров другой
-  /// и не бывает).
+  /// и не бывает). [extraId] называет рецензию из `moreReviews` напрямую: так
+  /// находится та, которой не досталось просмотра.
   Future<void> saveMovieReview(String uuid,
-      {String? viewId, String? text, required ReviewMeta meta}) async {
+      {String? viewId,
+      String? extraId,
+      String? text,
+      required ReviewMeta meta}) async {
     final m = byUuid(uuid);
     if (m == null) return;
     final cleaned = _cleanReviewText(text);
     final stamped = _stampReview(meta)..viewId = viewId ?? meta.viewId;
-    final existing = _movieReviewAt(m, viewId);
+    final existing = _movieReviewAt(m, viewId, extraId: extraId);
     if (existing is ExtraReview) {
       existing
         ..review = cleaned
@@ -1537,18 +1682,20 @@ class MovieRepository extends ChangeNotifier {
 
   /// Переносит рецензию с просмотра [from] на просмотр [to]. false, если на
   /// [to] рецензия уже есть или переносить нечего. Старая рецензия без
-  /// разбора получает его закрытым от друзей, как и была.
+  /// разбора получает его закрытым от друзей, как и была. Дата правки
+  /// обновляется: по ней синхронизация поймёт, что перенос свежее.
   Future<bool> moveMovieReview(String uuid,
-      {required String? from, required String to}) async {
+      {required String? from, String? extraId, required String to}) async {
     final m = byUuid(uuid);
     if (m == null || m.viewingById(to) == null) return false;
-    final item = _movieReviewAt(m, from);
+    final item = _movieReviewAt(m, from, extraId: extraId);
     if (item == null || reviewOfViewing(m, to) != null) return false;
-    if (item is ExtraReview) {
-      (item.reviewMeta ??= ReviewMeta(shared: false)).viewId = to;
-    } else {
-      (m.reviewMeta ??= ReviewMeta(shared: false)).viewId = to;
-    }
+    final meta = item is ExtraReview
+        ? (item.reviewMeta ??= ReviewMeta(shared: false))
+        : (m.reviewMeta ??= ReviewMeta(shared: false));
+    meta
+      ..viewId = to
+      ..updatedAt = DateTime.now();
     notifyListeners();
     await _persist();
     return true;
@@ -1566,20 +1713,29 @@ class MovieRepository extends ChangeNotifier {
   }
 
   /// Удаляет рецензию на просмотр [viewId]; без него — рецензию в старых
-  /// полях фильма.
-  Future<void> deleteMovieReview(String uuid, {String? viewId}) async {
+  /// полях фильма. [extraId] называет рецензию из `moreReviews` напрямую.
+  Future<void> deleteMovieReview(String uuid,
+      {String? viewId, String? extraId}) async {
     final m = byUuid(uuid);
-    if (m == null || !_dropMovieReview(m, viewId)) return;
+    if (m == null || !_dropMovieReview(m, viewId, extraId: extraId)) return;
     notifyListeners();
     await _persist();
   }
 
   /// Рецензия на просмотр [viewId]; без него — та, что в старых полях.
-  HasReview? _movieReviewAt(LibraryMovie m, String? viewId) =>
-      viewId == null ? (m.hasReview ? m : null) : reviewOfViewing(m, viewId);
+  /// [extraId] важнее обоих: это рецензия из `moreReviews` с таким id.
+  HasReview? _movieReviewAt(LibraryMovie m, String? viewId,
+      {String? extraId}) {
+    if (extraId != null) {
+      return m.moreReviews.where((r) => r.id == extraId).firstOrNull;
+    }
+    return viewId == null
+        ? (m.hasReview ? m : null)
+        : reviewOfViewing(m, viewId);
+  }
 
-  bool _dropMovieReview(LibraryMovie m, String? viewId) {
-    final item = _movieReviewAt(m, viewId);
+  bool _dropMovieReview(LibraryMovie m, String? viewId, {String? extraId}) {
+    final item = _movieReviewAt(m, viewId, extraId: extraId);
     if (item == null) return false;
     if (item is ExtraReview) {
       m.moreReviews.remove(item);
@@ -1734,7 +1890,9 @@ class MovieRepository extends ChangeNotifier {
     if (m == null) return;
     final cv = m.currentViewing;
     if (cv != null) {
-      cv.score = score;
+      cv
+        ..score = score
+        ..editedAt = DateTime.now();
     } else {
       m.score = score;
     }
@@ -1907,20 +2065,29 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
+  /// Просмотр фильма в библиотеке по id того, что передал экран. Сам объект
+  /// экрана мог устареть: синхронизация и «Вернуть» пересоздают библиотеку.
+  Viewing? _liveViewing(String uuid, Viewing v) =>
+      byUuid(uuid)?.viewingById(v.id);
+
   /// Устанавливает оценку конкретного просмотра.
   Future<void> setViewingScore(String uuid, Viewing v, double? score) async {
-    final m = byUuid(uuid);
-    if (m == null || !m.viewings.contains(v)) return;
-    v.score = score;
+    final live = _liveViewing(uuid, v);
+    if (live == null) return;
+    live
+      ..score = score
+      ..editedAt = DateTime.now();
     notifyListeners();
     await _persist();
   }
 
   /// Меняет дату/время конкретного просмотра ([date] = null → неизвестная дата).
   Future<void> setViewingDate(String uuid, Viewing v, DateTime? date) async {
-    final m = byUuid(uuid);
-    if (m == null || !m.viewings.contains(v)) return;
-    v.date = date;
+    final live = _liveViewing(uuid, v);
+    if (live == null) return;
+    live
+      ..date = date
+      ..editedAt = DateTime.now();
     notifyListeners();
     await _persist();
   }
@@ -1929,9 +2096,11 @@ class MovieRepository extends ChangeNotifier {
   /// убирает дневник.
   Future<void> setViewingDiary(
       String uuid, Viewing v, DiaryEntry? diary) async {
-    final m = byUuid(uuid);
-    if (m == null || !m.viewings.contains(v)) return;
-    v.diary = diary == null || diary.isEmpty ? null : diary;
+    final live = _liveViewing(uuid, v);
+    if (live == null) return;
+    live
+      ..diary = diary == null || diary.isEmpty ? null : diary
+      ..editedAt = DateTime.now();
     notifyListeners();
     await _persist();
   }
@@ -1953,20 +2122,62 @@ class MovieRepository extends ChangeNotifier {
     return m.viewings.isEmpty;
   }
 
-  /// Удаляет просмотр вместе с его рецензией и возвращает снимок фильма для
-  /// «Вернуть» ([restoreFromSnapshot]); null, если удалять было нечего.
-  /// Без просмотров фильм уходит из «Просмотрено».
-  Future<Map<String, dynamic>?> removeViewing(String uuid, Viewing v) async {
+  /// Удаляет просмотр вместе с его рецензией и возвращает их для «Вернуть»
+  /// ([restoreViewing]); null, если удалять было нечего. Без просмотров фильм
+  /// уходит из «Просмотрено».
+  Future<RemovedView?> removeViewing(String uuid, Viewing given) async {
     final m = byUuid(uuid);
-    if (m == null || !m.viewings.contains(v)) return null;
-    final snap = m.toJson();
+    final v = m?.viewingById(given.id);
+    if (m == null || v == null) return null;
+    final review = reviewOfViewing(m, v.id);
+    final removed = RemovedView(
+      view: Viewing.fromAny(v.toJson()),
+      index: m.viewings.indexOf(v),
+      review: review == null
+          ? null
+          : ExtraReview(
+              id: review is ExtraReview ? review.id : '',
+              review: review.review,
+              reviewMeta: review.reviewMeta?.copy(),
+            ),
+      status: m.status,
+    );
     // Сначала рецензия: пока просмотр на месте, она находится по нему.
     _dropMovieReview(m, v.id);
     m.viewings.remove(v);
     if (m.viewings.isEmpty) m.status = LibraryStatus.library;
     notifyListeners();
     await _persist();
-    return snap;
+    return removed;
+  }
+
+  /// Возвращает просмотр, убранный [removeViewing], вместе с его рецензией.
+  /// Остальное в фильме не трогает: сделанное после удаления остаётся.
+  Future<void> restoreViewing(String uuid, RemovedView removed) async {
+    final m = byUuid(uuid);
+    if (m == null || m.viewingById(removed.view.id) != null) return;
+    final at = removed.index.clamp(0, m.viewings.length);
+    m.viewings.insert(at, Viewing.fromAny(removed.view.toJson()));
+    if (m.status == LibraryStatus.library) {
+      m.status = removed.status ?? LibraryStatus.watched;
+    }
+    final review = removed.review;
+    if (review != null) {
+      if (!m.hasReview) {
+        m.review = review.review;
+        m.reviewMeta = review.reviewMeta?.copy();
+      } else {
+        m.moreReviews.add(ExtraReview(
+          id: review.id.isNotEmpty
+              ? review.id
+              : 'mr-${DateTime.now().microsecondsSinceEpoch}',
+          review: review.review,
+          reviewMeta: review.reviewMeta?.copy(),
+        ));
+      }
+    }
+    notifyListeners();
+    await _persist();
   }
 
   /// Просмотренное по месяцам — КАРТОЧКА НА КАЖДЫЙ ПРОСМОТР (как в референсе):

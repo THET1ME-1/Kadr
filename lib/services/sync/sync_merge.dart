@@ -9,9 +9,9 @@ import '../../models/review.dart';
 /// `tvShowId`, списки по имени. Данные Kadr в основном АДДИТИВНЫ (просмотры,
 /// серии, списки лишь добавляются), поэтому объединение НИЧЕГО не теряет из
 /// добавленного на любом устройстве:
-///   * просмотры фильма — объединение (дедуп по дате+оценке);
-///   * серии сериала — объединение по (сезон,номер), у общей берём раннюю дату,
-///     непустую оценку, больший счётчик повторов;
+///   * просмотры фильма и серии — объединение по id просмотра, у общего
+///     побеждает более поздняя правка;
+///   * серии сериала — объединение по (сезон,номер);
 ///   * избранное — ИЛИ; списки — объединение; эмоции — объединение по id;
 ///   * статус — «сильнейший» (есть просмотры → просмотрено).
 /// Цена простоты и безопасности: удаление отдельного просмотра/серии на одном
@@ -19,7 +19,11 @@ import '../../models/review.dart';
 /// Настройки (тема/язык) в снимок НЕ входят — это device-local.
 
 const String kSyncKind = 'kadr-sync';
-const int kSyncVersion = 1;
+
+/// Версия 2: оценка фильма лежит в просмотре, у просмотра есть id. Версии
+/// приложения до 0.29 такой снимок портят (задваивают просмотры), поэтому он
+/// пишется в отдельный файл, см. `WebdavService`.
+const int kSyncVersion = 2;
 
 /// Что изменилось в результате слияния (для сообщения пользователю).
 class SyncStats {
@@ -128,25 +132,43 @@ Map<String, dynamic> mergeSnapshots(
 }
 
 /// Объединяет просмотры двух сторон. Запись узнаётся по id, а если id разные
-/// (одна сторона писалась старой версией) — по точной дате. У общей записи
-/// побеждает локальная сторона [a], пустые поля дозаполняются с удалённой:
-/// так правка оценки или даты не плодит второй просмотр, а дневник не
-/// теряется. Порядок — по дате, без даты первыми.
+/// (одна сторона писалась старой версией) — по точной дате: так правка
+/// оценки или даты не плодит второй просмотр. Что остаётся от общей записи,
+/// решает [_mergeViewing]. Порядок — по дате, без даты первыми.
 List<Viewing> _mergeViewings(List<Viewing> a, List<Viewing> b) {
   final out = [for (final v in a) Viewing.fromAny(v.toJson())];
   for (final v in b) {
-    var mine = out.where((x) => x.id == v.id).firstOrNull;
-    mine ??= v.date == null
-        ? null
-        : out.where((x) => x.date == v.date).firstOrNull;
-    if (mine == null) {
+    var at = out.indexWhere((x) => x.id == v.id);
+    if (at < 0 && v.date != null) at = out.indexWhere((x) => x.date == v.date);
+    if (at < 0) {
       out.add(Viewing.fromAny(v.toJson()));
     } else {
-      mine.score ??= v.score;
-      mine.diary ??= v.diary;
+      out[at] = _mergeViewing(out[at], v);
     }
   }
   return orderViewings(out);
+}
+
+/// Один и тот же просмотр с двух сторон. Id остаётся локальный.
+///
+/// Правка ставит просмотру момент [Viewing.editedAt]. Побеждает сторона с
+/// более поздней правкой, причём целиком: если оценку убрали, пустое место
+/// не заполняется старой оценкой с другого устройства. Запись без момента
+/// уступает любой правленой. Так оба устройства приходят к одному и тому же.
+///
+/// Если запись не правили нигде, остаётся локальная, а пустые поля
+/// заполняются с удалённой стороны.
+Viewing _mergeViewing(Viewing a, Viewing b) {
+  final at = a.editedAt, bt = b.editedAt;
+  if (at == null && bt == null) {
+    return a
+      ..date ??= b.date
+      ..score ??= b.score
+      ..diary ??= b.diary;
+  }
+  final remoteWins = at == null || (bt != null && bt.isAfter(at));
+  if (!remoteWins) return a;
+  return Viewing.fromAny(b.toJson())..id = a.id;
 }
 
 // --------------------------- слияние фильма ---------------------------
@@ -155,13 +177,15 @@ LibraryMovie _mergeMovie(LibraryMovie a, LibraryMovie b) {
 
   // В старых полях остаётся более свежая рецензия. Если проигравшая была про
   // другой просмотр (на двух устройствах написали по рецензии), она не
-  // пропадает, а уходит в дополнительные.
+  // пропадает, а уходит в дополнительные. Рецензия, которую на одном
+  // устройстве перенесли на другой просмотр, второй рецензией не считается.
   final main = _pickReview(a, b);
   final other = identical(main, a) ? b : a;
   final more = _mergeExtraReviews(a.moreReviews, b.moreReviews);
   final mainView = main.reviewMeta?.viewId, otherView = other.reviewMeta?.viewId;
   if (other.hasReview &&
       main.hasReview &&
+      !_sameReview(main, other) &&
       otherView != null &&
       mainView != null &&
       otherView != mainView &&
@@ -276,18 +300,32 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
         vid: first.id,
         rewatchViews: all.skip(1).toList(),
         diary: first.diary,
+        editedAt: first.editedAt,
       );
     } else {
-      // Общая серия. Первый просмотр: ранняя дата, непустая оценка и дневник.
-      DateTime? at;
-      if (prev.watchedAt == null) {
-        at = e.watchedAt;
-      } else if (e.watchedAt == null) {
-        at = prev.watchedAt;
+      // Общая серия. Первый просмотр сливается как любой другой: побеждает
+      // более поздняя правка. Пока его не правили нигде, действует прежнее
+      // правило: ранняя дата, непустая оценка и дневник.
+      final Viewing first;
+      if (prev.editedAt == null && e.editedAt == null) {
+        DateTime? at;
+        if (prev.watchedAt == null) {
+          at = e.watchedAt;
+        } else if (e.watchedAt == null) {
+          at = prev.watchedAt;
+        } else {
+          at = prev.watchedAt!.isBefore(e.watchedAt!)
+              ? prev.watchedAt
+              : e.watchedAt;
+        }
+        first = Viewing(
+          id: prev.vid,
+          date: at,
+          score: prev.score ?? e.score,
+          diary: prev.diary ?? e.diary,
+        );
       } else {
-        at = prev.watchedAt!.isBefore(e.watchedAt!)
-            ? prev.watchedAt
-            : e.watchedAt;
+        first = _mergeViewing(prev.views.first, e.views.first);
       }
       // Повторы объединяются по id (без него — по точной дате), поэтому один и
       // тот же просмотр не задваивается, а сделанный на другом устройстве
@@ -296,13 +334,14 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
       emap[k] = Episode(
         season: prev.season ?? e.season,
         number: prev.number ?? e.number,
-        watchedAt: at,
+        watchedAt: first.date,
         runtimeMin: prev.runtimeMin ?? e.runtimeMin,
-        score: prev.score ?? e.score,
+        score: first.score,
         epId: prev.epId ?? e.epId,
         vid: prev.vid,
         rewatchViews: _mergeViewings(prev.rewatchViews, e.rewatchViews),
-        diary: prev.diary ?? e.diary,
+        diary: first.diary,
+        editedAt: first.editedAt,
       );
     }
   }
@@ -387,6 +426,14 @@ SeriesAir? _newerAir(SeriesAir? a, SeriesAir? b) {
   if (bt == null) return a;
   return bt.isAfter(at) ? b : a;
 }
+
+/// Одна ли это рецензия на двух устройствах. Её узнают по моменту создания:
+/// его ставит первая запись, и дальше он не меняется. У рецензий старых
+/// версий момента нет, а была такая у фильма одна. Совпавший текст тоже
+/// значит ту же рецензию.
+bool _sameReview(HasReview a, HasReview b) =>
+    a.reviewMeta?.createdAt == b.reviewMeta?.createdAt ||
+    (a.hasReviewText && a.review == b.review);
 
 /// Чья рецензия остаётся после слияния. Текст и разбор едут парой, иначе
 /// заголовок одной версии встанет над текстом другой. Побеждает более свежая

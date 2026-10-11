@@ -135,7 +135,8 @@ void main() {
         SeasonReview(id: 'private', from: 3, to: 3, review: 'в', reviewMeta: meta(8, shared: false)),
       ]);
       final s = (r.buildPublicProfile()['series'] as List).single as Map;
-      expect([for (final p in s['seasonReviews'] as List) (p as Map)['id']], ['open']);
+      // Черновик и закрытая не уехали; id наружу уходит порядковый.
+      expect([for (final p in s['seasonReviews'] as List) (p as Map)['review']], ['а']);
     });
 
     test('скрытые оценки режут пункты и у рецензий на сезоны', () {

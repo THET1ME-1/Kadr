@@ -78,8 +78,8 @@ class _MovieReviewsSectionState extends State<MovieReviewsSection> {
 
   void _write() => startMovieReview(context, m, repo: repo);
 
-  ReviewTarget _target(MovieReviewRef r) => ReviewTarget.movie(m,
-      repo: repo, viewId: r.viewing?.id, unbound: r.viewing == null);
+  ReviewTarget _target(MovieReviewRef r) =>
+      ReviewTarget.ofRef(m, r, repo: repo);
 
   void _open(MovieReviewRef r) {
     final t = _target(r);

@@ -239,6 +239,24 @@ void main() {
     expect(st.topRewatch!.times, 2);
   });
 
+  // Шапка сериала и плитка серии показывают оценку последнего оценённого
+  // просмотра. Статистика обязана считать по ней же.
+  test('оценка пересмотренной серии берётся последняя', () {
+    final rewatched = Episode(
+      season: 1,
+      number: 1,
+      watchedAt: at(2, 3),
+      score: 6.0,
+      rewatchViews: [Viewing(date: at(5, 1), score: 9.0)],
+    );
+    final st = computeSeriesStats(
+      episodes: [rewatched, ep(1, 2, at(2, 4), null, 9.0)],
+      seasons: structure([2]),
+      now: now,
+    );
+    expect(st.season(1)!.avgScore, 9.0);
+  });
+
   test('цифры сезона считаются отдельно от сериала', () {
     final st = computeSeriesStats(
       episodes: [
