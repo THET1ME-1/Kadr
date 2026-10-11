@@ -259,6 +259,24 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
     final prev = emap[k];
     if (prev == null) {
       emap[k] = e;
+    } else if (prev.vid != e.vid) {
+      // Первые просмотры у сторон разные: на одной первый удалили, и его
+      // место занял повтор со своим id. Складываем все просмотры обеих
+      // сторон по id и заново выбираем первый, иначе повтор оказался бы в
+      // серии дважды под одним id.
+      final all = _mergeViewings(prev.views, e.views);
+      final first = all.first;
+      emap[k] = Episode(
+        season: prev.season ?? e.season,
+        number: prev.number ?? e.number,
+        watchedAt: first.date,
+        runtimeMin: prev.runtimeMin ?? e.runtimeMin,
+        score: first.score,
+        epId: prev.epId ?? e.epId,
+        vid: first.id,
+        rewatchViews: all.skip(1).toList(),
+        diary: first.diary,
+      );
     } else {
       // Общая серия. Первый просмотр: ранняя дата, непустая оценка и дневник.
       DateTime? at;

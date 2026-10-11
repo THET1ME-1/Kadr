@@ -92,12 +92,13 @@ class _ViewingSheetState extends State<_ViewingSheet> {
     // потому что запись будит слушателей, а дерево сейчас разбирается.
     if (_drafts.isNotEmpty) {
       final drafts = Map.of(_drafts);
-      scheduleMicrotask(() => _write(drafts));
+      final host = this.host;
+      scheduleMicrotask(() => _write(host, drafts));
     }
     super.dispose();
   }
 
-  void _write(Map<String, DiaryEntry> drafts) {
+  static void _write(ViewingHost host, Map<String, DiaryEntry> drafts) {
     for (final e in drafts.entries) {
       final v = host.byId(e.key);
       if (v != null) host.setDiary(v, e.value);
@@ -108,7 +109,7 @@ class _ViewingSheetState extends State<_ViewingSheet> {
     if (_drafts.isEmpty) return;
     final drafts = Map.of(_drafts);
     _drafts.clear();
-    _write(drafts);
+    _write(host, drafts);
   }
 
   void _revealSelected() {

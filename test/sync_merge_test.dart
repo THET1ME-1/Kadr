@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kadr/models/library_entry.dart';
 import 'package:kadr/services/sync/sync_merge.dart';
 
 Map<String, dynamic> movie(String uuid,
@@ -316,6 +317,35 @@ void main() {
         expect(views[0]['score'], 9.0);
         expect((views[1]['diary'] as Map)['note'], 'третий раз');
         expect(e['rewatchCount'], 2);
+      }
+    });
+
+    // На одном устройстве первый просмотр серии удалили, и на его место
+    // встал повтор со своим id. Другое устройство об удалении не знает.
+    test('после удаления первого просмотра серии id не задваиваются', () {
+      final kept = series('s', episodes: [
+        ep(1, 1, watchedAt: '2023-05-29T13:41:00.000', score: 10.0)
+          ..['rewatchViews'] = [
+            {'id': 'r1', 'date': '2023-10-02T17:44:00.000', 'score': 9.0},
+          ],
+      ]);
+      final promoted = series('s', episodes: [
+        ep(1, 1, watchedAt: '2023-10-02T17:44:00.000', score: 9.0)
+          ..['vid'] = 'r1',
+      ]);
+      for (final s in [mergedSeries(kept, promoted), mergedSeries(promoted, kept)]) {
+        final e = Episode.fromJson(
+            ((s['episodes'] as List).single as Map).cast<String, dynamic>());
+        final ids = [for (final v in e.views) v.id];
+        expect(ids.toSet().length, ids.length, reason: 'id повторяются: $ids');
+        // Удаления синхронизация не переносит: оба просмотра на месте, и
+        // каждый со своей датой и оценкой.
+        expect(e.watchCount, 2);
+        final byId = {for (final v in e.views) v.id: v};
+        expect(byId['r1']!.date, DateTime(2023, 10, 2, 17, 44));
+        expect(byId['r1']!.score, 9.0);
+        expect(e.orderedViews.first.date, DateTime(2023, 5, 29, 13, 41));
+        expect(e.orderedViews.first.score, 10.0);
       }
     });
 

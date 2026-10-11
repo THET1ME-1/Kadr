@@ -239,6 +239,53 @@ void main() {
     expect(find.textContaining('без рецензии'), findsNothing);
   });
 
+  testWidgets('семь рецензий: столбцы листаются вбок, подписи на месте', (
+    tester,
+  ) async {
+    final m = LibraryMovie(
+      uuid: 'seven',
+      title: 'Грань будущего',
+      status: LibraryStatus.watched,
+      viewings: [
+        for (var i = 0; i < 7; i++)
+          Viewing(id: 's$i', date: DateTime(2025, i + 1, 10), score: 7.0 + i * 0.3),
+      ],
+      review: 'Текст',
+      reviewMeta: _meta('Рецензия 1', 's0', {'story': 7.0},
+          at: DateTime(2025, 1, 11)),
+      moreReviews: [
+        for (var i = 1; i < 7; i++)
+          ExtraReview(
+            id: 'mr-$i',
+            review: 'Текст',
+            reviewMeta: _meta('Рецензия ${i + 1}', 's$i', {'story': 7.0 + i * 0.4},
+                at: DateTime(2025, i + 1, 11)),
+          ),
+      ],
+    );
+    await _pump(tester, m, width: 320);
+    expect(tester.takeException(), isNull);
+    // Таблица открыта на последних рецензиях, первая ушла за край.
+    final scroll = find.descendant(
+      of: find.byType(MovieReviewsSection),
+      matching: find.byWidgetPredicate(
+          (w) => w is SingleChildScrollView && w.scrollDirection == Axis.horizontal),
+    );
+    expect(scroll, findsOneWidget);
+    final box = tester.getRect(scroll);
+    final last = tester.getRect(find.text('7-й').last);
+    expect(last.right, lessThanOrEqualTo(box.right + 0.5));
+    expect(last.left, greaterThanOrEqualTo(box.left - 0.5));
+    // Подпись пункта стоит левее прокрутки и никуда не уезжает.
+    expect(tester.getRect(find.text('Сюжет')).right,
+        lessThanOrEqualTo(box.left + 0.5));
+    expect(
+      find.text('За 7 рецензий оценка выросла на 1.8. '
+          'Сильнее всего изменился пункт «Сюжет».'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('черновик в свод не идёт', (tester) async {
     final m = _aang(second: false)
       ..moreReviews.add(ExtraReview(
