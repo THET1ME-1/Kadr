@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
 import '../services/movie_repository.dart';
+import '../widgets/undo_snack.dart';
 
 /// Общие действия «удалить из базы навсегда» с подтверждением и отменой.
 /// Используются везде, где по удержанию можно снести мусорную/ненаходимую запись.
@@ -39,14 +40,11 @@ Future<void> deleteSeriesFromBase(BuildContext context, LibrarySeries s) async {
   if (snap == null) return;
   messenger
     ..clearSnackBars()
-    ..showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      content: Text(tr('deleted_from_base')),
-      action: SnackBarAction(
-        label: tr('undo'),
-        onPressed: () =>
-            MovieRepository.instance.restoreFromSnapshot(const [], [snap]),
-      ),
+    ..showSnackBar(undoSnackBar(
+      text: tr('deleted_from_base'),
+      label: tr('undo'),
+      onUndo: () =>
+          MovieRepository.instance.restoreFromSnapshot(const [], [snap]),
     ));
 }
 
@@ -58,13 +56,10 @@ Future<void> deleteMovieFromBase(BuildContext context, LibraryMovie m) async {
   if (snap == null) return;
   messenger
     ..clearSnackBars()
-    ..showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      content: Text(tr('deleted_from_base')),
-      action: SnackBarAction(
-        label: tr('undo'),
-        onPressed: () =>
-            MovieRepository.instance.restoreFromSnapshot([snap], const []),
-      ),
+    ..showSnackBar(undoSnackBar(
+      text: tr('deleted_from_base'),
+      label: tr('undo'),
+      onUndo: () =>
+          MovieRepository.instance.restoreFromSnapshot([snap], const []),
     ));
 }

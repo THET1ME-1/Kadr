@@ -6,18 +6,19 @@ import '../../models/library_entry.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/score.dart';
+import '../../widgets/undo_snack.dart';
 import 'viewing_host.dart';
 
-/// Плашка «Просмотр удалён · Вернуть». Висит после любого удаления.
+/// Плашка «Просмотр удалён · Вернуть». Появляется после любого удаления.
 void showViewingDeletedSnack(
     ScaffoldMessengerState? messenger, ViewingUndo undo) {
   if (messenger == null) return;
   messenger
     ..clearSnackBars()
-    ..showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      content: Text(tr('viewing_deleted')),
-      action: SnackBarAction(label: tr('view_restore'), onPressed: undo),
+    ..showSnackBar(undoSnackBar(
+      text: tr('viewing_deleted'),
+      label: tr('view_restore'),
+      onUndo: undo,
     ));
 }
 

@@ -625,6 +625,12 @@ const Map<String, Map<String, String>> _strings = {
         'Отметки о просмотре ({n}) будут убраны. Сами фильмы и сериалы останутся в базе.',
     'en': 'Watch records ({n}) will be removed. Titles stay in the database.',
   },
+  'delete_selected_losses': {
+    'ru':
+        'У части отметок есть оценка, дневник или рецензия. Они пропадут вместе с отметками.',
+    'en':
+        'Some of these records carry a rating, a diary entry or a review. Those will be removed too.',
+  },
   'delete_selected_watchlist': {
     'ru':
         'Выбранное ({n}) уберётся из «Буду смотреть». Из базы фильмы не удаляются.',

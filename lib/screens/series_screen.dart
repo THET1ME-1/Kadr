@@ -30,6 +30,7 @@ import '../widgets/favorite_character.dart';
 import '../widgets/reveal.dart';
 import '../widgets/score_pad.dart';
 import '../widgets/season_pill.dart';
+import '../widgets/undo_snack.dart';
 import '../widgets/viewing/pass_strip.dart';
 import 'browse_screens.dart';
 import 'delete_helpers.dart';
@@ -1346,13 +1347,10 @@ class _SeriesScreenState extends State<SeriesScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text(trf('season_dated', {'n': n})),
-        action: SnackBarAction(
-          label: tr('undo'),
-          onPressed: () => _repo.restoreFromSnapshot(const [], [snap]),
-        ),
+      ..showSnackBar(undoSnackBar(
+        text: trf('season_dated', {'n': n}),
+        label: tr('undo'),
+        onUndo: () => _repo.restoreFromSnapshot(const [], [snap]),
       ));
   }
 
@@ -1465,13 +1463,10 @@ class _SeriesScreenState extends State<SeriesScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text(tr('season_cleared')),
-        action: SnackBarAction(
-          label: tr('view_restore'),
-          onPressed: () => _repo.restoreFromSnapshot(const [], [snap]),
-        ),
+      ..showSnackBar(undoSnackBar(
+        text: tr('season_cleared'),
+        label: tr('view_restore'),
+        onUndo: () => _repo.restoreFromSnapshot(const [], [snap]),
       ));
   }
 

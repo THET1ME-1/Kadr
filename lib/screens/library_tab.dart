@@ -15,6 +15,7 @@ import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/actor_filter.dart';
 import '../utils/library_sort.dart';
+import '../utils/movie_reviews.dart';
 import '../utils/score.dart';
 import '../utils/series_finale.dart';
 import '../widgets/empty_state.dart';
@@ -25,6 +26,7 @@ import '../widgets/pressable.dart';
 import '../widgets/reveal.dart';
 import '../widgets/settings_kit.dart';
 import '../widgets/series_progress.dart';
+import '../widgets/undo_snack.dart';
 import 'movie_sheet.dart';
 import 'series_screen.dart';
 import 'series_stats_screen.dart';
@@ -186,21 +188,48 @@ class _LibraryTabState extends State<LibraryTab> {
     _selecting = false;
   });
 
+  /// Унесёт ли выделенное что-то, кроме самих отметок: оценка, дневник и
+  /// рецензия живут в просмотре и удаляются вместе с ним.
+  bool get _selectionCarriesData {
+    for (final k in _selected) {
+      final e = _entryByKey[k];
+      if (e == null) continue;
+      final session = e.session;
+      if (session != null) {
+        if (session.episodes.any(
+          (ep) => ep.score != null || (ep.diary?.isNotEmpty ?? false),
+        )) {
+          return true;
+        }
+        continue;
+      }
+      final m = e.movie, v = e.viewing;
+      if (m == null || v == null) continue;
+      if (v.score != null ||
+          (v.diary?.isNotEmpty ?? false) ||
+          reviewOfViewing(m, v.id) != null) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   Future<void> _confirmDeleteSelected() async {
     final n = _selected.length;
     if (n == 0) return;
     final scheme = Theme.of(context).colorScheme;
+    final watchlist = widget.mode == LibraryMode.watchlist;
+    final question = trf(
+      watchlist ? 'delete_selected_watchlist' : 'delete_selected_watched',
+      {'n': n},
+    );
+    final losses = !watchlist && _selectionCarriesData;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(tr('delete_selected_title')),
         content: Text(
-          trf(
-            widget.mode == LibraryMode.watchlist
-                ? 'delete_selected_watchlist'
-                : 'delete_selected_watched',
-            {'n': n},
-          ),
+          losses ? '$question\n\n${tr('delete_selected_losses')}' : question,
         ),
         actions: [
           TextButton(
@@ -225,16 +254,13 @@ class _LibraryTabState extends State<LibraryTab> {
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(
-        SnackBar(
-          content: Text(trf('removed_n', {'n': n})),
-          behavior: SnackBarBehavior.floating,
+        undoSnackBar(
+          text: trf('removed_n', {'n': n}),
+          label: tr('undo'),
           backgroundColor: scheme.surfaceContainerHighest,
-          action: SnackBarAction(
-            label: tr('undo'),
-            onPressed: () => MovieRepository.instance.restoreFromSnapshot(
-              movieSnaps,
-              seriesSnaps,
-            ),
+          onUndo: () => MovieRepository.instance.restoreFromSnapshot(
+            movieSnaps,
+            seriesSnaps,
           ),
         ),
       );
@@ -411,16 +437,21 @@ class _LibraryTabState extends State<LibraryTab> {
               tooltip: tr('cancel'),
               onPressed: _exitSelect,
             ),
-            Text(
-              trf('n_selected', {'n': _selected.length}),
-              style: TextStyle(
-                fontFamily: AppTheme.displayFont,
-                fontWeight: FontWeight.w800,
-                fontSize: 17,
-                color: scheme.onSurface,
+            // Счётчик забирает остаток ширины и ужимается сам: с длинным
+            // «ausgewählt» на 320 dp ряд иначе не помещался.
+            Expanded(
+              child: Text(
+                trf('n_selected', {'n': _selected.length}),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: AppTheme.displayFont,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  color: scheme.onSurface,
+                ),
               ),
             ),
-            const Spacer(),
             TextButton.icon(
               onPressed: empty ? null : _confirmDeleteSelected,
               icon: Icon(Icons.delete_outline_rounded, color: actionColor),
@@ -566,17 +597,12 @@ class _LibraryTabState extends State<LibraryTab> {
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text(
-            trf('deleted_n_from_base', {
-              'n': movieSnaps.length + seriesSnaps.length,
-            }),
-          ),
-          action: SnackBarAction(
-            label: tr('undo'),
-            onPressed: () => repo.restoreFromSnapshot(movieSnaps, seriesSnaps),
-          ),
+        undoSnackBar(
+          text: trf('deleted_n_from_base', {
+            'n': movieSnaps.length + seriesSnaps.length,
+          }),
+          label: tr('undo'),
+          onUndo: () => repo.restoreFromSnapshot(movieSnaps, seriesSnaps),
         ),
       );
   }
@@ -630,13 +656,10 @@ class _LibraryTabState extends State<LibraryTab> {
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text(trf('batch_marked_watched', {'n': uuids.length})),
-          action: SnackBarAction(
-            label: tr('undo'),
-            onPressed: () => repo.restoreFromSnapshot(snaps, const []),
-          ),
+        undoSnackBar(
+          text: trf('batch_marked_watched', {'n': uuids.length}),
+          label: tr('undo'),
+          onUndo: () => repo.restoreFromSnapshot(snaps, const []),
         ),
       );
   }

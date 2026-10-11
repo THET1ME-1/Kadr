@@ -11,6 +11,7 @@ import '../widgets/poster.dart';
 import '../widgets/pressable.dart';
 import '../widgets/reveal.dart';
 import '../widgets/series_progress.dart';
+import '../widgets/undo_snack.dart';
 import 'delete_helpers.dart';
 import 'series_screen.dart';
 
@@ -133,14 +134,11 @@ class _NowWatchingScreenState extends State<NowWatchingScreen> {
                   MovieRepository.instance.setSeriesFinished(s.tvShowId, true);
                   ScaffoldMessenger.of(context)
                     ..clearSnackBars()
-                    ..showSnackBar(SnackBar(
-                      behavior: SnackBarBehavior.floating,
-                      content: Text(tr('finished_removed')),
-                      action: SnackBarAction(
-                        label: tr('undo'),
-                        onPressed: () => MovieRepository.instance
-                            .setSeriesFinished(s.tvShowId, false),
-                      ),
+                    ..showSnackBar(undoSnackBar(
+                      text: tr('finished_removed'),
+                      label: tr('undo'),
+                      onUndo: () => MovieRepository.instance
+                          .setSeriesFinished(s.tvShowId, false),
                     ));
                 },
               ),

@@ -429,6 +429,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'delete_selected_title': 'Ausgewählte löschen?',
     'delete_selected_watched':
         'Gesehen-Einträge ({n}) werden entfernt. Die Titel bleiben in der Datenbank.',
+    'delete_selected_losses':
+        'Einige dieser Einträge haben eine Bewertung, einen Tagebucheintrag oder eine Rezension. Diese werden ebenfalls entfernt.',
     'delete_selected_watchlist':
         'Ausgewählte ({n}) werden von der Merkliste entfernt. Die Titel bleiben in der Datenbank.',
     'removed_n': 'Entfernt: {n}',
@@ -1757,6 +1759,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'delete_selected_title': 'Supprimer la sélection ?',
     'delete_selected_watched':
         'Les visionnages ({n}) seront retirés. Les titres restent dans la base de données.',
+    'delete_selected_losses':
+        'Certains de ces visionnages ont une note, une entrée de journal ou une critique. Elles seront retirées aussi.',
     'delete_selected_watchlist':
         'La sélection ({n}) sera retirée de la liste À voir. Les titres restent dans la base de données.',
     'removed_n': 'Retirés : {n}',
@@ -3080,6 +3084,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'delete_selected_title': '¿Eliminar lo seleccionado?',
     'delete_selected_watched':
         'Se eliminarán los registros de visionado ({n}). Los títulos permanecen en la base de datos.',
+    'delete_selected_losses':
+        'Algunos de estos registros tienen una valoración, una entrada de diario o una reseña. También se eliminarán.',
     'delete_selected_watchlist':
         'Lo seleccionado ({n}) se quitará de la lista Por ver. Los títulos permanecen en la base de datos.',
     'removed_n': 'Eliminados: {n}',
@@ -4401,6 +4407,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'delete_selected_title': 'Eliminare i selezionati?',
     'delete_selected_watched':
         'Le visioni ({n}) verranno rimosse. I titoli restano nel database.',
+    'delete_selected_losses':
+        'Alcune di queste visioni hanno un voto, una nota di diario o una recensione. Verranno rimossi anche quelli.',
     'delete_selected_watchlist':
         'I selezionati ({n}) verranno rimossi dalla lista Da vedere. I titoli restano nel database.',
     'removed_n': 'Rimossi: {n}',
@@ -5709,6 +5717,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'delete_selected_title': 'Excluir selecionados?',
     'delete_selected_watched':
         'Os registros de exibição ({n}) serão removidos. Os títulos continuam na base de dados.',
+    'delete_selected_losses':
+        'Alguns destes registros têm uma nota, uma entrada de diário ou uma resenha. Também serão removidos.',
     'delete_selected_watchlist':
         'Os selecionados ({n}) serão removidos do Quero ver. Os títulos continuam na base de dados.',
     'removed_n': 'Removidos: {n}',
