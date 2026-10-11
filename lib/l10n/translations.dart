@@ -976,7 +976,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_never': 'Noch nicht synchronisiert',
     'seq_mode': 'Episoden der Reihe nach markieren',
     'seq_mode_sub':
-        'Das Markieren einer Episode markiert alle davor; das Abwählen löscht alle danach',
+        'Wird eine Episode markiert, werden auch alle davor markiert',
+    'unmark_seq': 'Episoden der Reihe nach abwählen',
+    'unmark_seq_sub':
+        'Wird eine Episode abgewählt, werden auch alle danach abgewählt',
+    'unmark_cascade_ep':
+        'Episoden werden der Reihe nach abgewählt: Alles nach dieser Episode wird ebenfalls entfernt, {eps}. Datum, Bewertungen und Tagebuch gehen verloren.',
+    'unmark_cascade_season':
+        'Episoden werden der Reihe nach abgewählt: Auch die Staffeln danach werden entfernt, {eps}.',
+    'unmark_cascade_hint': 'Änderbar in den Einstellungen: {page} → {row}.',
     'dropped': 'Abgebrochen',
     'mark_dropped': 'Abbrechen',
     'in_dropped': 'Abgebrochen',
@@ -2305,8 +2313,14 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_last': 'Dernière synchro : {t}',
     'sync_never': 'Pas encore synchronisé',
     'seq_mode': 'Marquer les épisodes dans l\'ordre',
-    'seq_mode_sub':
-        'Marquer un épisode marque tous ceux qui précèdent ; le démarquer efface tous ceux qui suivent',
+    'seq_mode_sub': 'Marquer un épisode marque aussi tous les précédents',
+    'unmark_seq': "Démarquer les épisodes dans l'ordre",
+    'unmark_seq_sub': 'Démarquer un épisode démarque aussi tous les suivants',
+    'unmark_cascade_ep':
+        "Les épisodes sont démarqués dans l'ordre : tout ce qui suit celui-ci part aussi, {eps}. Leurs dates, notes et entrées de journal seront perdues.",
+    'unmark_cascade_season':
+        "Les épisodes sont démarqués dans l'ordre : les saisons suivantes partent aussi, {eps}.",
+    'unmark_cascade_hint': 'Modifiable dans les réglages : {page} → {row}.',
     'dropped': 'Abandonnés',
     'mark_dropped': 'Abandonner',
     'in_dropped': 'Abandonné',
@@ -3630,7 +3644,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_never': 'Aún sin sincronizar',
     'seq_mode': 'Marcar episodios en orden',
     'seq_mode_sub':
-        'Marcar un episodio marca todos los anteriores; desmarcarlo borra todos los posteriores',
+        'Al marcar un episodio se marcan también todos los anteriores',
+    'unmark_seq': 'Desmarcar episodios en orden',
+    'unmark_seq_sub':
+        'Al desmarcar un episodio se desmarcan también todos los posteriores',
+    'unmark_cascade_ep':
+        'Los episodios se desmarcan en orden: también se quitará todo lo posterior a este, {eps}. Se perderán sus fechas, valoraciones y diario.',
+    'unmark_cascade_season':
+        'Los episodios se desmarcan en orden: también se quitarán las temporadas posteriores, {eps}.',
+    'unmark_cascade_hint': 'Se cambia en Ajustes: {page} → {row}.',
     'dropped': 'Abandonadas',
     'mark_dropped': 'Abandonar',
     'in_dropped': 'Abandonada',
@@ -4952,7 +4974,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_never': 'Non ancora sincronizzato',
     'seq_mode': 'Segna gli episodi in ordine',
     'seq_mode_sub':
-        'Segnando un episodio si segnano tutti i precedenti; deselezionandolo si cancellano tutti i successivi',
+        'Segnando un episodio si segnano anche tutti i precedenti',
+    'unmark_seq': 'Deselezionare gli episodi in ordine',
+    'unmark_seq_sub':
+        'Deselezionando un episodio si deselezionano anche tutti i successivi',
+    'unmark_cascade_ep':
+        'Gli episodi si deselezionano in ordine: verrà rimosso anche tutto ciò che segue, {eps}. Date, voti e diario andranno persi.',
+    'unmark_cascade_season':
+        'Gli episodi si deselezionano in ordine: verranno rimosse anche le stagioni successive, {eps}.',
+    'unmark_cascade_hint': 'Si cambia nelle impostazioni: {page} → {row}.',
     'dropped': 'Abbandonati',
     'mark_dropped': 'Abbandona',
     'in_dropped': 'Abbandonato',
@@ -6260,8 +6290,15 @@ const Map<String, Map<String, String>> kTranslations = {
     'sync_last': 'Última sincronização: {t}',
     'sync_never': 'Ainda não sincronizado',
     'seq_mode': 'Marcar episódios em ordem',
-    'seq_mode_sub':
-        'Marcar um episódio marca todos os anteriores; desmarcar limpa todos os seguintes',
+    'seq_mode_sub': 'Marcar um episódio marca também todos os anteriores',
+    'unmark_seq': 'Desmarcar episódios em ordem',
+    'unmark_seq_sub':
+        'Desmarcar um episódio desmarca também todos os seguintes',
+    'unmark_cascade_ep':
+        'Os episódios são desmarcados em ordem: tudo o que vem depois deste também sai, {eps}. Datas, notas e diário serão perdidos.',
+    'unmark_cascade_season':
+        'Os episódios são desmarcados em ordem: as temporadas seguintes também saem, {eps}.',
+    'unmark_cascade_hint': 'Pode mudar em Configurações: {page} → {row}.',
     'dropped': 'Abandonados',
     'mark_dropped': 'Abandonar',
     'in_dropped': 'Abandonado',

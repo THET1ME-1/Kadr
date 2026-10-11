@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../l10n/strings.dart';
 import '../models/library_entry.dart';
+import '../services/app_prefs.dart';
 import '../services/facts_service.dart';
 import '../services/movie_repository.dart';
 import '../services/social/social_controller.dart';
@@ -40,6 +41,7 @@ import 'social/media_image_picker.dart';
 import 'review/series_reviews_section.dart';
 import 'viewing/episode_sheet.dart';
 import 'viewing/mark_sheet.dart';
+import 'viewing/viewing_delete.dart';
 import 'viewing/viewing_host.dart';
 import 'viewing/viewing_sheet.dart';
 
@@ -66,7 +68,8 @@ class _SeriesScreenState extends State<SeriesScreen> {
   bool _loading = true;
   bool _error = false;
 
-  /// Последовательный режим: отметил серию → все до неё; снял → все после.
+  /// Последовательный режим: отметил серию → отмечаются и все до неё. Снятие
+  /// по порядку настраивается отдельно, см. [AppPrefs.sequentialUnmark].
   bool _sequential = true;
 
   /// Запрет отмечать/оценивать невышедшие серии.
@@ -1455,11 +1458,19 @@ class _SeriesScreenState extends State<SeriesScreen> {
   }
 
   /// «Снять все просмотры сезона»: спрашивает, снимает и оставляет плашку
-  /// «Вернуть» со снимком сериала.
+  /// «Вернуть» со снимком сериала. При настройке «Снимать серии по порядку»
+  /// вместе с сезоном уходят сезоны после него, и вопрос это называет.
   Future<void> _clearSeason(int season, int watched) async {
-    if (!await _confirmUnmarkSeason(watched) || !mounted) return;
+    final after = AppPrefs.instance.sequentialUnmark
+        ? _repo.watchedAfterSeason(s.tvShowId, season)
+        : 0;
+    if (!await _confirmUnmarkSeason(watched, after: after) || !mounted) return;
     final snap = s.toJson();
-    await _repo.unmarkSeason(s.tvShowId, season);
+    if (after > 0) {
+      await _repo.unmarkFrom(s.tvShowId, season);
+    } else {
+      await _repo.unmarkSeason(s.tvShowId, season);
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
@@ -1471,15 +1482,23 @@ class _SeriesScreenState extends State<SeriesScreen> {
   }
 
   /// Подтверждение перед снятием всех просмотров сезона: вместе с отметками
-  /// теряются даты и оценки серий, вернуть их нечем.
-  Future<bool> _confirmUnmarkSeason(int watched) async {
+  /// теряются даты и оценки серий. [after] — сколько серий уйдёт в сезонах
+  /// после него при снятии по порядку.
+  Future<bool> _confirmUnmarkSeason(int watched, {int after = 0}) async {
     final scheme = Theme.of(context).colorScheme;
+    final body = [
+      trf('unmark_season_confirm_body', {'c': watched}),
+      if (after > 0) ...[
+        trf('unmark_cascade_season', {'eps': trn('ss_episodes', after)}),
+        unmarkCascadeHint(),
+      ],
+    ].join('\n\n');
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         icon: Icon(Icons.warning_amber_rounded, color: scheme.error, size: 32),
         title: Text(trf('unmark_season_confirm', {'n': _season!})),
-        content: Text(trf('unmark_season_confirm_body', {'c': watched})),
+        content: Text(body),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),

@@ -33,8 +33,9 @@ List<String> _losses(ViewingHost host, Viewing v) => [
 
 /// Удаляет просмотр [v]. Пустой уходит сразу, просмотр с оценкой, дневником
 /// или рецензией сначала спрашивает ([ask] = false пропускает вопрос: так
-/// убирается один из одинаковых просмотров без даты). После удаления на
-/// [messenger] висит плашка «Вернуть». true — просмотр удалён.
+/// убирается один из одинаковых просмотров без даты). Снятие по порядку
+/// спрашивает всегда: вместе с серией уходят серии после неё. После удаления
+/// на [messenger] появляется плашка «Вернуть». true — просмотр удалён.
 Future<bool> deleteViewingFlow(
   BuildContext context,
   ViewingHost host,
@@ -44,8 +45,9 @@ Future<bool> deleteViewingFlow(
 }) async {
   final bar = messenger ?? ScaffoldMessenger.maybeOf(context);
   final losses = _losses(host, v);
-  if (ask && losses.isNotEmpty) {
-    final ok = await _confirm(context, v, losses);
+  final cascade = host.cascadeOf(v);
+  if (cascade > 0 || (ask && losses.isNotEmpty)) {
+    final ok = await _confirm(context, v, losses, cascade);
     if (ok != true) return false;
   }
   HapticFeedback.mediumImpact();
@@ -55,15 +57,30 @@ Future<bool> deleteViewingFlow(
   return true;
 }
 
-Future<bool?> _confirm(BuildContext context, Viewing v, List<String> losses) {
+/// Где отключается снятие по порядку: «Отметки просмотра» → «Снимать серии
+/// по порядку».
+String unmarkCascadeHint() => trf('unmark_cascade_hint', {
+      'page': tr('set_group_tracking'),
+      'row': tr('unmark_seq'),
+    });
+
+Future<bool?> _confirm(
+    BuildContext context, Viewing v, List<String> losses, int cascade) {
   final scheme = Theme.of(context).colorScheme;
   final date = v.date;
-  final body = switch (losses.length) {
-    1 => trf('view_delete_body_1', {'a': losses[0]}),
-    2 => trf('view_delete_body_2', {'a': losses[0], 'b': losses[1]}),
-    _ => trf('view_delete_body_3',
-        {'a': losses[0], 'b': losses[1], 'c': losses[2]}),
-  };
+  final body = [
+    if (losses.isNotEmpty)
+      switch (losses.length) {
+        1 => trf('view_delete_body_1', {'a': losses[0]}),
+        2 => trf('view_delete_body_2', {'a': losses[0], 'b': losses[1]}),
+        _ => trf('view_delete_body_3',
+            {'a': losses[0], 'b': losses[1], 'c': losses[2]}),
+      },
+    if (cascade > 0) ...[
+      trf('unmark_cascade_ep', {'eps': trn('ss_episodes', cascade)}),
+      unmarkCascadeHint(),
+    ],
+  ].join('\n\n');
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,

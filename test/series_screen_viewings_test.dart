@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:kadr/l10n/locale_controller.dart';
 import 'package:kadr/models/library_entry.dart';
 import 'package:kadr/screens/series_screen.dart';
+import 'package:kadr/services/app_prefs.dart';
 import 'package:kadr/services/movie_repository.dart';
 import 'package:kadr/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -50,8 +51,10 @@ MockClient _tmdb(int tvId) => MockClient((req) async {
     });
 
 /// Сериал, у которого первый сезон досмотрен один раз, а пересмотр начат:
-/// первые две серии смотрели дважды, третью один раз.
-LibrarySeries _series(String id, int tvId) => LibrarySeries(
+/// первые две серии смотрели дважды, третью один раз. С [later] отмечены ещё
+/// две серии второго сезона.
+LibrarySeries _series(String id, int tvId, {bool later = false}) =>
+    LibrarySeries(
       tvShowId: id,
       title: 'Аркейн',
       tmdbId: tvId,
@@ -66,10 +69,15 @@ LibrarySeries _series(String id, int tvId) => LibrarySeries(
               if (n <= 2) Viewing(date: DateTime(2026, 8, 18, 20, n)),
             ],
           ),
+        if (later)
+          for (var n = 1; n <= 2; n++)
+            Episode(
+                season: 2, number: n, watchedAt: DateTime(2024, 11, 9, 20, n)),
       ],
     );
 
-Future<MovieRepository> _open(WidgetTester tester, String id, int tvId) async {
+Future<MovieRepository> _open(WidgetTester tester, String id, int tvId,
+    {bool later = false}) async {
   SharedPreferences.setMockInitialValues({});
   // Шире телефона: строка кнопок под шапкой рассчитана на настоящий шрифт,
   // а тестовый вдвое шире.
@@ -87,8 +95,8 @@ Future<MovieRepository> _open(WidgetTester tester, String id, int tvId) async {
       paths, (_) async => throw PlatformException(code: 'no-dir'));
   addTearDown(() => messenger.setMockMethodCallHandler(paths, null));
   final repo = MovieRepository.instance;
-  await tester.runAsync(
-      () => repo.restoreFromSnapshot(const [], [_series(id, tvId).toJson()]));
+  await tester.runAsync(() => repo.restoreFromSnapshot(
+      const [], [_series(id, tvId, later: later).toJson()]));
   await http.runWithClient(
     () async {
       await tester.pumpWidget(MaterialApp(
@@ -212,5 +220,45 @@ void main() {
     await tester.pumpAndSettle();
     expect(repo.seriesById('arc5')!.episodes.length, 3);
     expect(_ep(repo, 'arc5', 1).watchCount, 2);
+  });
+
+  // Настройка «Снимать серии по порядку»: сезон уходит вместе с сезонами
+  // после него, и вопрос говорит об этом заранее.
+  group('снятие сезона по порядку', () {
+    tearDown(() => AppPrefs.instance.sequentialUnmark = true);
+
+    Future<void> clearFirstSeason(WidgetTester tester) async {
+      await tester.tap(find.text('Отметить ещё 1'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Снять все просмотры сезона'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+    }
+
+    testWidgets('настройка включена: уходят и сезоны после', (tester) async {
+      AppPrefs.instance.sequentialUnmark = true;
+      final repo = await _open(tester, 'arc6', 9106, later: true);
+      await clearFirstSeason(tester);
+      expect(find.textContaining('2 серии'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Снять'));
+      await tester.pumpAndSettle();
+      expect(repo.seriesById('arc6')!.episodes, isEmpty);
+      await tester.tap(find.text('Вернуть'));
+      await tester.pumpAndSettle();
+      expect(repo.seriesById('arc6')!.episodes.length, 5);
+    });
+
+    testWidgets('настройка выключена: уходит только этот сезон', (
+      tester,
+    ) async {
+      AppPrefs.instance.sequentialUnmark = false;
+      final repo = await _open(tester, 'arc7', 9107, later: true);
+      await clearFirstSeason(tester);
+      expect(find.textContaining('2 серии'), findsNothing);
+      await tester.tap(find.widgetWithText(FilledButton, 'Снять'));
+      await tester.pumpAndSettle();
+      final left = repo.seriesById('arc7')!.episodes;
+      expect([for (final e in left) e.season], [2, 2]);
+    });
   });
 }

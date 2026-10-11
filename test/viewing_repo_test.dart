@@ -267,6 +267,64 @@ void main() {
       expect(repo.seriesById('s')!.isEpisodeWatched(1, 2), isTrue);
     });
 
+    // Настройка «Снимать серии по порядку»: снял серию, и все после неё
+    // снимаются тоже. Так обещала настройка «по порядку», а на деле серии
+    // после оставались отмеченными.
+    group('снятие по порядку', () {
+      Episode at(int season, int number) => Episode(
+            season: season,
+            number: number,
+            watchedAt: DateTime(2026, season, number, 20),
+            score: 8.0,
+          );
+
+      MovieRepository titans() => seriesRepo([
+            at(1, 1),
+            at(1, 2),
+            at(1, 3),
+            at(2, 1),
+            at(2, 2),
+            at(5, 1),
+            Episode(watchedAt: DateTime(2020, 1, 1)),
+          ]);
+
+      List<String> marks(MovieRepository repo) => [
+            for (final e in repo.seriesById('s')!.episodes)
+              '${e.season}·${e.number}',
+          ];
+
+      test('после серии считаются отмеченные серии всех сезонов', () {
+        final repo = titans();
+        expect(repo.watchedAfter('s', 1, 2), 4);
+        expect(repo.watchedAfter('s', 2, 2), 1);
+        expect(repo.watchedAfter('s', 5, 1), 0);
+        expect(repo.watchedAfterSeason('s', 1), 3);
+        expect(repo.watchedAfterSeason('s', 5), 0);
+      });
+
+      test('серия снимается вместе со всеми после неё', () async {
+        final repo = titans();
+        final snap = await repo.unmarkFrom('s', 1, 2);
+        // Серии до неё и серия без номера остаются.
+        expect(marks(repo), ['1·1', 'null·null']);
+        await repo.restoreFromSnapshot(const [], [snap!]);
+        expect(marks(repo).length, 7);
+        expect(repo.seriesById('s')!.watchedEpisode(5, 1)!.score, 8.0);
+      });
+
+      test('сезон снимается вместе со всеми сезонами после него', () async {
+        final repo = titans();
+        await repo.unmarkFrom('s', 2);
+        expect(marks(repo), ['1·1', '1·2', '1·3', 'null·null']);
+      });
+
+      test('снимать нечего: снимка нет, библиотека как была', () async {
+        final repo = titans();
+        expect(await repo.unmarkFrom('s', 6), isNull);
+        expect(marks(repo).length, 7);
+      });
+    });
+
     test('серии, отмеченные пачкой, получают выбранную дату', () async {
       final repo = seriesRepo([]);
       final at = DateTime(2026, 8, 1, 20);

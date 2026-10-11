@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kadr/l10n/locale_controller.dart';
 import 'package:kadr/models/library_entry.dart';
 import 'package:kadr/screens/viewing/episode_sheet.dart';
+import 'package:kadr/services/app_prefs.dart';
 import 'package:kadr/services/movie_repository.dart';
 import 'package:kadr/services/tmdb_service.dart';
 import 'package:kadr/theme/app_theme.dart';
@@ -147,6 +148,96 @@ void main() {
     expect(s.watchedEpisode(1, 3), isNotNull);
     // Серия снова не отмечена: окно предлагает отметить.
     expect(find.text('Отметить просмотр'), findsOneWidget);
+  });
+
+  // Настройка «Снимать серии по порядку». Третья серия отмечена один раз,
+  // после неё отмечены четвёртая и первая серия второго сезона.
+  group('снимать по порядку', () {
+    MovieRepository ordered() => MovieRepository.detached({
+          'series': [
+            LibrarySeries(
+              tvShowId: 'arcane',
+              title: 'Аркейн',
+              episodes: [
+                Episode(
+                    season: 1, number: 3, watchedAt: DateTime(2023, 5, 29, 13)),
+                Episode(
+                  season: 1,
+                  number: 4,
+                  watchedAt: DateTime(2023, 5, 29, 14),
+                  score: 9.5,
+                ),
+                Episode(
+                    season: 2, number: 1, watchedAt: DateTime(2024, 11, 9, 20)),
+              ],
+            ).toJson(),
+          ],
+        });
+
+    tearDown(() => AppPrefs.instance.sequentialUnmark = true);
+
+    testWidgets('спросит и снимет серию вместе со всеми после неё', (
+      tester,
+    ) async {
+      AppPrefs.instance.sequentialUnmark = true;
+      final repo = ordered();
+      await _open(tester, repo);
+      await tester.ensureVisible(find.text('Отменить просмотр'));
+      await tester.tap(find.text('Отменить просмотр'));
+      await tester.pumpAndSettle();
+      // У самой серии терять нечего, но вопрос есть: уйдут серии после неё.
+      expect(find.textContaining('2 серии'), findsOneWidget);
+      expect(repo.seriesById('arcane')!.episodes.length, 3);
+      await tester.tap(find.widgetWithText(FilledButton, 'Удалить'));
+      await tester.pumpAndSettle();
+      expect(repo.seriesById('arcane')!.episodes, isEmpty);
+      await tester.tap(find.text('Вернуть'));
+      await tester.pumpAndSettle();
+      final s = repo.seriesById('arcane')!;
+      expect(s.episodes.length, 3);
+      expect(s.watchedEpisode(1, 4)!.score, 9.5);
+    });
+
+    testWidgets('отказ ничего не снимает', (tester) async {
+      AppPrefs.instance.sequentialUnmark = true;
+      final repo = ordered();
+      await _open(tester, repo);
+      await tester.ensureVisible(find.text('Отменить просмотр'));
+      await tester.tap(find.text('Отменить просмотр'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Отмена'));
+      await tester.pumpAndSettle();
+      expect(repo.seriesById('arcane')!.episodes.length, 3);
+    });
+
+    testWidgets('настройка выключена: снимается только эта серия', (
+      tester,
+    ) async {
+      AppPrefs.instance.sequentialUnmark = false;
+      final repo = ordered();
+      await _open(tester, repo);
+      await tester.ensureVisible(find.text('Отменить просмотр'));
+      await tester.tap(find.text('Отменить просмотр'));
+      await tester.pumpAndSettle();
+      final s = repo.seriesById('arcane')!;
+      expect(s.watchedEpisode(1, 3), isNull);
+      expect(s.watchedEpisode(1, 4), isNotNull);
+      expect(s.watchedEpisode(2, 1), isNotNull);
+    });
+
+    testWidgets('у серии есть повтор: снимается один просмотр, без каскада', (
+      tester,
+    ) async {
+      AppPrefs.instance.sequentialUnmark = true;
+      final repo = _repo();
+      await _open(tester, repo);
+      await tester.ensureVisible(find.text('Отменить просмотр'));
+      await tester.tap(find.text('Отменить просмотр'));
+      await tester.pumpAndSettle();
+      final s = repo.seriesById('arcane')!;
+      expect(s.watchedEpisode(1, 3)!.watchCount, 2);
+      expect(s.watchedEpisode(1, 4), isNotNull);
+    });
   });
 
   testWidgets('«Смотрел ещё раз» зовёт окно отметки, а не пишет «сейчас»', (

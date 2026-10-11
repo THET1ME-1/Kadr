@@ -1471,6 +1471,50 @@ class MovieRepository extends ChangeNotifier {
     await Store.instance.setBool('prunedStructureV1', true);
   }
 
+  /// Стоит ли серия [e] после серии [season]·[number]. Серии без номера
+  /// (старый импорт) порядка не имеют и «после» не бывают.
+  static bool _isAfter(Episode e, int season, int number) {
+    final s = e.season, n = e.number;
+    if (s == null || n == null) return false;
+    return s > season || (s == season && n > number);
+  }
+
+  /// Сколько отмеченных серий стоит после серии [season]·[number]. Нужно
+  /// вопросу перед снятием по порядку.
+  int watchedAfter(String seriesId, int season, int number) =>
+      seriesById(seriesId)
+          ?.episodes
+          .where((e) => _isAfter(e, season, number))
+          .length ??
+      0;
+
+  /// Сколько отмеченных серий в сезонах после [season].
+  int watchedAfterSeason(String seriesId, int season) =>
+      seriesById(seriesId)
+          ?.episodes
+          .where((e) => (e.season ?? 0) > season)
+          .length ??
+      0;
+
+  /// Снятие по порядку: убирает серию [season]·[number] и все отмеченные
+  /// после неё, во всех сезонах. Без [number] уходит сезон целиком и сезоны
+  /// после него. Возвращает снимок сериала для «Вернуть»
+  /// ([restoreFromSnapshot]); null, если снимать было нечего.
+  Future<Map<String, dynamic>?> unmarkFrom(String seriesId, int season,
+      [int number = 1]) async {
+    final s = seriesById(seriesId);
+    if (s == null) return null;
+    bool goes(Episode e) =>
+        (e.season == season && e.number == number) ||
+        _isAfter(e, season, number);
+    if (!s.episodes.any(goes)) return null;
+    final snap = s.toJson();
+    s.episodes.removeWhere(goes);
+    notifyListeners();
+    await _persist();
+    return snap;
+  }
+
   /// Снимает отметки со всех серий сезона.
   Future<void> unmarkSeason(String seriesId, int season) async {
     final s = seriesById(seriesId);

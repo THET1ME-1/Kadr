@@ -1,4 +1,5 @@
 import '../../models/library_entry.dart';
+import '../../services/app_prefs.dart';
 import '../../services/movie_repository.dart';
 import '../review/review_target.dart';
 
@@ -33,6 +34,11 @@ abstract class ViewingHost {
 
   /// Удаляет просмотр. null — удалять было нечего.
   Future<ViewingUndo?> remove(Viewing v);
+
+  /// Сколько ещё серий уйдёт вместе с просмотром [v]. Больше нуля только у
+  /// серии при настройке «Снимать серии по порядку», когда этот просмотр у
+  /// неё единственный и после неё есть отмеченные.
+  int cascadeOf(Viewing v) => 0;
 
   /// Рецензия на просмотр [v]; у серии её нет.
   ReviewTarget? reviewTarget(Viewing v);
@@ -174,7 +180,22 @@ class EpisodeViewingHost extends ViewingHost {
       );
 
   @override
+  int cascadeOf(Viewing v) {
+    if (!AppPrefs.instance.sequentialUnmark) return 0;
+    final views = ordered;
+    if (views.length != 1 || views.single.id != v.id) return 0;
+    return repo.watchedAfter(seriesId, season, number);
+  }
+
+  @override
   Future<ViewingUndo?> remove(Viewing v) async {
+    // Снятие по порядку трогает много серий разом: возвращаем сериал
+    // снимком, как после снятия сезона.
+    if (cascadeOf(v) > 0) {
+      final snap = await repo.unmarkFrom(seriesId, season, number);
+      if (snap == null) return null;
+      return () => repo.restoreFromSnapshot(const [], [snap]);
+    }
     final removed =
         await repo.removeEpisodeViewById(seriesId, season, number, v.id);
     if (removed == null) return null;

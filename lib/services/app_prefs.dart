@@ -90,6 +90,16 @@ class AppPrefs extends ChangeNotifier {
   /// добавить настроение/с кем/где/фото/заметку. По умолчанию включён.
   bool diaryEnabled = true;
 
+  /// «Снимать серии по порядку»: сняли серию, и все отмеченные после неё
+  /// снимаются тоже. Отметка по порядку настраивается отдельно.
+  bool sequentialUnmark = true;
+
+  Future<void> setSequentialUnmark(bool v) async {
+    sequentialUnmark = v;
+    await Store.instance.setBool('sequentialUnmark', v);
+    notifyListeners();
+  }
+
   /// Какой экран открывать при старте.
   StartScreen startScreen = StartScreen.watchlist;
 
@@ -136,6 +146,12 @@ class AppPrefs extends ChangeNotifier {
   Future<void> load() async {
     numericDates = await Store.instance.getBool('numericDates');
     diaryEnabled = await Store.instance.getBool('diaryEnabled', def: true);
+    // Раньше одна настройка «по порядку» отвечала и за отметку, и за
+    // снятие. Пока новую не трогали, снятие идёт так же, как отметка.
+    sequentialUnmark = await Store.instance.getBool(
+      'sequentialUnmark',
+      def: await Store.instance.getBool('sequentialEpisodes', def: true),
+    );
     final raw = await Store.instance.getString('startScreen');
     startScreen = _parse(raw);
     navStyle = await Store.instance.getString('navStyle') == 'classic'

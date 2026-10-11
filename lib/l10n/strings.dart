@@ -1769,8 +1769,32 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Mark episodes in order',
   },
   'seq_mode_sub': {
-    'ru': 'Отметил серию — все до неё тоже; снял — все после снимаются',
-    'en': 'Marking an episode marks all before it; unmarking clears all after',
+    'ru': 'Отметил серию: отмечаются и все до неё',
+    'en': 'Marking an episode also marks every episode before it',
+  },
+  'unmark_seq': {
+    'ru': 'Снимать серии по порядку',
+    'en': 'Unmark episodes in order',
+  },
+  'unmark_seq_sub': {
+    'ru': 'Снял серию: снимаются и все после неё',
+    'en': 'Unmarking an episode also clears every episode after it',
+  },
+  'unmark_cascade_ep': {
+    'ru':
+        'Серии снимаются по порядку: вместе с этой уйдут и все после неё, {eps}. Их даты, оценки и дневник пропадут.',
+    'en':
+        'Episodes are unmarked in order: everything after this one goes too, {eps}. Their dates, ratings and diary entries will be lost.',
+  },
+  'unmark_cascade_season': {
+    'ru':
+        'Серии снимаются по порядку: вместе с сезоном уйдут и сезоны после него, {eps}.',
+    'en':
+        'Episodes are unmarked in order: the seasons after this one go too, {eps}.',
+  },
+  'unmark_cascade_hint': {
+    'ru': 'Это настраивается: «{page}» → «{row}».',
+    'en': 'You can change this in Settings: {page} → {row}.',
   },
 
   // ------------------------------ Брошено ------------------------------

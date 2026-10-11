@@ -128,6 +128,13 @@ class _TrackingPageState extends State<TrackingPage> {
               },
             ),
             SettingsSwitchRow(
+              icon: Icons.playlist_remove_rounded,
+              title: tr('unmark_seq'),
+              subtitle: tr('unmark_seq_sub'),
+              value: prefs.sequentialUnmark,
+              onChanged: prefs.setSequentialUnmark,
+            ),
+            SettingsSwitchRow(
               icon: Icons.event_busy_rounded,
               title: tr('restrict_unaired'),
               subtitle: tr('restrict_unaired_sub'),
