@@ -113,7 +113,13 @@ Map<String, dynamic> mergeSnapshots(
         ...(a['movieUuids'] as List? ?? []).map((e) => '$e'),
         ...(b['movieUuids'] as List? ?? []).map((e) => '$e'),
       }.toList();
-      lists.add({...a, 'movieUuids': uuids});
+      // Признак публичного списка (наследие TV Time) не теряем: хватит
+      // одной стороны.
+      lists.add({
+        ...a,
+        'movieUuids': uuids,
+        'public': a['public'] == true || b['public'] == true,
+      });
     } else if (a != null) {
       lists.add(a);
     } else {
