@@ -16,6 +16,7 @@ import '../services/social/social_controller.dart';
 import '../services/tmdb_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
+import '../utils/movie_reviews.dart';
 import '../utils/score.dart';
 import '../widgets/movie_cards.dart' show statusBadges;
 import '../widgets/pop_icon.dart';
@@ -351,80 +352,24 @@ class _MovieScreenState extends State<MovieScreen> {
         ),
       ],
       const SizedBox(height: 16),
+      // «Убрать оценку» стоит внутри карточки оценки, как в окне просмотра.
       _scoreCard(scheme, m),
-      // Широкая мягко-красная кнопка сброса оценки — только если оценка есть.
-      if (_shownScore(m) != null) ...[
+      // Рецензии стоят сразу под оценкой, как на экране сериала. Без
+      // рецензий блока нет: «Рецензия» живёт в группе под главной кнопкой.
+      if (movieReviews(m).isNotEmpty) ...[
         const SizedBox(height: 12),
-        _clearScoreButton(scheme, m),
+        MovieReviewsSection(movie: m, repo: _repo),
       ],
-      // Рецензии стоят сразу под оценкой, как на экране сериала.
+      // Вариант Б макета «Кнопки карточки»: одна главная кнопка с меню и
+      // связанная группа. Семь широких кнопок подряд не возвращать.
       const SizedBox(height: 12),
-      MovieReviewsSection(movie: m, repo: _repo),
-      const SizedBox(height: 12),
-      SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          onPressed: () => showWhenWatchedSheet(context, m),
-          icon: const Icon(Icons.add_task_rounded),
-          // Брошенный фильм ещё не досмотрен: «Отметить просмотр».
-          label: Text(tr(m.isWatched ? 'watch_again' : 'mark_watched')),
-        ),
-      ),
-      const SizedBox(height: 12),
-      Row(
-        children: [
-          // Идеально круглая кнопка-сердечко (без надписи).
-          _HeartButton(
-            active: m.favorite,
-            onTap: () => _repo.toggleFavorite(m.uuid),
-          ),
-          const SizedBox(width: 12),
-          if (m.status != LibraryStatus.watched)
-            Expanded(
-              child: m.status == LibraryStatus.watchlist
-                  // Активная — окрашена как «Отметить просмотр».
-                  ? FilledButton.icon(
-                      onPressed: () => _repo.toggleWatchlist(m.uuid),
-                      icon: const Icon(Icons.bookmark_rounded),
-                      label: Text(tr('in_watchlist')),
-                    )
-                  : FilledButton.tonalIcon(
-                      onPressed: () => _repo.toggleWatchlist(m.uuid),
-                      icon: const Icon(Icons.bookmark_border_rounded),
-                      label: Text(tr('add_watchlist')),
-                    ),
-            )
-          else
-            // Просмотрено — широкая «Отменить просмотр» рядом с сердечком.
-            Expanded(child: _undoWatchButton(scheme, m)),
-        ],
-      ),
-      const SizedBox(height: 12),
-      SizedBox(
-        width: double.infinity,
-        child: FilledButton.tonalIcon(
-          onPressed: () => _manageListsSheet(m),
-          icon: const Icon(Icons.playlist_add_rounded),
-          label: Text(tr('manage_lists')),
-        ),
-      ),
-      // Советовать фильм другу (только если есть друзья в соц-слое).
-      if (SocialController.instance.friends.friends.isNotEmpty) ...[
+      _mainActions(m),
+      const SizedBox(height: 8),
+      _actionGroup(scheme, m),
+      // Фильм, брошенный старой версией статусом без даты: снять отметку.
+      if (m.status == LibraryStatus.dropped) ...[
         const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.tonalIcon(
-            onPressed: () => _recommendToFriend(m),
-            icon: const Icon(Icons.recommend_rounded),
-            label: Text(tr('recommend_to_friend')),
-          ),
-        ),
-      ],
-      // «Бросить» открывает окно «Где бросили?»; у просмотренного фильма так
-      // бросают пересмотр. Брошенному кнопка не нужна: наверху блок «Брошен».
-      if (m.status == LibraryStatus.dropped || !m.isDropped) ...[
-        const SizedBox(height: 12),
-        _droppedButton(scheme, m),
+        _legacyDroppedButton(m),
       ],
       if (m.viewings.isNotEmpty) ...[
         const SizedBox(height: 12),
@@ -1394,6 +1339,7 @@ class _MovieScreenState extends State<MovieScreen> {
               : tr('current_viewing_score'),
       value: score,
       onChanged: (v) => _repo.setCurrentScore(m.uuid, v),
+      onClear: () => _repo.setCurrentScore(m.uuid, null),
       footer: footer.isNotEmpty
           ? footer
           : tr(score != null ? 'your_rating' : 'no_rating_yet'),
@@ -1405,79 +1351,267 @@ class _MovieScreenState extends State<MovieScreen> {
     );
   }
 
-  /// Широкая мягко-красная M3-кнопка «Убрать оценку» (как просил пользователь —
-  /// одного размера с «Отметить просмотр», не мелкой ссылкой).
-  Widget _clearScoreButton(ColorScheme scheme, LibraryMovie m) {
-    // Мягкий красный: приглушённый, не кричащий (в тон палитре оценок).
-    const soft = kDroppedColor;
-    return SizedBox(
-      width: double.infinity,
-      child: FilledButton.tonalIcon(
-        onPressed: () => _repo.setCurrentScore(m.uuid, null),
-        icon: const Icon(Icons.star_outline_rounded),
-        label: Text(tr('remove_score')),
-        style: FilledButton.styleFrom(
-          backgroundColor: soft.withValues(alpha: 0.16),
-          foregroundColor: soft,
+  /// Главная кнопка, разделённая на две (вариант Б макета «Кнопки карточки»):
+  /// слева отметка просмотра, стрелка справа открывает «Бросить» (у
+  /// просмотренного «Бросить пересмотр») и «Отменить просмотр».
+  Widget _mainActions(LibraryMovie m) {
+    final items = <Widget>[
+      // Брошенному старой версией статусом бросать нечего: снять отметку
+      // можно кнопкой под группой.
+      if (m.status != LibraryStatus.dropped)
+        MenuItemButton(
+          leadingIcon:
+              const Icon(Icons.heart_broken_rounded, color: kDroppedColor),
+          onPressed: () => _drop(m),
+          child: Text(tr(m.isWatched ? 'drop_rewatch' : 'mark_dropped')),
         ),
-      ),
-    );
-  }
-
-  /// Кнопка «Отменить просмотр» — для уже просмотренного фильма (в Expanded).
-  /// Убирает последний просмотр: с оценкой, дневником или рецензией сначала
-  /// спрашивает, после удаления висит «Вернуть».
-  Widget _undoWatchButton(ColorScheme scheme, LibraryMovie m) {
-    return FilledButton.tonalIcon(
-      onPressed: () async {
-        final cv = m.currentViewing;
-        if (cv != null) {
-          await deleteViewingFlow(
-              context, MovieViewingHost(m.uuid, repo: _repo), cv);
-          return;
-        }
-        // Старая запись «просмотрено» без единого просмотра.
-        await _repo.undoLastViewing(m.uuid);
-        if (mounted) _snack(tr('unwatched'));
-      },
-      icon: const Icon(Icons.remove_done_rounded),
-      label: Text(tr('undo_watch')),
-      style: FilledButton.styleFrom(
-        backgroundColor: scheme.surfaceContainerHighest,
-        foregroundColor: scheme.onSurfaceVariant,
-      ),
-    );
-  }
-
-  /// Широкая кнопка «Бросить» (мягкий красный): окно «Где бросили?» и
-  /// попытка в ленте. Залитая «Брошено» осталась только у фильмов, брошенных
-  /// старыми версиями статусом без даты: тап снимает такую отметку.
-  Widget _droppedButton(ColorScheme scheme, LibraryMovie m) {
-    const soft = kDroppedColor;
-    final legacy = m.status == LibraryStatus.dropped;
-    return SizedBox(
-      width: double.infinity,
-      child: legacy
-          ? FilledButton.icon(
-              onPressed: () => _repo.toggleDropped(m.uuid),
-              icon: const Icon(Icons.heart_broken_rounded),
-              label: Text(tr('in_dropped')),
-              style: FilledButton.styleFrom(
-                backgroundColor: soft,
-                foregroundColor: Colors.white,
-              ),
-            )
-          : FilledButton.tonalIcon(
-              onPressed: () => _drop(m),
-              icon: const Icon(Icons.heart_broken_outlined),
-              label: Text(tr('mark_dropped')),
-              style: FilledButton.styleFrom(
-                backgroundColor: soft.withValues(alpha: 0.16),
-                foregroundColor: soft,
+      if (m.status == LibraryStatus.watched)
+        MenuItemButton(
+          leadingIcon: const Icon(Icons.remove_done_rounded),
+          onPressed: () => _undoWatch(m),
+          child: Text(tr('undo_watch')),
+        ),
+    ];
+    const outer = Radius.circular(28), inner = Radius.circular(8);
+    final main = FilledButton.icon(
+      onPressed: () => showWhenWatchedSheet(context, m),
+      icon: const Icon(Icons.add_task_rounded),
+      // Брошенный фильм ещё не досмотрен: «Отметить просмотр».
+      label: Text(tr(m.isWatched ? 'watch_again' : 'mark_watched')),
+      style: items.isEmpty
+          ? null
+          : FilledButton.styleFrom(
+              shape: const RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.horizontal(left: outer, right: inner),
               ),
             ),
     );
+    if (items.isEmpty) return SizedBox(width: double.infinity, child: main);
+    return Row(
+      spacing: 2,
+      children: [
+        Expanded(child: main),
+        MenuAnchor(
+          alignmentOffset: const Offset(0, 4),
+          style: MenuStyle(
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+          ),
+          menuChildren: items,
+          builder: (context, menu, _) => Tooltip(
+            message: tr('more_actions'),
+            child: FilledButton(
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                menu.isOpen ? menu.close() : menu.open();
+              },
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(56, 56),
+                padding: EdgeInsets.zero,
+                shape: const RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.horizontal(left: inner, right: outer),
+                ),
+              ),
+              child: AnimatedRotation(
+                turns: menu.isOpen ? 0.5 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: const Icon(Icons.expand_more_rounded),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
+
+  /// Связанная группа под главной кнопкой: любимое, рецензия, списки, совет
+  /// другу. У фильма без просмотров вместо рецензии «Буду смотреть», а
+  /// «Списки» сжимаются до значка: подпись «Буду смотреть» длинная.
+  Widget _actionGroup(ColorScheme scheme, LibraryMovie m) {
+    final seen = m.viewings.isNotEmpty || m.status == LibraryStatus.watched;
+    final inList = m.status == LibraryStatus.watchlist;
+    final buttons = <({bool wide, Widget Function(OutlinedBorder) build})>[
+      (
+        wide: false,
+        build: (shape) => _groupIcon(
+              shape: shape,
+              tooltip: tr('act_favorite'),
+              active: m.favorite,
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                _repo.toggleFavorite(m.uuid);
+              },
+              child: PopIcon(
+                active: m.favorite,
+                activeIcon: Icons.favorite_rounded,
+                inactiveIcon: Icons.favorite_border_rounded,
+                activeColor: scheme.onPrimary,
+                inactiveColor: scheme.onSecondaryContainer,
+                size: 24,
+              ),
+            ),
+      ),
+      if (seen)
+        (
+          wide: true,
+          build: (shape) => _groupLabel(
+                shape: shape,
+                icon: Icons.rate_review_rounded,
+                label: tr('view_review'),
+                onPressed: () => startMovieReview(context, m, repo: _repo),
+              ),
+        )
+      else
+        (
+          wide: true,
+          build: (shape) => _groupLabel(
+                shape: shape,
+                icon: inList
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_border_rounded,
+                label: tr(inList ? 'in_watchlist' : 'add_watchlist'),
+                active: inList,
+                onPressed: () => _repo.toggleWatchlist(m.uuid),
+              ),
+        ),
+      if (seen)
+        (
+          wide: true,
+          build: (shape) => _groupLabel(
+                shape: shape,
+                icon: Icons.playlist_add_rounded,
+                label: tr('manage_lists'),
+                onPressed: () => _manageListsSheet(m),
+              ),
+        )
+      else
+        (
+          wide: false,
+          build: (shape) => _groupIcon(
+                shape: shape,
+                tooltip: tr('manage_lists'),
+                onPressed: () => _manageListsSheet(m),
+                child: const Icon(Icons.playlist_add_rounded),
+              ),
+        ),
+      // Советовать фильм другу (только если есть друзья в соц-слое).
+      if (SocialController.instance.friends.friends.isNotEmpty)
+        (
+          wide: false,
+          build: (shape) => _groupIcon(
+                shape: shape,
+                tooltip: tr('recommend_to_friend'),
+                onPressed: () => _recommendToFriend(m),
+                child: const Icon(Icons.recommend_rounded),
+              ),
+        ),
+    ];
+    // Связанная группа M3 Expressive: внешние углы круглые, внутренние 8.
+    const outer = Radius.circular(24), inner = Radius.circular(8);
+    OutlinedBorder shapeAt(int i) => RoundedRectangleBorder(
+          borderRadius: BorderRadius.horizontal(
+            left: i == 0 ? outer : inner,
+            right: i == buttons.length - 1 ? outer : inner,
+          ),
+        );
+    return Row(
+      spacing: 2,
+      children: [
+        for (var i = 0; i < buttons.length; i++)
+          buttons[i].wide
+              ? Expanded(child: buttons[i].build(shapeAt(i)))
+              : buttons[i].build(shapeAt(i)),
+      ],
+    );
+  }
+
+  static const double _groupHeight = 48;
+
+  /// Значок группы: квадрат 56 по ширине, включённый залит primary.
+  Widget _groupIcon({
+    required OutlinedBorder shape,
+    required String tooltip,
+    required VoidCallback onPressed,
+    required Widget child,
+    bool active = false,
+  }) {
+    final style = FilledButton.styleFrom(
+      minimumSize: const Size(56, _groupHeight),
+      padding: EdgeInsets.zero,
+      shape: shape,
+    );
+    return Tooltip(
+      message: tooltip,
+      child: active
+          ? FilledButton(onPressed: onPressed, style: style, child: child)
+          : FilledButton.tonal(onPressed: onPressed, style: style, child: child),
+    );
+  }
+
+  /// Кнопка группы с подписью. Подпись ужимается на узком экране, а не
+  /// вылезает за край.
+  Widget _groupLabel({
+    required OutlinedBorder shape,
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+    bool active = false,
+  }) {
+    final style = FilledButton.styleFrom(
+      minimumSize: const Size(0, _groupHeight),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      shape: shape,
+      textStyle: const TextStyle(
+        fontFamily: AppTheme.bodyFont,
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+    final child = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: 6,
+        children: [Icon(icon, size: 20), Text(label, maxLines: 1)],
+      ),
+    );
+    return active
+        ? FilledButton(onPressed: onPressed, style: style, child: child)
+        : FilledButton.tonal(onPressed: onPressed, style: style, child: child);
+  }
+
+  /// «Отменить просмотр» из меню: убирает последний просмотр. С оценкой,
+  /// дневником или рецензией сначала спрашивает, после удаления висит
+  /// «Вернуть».
+  Future<void> _undoWatch(LibraryMovie m) async {
+    final cv = m.currentViewing;
+    if (cv != null) {
+      await deleteViewingFlow(
+          context, MovieViewingHost(m.uuid, repo: _repo), cv);
+      return;
+    }
+    // Старая запись «просмотрено» без единого просмотра.
+    await _repo.undoLastViewing(m.uuid);
+    if (mounted) _snack(tr('unwatched'));
+  }
+
+  /// Залитая «Брошено» у фильма, брошенного старой версией статусом без
+  /// даты: тап снимает отметку.
+  Widget _legacyDroppedButton(LibraryMovie m) => SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          onPressed: () => _repo.toggleDropped(m.uuid),
+          icon: const Icon(Icons.heart_broken_rounded),
+          label: Text(tr('in_dropped')),
+          style: FilledButton.styleFrom(
+            backgroundColor: kDroppedColor,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      );
 
   /// Записывает брошенную попытку из окна «Где бросили?».
   Future<void> _drop(LibraryMovie m) async {
@@ -1496,37 +1630,3 @@ class _MovieScreenState extends State<MovieScreen> {
 
 }
 
-/// Идеально круглая кнопка-сердечко (Избранное) — без надписи.
-class _HeartButton extends StatelessWidget {
-  final bool active;
-  final VoidCallback onTap;
-  const _HeartButton({required this.active, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: active ? scheme.primary : scheme.surfaceContainerHighest,
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onTap();
-        },
-        child: SizedBox(
-          width: 56,
-          height: 56,
-          child: PopIcon(
-            active: active,
-            activeIcon: Icons.favorite_rounded,
-            inactiveIcon: Icons.favorite_border_rounded,
-            activeColor: scheme.onPrimary,
-            inactiveColor: scheme.onSurfaceVariant,
-            size: 26,
-          ),
-        ),
-      ),
-    );
-  }
-}

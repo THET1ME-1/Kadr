@@ -82,12 +82,14 @@ void main() {
     expect(find.text('Это прекрасно было.'), findsOneWidget);
     expect(find.text('Просмотры · 2'), findsOneWidget);
     expect(find.text('04.09.2026 16:07'), findsOneWidget);
-    // Порядок блоков сверху вниз.
+    // Порядок блоков сверху вниз. «Отменить просмотр» спрятан в меню у
+    // главной кнопки, под ней связанная группа.
+    expect(find.text('Отменить просмотр'), findsNothing);
     final ys = [
       _y(tester, 'Оценка · 2-й просмотр'),
       _y(tester, 'Мои рецензии · 1'),
       _y(tester, 'Смотрел ещё раз'),
-      _y(tester, 'Отменить просмотр'),
+      _y(tester, 'Списки'),
       _y(tester, 'Просмотры · 2'),
     ];
     expect(ys, [...ys]..sort());
@@ -120,7 +122,9 @@ void main() {
   testWidgets('«Отменить просмотр» спрашивает о просмотре с рецензией и '
       'даёт вернуть', (tester) async {
     final repo = await _open(tester, 'sp3');
-    await tester.ensureVisible(find.text('Отменить просмотр'));
+    await tester.ensureVisible(find.byTooltip('Ещё действия'));
+    await tester.tap(find.byTooltip('Ещё действия'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Отменить просмотр'));
     await tester.pumpAndSettle();
     expect(find.text('Удалить просмотр 10.10.2026?'), findsOneWidget);

@@ -251,6 +251,29 @@ Future<void> _all(WidgetTester tester) async {
 
   // Меню → «Брошено»: причина под названием.
   await _shoot(tester, '05_list', const DroppedScreen(), height: 760);
+
+  // Кнопки карточки (вариант Б): просмотренный без рецензии и фильм в «Буду
+  // смотреть»; у просмотренного ещё и с открытым меню.
+  final odyssey = LibraryMovie(
+    uuid: 'odyssey',
+    title: 'The Odyssey',
+    ruTitle: 'Одиссея',
+    titleLang: 'ru',
+    year: 2026,
+    runtimeMin: 173,
+    status: LibraryStatus.watchlist,
+  );
+  await tester.runAsync(() => MovieRepository.instance.restoreFromSnapshot(
+      [_minions().toJson(), odyssey.toJson()], const []));
+  await _shoot(tester, '06_card_watched',
+      MovieScreen(movie: main.byUuid('minions')!), height: 1100);
+  await _shoot(tester, '07_card_menu',
+      MovieScreen(movie: main.byUuid('minions')!), height: 1100,
+      act: () async {
+    await tester.tap(find.byTooltip('Ещё действия'));
+  });
+  await _shoot(tester, '08_card_unwatched',
+      MovieScreen(movie: main.byUuid('odyssey')!), height: 900);
 }
 
 void main() {

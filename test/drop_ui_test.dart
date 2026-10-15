@@ -285,6 +285,10 @@ void main() {
             viewings: const [],
             status: LibraryStatus.watchlist),
       );
+      // «Бросить» живёт в меню у главной кнопки.
+      await tester.ensureVisible(find.byTooltip('Ещё действия'));
+      await tester.tap(find.byTooltip('Ещё действия'));
+      await tester.pumpAndSettle();
       await _tapText(tester, 'Бросить');
       expect(find.text('Где бросили?'), findsOneWidget);
       final boring = find.widgetWithText(FilterChip, 'Скучно');
