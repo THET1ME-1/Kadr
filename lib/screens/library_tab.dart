@@ -20,7 +20,7 @@ import '../utils/score.dart';
 import '../utils/series_finale.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/floating_nav_bar.dart';
-import '../widgets/movie_cards.dart' show droppedBadge;
+import '../widgets/movie_cards.dart' show droppedBadge, pausedBadge;
 import '../widgets/poster.dart';
 import '../widgets/pressable.dart';
 import '../widgets/reveal.dart';
@@ -35,6 +35,7 @@ import 'social/roulette_screen.dart';
 import 'social/readonly_media.dart';
 import 'viewing/viewing_host.dart';
 import 'viewing/viewing_sheet.dart';
+import 'when_watched_sheet.dart';
 
 enum LibraryMode { watched, watchlist }
 
@@ -155,7 +156,8 @@ class _LibraryTabState extends State<LibraryTab> {
     if (e.seriesItem != null) return 'sw:${e.seriesItem!.tvShowId}';
     final m = e.movie!;
     if (widget.mode == LibraryMode.watchlist) return 'wl:${m.uuid}';
-    return 'mv:${m.uuid}:${identityHashCode(e.viewing)}';
+    final trace = e.trace == null ? '' : ':p${e.trace}';
+    return 'mv:${m.uuid}:${identityHashCode(e.viewing)}$trace';
   }
 
   void _indexEntries(Iterable<_LibEntry> entries) {
@@ -1011,6 +1013,10 @@ class _LibraryTabState extends State<LibraryTab> {
 
   List<_FeedRow> _buildFeedRows(int cols) {
     final rows = <_FeedRow>[];
+    // Строки заходов только в списке: в постерах и баннерах их не видно.
+    final list = widget.viewMode == LibraryViewMode.list;
+    List<_LibEntry> shown(List<_LibEntry> es) =>
+        list ? es : [for (final e in es) if (e.trace == null) e];
     void addEntries(List<_LibEntry> entries) {
       if (widget.viewMode == LibraryViewMode.posters) {
         for (var i = 0; i < entries.length; i += cols) {
@@ -1026,13 +1032,18 @@ class _LibraryTabState extends State<LibraryTab> {
 
     for (final section in _wmRender!) {
       if (section.month != null) {
+        final days = [
+          for (final day in section.days!)
+            if (shown(day.value).isNotEmpty) MapEntry(day.key, shown(day.value)),
+        ];
+        if (days.isEmpty) continue;
         rows.add(_FeedMonth(section.month!));
-        for (final day in section.days!) {
+        for (final day in days) {
           rows.add(_FeedDay(day.key));
           addEntries(day.value);
         }
       } else {
-        addEntries(section.entries);
+        addEntries(shown(section.entries));
       }
     }
     return rows;
@@ -1087,19 +1098,23 @@ class _LibraryTabState extends State<LibraryTab> {
 
   /// Тяжёлый расчёт ленты «Просмотрено» (мемоизируется, см. поля _wm*).
   void _computeWatched(MovieRepository repo) {
+    // По дате — помесячная разбивка (+ дни внутри месяца); иначе — плоский
+    // отсортированный список без заголовков.
+    final grouped = _sort == LibSort.dateNew || _sort == LibSort.dateOld;
     final groups = [
       for (final g in repo.watchedEntriesByMonth(
         movies: _filter != _WatchedFilter.series,
         series: _filter != _WatchedFilter.movies,
+        // Строки заходов «начал» и «продолжил» живут только в ленте по
+        // датам: в других сортировках им не место.
+        traces: grouped,
       ))
         if (g.value.any(_matchEntry))
           MapEntry(g.key, g.value.where(_matchEntry).toList()),
     ];
-    _wmTotal = groups.fold<int>(0, (s, g) => s + g.value.length);
-
-    // По дате — помесячная разбивка (+ дни внутри месяца); иначе — плоский
-    // отсортированный список без заголовков.
-    final grouped = _sort == LibSort.dateNew || _sort == LibSort.dateOld;
+    // Строки заходов не просмотры: в счётчик не идут.
+    _wmTotal = groups.fold<int>(
+        0, (s, g) => s + g.value.where((e) => e.part == null).length);
     if (grouped) {
       final gs = [
         for (final g in groups)
@@ -1139,7 +1154,8 @@ class _LibraryTabState extends State<LibraryTab> {
     // номера не получают и пересмотром не считаются.
     final ordinal = movie.fullOrdinalOf(viewing);
     final rewatchNum = (movie.isRewatched && ordinal > 1) ? ordinal : null;
-    return _LibEntry.movie(movie, viewing: viewing, rewatchNumber: rewatchNum);
+    return _LibEntry.movie(movie,
+        viewing: viewing, rewatchNumber: rewatchNum, trace: e.part);
   }
 
   void _sortEntries(List<_LibEntry> l) {
@@ -1332,6 +1348,17 @@ class _LibraryTabState extends State<LibraryTab> {
         heroTag: tag,
       );
     }
+    if (e.trace != null && e.viewing != null) {
+      return _TraceRow(
+        movie: e.movie!,
+        viewing: e.viewing!,
+        part: e.trace!,
+        onOpen: _selecting ? null : () => _openMovie(e.movie!),
+        revealGroup: _revealed,
+        revealId: key,
+      );
+    }
+    final paused = e.viewing?.isPaused ?? false;
     return _MovieRow(
       movie: e.movie!,
       viewing: e.viewing,
@@ -1340,6 +1367,10 @@ class _LibraryTabState extends State<LibraryTab> {
       selected: sel,
       onSelect: () => _onSelect(key),
       onOpen: () => _openMovie(e.movie!, heroTag: tag),
+      // Кружок у начатого сразу открывает «Когда досмотрели?».
+      onFinish: paused && !widget.readOnly
+          ? () => showFinishSheet(context, e.movie!, e.viewing!)
+          : null,
       revealGroup: _revealed,
       revealId: key,
       heroTag: tag,
@@ -1407,6 +1438,7 @@ class _LibraryTabState extends State<LibraryTab> {
       score: e.viewing != null ? m.scoreOf(e.viewing!) : null,
       favorite: m.favorite,
       dropped: e.viewing?.drop != null,
+      paused: e.viewing?.isPaused ?? false,
       selecting: _selecting,
       selected: sel,
       onSelect: () => _onSelect(key),
@@ -1462,6 +1494,7 @@ class _LibraryTabState extends State<LibraryTab> {
       score: e.viewing != null ? m.scoreOf(e.viewing!) : null,
       favorite: m.favorite,
       dropped: e.viewing?.drop != null,
+      paused: e.viewing?.isPaused ?? false,
       selecting: _selecting,
       selected: sel,
       onSelect: () => _onSelect(key),
@@ -2183,21 +2216,28 @@ class _LibEntry {
 
   /// Сериал в «Буду смотреть» (без сессии — ещё не начат).
   final LibrarySeries? seriesItem;
-  _LibEntry.movie(this.movie, {this.viewing, this.rewatchNumber})
+
+  /// Номер прошлого захода: запись — строка «начал» или «продолжил».
+  final int? trace;
+  _LibEntry.movie(this.movie, {this.viewing, this.rewatchNumber, this.trace})
     : session = null,
       seriesItem = null;
   _LibEntry.session(this.session)
     : movie = null,
       viewing = null,
       rewatchNumber = null,
-      seriesItem = null;
+      seriesItem = null,
+      trace = null;
   _LibEntry.series(this.seriesItem)
     : movie = null,
       viewing = null,
       rewatchNumber = null,
-      session = null;
+      session = null,
+      trace = null;
 
-  DateTime? get date => session != null ? session!.start : viewing?.date;
+  DateTime? get date => session != null
+      ? session!.start
+      : (trace != null ? viewing!.parts[trace!].date : viewing?.date);
   double? get score => session != null
       ? (session!.avgScore ?? session!.series.displayScore)
       : (viewing != null ? movie!.scoreOf(viewing!) : movie?.currentScore);
@@ -2225,6 +2265,9 @@ class _PosterCell extends StatelessWidget {
   final bool favorite;
   final bool series;
   final bool dropped;
+
+  /// Начатый просмотр: на постере значок паузы.
+  final bool paused;
   final bool selecting;
   final bool selected;
   final VoidCallback? onSelect;
@@ -2246,6 +2289,7 @@ class _PosterCell extends StatelessWidget {
     this.favorite = false,
     this.series = false,
     this.dropped = false,
+    this.paused = false,
     this.selecting = false,
     this.selected = false,
     this.onSelect,
@@ -2273,12 +2317,13 @@ class _PosterCell extends StatelessWidget {
                 radius: 16,
                 heroTag: heroTag,
               ),
-              if (favorite || dropped)
+              if (favorite || dropped || paused)
                 Positioned(
                   top: 6,
                   left: 6,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
+                    spacing: 4,
                     children: [
                       if (favorite)
                         Container(
@@ -2293,8 +2338,8 @@ class _PosterCell extends StatelessWidget {
                             color: scheme.onPrimary,
                           ),
                         ),
-                      if (favorite && dropped) const SizedBox(width: 4),
                       if (dropped) droppedBadge(),
+                      if (paused) pausedBadge(scheme),
                     ],
                   ),
                 ),
@@ -2359,6 +2404,9 @@ class _BannerCell extends StatelessWidget {
   final bool favorite;
   final bool series;
   final bool dropped;
+
+  /// Начатый просмотр: в углу значок паузы.
+  final bool paused;
   final bool selecting;
   final bool selected;
   final VoidCallback? onSelect;
@@ -2372,6 +2420,7 @@ class _BannerCell extends StatelessWidget {
     this.favorite = false,
     this.series = false,
     this.dropped = false,
+    this.paused = false,
     this.selecting = false,
     this.selected = false,
     this.onSelect,
@@ -2444,7 +2493,7 @@ class _BannerCell extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (favorite || series || dropped)
+                if (favorite || series || dropped || paused)
                   Positioned(
                     top: 12,
                     left: 12,
@@ -2472,6 +2521,12 @@ class _BannerCell extends StatelessWidget {
                             Icons.heart_broken_rounded,
                             size: 20,
                             color: kDroppedColor,
+                          ),
+                        if (paused)
+                          const Icon(
+                            Icons.pause_circle_rounded,
+                            size: 20,
+                            color: Colors.white,
                           ),
                       ],
                     ),
@@ -3100,6 +3155,10 @@ class _MovieRow extends StatelessWidget {
   final DiaryEntry? diary;
   final VoidCallback? onDiary;
 
+  /// Кружок справа у начатого просмотра: «Досмотрел». null — кружок только
+  /// значок (библиотека друга).
+  final VoidCallback? onFinish;
+
   const _MovieRow({
     required this.movie,
     this.viewing,
@@ -3113,6 +3172,7 @@ class _MovieRow extends StatelessWidget {
     this.heroTag,
     this.diary,
     this.onDiary,
+    this.onFinish,
   });
 
   @override
@@ -3128,6 +3188,9 @@ class _MovieRow extends StatelessWidget {
     // Брошенная попытка (вариант Л2 макета KADR-1): карточка в тон «Брошено»,
     // под датой минута, ниже причины блоком.
     final drop = viewing?.drop;
+    // Начатая попытка (вариант Г2 макета «Фильм в несколько заходов»):
+    // карточка в тон основного цвета, под датой сколько посмотрел.
+    final pause = viewing?.pause;
 
     final row = Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -3206,13 +3269,18 @@ class _MovieRow extends StatelessWidget {
                 Row(
                   children: [
                     if (date != null)
-                      Text(
-                        dateExactWithTime(date),
-                        style: TextStyle(
-                          fontFamily: AppTheme.bodyFont,
-                          fontSize: 12,
-                          color: scheme.onSurfaceVariant.withValues(
-                            alpha: 0.85,
+                      Flexible(
+                        child: Text(
+                          dateExactWithTime(date),
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant.withValues(
+                              alpha: 0.85,
+                            ),
                           ),
                         ),
                       ),
@@ -3251,16 +3319,23 @@ class _MovieRow extends StatelessWidget {
                   ],
                 ),
               ],
+              if (pause != null) ...[
+                const SizedBox(height: 6),
+                _PauseProgress(pause: pause, runtimeMin: movie.runtimeMin),
+              ],
             ],
           ),
         ),
         const SizedBox(width: 10),
-        _scoreBadge(
-          scheme,
-          score,
-          addMode: viewing == null,
-          dropped: drop != null,
-        ),
+        if (pause != null)
+          _finishBadge(scheme)
+        else
+          _scoreBadge(
+            scheme,
+            score,
+            addMode: viewing == null,
+            dropped: drop != null,
+          ),
       ],
     );
 
@@ -3272,7 +3347,11 @@ class _MovieRow extends StatelessWidget {
         child: Material(
           color: selected
               ? scheme.primaryContainer
-              : (drop != null ? dropTint(scheme) : scheme.surfaceContainerHigh),
+              : (drop != null
+                  ? dropTint(scheme)
+                  : pause != null
+                      ? pauseTint(scheme)
+                      : scheme.surfaceContainerHigh),
           borderRadius: BorderRadius.circular(22),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -3308,7 +3387,184 @@ class _MovieRow extends StatelessWidget {
     );
   }
 
-  /// Бейдж повтора: «↻ N» — номер по счёту (2-й, 3-й… просмотр).
+  /// Кружок начатого просмотра вместо оценки: «Досмотрел».
+  Widget _finishBadge(ColorScheme scheme) {
+    final circle = Container(
+      width: 46,
+      height: 46,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
+      child: Icon(Icons.task_alt_rounded, size: 24, color: scheme.onPrimary),
+    );
+    final finish = onFinish;
+    if (finish == null || selecting) return circle;
+    return Tooltip(
+      message: tr('drop_finished'),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: finish,
+        child: circle,
+      ),
+    );
+  }
+}
+
+/// Сколько посмотрено у начатого просмотра: полоса и «52 из 137 мин». Без
+/// длительности фильма только минута.
+class _PauseProgress extends StatelessWidget {
+  final PauseMark pause;
+  final int? runtimeMin;
+  const _PauseProgress({required this.pause, required this.runtimeMin});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final at = pause.atMin;
+    final rt = runtimeMin;
+    final knownRt = rt != null && rt > 0 && rt <= 600;
+    final style = TextStyle(
+      fontFamily: AppTheme.bodyFont,
+      fontWeight: FontWeight.w600,
+      fontSize: 12.5,
+      color: scheme.primary,
+    );
+    if (at == null || !knownRt) {
+      return Text(
+        at == null ? tr('pause_chip') : trf('pause_feed_at', {'n': at}),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      );
+    }
+    // Подпись важнее полосы: на узком экране она ужимается последней, а
+    // полоса берёт остаток.
+    return LayoutBuilder(
+      builder: (context, c) => Row(
+        spacing: 8,
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: (at / rt).clamp(0.0, 1.0),
+                minHeight: 4,
+                color: scheme.primary,
+                backgroundColor: scheme.surfaceContainerHighest,
+              ),
+            ),
+          ),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: c.maxWidth * 0.7),
+            child: Text(
+              trf('pause_feed_of', {'n': at, 'm': rt}),
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Строка прошлого захода в ленте (вариант Ф3 макета «Фильм в несколько
+/// заходов»): маленький постер, название и «начал · до 52-й мин», справа
+/// время. Тап открывает карточку фильма.
+class _TraceRow extends StatelessWidget {
+  final LibraryMovie movie;
+  final Viewing viewing;
+  final int part;
+  final VoidCallback? onOpen;
+  final Set<Object>? revealGroup;
+  final Object? revealId;
+  const _TraceRow({
+    required this.movie,
+    required this.viewing,
+    required this.part,
+    required this.onOpen,
+    this.revealGroup,
+    this.revealId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final p = viewing.parts[part];
+    final what = tr(part == 0 ? 'trace_started' : 'trace_continued');
+    final line =
+        p.toMin != null ? trf('trace_at', {'what': what, 'n': p.toMin!}) : what;
+    return Reveal(
+      group: revealGroup,
+      id: revealId,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+        child: Material(
+          color: scheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(18),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onOpen,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 14, 8),
+              child: Row(
+                spacing: 12,
+                children: [
+                  Poster(
+                    title: movie.displayTitle,
+                    url: movie.displayPoster,
+                    width: 34,
+                    radius: 8,
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 2,
+                      children: [
+                        Text(
+                          movie.displayTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: AppTheme.displayFont,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: scheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          line,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12.5,
+                            color: scheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (p.date != null)
+                    Text(
+                      hhmm(p.date!),
+                      style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Бейдж повтора «↻ N» — номер просмотра (2-й, 3-й…). Общий для фильмов и серий.

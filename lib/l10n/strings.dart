@@ -2635,6 +2635,43 @@ const Map<String, Map<String, String>> _strings = {
   },
   'drop_rewatch': {'ru': 'Бросить пересмотр', 'en': 'Drop this rewatch'},
   'more_actions': {'ru': 'Ещё действия', 'en': 'More actions'},
+
+  // ---------------- Фильм в несколько заходов ----------------
+  'pause_later': {'ru': 'Досмотрю потом', 'en': 'Finish later'},
+  'pause_title': {'ru': 'Где остановились?', 'en': 'Where did you stop?'},
+  'pause_started': {'ru': 'Начал', 'en': 'Started'},
+  'pause_chip': {'ru': 'Начат', 'en': 'Started'},
+  'pause_on': {'ru': 'Начат {date}', 'en': 'Started {date}'},
+  'pause_at_of': {
+    'ru': 'остановился на {n}-й минуте из {m}',
+    'en': 'stopped at minute {n} of {m}',
+  },
+  'pause_at': {
+    'ru': 'остановился на {n}-й минуте',
+    'en': 'stopped at minute {n}',
+  },
+  'pause_feed_of': {'ru': '{n} из {m} мин', 'en': '{n} of {m} min'},
+  'pause_feed_at': {
+    'ru': 'Остановился на {n}-й мин',
+    'en': 'Stopped at {n} min',
+  },
+  'pause_field': {'ru': 'Остановился', 'en': 'Stopped at'},
+  'pause_no_min': {'ru': 'Минута не указана', 'en': 'No minute set'},
+  'pause_left': {'ru': 'осталось {n} мин', 'en': '{n} min left'},
+  'pause_saved': {
+    'ru': 'Запомнил, где остановился',
+    'en': 'Saved where you stopped',
+  },
+  'finish_q': {'ru': 'Когда досмотрели?', 'en': 'When did you finish it?'},
+  'rate_after_finish': {
+    'ru': 'Досмотрите фильм, чтобы его оценить',
+    'en': 'Finish the movie to rate it',
+  },
+  'start_same_day': {'ru': 'В тот же день', 'en': 'Same day'},
+  'view_finished_at': {'ru': 'Досмотрел', 'en': 'Finished'},
+  'trace_started': {'ru': 'начал', 'en': 'started'},
+  'trace_continued': {'ru': 'продолжил', 'en': 'continued'},
+  'trace_at': {'ru': '{what} · до {n}-й мин', 'en': '{what} · up to {n} min'},
   // Полки подсказок по темам: причины брошенного, «Сильное» и «Слабое».
   'shelf_story': {'ru': 'Сюжет', 'en': 'Story'},
   'shelf_cast': {'ru': 'Герои', 'en': 'Characters'},

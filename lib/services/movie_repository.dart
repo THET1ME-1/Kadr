@@ -566,6 +566,14 @@ class MovieRepository extends ChangeNotifier {
     // Дневник просмотра личный: настроение, с кем, где, фото и заметка не
     // уезжают ни при каких настройках.
     void stripMovie(Map m) {
+      // Начатый, но не досмотренный просмотр друзья не видят. Фильм без
+      // других просмотров для них снова в «Буду смотреть».
+      final views = m['viewings'] as List? ?? [];
+      final before = views.length;
+      views.removeWhere((v) => (v as Map)['pause'] != null);
+      if (views.isEmpty && before > 0 && m['status'] == 'watched') {
+        m['status'] = 'watchlist';
+      }
       final ids = renumber(m['viewings'] as List? ?? []);
       relink(m, ids);
       final more = (m['moreReviews'] as List? ?? []);
@@ -588,6 +596,9 @@ class MovieRepository extends ChangeNotifier {
         m['addedAt'] = coarse(m['addedAt']);
         for (final v in (m['viewings'] as List? ?? [])) {
           (v as Map)['date'] = coarse(v['date']);
+          for (final p in (v['parts'] as List? ?? [])) {
+            (p as Map)['date'] = coarse(p['date']);
+          }
         }
       }
     }
@@ -971,9 +982,11 @@ class MovieRepository extends ChangeNotifier {
   }
 
   /// Лента «Просмотрено» с фильмами И сериалами (фильтруется), по месяцам.
+  /// С [traces] прошлые заходы фильмов встают своими записями в свои дни
+  /// (вариант Ф3 макета «Фильм в несколько заходов»).
   List<MapEntry<DateTime, List<WatchedEntry>>> watchedEntriesByMonth(
-      {bool movies = true, bool series = true}) {
-    final cacheKey = '$movies-$series';
+      {bool movies = true, bool series = true, bool traces = false}) {
+    final cacheKey = '$movies-$series-$traces';
     final cached = _watchedCache[cacheKey];
     if (cached != null) return cached;
     final map = <String, List<WatchedEntry>>{};
@@ -994,6 +1007,11 @@ class MovieRepository extends ChangeNotifier {
         for (final v in m.viewings) {
           if (v.date == null) continue;
           add(v.date, WatchedEntry.movie(m, v));
+          if (!traces) continue;
+          for (var i = 0; i < v.parts.length; i++) {
+            final d = v.parts[i].date;
+            if (d != null) add(d, WatchedEntry.movie(m, v, part: i));
+          }
         }
       }
     }
@@ -2148,13 +2166,105 @@ class MovieRepository extends ChangeNotifier {
   }
 
   /// Ставит или снимает пометку «брошен» у просмотра фильма: [drop] = null —
-  /// досмотрел.
+  /// досмотрел. Начатый просмотр, брошенный из меню, теряет паузу.
   Future<void> setViewingDrop(String uuid, Viewing v, DropMark? drop) async {
     final live = _liveViewing(uuid, v);
     if (live == null) return;
     live
       ..drop = drop?.copy()
       ..editedAt = DateTime.now();
+    if (drop != null) live.pause = null;
+    notifyListeners();
+    await _persist();
+  }
+
+  // ------------------------- несколько заходов -------------------------
+
+  /// Начатые фильмы: ни разу не досмотрены, просмотр стоит на паузе.
+  List<LibraryMovie> get startedMovies => _byLastViewing(
+      _movies.where((m) => !m.hasFullViewing && m.pausedViewing != null));
+
+  /// «Досмотрю потом»: остановился на минуте [atMin] в [date] (null — «не
+  /// помню»). Если просмотр уже на паузе, это новый заход: прошлая остановка
+  /// уходит в заходы, просмотр встаёт на [date]. Иначе это новая попытка: она
+  /// стоит в ленте, а фильм уходит из «Буду смотреть».
+  Future<void> pauseViewing(String uuid, {int? atMin, DateTime? date}) async {
+    final m = byUuid(uuid);
+    if (m == null) return;
+    final live = m.pausedViewing;
+    if (live != null) {
+      live.parts.add(Sitting(date: live.date, toMin: live.pause?.atMin));
+      live
+        ..date = date ?? live.date
+        ..pause = PauseMark(atMin: atMin)
+        ..editedAt = DateTime.now();
+    } else {
+      m.status = LibraryStatus.watched;
+      // Оценка, поставленная до первого просмотра, становится его оценкой.
+      final first = m.viewings.isEmpty;
+      m.viewings.add(Viewing(
+          date: date,
+          score: first ? m.score : null,
+          pause: PauseMark(atMin: atMin)));
+      if (first) m.score = null;
+    }
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Правит паузу на месте: минута, на которой остановился. Нового захода
+  /// не появляется.
+  Future<void> setViewingPause(String uuid, Viewing v, PauseMark pause) async {
+    final live = _liveViewing(uuid, v);
+    if (live == null) return;
+    live
+      ..pause = pause.copy()
+      ..editedAt = DateTime.now();
+    notifyListeners();
+    await _persist();
+  }
+
+  /// «Досмотрел»: начатая или брошенная попытка становится просмотром в
+  /// [date]. Прошлая остановка уходит в заходы, день начала в ленте остаётся
+  /// строкой. [date] = null («не помню») снимает паузу и пометку, а дату не
+  /// трогает.
+  Future<void> finishViewing(String uuid, Viewing v, DateTime? date) async {
+    final live = _liveViewing(uuid, v);
+    if (live == null) return;
+    final from = live.date;
+    if (date != null) {
+      if (from != null && !date.isBefore(from)) {
+        live.parts.add(
+            Sitting(date: from, toMin: live.pause?.atMin ?? live.drop?.atMin));
+      }
+      live.date = date;
+    }
+    live
+      ..pause = null
+      ..drop = null
+      ..editedAt = DateTime.now();
+    notifyListeners();
+    await _persist();
+  }
+
+  /// День, когда начал, задним числом: первый заход просмотра. Начало позже
+  /// досмотра не встаёт. [start] = null убирает заход, если он единственный.
+  Future<void> setViewingStart(String uuid, Viewing v, DateTime? start) async {
+    final live = _liveViewing(uuid, v);
+    if (live == null) return;
+    if (start == null) {
+      if (live.parts.length != 1) return;
+      live.parts.clear();
+    } else {
+      final d = live.date;
+      if (d != null && start.isAfter(d)) return;
+      if (live.parts.isEmpty) {
+        live.parts.add(Sitting(date: start));
+      } else {
+        live.parts.first.date = start;
+      }
+    }
+    live.editedAt = DateTime.now();
     notifyListeners();
     await _persist();
   }

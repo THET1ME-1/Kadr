@@ -9,12 +9,13 @@ import '../../services/app_prefs.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/score.dart';
-import '../../widgets/undo_snack.dart';
 import '../../widgets/viewing/diary_form.dart';
+import '../../widgets/viewing/drop_parts.dart';
 import '../../widgets/viewing/score_card.dart';
 import '../review/review_editor_screen.dart';
 import '../review/review_screen.dart';
 import 'drop_sheet.dart';
+import 'mark_sheet.dart';
 import 'viewing_delete.dart';
 import 'viewing_host.dart';
 
@@ -182,24 +183,59 @@ class _ViewingSheetState extends State<_ViewingSheet> {
     await host.setDrop(v, choice.drop);
   }
 
-  /// «Досмотрел»: попытку продолжили и досмотрели, пометка снимается.
-  Future<void> _finishDrop(Viewing v) async {
-    final was = v.drop?.copy();
-    if (was == null) return;
+  /// Минута начатого просмотра: то же окно, что у «Досмотрю потом», без
+  /// даты и нового захода.
+  Future<void> _editPause(Viewing v) async {
+    final pause = v.pause;
+    if (pause == null) return;
+    final choice = await showPauseSheet(
+      context,
+      subject: host.title,
+      runtimeMin: host.filmRuntime,
+      initialMin: pause.atMin,
+      editing: true,
+    );
+    if (choice == null || !mounted) return;
+    await host.setPause(v, PauseMark(atMin: choice.atMin));
+  }
+
+  /// «Досмотрел»: начатую или брошенную попытку досмотрели. Окно «Когда
+  /// досмотрели?» берёт день, прошлая остановка остаётся заходом.
+  Future<void> _finish(Viewing v) async {
+    if (v.isFull) return;
+    final choice = await showMarkSheet(
+      context,
+      title: tr('finish_q'),
+      subject: host.title,
+    );
+    if (choice == null || !mounted) return;
     HapticFeedback.selectionClick();
-    await host.setDrop(v, null);
-    final bar = widget.messenger;
-    if (bar == null) return;
-    bar
-      ..clearSnackBars()
-      ..showSnackBar(undoSnackBar(
-        text: tr('drop_cleared'),
-        label: tr('undo'),
-        onUndo: () {
-          final live = host.byId(v.id);
-          if (live != null) host.setDrop(live, was);
-        },
-      ));
+    await host.finish(v, choice.date);
+  }
+
+  /// День, когда начал: задним числом, не позже досмотра.
+  Future<void> _pickStart(Viewing v) async {
+    final now = DateTime.now();
+    final last = v.date ?? now;
+    final initial = v.startedAt ?? last;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial.isAfter(last) ? last : initial,
+      firstDate: DateTime(1900),
+      lastDate: last,
+    );
+    if (picked == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    var start = time == null
+        ? DateTime(picked.year, picked.month, picked.day)
+        : DateTime(
+            picked.year, picked.month, picked.day, time.hour, time.minute);
+    // В день досмотра начало не позже самого досмотра.
+    if (start.isAfter(last)) start = last;
+    await host.setStart(v, start);
   }
 
   void _openReview(Viewing v) {
@@ -289,6 +325,18 @@ class _ViewingSheetState extends State<_ViewingSheet> {
                       {'v': prevText}),
               onClear: () => host.setScore(v, null),
             ),
+            if (!host.isEpisode && v.isPaused)
+              _Field(
+                icon: Icons.pause_circle_rounded,
+                background: pauseTint(scheme),
+                label: tr('pause_field'),
+                value: pauseSummary(v.pause!),
+                onTap: () => _editPause(v),
+                trailing: TextButton(
+                  onPressed: () => _finish(v),
+                  child: Text(tr('drop_finished')),
+                ),
+              ),
             if (!host.isEpisode && v.drop != null)
               _Field(
                 icon: Icons.heart_broken_rounded,
@@ -301,13 +349,41 @@ class _ViewingSheetState extends State<_ViewingSheet> {
                 lines: 2,
                 onTap: () => _editDrop(v),
                 trailing: TextButton(
-                  onPressed: () => _finishDrop(v),
+                  onPressed: () => _finish(v),
                   child: Text(tr('drop_finished')),
                 ),
               ),
+            // День начала у досмотренного фильма: смотрел в несколько
+            // заходов или отмечает задним числом.
+            if (!host.isEpisode && v.isFull)
+              _Field(
+                icon: Icons.play_circle_rounded,
+                label: tr('pause_started'),
+                value: v.startedAt != null
+                    ? dateExactWithTime(v.startedAt!)
+                    : tr('start_same_day'),
+                dim: v.startedAt == null,
+                onTap: () => _pickStart(v),
+                trailing: v.parts.isEmpty
+                    ? Icon(Icons.add_rounded,
+                        size: 20, color: scheme.onSurfaceVariant)
+                    : v.parts.length == 1
+                        ? IconButton(
+                            onPressed: () => host.setStart(v, null),
+                            tooltip: tr('clear_date'),
+                            visualDensity: VisualDensity.compact,
+                            icon: Icon(Icons.close_rounded,
+                                size: 20, color: scheme.onSurfaceVariant),
+                          )
+                        : null,
+              ),
             _Field(
-              icon: Icons.event_rounded,
-              label: tr('view_when'),
+              icon: !host.isEpisode && v.isFull && v.parts.isNotEmpty
+                  ? Icons.task_alt_rounded
+                  : Icons.event_rounded,
+              label: tr(!host.isEpisode && v.isFull && v.parts.isNotEmpty
+                  ? 'view_finished_at'
+                  : 'view_when'),
               value: v.date != null
                   ? dateExactWithTime(v.date!)
                   : tr('view_undated'),

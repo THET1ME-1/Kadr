@@ -167,6 +167,45 @@ class DropMark {
   DropMark copy() => DropMark(atMin: atMin, reasons: [...reasons]);
 }
 
+/// Пауза у просмотра фильма: начал, остановился на минуте и досмотрит
+/// потом («Досмотрю потом»). У серий не бывает.
+class PauseMark {
+  /// Минута, на которой остановились; null — не указали.
+  int? atMin;
+
+  PauseMark({this.atMin});
+
+  factory PauseMark.fromJson(Map j) =>
+      PauseMark(atMin: (j['min'] as num?)?.toInt());
+
+  Map<String, dynamic> toJson() => {if (atMin != null) 'min': atMin};
+
+  PauseMark copy() => PauseMark(atMin: atMin);
+}
+
+/// Прошлый заход просмотра: в какой день смотрел и где остановился. В ленте
+/// это строка «начал» или «продолжил» в свой день.
+class Sitting {
+  DateTime? date;
+
+  /// Минута, на которой остановился; null — не указали.
+  int? toMin;
+
+  Sitting({this.date, this.toMin});
+
+  factory Sitting.fromJson(Map j) => Sitting(
+        date: Viewing._parseDate(j['date']),
+        toMin: (j['min'] as num?)?.toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'date': date?.toIso8601String(),
+        if (toMin != null) 'min': toMin,
+      };
+
+  Sitting copy() => Sitting(date: date, toMin: toMin);
+}
+
 /// Один просмотр фильма или серии: дата (может быть неизвестна), СВОЯ оценка
 /// 1.0–10.0 и дневник. Мнение может меняться при пересмотре — поэтому оценка у
 /// каждого просмотра отдельная.
@@ -188,11 +227,36 @@ class Viewing {
   /// Фильм бросили на этом просмотре; null — досмотрели. У серий не бывает.
   DropMark? drop;
 
+  /// Просмотр на паузе: досмотрят потом. Дата у такого просмотра — день
+  /// последнего захода. У серий не бывает.
+  PauseMark? pause;
+
+  /// Прошлые заходы по порядку: первый — день, когда начал. Пусто у
+  /// просмотра в один вечер.
+  List<Sitting> parts;
+
   Viewing(
-      {String? id, this.date, this.score, this.diary, this.editedAt, this.drop})
-      : id = id ?? newViewingId();
+      {String? id,
+      this.date,
+      this.score,
+      this.diary,
+      this.editedAt,
+      this.drop,
+      this.pause,
+      List<Sitting>? parts})
+      : id = id ?? newViewingId(),
+        parts = parts ?? [];
 
   bool get hasDate => date != null;
+
+  /// Начат и стоит на паузе.
+  bool get isPaused => pause != null;
+
+  /// Досмотрен: не брошен и не на паузе.
+  bool get isFull => drop == null && pause == null;
+
+  /// День, когда начал, если смотрел в несколько заходов.
+  DateTime? get startedAt => parts.isEmpty ? null : parts.first.date;
 
   static DateTime? _parseDate(dynamic v) {
     if (v == null) return null;
@@ -215,6 +279,12 @@ class Viewing {
             : null,
         editedAt: _parseDate(j['edited']),
         drop: j['drop'] is Map ? DropMark.fromJson(j['drop'] as Map) : null,
+        pause:
+            j['pause'] is Map ? PauseMark.fromJson(j['pause'] as Map) : null,
+        parts: [
+          for (final p in (j['parts'] as List? ?? const []))
+            if (p is Map) Sitting.fromJson(p),
+        ],
       );
     }
     return Viewing(id: '', date: _parseDate(j));
@@ -227,6 +297,8 @@ class Viewing {
         if (diary != null && diary!.isNotEmpty) 'diary': diary!.toJson(),
         if (editedAt != null) 'edited': editedAt!.toIso8601String(),
         if (drop != null) 'drop': drop!.toJson(),
+        if (pause != null) 'pause': pause!.toJson(),
+        if (parts.isNotEmpty) 'parts': [for (final p in parts) p.toJson()],
       };
 }
 
@@ -430,11 +502,11 @@ class LibraryMovie with HasReview {
     return at <= 0 ? null : lastRatedScore(ordered.sublist(0, at));
   }
 
-  /// Досмотренных просмотров: брошенные попытки в счёт не идут.
+  /// Досмотренных просмотров: брошенные и начатые попытки в счёт не идут.
   int get _fullCount {
     var n = 0;
     for (final v in viewings) {
-      if (v.drop == null) n++;
+      if (v.isFull) n++;
     }
     return n;
   }
@@ -451,11 +523,33 @@ class LibraryMovie with HasReview {
   /// Досмотрен хоть раз.
   bool get hasFullViewing => _fullCount > 0;
 
-  /// Фильм брошен: каждый его просмотр брошен. Старые версии бросали фильм
-  /// статусом без просмотров, такая отметка тоже считается.
+  /// Фильм брошен: каждый его просмотр брошен. Начатый, но не досмотренный
+  /// фильм брошенным не считается. Старые версии бросали фильм статусом без
+  /// просмотров, такая отметка тоже считается.
   bool get isDropped =>
       status == LibraryStatus.dropped ||
-      (viewings.isNotEmpty && !hasFullViewing);
+      (viewings.isNotEmpty && !hasFullViewing && pausedViewing == null);
+
+  /// Просмотр на паузе («Досмотрю потом»); null, если такого нет.
+  Viewing? get pausedViewing {
+    final ordered = orderedViewings;
+    for (var i = ordered.length - 1; i >= 0; i--) {
+      if (ordered[i].isPaused) return ordered[i];
+    }
+    return null;
+  }
+
+  /// День последнего досмотренного просмотра: начатые и брошенные попытки
+  /// не в счёт.
+  DateTime? get lastFullViewing {
+    DateTime? best;
+    for (final v in viewings) {
+      final d = v.date;
+      if (d == null || !v.isFull) continue;
+      if (best == null || d.isAfter(best)) best = d;
+    }
+    return best;
+  }
 
   /// В «Просмотренных»: хоть раз досмотрен. Старые записи «просмотрено» без
   /// единого просмотра тоже здесь.
@@ -471,29 +565,30 @@ class LibraryMovie with HasReview {
     return null;
   }
 
-  /// Номер досмотренного просмотра по порядку, с единицы. Брошенные номера
-  /// не получают (0) и следующие не сдвигают.
+  /// Номер досмотренного просмотра по порядку, с единицы. Брошенные и
+  /// начатые номера не получают (0) и следующие не сдвигают.
   int fullOrdinalOf(Viewing v) {
     var n = 0;
     for (final x in orderedViewings) {
-      if (x.drop == null) n++;
-      if (x.id == v.id) return x.drop == null ? n : 0;
+      if (x.isFull) n++;
+      if (x.id == v.id) return x.isFull ? n : 0;
     }
     return 0;
   }
 
   /// Минуты у экрана: досмотренный просмотр идёт целиком [runtime], брошенный
-  /// до своей минуты (не дальше конца фильма), без минуты не идёт. Без
-  /// длительности брошенный считается своей минутой, но не больше 10 часов.
+  /// и начатый до своей минуты (не дальше конца фильма), без минуты не идут.
+  /// Без длительности такая попытка считается своей минутой, но не больше
+  /// 10 часов.
   int screenMinutes(int? runtime) {
     var sum = 0;
     for (final v in viewings) {
-      final d = v.drop;
-      if (d == null) {
+      if (v.isFull) {
         sum += runtime ?? 0;
-      } else if (d.atMin != null) {
-        sum += d.atMin!.clamp(0, runtime ?? 600);
+        continue;
       }
+      final at = v.pause?.atMin ?? v.drop?.atMin;
+      if (at != null) sum += at.clamp(0, runtime ?? 600);
     }
     return sum;
   }
@@ -1299,13 +1394,22 @@ class WatchedEntry {
   final LibraryMovie? movie;
   final Viewing? viewing;
   final EpisodeSession? session;
-  const WatchedEntry.movie(this.movie, this.viewing) : session = null;
+
+  /// Номер прошлого захода просмотра: запись — строка «начал» или
+  /// «продолжил» в день этого захода. null у самого просмотра.
+  final int? part;
+
+  const WatchedEntry.movie(this.movie, this.viewing, {this.part})
+      : session = null;
   const WatchedEntry.session(this.session)
       : movie = null,
-        viewing = null;
+        viewing = null,
+        part = null;
 
   bool get isSeries => session != null;
-  DateTime? get date => isSeries ? session!.start : viewing?.date;
+  DateTime? get date => isSeries
+      ? session!.start
+      : (part != null ? viewing!.parts[part!].date : viewing?.date);
 }
 
 /// Пользовательский список фильмов.

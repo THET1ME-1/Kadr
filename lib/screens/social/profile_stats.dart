@@ -291,8 +291,9 @@ class _Compact {
     var scoreSum = 0.0;
     final genres = <String, int>{};
     int? saneOf(int? rt) => (rt != null && rt > 0 && rt <= 600) ? rt : null;
-    // Брошенные: в счёт просмотренного не идут, их минуты у экрана — идут.
-    for (final m in repo.droppedMovies) {
+    // Брошенные и начатые: в счёт просмотренного не идут, их минуты у
+    // экрана — идут.
+    for (final m in [...repo.droppedMovies, ...repo.startedMovies]) {
       minutes += m.screenMinutes(saneOf(m.runtimeMin));
     }
     for (final m in watched) {

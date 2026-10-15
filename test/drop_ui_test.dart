@@ -310,7 +310,8 @@ void main() {
     });
   });
 
-  testWidgets('окно просмотра: «Досмотрел» снимает пометку', (tester) async {
+  testWidgets('окно просмотра: «Досмотрел» спрашивает день, попытка — начало',
+      (tester) async {
     tester.view.physicalSize = const Size(400, 1000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -335,7 +336,13 @@ void main() {
     expect(find.text('Брошен'), findsOneWidget);
     expect(find.text('на 52-й мин · Затянуто, Тяжело смотреть'), findsOneWidget);
     await _tapText(tester, 'Досмотрел');
-    expect(repo.byUuid('b')!.viewings.single.drop, isNull);
+    expect(find.text('Когда досмотрели?'), findsOneWidget);
+    await _tapText(tester, 'Только что');
+    final v = repo.byUuid('b')!.viewings.single;
+    expect(v.drop, isNull);
+    // День, когда бросил, остался заходом: в ленте это строка «начал».
+    expect(v.parts.single.date, _dropAt);
+    expect(v.parts.single.toMin, 52);
     expect(find.text('Брошен'), findsNothing);
   });
 }

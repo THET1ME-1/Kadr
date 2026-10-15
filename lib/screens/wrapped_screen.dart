@@ -38,7 +38,7 @@ class _WrappedScreenState extends State<WrappedScreen> {
     final set = <int>{};
     for (final m in repo.watched) {
       for (final v in m.viewings) {
-        if (v.date != null && v.drop == null) set.add(v.date!.year);
+        if (v.date != null && v.isFull) set.add(v.date!.year);
       }
     }
     for (final s in repo.series) {
@@ -409,7 +409,7 @@ class _YearStats {
     var n = 0;
     for (final m in repo.watched) {
       for (final v in m.viewings) {
-        if (v.date?.year == year && v.drop == null) n++;
+        if (v.date?.year == year && v.isFull) n++;
       }
     }
     for (final s in repo.series) {
@@ -432,12 +432,13 @@ class _YearStats {
     var topScore = -1.0;
     ({LibrarySeries s, int seen})? topSeries;
 
-    // Брошенные попытки года: не фильмы года, но их минуты у экрана в счёт.
+    // Брошенные и начатые попытки года: не фильмы года, но их минуты у
+    // экрана в счёт.
     for (final m in repo.movies) {
       final rt = m.runtimeMin;
       final saneRt = (rt != null && rt > 0 && rt <= 600) ? rt : null;
       for (final v in m.viewings) {
-        final at = v.drop?.atMin;
+        final at = v.drop?.atMin ?? v.pause?.atMin;
         if (at == null || v.date?.year != year) continue;
         minutes += at.clamp(0, saneRt ?? 600);
       }
@@ -448,7 +449,7 @@ class _YearStats {
       final saneRt = (rt != null && rt > 0 && rt <= 600) ? rt : 0;
       var counted = false;
       for (final v in m.viewings) {
-        if (v.date?.year != year || v.drop != null) continue;
+        if (v.date?.year != year || !v.isFull) continue;
         movies++;
         minutes += saneRt;
         byMonth[v.date!.month - 1]++;

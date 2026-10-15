@@ -146,7 +146,8 @@ class TraktController extends ChangeNotifier {
 
     final watched = [
       for (final m in repo.watched)
-        if (m.tmdbId != null) (tmdb: m.tmdbId!, at: m.lastViewing)
+        // Начатый пересмотр и брошенная попытка в историю Trakt не идут.
+        if (m.tmdbId != null) (tmdb: m.tmdbId!, at: m.lastFullViewing)
     ];
     if (watched.isNotEmpty) await TraktService.addHistory(token, watched);
 

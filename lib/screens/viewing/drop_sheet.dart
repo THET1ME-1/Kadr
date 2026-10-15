@@ -19,6 +19,16 @@ class DropChoice {
   const DropChoice({this.date, required this.drop});
 }
 
+/// Ответ окна «Где остановились?».
+class PauseChoice {
+  /// Когда остановился; null — «Не помню».
+  final DateTime? date;
+
+  /// Минута, на которой остановился; null — не ставили.
+  final int? atMin;
+  const PauseChoice({this.date, this.atMin});
+}
+
 /// Длина линейки минут, когда длительность фильма неизвестна.
 const int kDropUnknownRuntime = 240;
 
@@ -27,12 +37,16 @@ const int kDropUnknownRuntime = 240;
 /// своё слово полем, дата и широкая красная кнопка.
 ///
 /// С [initial] окно правит уже записанную попытку: даты в нём нет, кнопка
-/// «Готово». [runtimeMin] — длина фильма для линейки.
+/// «Готово». [startMin] ставит минуту заранее, а без [withDate] нет даты:
+/// так бросают начатый фильм, у попытки дата уже есть. [runtimeMin] —
+/// длина фильма для линейки.
 Future<DropChoice?> showDropSheet(
   BuildContext context, {
   required String subject,
   int? runtimeMin,
   DropMark? initial,
+  int? startMin,
+  bool withDate = true,
   MovieRepository? repo,
 }) {
   final scheme = Theme.of(context).colorScheme;
@@ -50,7 +64,49 @@ Future<DropChoice?> showDropSheet(
         subject: subject,
         runtimeMin: runtimeMin,
         initial: initial,
+        startMin: startMin,
+        withDate: withDate,
         used: (repo ?? MovieRepository.instance).usedDropReasons,
+      ),
+    ),
+  );
+}
+
+/// Окно «Где остановились?» у «Досмотрю потом» (вариант П1 макета «Фильм в
+/// несколько заходов»): то же окно, что «Где бросили?», только в основном
+/// цвете и без причин. [first] — фильм только начат, день подписан
+/// «Начал»; у следующего захода «Когда», а минута стоит с прошлого раза
+/// ([initialMin]). С [editing] окно правит минуту записанной паузы: даты в
+/// нём нет, кнопка «Готово».
+Future<PauseChoice?> showPauseSheet(
+  BuildContext context, {
+  required String subject,
+  int? runtimeMin,
+  int? initialMin,
+  bool first = true,
+  bool editing = false,
+}) {
+  final scheme = Theme.of(context).colorScheme;
+  return showModalBottomSheet<PauseChoice>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: scheme.surfaceContainer,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    builder: (_) => SafeArea(
+      top: false,
+      child: _DropSheet(
+        subject: subject,
+        runtimeMin: runtimeMin,
+        initial: null,
+        startMin: initialMin,
+        withDate: true,
+        used: const [],
+        pause: true,
+        firstPause: first,
+        editPause: editing,
       ),
     ),
   );
@@ -60,12 +116,26 @@ class _DropSheet extends StatefulWidget {
   final String subject;
   final int? runtimeMin;
   final DropMark? initial;
+  final int? startMin;
+  final bool withDate;
   final List<String> used;
+
+  /// Окно паузы «Где остановились?»: без причин, в основном цвете.
+  final bool pause;
+  final bool firstPause;
+
+  /// Правка записанной паузы: без даты, кнопка «Готово».
+  final bool editPause;
   const _DropSheet({
     required this.subject,
     required this.runtimeMin,
     required this.initial,
     required this.used,
+    this.startMin,
+    this.withDate = true,
+    this.pause = false,
+    this.firstPause = true,
+    this.editPause = false,
   });
 
   @override
@@ -73,7 +143,7 @@ class _DropSheet extends StatefulWidget {
 }
 
 class _DropSheetState extends State<_DropSheet> {
-  late int? _min = widget.initial?.atMin;
+  late int? _min = widget.initial?.atMin ?? widget.startMin;
   double? _dragging;
   late final List<String> _reasons = [...?widget.initial?.reasons];
   final _own = TextEditingController();
@@ -82,7 +152,11 @@ class _DropSheetState extends State<_DropSheet> {
   DateTime? _date = DateTime.now();
   bool _justNow = true;
 
-  bool get _editing => widget.initial != null;
+  bool get _editing => widget.initial != null || widget.editPause;
+
+  /// Цвет окна: красный у «Бросить», основной у паузы.
+  Color _accent(ColorScheme scheme) =>
+      widget.pause ? scheme.primary : kDroppedColor;
 
   /// Длина линейки: длительность фильма, без неё четыре часа. Минута из
   /// прошлой правки за краем линейку растягивает.
@@ -114,7 +188,7 @@ class _DropSheetState extends State<_DropSheet> {
   Future<void> _pickDate() async {
     final choice = await showMarkSheet(
       context,
-      title: tr('drop_when_q'),
+      title: tr(widget.pause ? 'pause_title' : 'drop_when_q'),
       subject: widget.subject,
     );
     if (choice == null || !mounted) return;
@@ -126,9 +200,13 @@ class _DropSheetState extends State<_DropSheet> {
   }
 
   void _done() {
+    HapticFeedback.mediumImpact();
+    if (widget.pause) {
+      Navigator.of(context).pop(PauseChoice(date: _date, atMin: _min));
+      return;
+    }
     // Недописанная своя причина тоже уходит: кнопку «+» легко не заметить.
     _add(_own.text);
-    HapticFeedback.mediumImpact();
     Navigator.of(context).pop(DropChoice(
       date: _date,
       drop: DropMark(atMin: _min, reasons: [..._reasons]),
@@ -159,13 +237,13 @@ class _DropSheetState extends State<_DropSheet> {
             ),
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(tr('drop_title'),
-                  style: const TextStyle(
+              child: Text(tr(widget.pause ? 'pause_title' : 'drop_title'),
+                  style: TextStyle(
                       fontFamily: AppTheme.displayFont,
                       fontWeight: FontWeight.w800,
                       fontSize: 20,
                       height: 1.15,
-                      color: kDroppedColor)),
+                      color: _accent(scheme))),
             ),
             Text(widget.subject,
                 style: TextStyle(
@@ -174,29 +252,36 @@ class _DropSheetState extends State<_DropSheet> {
                     fontSize: 13.5,
                     color: scheme.onSurfaceVariant)),
             _minuteCard(scheme),
-            TagShelves(
-              title: tr('drop_why'),
-              shelves: kDropShelves,
-              selected: _reasons,
-              extra: widget.used,
-              controller: _own,
-              onToggle: _toggle,
-              onAdd: _add,
-            ),
-            if (!_editing) _whenField(scheme),
+            if (!widget.pause)
+              TagShelves(
+                title: tr('drop_why'),
+                shelves: kDropShelves,
+                selected: _reasons,
+                extra: widget.used,
+                controller: _own,
+                onToggle: _toggle,
+                onAdd: _add,
+              ),
+            if (!_editing && widget.withDate) _whenField(scheme),
             SizedBox(
               height: 56,
               child: _editing
                   ? FilledButton(onPressed: _done, child: Text(tr('done')))
-                  : FilledButton.icon(
-                      onPressed: _done,
-                      icon: const Icon(Icons.heart_broken_rounded),
-                      label: Text(tr('mark_dropped')),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: kDroppedColor,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
+                  : widget.pause
+                      ? FilledButton.icon(
+                          onPressed: _done,
+                          icon: const Icon(Icons.pause_circle_rounded),
+                          label: Text(tr('pause_later')),
+                        )
+                      : FilledButton.icon(
+                          onPressed: _done,
+                          icon: const Icon(Icons.heart_broken_rounded),
+                          label: Text(tr('mark_dropped')),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: kDroppedColor,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
             ),
           ],
         ),
@@ -204,20 +289,27 @@ class _DropSheetState extends State<_DropSheet> {
     );
   }
 
-  /// Минута крупно и линейка, как карточка оценки, только в тон «Брошено».
+  /// Минута крупно и линейка, как карточка оценки, только в тон «Брошено»
+  /// (у паузы в основном цвете).
   Widget _minuteCard(ColorScheme scheme) {
+    final accent = _accent(scheme);
     final shown = _dragging?.round() ?? _min;
     final rt = widget.runtimeMin;
     final knownRt = rt != null && rt > 0 && rt <= 600;
     final dim = scheme.onSurfaceVariant.withValues(alpha: 0.55);
     final foot = shown != null && knownRt
-        ? trf('drop_share', {'p': (shown * 100 / rt).round().clamp(0, 100)})
+        ? [
+            trf('drop_share', {'p': (shown * 100 / rt).round().clamp(0, 100)}),
+            // Паузе важно, сколько осталось досмотреть.
+            if (widget.pause && shown < rt)
+              trf('pause_left', {'n': rt - shown}),
+          ].join(' · ')
         : tr('drop_minute_skip');
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
       decoration: BoxDecoration(
         color: Color.alphaBlend(
-            kDroppedColor.withValues(alpha: 0.16), scheme.surfaceContainer),
+            accent.withValues(alpha: 0.16), scheme.surfaceContainer),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -247,7 +339,7 @@ class _DropSheetState extends State<_DropSheet> {
                               fontWeight: FontWeight.w800,
                               fontSize: 48,
                               height: 1,
-                              color: shown != null ? kDroppedColor : dim)),
+                              color: shown != null ? accent : dim)),
                       const SizedBox(width: 8),
                       Text(
                           knownRt
@@ -257,7 +349,7 @@ class _DropSheetState extends State<_DropSheet> {
                               fontFamily: AppTheme.displayFont,
                               fontWeight: FontWeight.w700,
                               fontSize: 20,
-                              color: kDroppedColor.withValues(alpha: 0.75))),
+                              color: accent.withValues(alpha: 0.75))),
                     ],
                   ),
                 ),
@@ -282,8 +374,8 @@ class _DropSheetState extends State<_DropSheet> {
             min: 0,
             max: _max.toDouble(),
             step: 1,
-            color: kDroppedColor,
-            onColor: Colors.white,
+            color: accent,
+            onColor: widget.pause ? scheme.onPrimary : Colors.white,
             label: (v) => '${v.round()}',
             onChanged: (v) => setState(() => _dragging = v),
             onChangeEnd: (v) => setState(() {
@@ -328,7 +420,10 @@ class _DropSheetState extends State<_DropSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(tr('view_when'),
+                      Text(
+                          tr(widget.pause && widget.firstPause
+                              ? 'pause_started'
+                              : 'view_when'),
                           style: TextStyle(
                               fontFamily: AppTheme.bodyFont,
                               fontSize: 12,
@@ -354,6 +449,11 @@ class _DropSheetState extends State<_DropSheet> {
     );
   }
 }
+
+/// Строка паузы одной фразой: «на 52-й мин» или «Минута не указана».
+String pauseSummary(PauseMark p) => p.atMin != null
+    ? trf('drop_at_short', {'n': p.atMin!})
+    : tr('pause_no_min');
 
 /// Строка пометки одной фразой: «на 52-й мин · Затянуто, Тяжело смотреть».
 /// Свои причины пишутся как есть, в них бывают имена. Пустая пометка —

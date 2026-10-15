@@ -72,6 +72,13 @@ Widget droppedBadge() => Container(
       child: const Icon(Icons.heart_broken_rounded, size: 14, color: Colors.white),
     );
 
+/// Бейдж «Начат» — кружок основного цвета со значком паузы.
+Widget pausedBadge(ColorScheme scheme) => Container(
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
+      child: Icon(Icons.pause_rounded, size: 14, color: scheme.onPrimary),
+    );
+
 /// Бейджи статуса поверх постера в лентах: сердечко (если в избранном) — левее,
 /// затем галочка+оценка (просмотрено) или закладка (в списке).
 Widget statusBadges(ColorScheme scheme, LibraryMovie? lib) {
@@ -86,6 +93,8 @@ Widget statusBadges(ColorScheme scheme, LibraryMovie? lib) {
   }
   if (lib.isDropped) {
     badges.add(droppedBadge());
+  } else if (!lib.hasFullViewing && lib.pausedViewing != null) {
+    badges.add(pausedBadge(scheme));
   } else if (lib.isWatched) {
     final sc = lib.currentScore;
     badges.add(Container(

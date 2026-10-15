@@ -46,7 +46,7 @@ class _ViewingsSectionState extends State<ViewingsSection> {
     final byScore = <double?, List<Viewing>>{};
     for (final v in list) {
       if (v.date != null ||
-          v.drop != null ||
+          !v.isFull ||
           (v.diary?.isNotEmpty ?? false) ||
           host.hasReview(v)) {
         continue;
@@ -267,6 +267,7 @@ class _ViewRow extends StatelessWidget {
     final reviewed = host.hasReview(v);
     final dim = scheme.onSurfaceVariant;
     final drop = v.drop;
+    final pause = v.pause;
     final sub = <Widget>[
       if (drop != null)
         Text(
@@ -274,6 +275,12 @@ class _ViewRow extends StatelessWidget {
                 ? trf('drop_feed_at', {'n': drop.atMin!})
                 : tr('dropped_plain'),
             style: _subStyle(kDroppedColor, weight: FontWeight.w600)),
+      if (pause != null)
+        Text(
+            pause.atMin != null
+                ? trf('pause_feed_at', {'n': pause.atMin!})
+                : tr('pause_chip'),
+            style: _subStyle(scheme.primary, weight: FontWeight.w600)),
       if (delta != 0)
         Text(signedDelta(delta),
             style: _subStyle(deltaColor(delta, scheme),
@@ -302,7 +309,8 @@ class _ViewRow extends StatelessWidget {
           child: Row(
             spacing: 12,
             children: [
-              // Брошенная попытка вместо номера несёт надломленное сердце.
+              // Брошенная попытка вместо номера несёт надломленное сердце,
+              // начатая — паузу.
               drop != null
                   ? Container(
                       width: 40,
@@ -313,7 +321,17 @@ class _ViewRow extends StatelessWidget {
                       child: const Icon(Icons.heart_broken_rounded,
                           size: 20, color: Colors.white),
                     )
-                  : ViewOrdinal(ordinal, latest: latest),
+                  : pause != null
+                      ? Container(
+                          width: 40,
+                          height: 40,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                              color: scheme.primary, shape: BoxShape.circle),
+                          child: Icon(Icons.pause_rounded,
+                              size: 20, color: scheme.onPrimary),
+                        )
+                      : ViewOrdinal(ordinal, latest: latest),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

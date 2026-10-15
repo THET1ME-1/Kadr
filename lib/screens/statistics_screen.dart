@@ -329,7 +329,7 @@ class StatisticsScreen extends StatelessWidget {
       for (final v in m.viewings) {
         final sc = m.scoreOf(v);
         // Брошенная попытка просмотром не считается.
-        if (v.date == null || sc == null || v.drop != null) continue;
+        if (v.date == null || sc == null || !v.isFull) continue;
         sum[v.date!.year] = (sum[v.date!.year] ?? 0) + sc;
         cnt[v.date!.year] = (cnt[v.date!.year] ?? 0) + 1;
       }
@@ -1735,7 +1735,7 @@ class _Stats {
       final saneRt = sane(m.runtimeMin);
       minutes += m.screenMinutes(saneRt);
       for (final v in m.viewings) {
-        if (v.drop != null) continue;
+        if (!v.isFull) continue;
         totalViewings++;
         if (v.date != null) bumpDate(v.date!);
       }
@@ -1770,9 +1770,9 @@ class _Stats {
       }
     }
 
-    // Брошенные фильмы: в счёт просмотренного не идут, время до места, где
-    // бросили, — идёт.
-    for (final m in repo.droppedMovies) {
+    // Брошенные и начатые фильмы: в счёт просмотренного не идут, время до
+    // места, где бросили или остановились, — идёт.
+    for (final m in [...repo.droppedMovies, ...repo.startedMovies]) {
       minutes += m.screenMinutes(sane(m.runtimeMin));
     }
 

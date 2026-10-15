@@ -167,11 +167,13 @@ List<Viewing> _mergeViewings(List<Viewing> a, List<Viewing> b) {
 Viewing _mergeViewing(Viewing a, Viewing b) {
   final at = a.editedAt, bt = b.editedAt;
   if (at == null && bt == null) {
+    if (a.parts.isEmpty) a.parts = [for (final p in b.parts) p.copy()];
     return a
       ..date ??= b.date
       ..score ??= b.score
       ..diary ??= b.diary
-      ..drop ??= b.drop;
+      ..drop ??= b.drop
+      ..pause ??= b.pause;
   }
   final remoteWins = at == null || (bt != null && bt.isAfter(at));
   if (!remoteWins) return a;

@@ -51,13 +51,13 @@ abstract class ViewingHost {
     return null;
   }
 
-  /// Номер просмотра с единицы. Брошенная попытка номера не получает (0) и
-  /// следующие не сдвигает. 0 и у просмотра, которого уже нет.
+  /// Номер просмотра с единицы. Брошенная и начатая попытки номера не
+  /// получают (0) и следующие не сдвигают. 0 и у просмотра, которого уже нет.
   int ordinalOf(Viewing v) {
     var n = 0;
     for (final x in ordered) {
-      if (x.drop == null) n++;
-      if (x.id == v.id) return x.drop == null ? n : 0;
+      if (x.isFull) n++;
+      if (x.id == v.id) return x.isFull ? n : 0;
     }
     return 0;
   }
@@ -81,6 +81,16 @@ abstract class ViewingHost {
 
   /// Ставит или снимает пометку «брошен»; у серии её не бывает.
   Future<void> setDrop(Viewing v, DropMark? drop) async {}
+
+  /// Правит паузу начатого просмотра; у серии её не бывает.
+  Future<void> setPause(Viewing v, PauseMark pause) async {}
+
+  /// «Досмотрел»: начатая или брошенная попытка становится просмотром в
+  /// [date]; у серии не бывает.
+  Future<void> finish(Viewing v, DateTime? date) async {}
+
+  /// День, когда начал: первый заход просмотра; у серии не бывает.
+  Future<void> setStart(Viewing v, DateTime? start) async {}
 
   /// Написана ли на просмотр рецензия (черновик тоже считается).
   bool hasReview(Viewing v) => reviewTarget(v)?.item.hasReview ?? false;
@@ -138,6 +148,24 @@ class MovieViewingHost extends ViewingHost {
   Future<void> setDrop(Viewing v, DropMark? drop) async {
     final live = byId(v.id);
     if (live != null) await repo.setViewingDrop(uuid, live, drop);
+  }
+
+  @override
+  Future<void> setPause(Viewing v, PauseMark pause) async {
+    final live = byId(v.id);
+    if (live != null) await repo.setViewingPause(uuid, live, pause);
+  }
+
+  @override
+  Future<void> finish(Viewing v, DateTime? date) async {
+    final live = byId(v.id);
+    if (live != null) await repo.finishViewing(uuid, live, date);
+  }
+
+  @override
+  Future<void> setStart(Viewing v, DateTime? start) async {
+    final live = byId(v.id);
+    if (live != null) await repo.setViewingStart(uuid, live, start);
   }
 
   @override

@@ -339,6 +339,19 @@ class _MovieScreenState extends State<MovieScreen> {
             _chip(scheme, Icons.star_rounded, m.kpRating!.toStringAsFixed(1)),
         ],
       ),
+      // Начатый фильм: когда начал и на какой минуте остановился.
+      if (m.pausedViewing != null) ...[
+        const SizedBox(height: 16),
+        PausedBlock(
+          viewing: m.pausedViewing!,
+          runtimeMin: m.runtimeMin,
+          onTap: () => showViewingSheet(
+            context,
+            MovieViewingHost(m.uuid, repo: _repo),
+            viewId: m.pausedViewing!.id,
+          ),
+        ),
+      ],
       // Брошенный фильм: наверху когда, на какой минуте и почему.
       if (m.isDropped && m.lastDropped != null) ...[
         const SizedBox(height: 16),
@@ -1221,6 +1234,11 @@ class _MovieScreenState extends State<MovieScreen> {
       return _chip(scheme, Icons.heart_broken_rounded, tr('dropped'),
           dropped: true);
     }
+    // Начат и ещё ни разу не досмотрен.
+    if (!m.hasFullViewing && m.pausedViewing != null) {
+      return _chip(scheme, Icons.play_circle_rounded, tr('pause_chip'),
+          primary: true);
+    }
     final (icon, label) = switch (m.status) {
       LibraryStatus.watched => (Icons.check_circle_rounded, tr('act_watched')),
       LibraryStatus.watchlist => (Icons.bookmark_rounded, tr('in_watchlist')),
@@ -1284,10 +1302,12 @@ class _MovieScreenState extends State<MovieScreen> {
   }
 
   Widget _scoreCard(ColorScheme scheme, LibraryMovie m) {
-    // Оценка доступна только просмотренным фильмам.
+    // Оценка доступна только просмотренным фильмам. Начатый просмотр
+    // оценивают, когда досмотрят.
+    final paused = m.currentViewing?.isPaused ?? false;
     final canRate =
         m.currentViewing != null || m.status == LibraryStatus.watched;
-    if (!canRate) {
+    if (!canRate || paused) {
       return Container(
         padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
         decoration: BoxDecoration(
@@ -1303,7 +1323,7 @@ class _MovieScreenState extends State<MovieScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              tr('rate_after_watch'),
+              tr(paused ? 'rate_after_finish' : 'rate_after_watch'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: AppTheme.bodyFont,
@@ -1353,19 +1373,29 @@ class _MovieScreenState extends State<MovieScreen> {
   }
 
   /// Главная кнопка, разделённая на две (вариант Б макета «Кнопки карточки»):
-  /// слева отметка просмотра, стрелка справа открывает «Бросить» (у
-  /// просмотренного «Бросить пересмотр») и «Отменить просмотр».
+  /// слева отметка просмотра, стрелка справа открывает «Досмотрю потом»,
+  /// «Бросить» (у просмотренного «Бросить пересмотр») и «Отменить
+  /// просмотр». У начатого фильма слева «Досмотрел» (макет «Фильм в
+  /// несколько заходов»).
   Widget _mainActions(LibraryMovie m) {
+    final paused = m.pausedViewing;
     final items = <Widget>[
       // Брошенному старой версией статусом бросать нечего: снять отметку
       // можно кнопкой под группой.
-      if (m.status != LibraryStatus.dropped)
+      if (m.status != LibraryStatus.dropped) ...[
+        MenuItemButton(
+          leadingIcon: Icon(Icons.pause_circle_rounded,
+              color: Theme.of(context).colorScheme.primary),
+          onPressed: () => _pause(m),
+          child: Text(tr('pause_later')),
+        ),
         MenuItemButton(
           leadingIcon:
               const Icon(Icons.heart_broken_rounded, color: kDroppedColor),
-          onPressed: () => _drop(m),
+          onPressed: () => paused != null ? _dropPaused(m, paused) : _drop(m),
           child: Text(tr(m.isWatched ? 'drop_rewatch' : 'mark_dropped')),
         ),
+      ],
       if (m.status == LibraryStatus.watched)
         MenuItemButton(
           leadingIcon: const Icon(Icons.remove_done_rounded),
@@ -1375,10 +1405,15 @@ class _MovieScreenState extends State<MovieScreen> {
     ];
     const outer = Radius.circular(28), inner = Radius.circular(8);
     final main = FilledButton.icon(
-      onPressed: () => showWhenWatchedSheet(context, m),
-      icon: const Icon(Icons.add_task_rounded),
+      onPressed: () => paused != null
+          ? showFinishSheet(context, m, paused, repo: _repo)
+          : showWhenWatchedSheet(context, m),
+      icon: Icon(
+          paused != null ? Icons.task_alt_rounded : Icons.add_task_rounded),
       // Брошенный фильм ещё не досмотрен: «Отметить просмотр».
-      label: Text(tr(m.isWatched ? 'watch_again' : 'mark_watched')),
+      label: Text(tr(paused != null
+          ? 'drop_finished'
+          : (m.isWatched ? 'watch_again' : 'mark_watched'))),
       style: items.isEmpty
           ? null
           : FilledButton.styleFrom(
@@ -1515,6 +1550,38 @@ class _MovieScreenState extends State<MovieScreen> {
           ),
         ),
       );
+
+  /// «Досмотрю потом»: окно «Где остановились?», потом пауза. Если фильм
+  /// уже начат, это следующий заход, минута стоит с прошлого раза.
+  Future<void> _pause(LibraryMovie m) async {
+    final paused = m.pausedViewing;
+    final choice = await showPauseSheet(
+      context,
+      subject: m.displayTitle,
+      runtimeMin: m.runtimeMin,
+      initialMin: paused?.pause?.atMin,
+      first: paused == null,
+    );
+    if (choice == null || !mounted) return;
+    await _repo.pauseViewing(m.uuid, atMin: choice.atMin, date: choice.date);
+    if (mounted) _snack(tr('pause_saved'));
+  }
+
+  /// «Бросить» у начатого фильма: та же попытка становится брошенной, минута
+  /// стоит с паузы, день остаётся прежним.
+  Future<void> _dropPaused(LibraryMovie m, Viewing paused) async {
+    final choice = await showDropSheet(
+      context,
+      subject: m.displayTitle,
+      runtimeMin: m.runtimeMin,
+      startMin: paused.pause?.atMin,
+      withDate: false,
+      repo: _repo,
+    );
+    if (choice == null || !mounted) return;
+    await _repo.setViewingDrop(m.uuid, paused, choice.drop);
+    if (mounted) _snack(tr('drop_added'));
+  }
 
   /// Записывает брошенную попытку из окна «Где бросили?».
   Future<void> _drop(LibraryMovie m) async {
