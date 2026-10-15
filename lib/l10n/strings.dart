@@ -2633,6 +2633,13 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Оценка брошенного просмотра',
     'en': 'Rating of the dropped viewing',
   },
+  // Полки подсказок по темам: причины брошенного, «Сильное» и «Слабое».
+  'shelf_story': {'ru': 'Сюжет', 'en': 'Story'},
+  'shelf_cast': {'ru': 'Герои', 'en': 'Characters'},
+  'shelf_feel': {'ru': 'Ощущения', 'en': 'Feel'},
+  'shelf_look': {'ru': 'Картинка и звук', 'en': 'Look & sound'},
+  'shelf_own': {'ru': 'Свои', 'en': 'Yours'},
+  'shelf_people': {'ru': 'Люди', 'en': 'People'},
 
   // ---------------- Просмотры и рецензии по пересмотрам ----------------
   'views_n_one': {'ru': '{n} просмотр', 'en': '{n} viewing'},

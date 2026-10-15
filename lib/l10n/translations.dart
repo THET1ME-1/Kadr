@@ -1378,6 +1378,12 @@ const Map<String, Map<String, String>> kTranslations = {
     'drop_finished': 'Zu Ende geschaut',
     'drop_cleared': 'Nicht mehr als abgebrochen markiert',
     'drop_score_label': 'Bewertung des abgebrochenen Ansehens',
+    'shelf_story': 'Handlung',
+    'shelf_cast': 'Figuren',
+    'shelf_feel': 'Gefühl',
+    'shelf_look': 'Bild & Ton',
+    'shelf_own': 'Eigene',
+    'shelf_people': 'Leute',
   },
   'fr': {
     // Просмотры и рецензии по пересмотрам
@@ -2747,6 +2753,12 @@ const Map<String, Map<String, String>> kTranslations = {
     'drop_finished': 'Vu jusqu\'au bout',
     'drop_cleared': 'N\'est plus marqué abandonné',
     'drop_score_label': 'Note du visionnage abandonné',
+    'shelf_story': 'Intrigue',
+    'shelf_cast': 'Personnages',
+    'shelf_feel': 'Ressenti',
+    'shelf_look': 'Image et son',
+    'shelf_own': 'Les vôtres',
+    'shelf_people': 'Équipe',
   },
   'es': {
     // Просмотры и рецензии по пересмотрам
@@ -4114,6 +4126,12 @@ const Map<String, Map<String, String>> kTranslations = {
     'drop_finished': 'La terminé',
     'drop_cleared': 'Ya no está marcada como abandonada',
     'drop_score_label': 'Nota del visionado abandonado',
+    'shelf_story': 'Trama',
+    'shelf_cast': 'Personajes',
+    'shelf_feel': 'Sensación',
+    'shelf_look': 'Imagen y sonido',
+    'shelf_own': 'Tuyos',
+    'shelf_people': 'Personas',
   },
   'it': {
     // Просмотры и рецензии по пересмотрам
@@ -5469,6 +5487,12 @@ const Map<String, Map<String, String>> kTranslations = {
     'drop_finished': 'Finito',
     'drop_cleared': 'Non più segnato come abbandonato',
     'drop_score_label': 'Voto della visione abbandonata',
+    'shelf_story': 'Trama',
+    'shelf_cast': 'Personaggi',
+    'shelf_feel': 'Sensazioni',
+    'shelf_look': 'Immagine e suono',
+    'shelf_own': 'Tuoi',
+    'shelf_people': 'Persone',
   },
   'pt': {
     // Просмотры и рецензии по пересмотрам
@@ -6822,5 +6846,11 @@ const Map<String, Map<String, String>> kTranslations = {
     'drop_finished': 'Terminei',
     'drop_cleared': 'Não está mais marcado como largado',
     'drop_score_label': 'Nota da visualização largada',
+    'shelf_story': 'Enredo',
+    'shelf_cast': 'Personagens',
+    'shelf_feel': 'Sensação',
+    'shelf_look': 'Imagem e som',
+    'shelf_own': 'Seus',
+    'shelf_people': 'Pessoas',
   },
 };

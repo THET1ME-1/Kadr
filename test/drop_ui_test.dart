@@ -89,6 +89,9 @@ Future<DropChoice?> _runSheet(
   return result;
 }
 
+bool _chipOn(WidgetTester tester, String text) =>
+    tester.widget<FilterChip>(find.widgetWithText(FilterChip, text)).selected;
+
 Future<void> _tapText(WidgetTester tester, String text) async {
   final f = find.text(text).last;
   await tester.ensureVisible(f);
@@ -130,20 +133,21 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('окно «Где бросили?»', () {
-    testWidgets('подсказка уходит в выбранное, своё слово добавляется полем',
+    testWidgets('причина горит на своей полке, своё слово встаёт на «Свои»',
         (tester) async {
       final r = await _runSheet(tester, () async {
         expect(find.text('Где бросили?'), findsOneWidget);
         expect(find.text('Блондинка'), findsOneWidget);
         expect(find.text('ЧТО НЕ ТАК'), findsOneWidget);
-        await tester.tap(find.widgetWithText(ActionChip, 'Затянуто'));
+        expect(find.text('Сюжет'), findsOneWidget);
+        await tester.tap(find.widgetWithText(FilterChip, 'Затянуто'));
         await tester.pumpAndSettle();
-        expect(find.widgetWithText(InputChip, 'Затянуто'), findsOneWidget);
-        expect(find.widgetWithText(ActionChip, 'Затянуто'), findsNothing);
+        expect(_chipOn(tester, 'Затянуто'), isTrue);
         await tester.enterText(find.byType(TextField), 'Плохой звук');
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await tester.pumpAndSettle();
-        expect(find.widgetWithText(InputChip, 'Плохой звук'), findsOneWidget);
+        expect(find.text('Свои'), findsOneWidget);
+        expect(_chipOn(tester, 'Плохой звук'), isTrue);
         await _tapText(tester, 'Бросить');
       });
       expect(r, isNotNull);
@@ -176,7 +180,7 @@ void main() {
         () async {
           expect(find.text('Когда'), findsNothing);
           expect(find.text('52'), findsWidgets);
-          expect(find.widgetWithText(InputChip, 'Скучно'), findsOneWidget);
+          expect(_chipOn(tester, 'Скучно'), isTrue);
           expect(find.text('31% фильма'), findsOneWidget);
           await _tapText(tester, 'Готово');
         },
@@ -191,8 +195,8 @@ void main() {
         _blonde(viewings: [_attempt(why: ['Мутная картинка'])]),
       ]);
       await _runSheet(tester, repo: repo, () async {
-        expect(
-            find.widgetWithText(ActionChip, 'Мутная картинка'), findsOneWidget);
+        expect(find.text('Свои'), findsOneWidget);
+        expect(_chipOn(tester, 'Мутная картинка'), isFalse);
       });
     });
 
@@ -283,7 +287,10 @@ void main() {
       );
       await _tapText(tester, 'Бросить');
       expect(find.text('Где бросили?'), findsOneWidget);
-      await tester.tap(find.widgetWithText(ActionChip, 'Скучно'));
+      final boring = find.widgetWithText(FilterChip, 'Скучно');
+      await tester.ensureVisible(boring);
+      await tester.pumpAndSettle();
+      await tester.tap(boring);
       await tester.pumpAndSettle();
       final button = find.descendant(
           of: find.byType(BottomSheet), matching: find.text('Бросить'));

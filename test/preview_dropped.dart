@@ -195,10 +195,18 @@ Future<void> _all(WidgetTester tester) async {
     act: () async {
       await tapOpen();
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(ActionChip, 'Затянуто'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(ActionChip, 'Тяжело смотреть'));
-      await tester.pumpAndSettle();
+      for (final reason in ['Затянуто', 'Тяжело смотреть']) {
+        final chip = find.widgetWithText(FilterChip, reason);
+        await tester.ensureVisible(chip);
+        await tester.pumpAndSettle();
+        await tester.tap(chip);
+        await tester.pumpAndSettle();
+      }
+      // Полки снова в начало, как их видит человек.
+      for (final e in find.byType(Scrollable).evaluate()) {
+        final s = (e as StatefulElement).state as ScrollableState;
+        if (s.axisDirection == AxisDirection.right) s.position.jumpTo(0);
+      }
       // Тап по линейке на 52-й минуте из 166.
       final box = tester.getRect(find.byType(RatingSlider));
       await tester.tapAt(Offset(

@@ -3,15 +3,12 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/library_entry.dart';
-import '../../models/review.dart';
 import '../../services/movie_repository.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/drop_reasons.dart';
 import '../../utils/format.dart';
 import '../../utils/score.dart';
 import '../../widgets/rating_slider.dart';
-import '../../widgets/review/review_parts.dart';
-import '../../widgets/review/verdict_badge.dart';
+import '../../widgets/review/tag_shelves.dart';
 import 'mark_sheet.dart';
 
 /// Ответ окна «Где бросили?».
@@ -26,8 +23,8 @@ class DropChoice {
 const int kDropUnknownRuntime = 240;
 
 /// Окно «Где бросили?» у кнопки «Бросить» (вариант О2 макета KADR-1): минута
-/// крупно на линейке, причины как «Слабое» в рецензии (свои слова и
-/// подсказки), дата и широкая красная кнопка.
+/// крупно на линейке, причины полками по темам (вариант Б второго макета),
+/// своё слово полем, дата и широкая красная кнопка.
 ///
 /// С [initial] окно правит уже записанную попытку: даты в нём нет, кнопка
 /// «Готово». [runtimeMin] — длина фильма для линейки.
@@ -101,12 +98,16 @@ class _DropSheetState extends State<_DropSheet> {
     super.dispose();
   }
 
+  void _toggle(String reason) => setState(() {
+        if (!_reasons.remove(reason)) _reasons.add(reason);
+      });
+
+  /// Своё слово: совпало с готовой фразой — горит она, а не дубль.
   void _add(String text) {
-    final v = text.trim();
-    if (v.isEmpty) return;
+    final v = matchTag(text, [...shelfLabels(kDropShelves), ...widget.used]);
+    if (v == null) return;
     final lower = v.toLowerCase();
     if (_reasons.any((r) => r.toLowerCase() == lower)) return;
-    HapticFeedback.selectionClick();
     setState(() => _reasons.add(v));
   }
 
@@ -173,7 +174,15 @@ class _DropSheetState extends State<_DropSheet> {
                     fontSize: 13.5,
                     color: scheme.onSurfaceVariant)),
             _minuteCard(scheme),
-            ..._reasonsBlock(scheme),
+            TagShelves(
+              title: tr('drop_why'),
+              shelves: kDropShelves,
+              selected: _reasons,
+              extra: widget.used,
+              controller: _own,
+              onToggle: _toggle,
+              onAdd: _add,
+            ),
             if (!_editing) _whenField(scheme),
             SizedBox(
               height: 56,
@@ -292,82 +301,6 @@ class _DropSheetState extends State<_DropSheet> {
         ],
       ),
     );
-  }
-
-  /// «Что не так» устроено как «Слабое» в рецензии: выбранное чипами с
-  /// крестиком, своё слово полем, ниже подсказки.
-  List<Widget> _reasonsBlock(ColorScheme scheme) {
-    final bad = verdictTone(Verdict.miss, scheme);
-    final left = dropReasonSuggestions(_reasons, widget.used);
-    return [
-      ReviewCaps(tr('drop_why')),
-      if (_reasons.isNotEmpty)
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final r in _reasons)
-              InputChip(
-                label: Text(r),
-                labelStyle: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontWeight: FontWeight.w500,
-                    color: bad.onContainer),
-                backgroundColor: bad.container,
-                side: BorderSide.none,
-                shape: const StadiumBorder(),
-                deleteIconColor: bad.onContainer,
-                onDeleted: () => setState(() => _reasons.remove(r)),
-                deleteButtonTooltipMessage: tr('rv_remove'),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-          ],
-        ),
-      TextField(
-        controller: _own,
-        maxLength: 48,
-        textCapitalization: TextCapitalization.sentences,
-        textInputAction: TextInputAction.done,
-        onSubmitted: (v) {
-          _add(v);
-          _own.clear();
-        },
-        style: const TextStyle(fontFamily: AppTheme.bodyFont, fontSize: 14),
-        decoration: InputDecoration(
-          hintText: tr('rv_add_hint'),
-          counterText: '',
-          filled: true,
-          fillColor: scheme.surfaceContainerHigh,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(18),
-            borderSide: BorderSide.none,
-          ),
-          suffixIcon: IconButton(
-            tooltip: tr('rv_add'),
-            icon: const Icon(Icons.add_rounded),
-            onPressed: () {
-              _add(_own.text);
-              _own.clear();
-            },
-          ),
-        ),
-      ),
-      if (left.isNotEmpty) ...[
-        ReviewCaps(tr('rv_suggestions')),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final p in left)
-              ActionChip(
-                label: Text(p),
-                onPressed: () => _add(p),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-          ],
-        ),
-      ],
-    ];
   }
 
   /// «Когда»: по умолчанию «Только что», тап открывает окно отметки.

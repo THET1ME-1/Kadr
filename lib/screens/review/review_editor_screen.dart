@@ -17,6 +17,7 @@ import '../../widgets/poster.dart';
 import '../../widgets/rating_slider.dart';
 import '../../widgets/score_pad.dart';
 import '../../widgets/review/review_parts.dart';
+import '../../widgets/review/tag_shelves.dart';
 import '../../widgets/review/verdict_badge.dart';
 import '../../widgets/settings_kit.dart';
 import 'review_scope_sheet.dart';
@@ -1113,139 +1114,22 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen>
     );
   }
 
+  /// «Сильное» и «Слабое» полками по темам, как причины брошенного фильма:
+  /// готовое горит на месте, своё слово встаёт на «Свои». У «Сильного» ещё
+  /// полка «Люди» (актёры и режиссёр).
   Widget _tags(BuildContext context, {required bool positive}) {
-    final scheme = Theme.of(context).colorScheme;
-    final bad = verdictTone(Verdict.miss, scheme);
     final list = positive ? _meta.pros : _meta.cons;
-    final bg = positive ? scheme.primaryContainer : bad.container;
-    final fg = positive ? scheme.onPrimaryContainer : bad.onContainer;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 12,
-      children: [
-        ReviewCaps(tr(positive ? 'rv_pros' : 'rv_cons')),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final s in list)
-              InputChip(
-                label: Text(s),
-                labelStyle: TextStyle(
-                    fontFamily: AppTheme.bodyFont,
-                    fontWeight: FontWeight.w500,
-                    color: fg),
-                backgroundColor: bg,
-                side: BorderSide.none,
-                shape: const StadiumBorder(),
-                deleteIconColor: fg,
-                onDeleted: () => _change(() => list.remove(s)),
-                deleteButtonTooltipMessage: tr('rv_remove'),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ActionChip(
-              avatar: Icon(Icons.add_rounded, color: scheme.primary),
-              label: Text(tr('rv_add')),
-              shape: StadiumBorder(
-                  side: BorderSide(color: scheme.outlineVariant)),
-              onPressed: () => _addTags(positive),
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Future<void> _addTags(bool positive) async {
-    final list = positive ? _meta.pros : _meta.cons;
-    final ctl = TextEditingController();
-    final presets = [
-      for (final k in positive ? _kProsPresets : _kConsPresets) tr(k),
-      if (positive) ..._people,
-    ];
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setSheet) {
-        final scheme = Theme.of(ctx).colorScheme;
-        void add(String s) {
-          final v = s.trim();
-          if (v.isEmpty || list.contains(v)) return;
-          HapticFeedback.selectionClick();
-          setSheet(() => list.add(v));
-          _change(() {});
-        }
-
-        final left = [for (final p in presets) if (!list.contains(p)) p];
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-              20, 0, 20, 20 + MediaQuery.viewInsetsOf(ctx).bottom),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: 12,
-              children: [
-                Text(tr(positive ? 'rv_add_pro' : 'rv_add_con'),
-                    style: TextStyle(
-                        fontFamily: AppTheme.displayFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 20,
-                        color: scheme.onSurface)),
-                TextField(
-                  controller: ctl,
-                  autofocus: true,
-                  maxLength: 48,
-                  textCapitalization: TextCapitalization.sentences,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (v) {
-                    add(v);
-                    ctl.clear();
-                  },
-                  decoration: InputDecoration(
-                    hintText: tr('rv_add_hint'),
-                    counterText: '',
-                    filled: true,
-                    fillColor: scheme.surfaceContainerHigh,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      borderSide: BorderSide.none,
-                    ),
-                    suffixIcon: IconButton(
-                      tooltip: tr('rv_add'),
-                      icon: const Icon(Icons.add_rounded),
-                      onPressed: () {
-                        add(ctl.text);
-                        ctl.clear();
-                      },
-                    ),
-                  ),
-                ),
-                if (left.isNotEmpty) ...[
-                  ReviewCaps(tr('rv_suggestions')),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final p in left)
-                        ActionChip(label: Text(p), onPressed: () => add(p)),
-                    ],
-                  ),
-                ],
-                FilledButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: Text(tr('done')),
-                ),
-              ],
-            ),
-          ),
-        );
+    return TagShelves(
+      title: tr(positive ? 'rv_pros' : 'rv_cons'),
+      shelves: positive ? kProsShelves : kConsShelves,
+      people: positive ? _people : const [],
+      selected: list,
+      tone: positive ? TagTone.good : TagTone.bad,
+      onToggle: (t) => _change(() {
+        if (!list.remove(t)) list.add(t);
       }),
+      onAdd: (t) => _change(() => list.add(t)),
     );
-    ctl.dispose();
   }
 
   // ------------------------- шаг 3: публикация -------------------------
@@ -1329,31 +1213,6 @@ class _ReviewEditorScreenState extends State<ReviewEditorScreen>
     );
   }
 }
-
-const _kProsPresets = [
-  'tag_twist',
-  'tag_atmosphere',
-  'tag_acting',
-  'tag_visuals',
-  'tag_music',
-  'tag_dialogues',
-  'tag_tension',
-  'tag_characters',
-  'tag_humor',
-  'tag_idea',
-];
-
-const _kConsPresets = [
-  'tag_slow',
-  'tag_predictable',
-  'tag_plotholes',
-  'tag_weak_ending',
-  'tag_overacting',
-  'tag_cgi',
-  'tag_flat_characters',
-  'tag_cliches',
-  'tag_boring',
-];
 
 /// Строка пункта: подпись, тонкий слайдер цвета оценки, число. Пока пункт
 /// не оценён, стоит прочерк, а первое касание ставит значение. Нажатие на
