@@ -45,6 +45,7 @@
 - Light / dark / system / time-based themes, live color picker, 8 palettes, AMOLED
 - Bottom-sheet dialogs everywhere, big pill-shaped buttons
 - Mood ratings (Awful → Amazing), viewings grouped by month
+- Dropped movies stay in the feed with the minute you stopped at and why
 - Social: friends, profiles with custom banners, "watched together", recommendations, shared lists
 - **Trakt sync** — two-way sync of watched, watchlist & ratings (Kadr stays the source of truth)
 - **Android TV** — installs on TV, remote (D-pad) navigation
@@ -108,6 +109,7 @@ Roadmap & status — see [PLAN.md](PLAN.md).
 - Тёмная/светлая/системная/авто темы, живой колор-пикер, 8 палитр, AMOLED
 - Все попапы — нижними панелями, крупные «таблеточные» кнопки
 - Оценки-настроения (Ужасно → Восхитительно), группировка просмотров по месяцам
+- Брошенные фильмы остаются в ленте с минутой, где бросил, и причинами
 - Соц: друзья, профили с баннерами, «посмотрел с другом», рекомендации, совместные списки
 - **Синхронизация с Trakt** — двусторонний синк просмотренного, вишлиста и оценок (Kadr — источник правды)
 - **Android TV** — ставится на ТВ, навигация пультом (D-pad)
