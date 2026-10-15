@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -20,8 +21,10 @@ import '../utils/season_pass.dart';
 import '../utils/season_pick.dart';
 import '../utils/season_progress.dart';
 import '../utils/series_finale.dart';
+import '../services/youtube_service.dart';
 import '../widgets/action_group.dart';
 import '../widgets/series_progress.dart';
+import '../widgets/youtube_parts.dart';
 import '../widgets/facts_section.dart';
 import '../widgets/pop_icon.dart';
 import '../widgets/poster.dart';
@@ -213,6 +216,15 @@ class _SeriesScreenState extends State<SeriesScreen> {
       _loading = true;
       _error = false;
     });
+    // Цикл с YouTube: выпуски уже в библиотеке, TMDB не спрашиваем.
+    if (s.isYouTube) {
+      setState(() {
+        _applyYouTube();
+        _loading = false;
+      });
+      unawaited(_refreshYouTube());
+      return;
+    }
     var id = widget.series.tmdbId;
     if (id == null) {
       final m = await TmdbService.searchTv(widget.series.title);
@@ -277,7 +289,65 @@ class _SeriesScreenState extends State<SeriesScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
+  /// Цикл с YouTube (макет «Циклы с YouTube», Э1): один сезон, выпуск —
+  /// серия с кадром, подзаголовком или днём выхода и длиной ролика.
+  void _applyYouTube() {
+    final yt = s.youtube!;
+    _seasons = [
+      TmdbSeason(
+          number: 1, name: tr('yt_issues'), episodeCount: yt.videos.length),
+    ];
+    _season = 1;
+    _eps = [
+      for (var i = 0; i < yt.videos.length; i++)
+        () {
+          final v = yt.videos[i];
+          final p = v.published;
+          return TmdbEpisode(
+            season: 1,
+            number: i + 1,
+            name: ytSubtitle(v.title) ??
+                (p != null ? trf('yt_published', {'date': longDate(p)}) : ''),
+            airDate: p?.toIso8601String(),
+            stillUrl: v.still,
+            runtime: v.runtimeMin,
+          );
+        }(),
+    ];
+  }
+
+  /// Свежие выпуски цикла: лента канала и плейлист, новые встают в конец.
+  /// Заодно дозаполняет даты выхода старым выпускам.
+  Future<void> _refreshYouTube() async {
+    final yt = s.youtube;
+    if (yt == null) return;
+    final fresh = await YouTubeService.newVideos(yt, s.title,
+        fullEvery: const Duration(hours: 12));
+    final missing = [
+      for (final v in [...yt.videos, ...?fresh])
+        if (v.published == null) v,
+    ];
+    final dated = missing.isEmpty
+        ? 0
+        : await YouTubeService.fillDates(missing, limit: 12);
+    if (fresh != null || dated > 0) {
+      await _repo.appendYouTubeVideos(s.tvShowId, fresh ?? const []);
+    }
+    if (mounted && s.isYouTube) setState(_applyYouTube);
+  }
+
+  /// Первый непросмотренный выпуск цикла; null — всё просмотрено.
+  int? get _nextIssue {
+    final yt = s.youtube;
+    if (yt == null) return null;
+    for (var n = 1; n <= yt.videos.length; n++) {
+      if (!s.isEpisodeWatched(1, n)) return n;
+    }
+    return null;
+  }
+
   Future<void> _loadSeason(int n) async {
+    if (s.isYouTube) return;
     setState(() => _eps = null);
     final eps = await TmdbService.episodesOf(_tmdbId!, n);
     if (mounted) setState(() => _eps = _mergeLibraryEpisodes(n, eps));
@@ -388,8 +458,30 @@ class _SeriesScreenState extends State<SeriesScreen> {
                   if (v == 'stats') _openStats();
                   if (v == 'grid') _shareGrid();
                   if (v == 'delete') _deleteSeriesFromBase();
+                  if (v == 'yt_list') openYouTube(s.youtube!.url);
+                  if (v == 'yt_notify') {
+                    _repo.setYouTubeNotify(s.tvShowId, !s.youtube!.notify);
+                  }
                 },
                 itemBuilder: (context) => [
+                  if (s.youtube != null) ...[
+                    PopupMenuItem(
+                      value: 'yt_list',
+                      child: Row(
+                        children: [
+                          Icon(Icons.smart_display_rounded,
+                              size: 20, color: scheme.primary),
+                          const SizedBox(width: 10),
+                          Text(tr('yt_open_playlist')),
+                        ],
+                      ),
+                    ),
+                    CheckedPopupMenuItem(
+                      value: 'yt_notify',
+                      checked: s.youtube!.notify,
+                      child: Text(tr('yt_notify')),
+                    ),
+                  ],
                   PopupMenuItem(
                     value: 'stats',
                     child: Row(
@@ -470,6 +562,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
                   ),
                 if (_extra?.cast.isNotEmpty ?? false)
                   SliverToBoxAdapter(child: _castSection(scheme)),
+                // Факты ищутся по названию в Кинопоиске: циклу с YouTube
+                // они чужие.
+                if (!s.isYouTube)
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -592,15 +687,20 @@ class _SeriesScreenState extends State<SeriesScreen> {
     final total = _seasons.fold<int>(0, (a, b) => a + b.episodeCount);
     final seen = _seenInStructure();
     final progress = total > 0 ? (seen / total).clamp(0.0, 1.0) : 0.0;
+    final yt = s.youtube;
+    // У цикла с YouTube вместо бэкдропа кадр первого выпуска.
+    final backdrop = yt != null && yt.videos.isNotEmpty
+        ? yt.videos.first.cover
+        : _extra?.backdropUrl;
     return SizedBox(
       height: 300,
       child: Stack(
         fit: StackFit.expand,
         children: [
           // Бэкдроп (или цветной градиент, если его нет) с затемнением снизу.
-          if (_extra?.backdropUrl != null)
+          if (backdrop != null)
             CachedNetworkImage(
-              imageUrl: _extra!.backdropUrl!,
+              imageUrl: backdrop,
               fit: BoxFit.cover,
               alignment: Alignment.topCenter,
               placeholder: (c, _) =>
@@ -663,6 +763,10 @@ class _SeriesScreenState extends State<SeriesScreen> {
                               fontSize: 24,
                               height: 1.05,
                               color: Colors.white)),
+                      if (yt != null) ...[
+                        const SizedBox(height: 8),
+                        YtChannelLine(name: yt.channelName, avatar: yt.avatar),
+                      ],
                       const SizedBox(height: 8),
                       // Счётчик «Просмотрено N из M» и полоса заполняются с
                       // анимацией при открытии: число быстро тикает 0→N, полоса
@@ -822,7 +926,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
             ? 'rvs_by_reviews'
             : 'rvs_by_review')
         : fromEp
-            ? tr('avg_of_episodes')
+            ? tr(s.isYouTube ? 'yt_avg' : 'avg_of_episodes')
             : tr('series_rating');
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
@@ -907,6 +1011,24 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 ],
               ),
             ),
+          // Цикл с YouTube: главная кнопка ведёт на первый непросмотренный
+          // выпуск (вариант Э1 макета «Циклы с YouTube»).
+          if (_nextIssue != null) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () =>
+                    openYouTube(s.youtube!.entryAt(_nextIssue!)!.url),
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: Text(
+                  trf('yt_watch_n', {'n': s.youtube!.labelOf(_nextIssue!)}),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           _actionGroup(scheme),
         ],
@@ -1031,7 +1153,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
     final label = switch (st.action) {
       SeasonAction.rewatch => tr('rewatch_season'),
       SeasonAction.markRest => trf('mark_more_n', {'n': st.left}),
-      SeasonAction.markAll => tr('mark_season'),
+      SeasonAction.markAll => tr(s.isYouTube ? 'yt_mark_all' : 'mark_season'),
     };
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
@@ -1090,6 +1212,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
     final sc = watchedEp?.currentScore;
     final watches = watchedEp?.watchCount ?? 0; // 0 если не смотрел
     final aired = _aired(ep);
+    // Выпуск цикла с YouTube: подпись «№4», длина на кадре, тап — в YouTube.
+    final yt = s.youtube;
+    final entry = yt?.entryAt(ep.number);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 5, 16, 5),
       // Плавная смена фона отмеченной серии.
@@ -1109,9 +1234,12 @@ class _SeriesScreenState extends State<SeriesScreen> {
           child: Row(
             children: [
               // Тап по карточке серии → полный экран серии (как у фильма).
+              // Выпуск цикла с YouTube открывается в YouTube.
               Expanded(
                 child: InkWell(
-                  onTap: () => _openEpisode(ep),
+                  onTap: () => entry != null
+                      ? openYouTube(entry.url)
+                      : _openEpisode(ep),
                   child: Padding(
                     padding: const EdgeInsets.all(8),
                     child: Row(
@@ -1121,25 +1249,39 @@ class _SeriesScreenState extends State<SeriesScreen> {
                           child: SizedBox(
                             width: 120,
                             height: 74,
-                            child: ep.stillUrl != null
-                                ? CachedNetworkImage(
-                                    imageUrl: ep.stillUrl!,
-                                    fit: BoxFit.cover,
-                                    memCacheWidth: (120 *
-                                            MediaQuery.devicePixelRatioOf(
-                                                context))
-                                        .round(),
-                                    placeholder: (c, _) => Container(
-                                        color: scheme.surfaceContainerHighest),
-                                    errorWidget: (c, u, e) => Container(
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                ep.stillUrl != null
+                                    ? CachedNetworkImage(
+                                        imageUrl: ep.stillUrl!,
+                                        fit: BoxFit.cover,
+                                        memCacheWidth: (120 *
+                                                MediaQuery.devicePixelRatioOf(
+                                                    context))
+                                            .round(),
+                                        placeholder: (c, _) => Container(
+                                            color: scheme
+                                                .surfaceContainerHighest),
+                                        errorWidget: (c, u, e) => Container(
+                                            color:
+                                                scheme.surfaceContainerHighest,
+                                            child: Icon(Icons.tv_rounded,
+                                                color:
+                                                    scheme.onSurfaceVariant)),
+                                      )
+                                    : Container(
                                         color: scheme.surfaceContainerHighest,
                                         child: Icon(Icons.tv_rounded,
                                             color: scheme.onSurfaceVariant)),
-                                  )
-                                : Container(
-                                    color: scheme.surfaceContainerHighest,
-                                    child: Icon(Icons.tv_rounded,
-                                        color: scheme.onSurfaceVariant)),
+                                if (entry?.durSec != null)
+                                  Positioned(
+                                    right: 4,
+                                    bottom: 4,
+                                    child: YtDurationBadge(entry!.durSec!),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -1153,7 +1295,10 @@ class _SeriesScreenState extends State<SeriesScreen> {
                                   // «S12 · E104» на 320 dp ужимается, а не
                                   // вылезает за край.
                                   Flexible(
-                                    child: Text('S${ep.season} · E${ep.number}',
+                                    child: Text(
+                                        yt != null
+                                            ? yt.labelOf(ep.number)
+                                            : 'S${ep.season} · E${ep.number}',
                                         maxLines: 1,
                                         softWrap: false,
                                         overflow: TextOverflow.ellipsis,

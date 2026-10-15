@@ -7,9 +7,11 @@ import '../models/library_entry.dart';
 import '../services/app_prefs.dart';
 import '../services/movie_repository.dart';
 import '../services/tmdb_service.dart';
+import '../services/youtube_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/infinite_grid.dart';
 import '../widgets/movie_cards.dart';
+import 'youtube_add.dart';
 
 enum DiscoverMode { forYou, trending, nowPlaying }
 
@@ -288,6 +290,10 @@ class _DiscoverTabState extends State<DiscoverTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    // Ссылка на YouTube в поиске: вместо фильмов найденный цикл или ролик.
+    if (YouTubeService.parseLink(_q) != null) {
+      return YouTubeLinkResult(key: ValueKey(_q), text: _q);
+    }
     final scheme = Theme.of(context).colorScheme;
     final mKey =
         'm|$_mode|$_q|${_mGenre?.id}|$_mYear|$_mSort|${_topMovieGenreId()}';

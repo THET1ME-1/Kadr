@@ -240,6 +240,7 @@ LibraryMovie _mergeMovie(LibraryMovie a, LibraryMovie b) {
 
   return LibraryMovie(
     uuid: a.uuid,
+    youtube: a.youtube ?? b.youtube,
     title: a.title.isNotEmpty ? a.title : b.title,
     ruTitle: a.ruTitle ?? b.ruTitle,
     titleLang: a.ruTitle != null ? a.titleLang : b.titleLang,
@@ -372,6 +373,10 @@ LibrarySeries _mergeSeries(LibrarySeries a, LibrarySeries b) {
 
   return LibrarySeries(
     tvShowId: a.tvShowId,
+    // Выпуски цикла только дописываются: длиннее — свежее.
+    youtube: (b.youtube?.videos.length ?? -1) > (a.youtube?.videos.length ?? -1)
+        ? b.youtube
+        : a.youtube,
     title: a.title.isNotEmpty ? a.title : b.title,
     ruTitle: a.ruTitle ?? b.ruTitle,
     titleLang: a.ruTitle != null ? a.titleLang : b.titleLang,

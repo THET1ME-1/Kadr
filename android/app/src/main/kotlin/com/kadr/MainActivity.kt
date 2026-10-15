@@ -14,8 +14,13 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
 
+    /** Канал «Поделиться»: текст, с которым открыли Kadr (ссылка на YouTube). */
+    private var shareChannel: MethodChannel? = null
+    private var pendingShare: String? = null
+
     companion object {
         private const val CHANNEL = "app_icon"
+        private const val SHARE_CHANNEL = "kadr/share"
 
         /** id колеровки → activity-alias в манифесте. Ключи совпадают с AppIconService. */
         private val ICON_ALIASES = mapOf(
@@ -30,6 +35,18 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         migrateIconAliases()
+        // Текст запуска отдаём один раз, когда Flutter спросит.
+        pendingShare = sharedText(intent)
+        shareChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL)
+        shareChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "initialText" -> {
+                    result.success(pendingShare)
+                    pendingShare = null
+                }
+                else -> result.notImplemented()
+            }
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -67,6 +84,21 @@ class MainActivity : FlutterActivity() {
      *
      * DONT_KILL_APP — иначе система убьёт процесс прямо во время работы.
      */
+    /** Поделились, пока Kadr открыт (singleTop): текст сразу уходит во Flutter. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val text = sharedText(intent) ?: return
+        shareChannel?.invokeMethod("shared", text)
+    }
+
+    /** Текст из «Поделиться»: обычно ссылка на ролик YouTube. */
+    private fun sharedText(intent: Intent?): String? =
+        if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
+            intent.getStringExtra(Intent.EXTRA_TEXT)
+        } else {
+            null
+        }
+
     private fun applyIcon(id: String) {
         val target = ICON_ALIASES[id] ?: return
         setAliasEnabled(target, true)

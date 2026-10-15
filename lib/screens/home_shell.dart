@@ -12,7 +12,9 @@ import '../services/notification_service.dart';
 import '../services/social/social_controller.dart';
 import '../services/store.dart';
 import '../services/sync/webdav_service.dart';
+import '../services/share_intent.dart';
 import '../services/update_service.dart';
+import '../services/youtube_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/floating_nav_bar.dart';
 import '../widgets/update_sheet.dart';
@@ -70,6 +72,8 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
     _loadViewMode();
     // Фоновая дозагрузка русских названий и постеров + проверка новых серий.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // «Поделиться» из YouTube: ссылка открывается в «Обзоре».
+      ShareIntent.listen(_onShared);
       MovieRepository.instance.startEnrichSweep();
       await NotificationService.instance.init();
       // Разрешение на пуши больше не просим на старте — пуши по умолчанию
@@ -77,6 +81,8 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
       // Не блокируем первый кадр — проверяем серии чуть позже.
       await Future<void>.delayed(const Duration(seconds: 2));
       await NotificationService.instance.checkNewEpisodes();
+      // Новые выпуски циклов с YouTube: дописываются, о них плашка и пуш.
+      await NotificationService.instance.checkYouTube();
       _checkForUpdate();
       // Тихая авто-синхронизация с WebDAV (если настроена и включена).
       WebdavService.instance.syncSilently();
@@ -154,6 +160,19 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
     setState(() => _index = i);
   }
 
+  /// Поделились ссылкой на YouTube: она встаёт в поиск «Обзора», а там
+  /// найденный цикл или ролик.
+  void _onShared(String text) {
+    if (!mounted || YouTubeService.parseLink(text) == null) return;
+    _searchDebounce?.cancel();
+    _searchCtl.text = text.trim();
+    setState(() {
+      _query = _searchCtl.text;
+      _netQuery = _searchCtl.text;
+      _index = 2;
+    });
+  }
+
   /// Из пустого локального поиска — переключиться на «Обзор» с тем же запросом.
   void _searchEverywhere() {
     _searchDebounce?.cancel();
@@ -209,6 +228,8 @@ class _HomeShellState extends State<HomeShell> with RouteAware {
                 setState(() {
                   _query = v;
                   _netQuery = v;
+                  // Ссылка на YouTube ищется в «Обзоре»: там цикл или ролик.
+                  if (YouTubeService.parseLink(v) != null) _index = 2;
                 });
               }
             });
@@ -459,6 +480,8 @@ class _NewEpisodesBanner extends StatelessWidget {
       BuildContext context, ColorScheme scheme, List<NewEpisode> inbox) {
     final e = inbox.first;
     final more = inbox.length - 1;
+    // Выпуск цикла с YouTube: свой значок и «Новый выпуск».
+    final yt = e.tvShowId.startsWith('yt:');
     return Padding(
       key: ValueKey(e.key),
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
@@ -485,8 +508,10 @@ class _NewEpisodesBanner extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                       color: scheme.tertiary, shape: BoxShape.circle),
-                  child: Icon(Icons.live_tv_rounded,
-                      color: scheme.onTertiary, size: 22),
+                  child: Icon(
+                      yt ? Icons.smart_display_rounded : Icons.live_tv_rounded,
+                      color: scheme.onTertiary,
+                      size: 22),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -497,7 +522,7 @@ class _NewEpisodesBanner extends StatelessWidget {
                       Text(
                         more > 0
                             ? trf('new_episodes_n', {'n': inbox.length})
-                            : tr('notif_new_ep_title'),
+                            : tr(yt ? 'yt_notif_title' : 'notif_new_ep_title'),
                         style: TextStyle(
                             fontFamily: AppTheme.displayFont,
                             fontWeight: FontWeight.w800,

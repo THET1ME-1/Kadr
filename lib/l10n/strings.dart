@@ -2636,6 +2636,57 @@ const Map<String, Map<String, String>> _strings = {
   'drop_rewatch': {'ru': 'Бросить пересмотр', 'en': 'Drop this rewatch'},
   'more_actions': {'ru': 'Ещё действия', 'en': 'More actions'},
 
+  // ---------------- Циклы с YouTube ----------------
+  'yt_issues': {'ru': 'Выпуски', 'en': 'Issues'},
+  'yt_issues_n_one': {'ru': '{n} выпуск', 'en': '{n} issue'},
+  'yt_issues_n_few': {'ru': '{n} выпуска', 'en': '{n} issues'},
+  'yt_issues_n_many': {'ru': '{n} выпусков', 'en': '{n} issues'},
+  'yt_issues_short': {'ru': 'вып.', 'en': 'iss.'},
+  'yt_published': {'ru': 'вышел {date}', 'en': 'out {date}'},
+  'yt_last': {'ru': 'последний вышел {date}', 'en': 'latest out {date}'},
+  'yt_watch': {'ru': 'Смотреть в YouTube', 'en': 'Watch on YouTube'},
+  'yt_watch_n': {'ru': 'Смотреть {n} в YouTube', 'en': 'Watch {n} on YouTube'},
+  'yt_mark_all': {'ru': 'Отметить все выпуски', 'en': 'Mark all issues'},
+  'yt_avg': {'ru': 'Средняя по выпускам', 'en': 'Issue average'},
+  'yt_open_playlist': {'ru': 'Плейлист в YouTube', 'en': 'Playlist on YouTube'},
+  'yt_notify': {
+    'ru': 'Сообщать о новых выпусках',
+    'en': 'Notify about new issues',
+  },
+  'yt_searching': {
+    'ru': 'Ищу ролик и его цикл на канале…',
+    'en': 'Looking up the video and its series on the channel…',
+  },
+  'yt_not_found': {
+    'ru': 'Ролик не нашёлся. Проверь ссылку и интернет',
+    'en': 'Couldn’t find the video. Check the link and your connection',
+  },
+  'yt_link_hint': {
+    'ru': 'Ссылка на {n} из этого плейлиста',
+    'en': 'The link is {n} from this playlist',
+  },
+  'yt_open': {'ru': 'Открыть', 'en': 'Open'},
+  'yt_add_cycle': {'ru': 'Добавить цикл', 'en': 'Add the series'},
+  'yt_add_only_video': {
+    'ru': 'Добавить только этот ролик',
+    'en': 'Add just this video',
+  },
+  'yt_add_video': {'ru': 'Добавить видео', 'en': 'Add the video'},
+  'yt_seen_q': {'ru': 'Что уже посмотрел?', 'en': 'What have you watched?'},
+  'yt_last_seen': {'ru': 'Последний просмотренный', 'en': 'Last watched'},
+  'yt_nothing': {'ru': 'Ничего', 'en': 'None'},
+  'yt_upto_hint': {
+    'ru': 'Выпуски до {n} встанут просмотренными без даты',
+    'en': 'Issues up to {n} will be marked watched with no date',
+  },
+  'yt_new_issues': {'ru': 'Новые выпуски', 'en': 'New issues'},
+  'yt_new_issues_sub': {
+    'ru': 'Пуш, как о новой серии',
+    'en': 'A push, like for a new episode',
+  },
+  'yt_add': {'ru': 'Добавить', 'en': 'Add'},
+  'yt_notif_title': {'ru': 'Новый выпуск', 'en': 'New issue out'},
+
   // ---------------- Фильм в несколько заходов ----------------
   'pause_later': {'ru': 'Досмотрю потом', 'en': 'Finish later'},
   'pause_title': {'ru': 'Где остановились?', 'en': 'Where did you stop?'},

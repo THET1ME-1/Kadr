@@ -1400,6 +1400,7 @@ class _LibraryTabState extends State<LibraryTab> {
         score: e.session!.avgScore ?? e.session!.series.displayScore,
         favorite: s.favorite,
         series: true,
+        youtube: s.isYouTube,
         dropped: s.dropped,
         selecting: _selecting,
         selected: sel,
@@ -1422,6 +1423,7 @@ class _LibraryTabState extends State<LibraryTab> {
         score: null,
         favorite: s.favorite,
         series: true,
+        youtube: s.isYouTube,
         dropped: s.dropped,
         selecting: _selecting,
         selected: sel,
@@ -1455,10 +1457,12 @@ class _LibraryTabState extends State<LibraryTab> {
       return _BannerCell(
         title: s.displayTitle,
         posterUrl: s.displayPoster,
-        subtitle: '${e.session!.rangeLabel} · ${e.session!.count} сер.',
+        subtitle: '${e.session!.rangeLabel} · ${e.session!.count} '
+            '${s.isYouTube ? tr('yt_issues_short') : 'сер.'}',
         score: e.session!.avgScore ?? e.session!.series.displayScore,
         favorite: s.favorite,
         series: true,
+        youtube: s.isYouTube,
         dropped: s.dropped,
         selecting: _selecting,
         selected: sel,
@@ -1475,6 +1479,7 @@ class _LibraryTabState extends State<LibraryTab> {
         score: null,
         favorite: s.favorite,
         series: true,
+        youtube: s.isYouTube,
         dropped: s.dropped,
         selecting: _selecting,
         selected: sel,
@@ -2264,6 +2269,9 @@ class _PosterCell extends StatelessWidget {
   final double? score;
   final bool favorite;
   final bool series;
+
+  /// Цикл с YouTube: значок ролика вместо телевизора.
+  final bool youtube;
   final bool dropped;
 
   /// Начатый просмотр: на постере значок паузы.
@@ -2288,6 +2296,7 @@ class _PosterCell extends StatelessWidget {
     this.score,
     this.favorite = false,
     this.series = false,
+    this.youtube = false,
     this.dropped = false,
     this.paused = false,
     this.selecting = false,
@@ -2354,7 +2363,9 @@ class _PosterCell extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      Icons.live_tv_rounded,
+                      youtube
+                          ? Icons.smart_display_rounded
+                          : Icons.live_tv_rounded,
                       size: 13,
                       color: scheme.onTertiary,
                     ),
@@ -2403,6 +2414,9 @@ class _BannerCell extends StatelessWidget {
   final double? score;
   final bool favorite;
   final bool series;
+
+  /// Цикл с YouTube: значок ролика вместо телевизора.
+  final bool youtube;
   final bool dropped;
 
   /// Начатый просмотр: в углу значок паузы.
@@ -2419,6 +2433,7 @@ class _BannerCell extends StatelessWidget {
     this.score,
     this.favorite = false,
     this.series = false,
+    this.youtube = false,
     this.dropped = false,
     this.paused = false,
     this.selecting = false,
@@ -2501,8 +2516,10 @@ class _BannerCell extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (series) ...[
-                          const Icon(
-                            Icons.live_tv_rounded,
+                          Icon(
+                            youtube
+                                ? Icons.smart_display_rounded
+                                : Icons.live_tv_rounded,
                             size: 20,
                             color: Colors.white,
                           ),
@@ -2774,7 +2791,9 @@ class _SeriesSessionCard extends StatelessWidget {
                     ),
                     child: Icon(
                       ms == null
-                          ? Icons.live_tv_rounded
+                          ? (s.isYouTube
+                              ? Icons.smart_display_rounded
+                              : Icons.live_tv_rounded)
                           : finale
                           ? Icons.flag_rounded
                           : Icons.update_rounded,
@@ -2853,7 +2872,8 @@ class _SeriesSessionCard extends StatelessWidget {
                         child: Text(
                           ms != null
                               ? milestoneLine(ms, session)
-                              : '${session.rangeLabel} · ${session.count} сер.',
+                              : '${session.rangeLabel} · ${session.count} '
+                                  '${s.isYouTube ? tr('yt_issues_short') : 'сер.'}',
                           maxLines: ms != null ? 2 : 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -2918,6 +2938,10 @@ class _SeriesSessionCard extends StatelessWidget {
                           ep: shown[i],
                           readOnly: readOnly,
                           selected: selected,
+                          // Выпуск цикла с YouTube подписан «№4».
+                          label: s.youtube != null && shown[i].number != null
+                              ? s.youtube!.labelOf(shown[i].number!)
+                              : null,
                         ),
                       ),
                     if (hidden > 0)
@@ -2972,11 +2996,15 @@ class _EpisodeRow extends StatelessWidget {
   /// Карточка выделена: блок залит `primaryContainer`, и значок с оценкой
   /// берут `primary`, иначе они сливаются с фоном.
   final bool selected;
+
+  /// Своя подпись вместо «S1·E3»: у выпуска цикла с YouTube «№4».
+  final String? label;
   const _EpisodeRow({
     required this.seriesId,
     required this.ep,
     this.readOnly = false,
     this.selected = false,
+    this.label,
   });
 
   @override
@@ -3006,7 +3034,7 @@ class _EpisodeRow extends StatelessWidget {
             SizedBox(
               width: 92,
               child: Text(
-                ep.label,
+                label ?? ep.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 softWrap: false,
@@ -3704,7 +3732,9 @@ class _WatchlistSeriesRow extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
-                            Icons.live_tv_rounded,
+                            series.isYouTube
+                                ? Icons.smart_display_rounded
+                                : Icons.live_tv_rounded,
                             size: 12,
                             color: scheme.onTertiary,
                           ),

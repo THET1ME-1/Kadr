@@ -2178,6 +2178,128 @@ class MovieRepository extends ChangeNotifier {
     await _persist();
   }
 
+  // ------------------------------ YouTube ------------------------------
+
+  /// Добавляет цикл с YouTube сериалом из одного сезона (макет «Циклы с
+  /// YouTube», Э1). Выпуски 1..[watchedUpTo] встают просмотренными без
+  /// даты. Цикл попадает в «Буду смотреть». Уже добавленный не дублируется.
+  Future<LibrarySeries> addYouTubeCycle(
+    String playlistId, {
+    required String title,
+    required String channelId,
+    required String channelName,
+    String? avatar,
+    required List<YtEntry> videos,
+    int watchedUpTo = 0,
+    bool notify = true,
+  }) async {
+    final id = 'yt:$playlistId';
+    var s = seriesById(id);
+    if (s == null) {
+      final first = videos.isEmpty ? null : videos.first;
+      s = LibrarySeries(
+        tvShowId: id,
+        title: title,
+        addedAt: DateTime.now(),
+        watchlist: true,
+        enrichTried: true,
+        posterUrl: first?.cover,
+        year: first?.published?.year,
+        totalEpisodes: videos.length,
+        youtube: YtCycle(
+          playlistId: playlistId,
+          channelId: channelId,
+          channelName: channelName,
+          avatar: avatar,
+          videos: [...videos],
+          notify: notify,
+          checkedAt: DateTime.now(),
+        ),
+      );
+      _series.add(s);
+    } else {
+      s.youtube?.notify = notify;
+    }
+    final cycle = s.youtube!;
+    for (var n = 1; n <= watchedUpTo && n <= cycle.videos.length; n++) {
+      if (s.isEpisodeWatched(1, n)) continue;
+      s.episodes.add(Episode(
+          season: 1, number: n, runtimeMin: cycle.videos[n - 1].runtimeMin));
+    }
+    notifyListeners();
+    await _persist();
+    return s;
+  }
+
+  /// Дописывает в цикл новые выпуски [fresh] в конец: номера прошлых не
+  /// сдвигаются. Уже известные ролики пропускает. Возвращает дописанные.
+  Future<List<YtEntry>> appendYouTubeVideos(
+      String seriesId, List<YtEntry> fresh) async {
+    final s = seriesById(seriesId);
+    final cycle = s?.youtube;
+    if (s == null || cycle == null) return const [];
+    final known = {for (final v in cycle.videos) v.id};
+    final added = [
+      for (final v in fresh)
+        if (known.add(v.id)) v,
+    ];
+    cycle
+      ..videos.addAll(added)
+      ..checkedAt = DateTime.now();
+    if (added.isNotEmpty) s.totalEpisodes = cycle.videos.length;
+    notifyListeners();
+    await _persist();
+    return added;
+  }
+
+  /// Пуш о новых выпусках цикла: включить или выключить.
+  Future<void> setYouTubeNotify(String seriesId, bool on) async {
+    final cycle = seriesById(seriesId)?.youtube;
+    if (cycle == null || cycle.notify == on) return;
+    cycle.notify = on;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Одиночный ролик YouTube в «Буду смотреть» фильмом. Уже добавленный не
+  /// дублируется.
+  Future<LibraryMovie> addYouTubeVideo({
+    required String videoId,
+    required String title,
+    required String channelId,
+    required String channelName,
+    String? avatar,
+    int? durSec,
+    DateTime? published,
+    String? thumb,
+  }) async {
+    final uuid = 'yt:$videoId';
+    final have = byUuid(uuid);
+    if (have != null) return have;
+    final m = LibraryMovie(
+      uuid: uuid,
+      title: title,
+      year: published?.year,
+      runtimeMin: durSec == null ? null : (durSec / 60).ceil(),
+      status: LibraryStatus.watchlist,
+      addedAt: DateTime.now(),
+      enrichTried: true,
+      detailsTried: true,
+      posterUrl: thumb ?? ytCover(videoId),
+      youtube: YtRef(
+        videoId: videoId,
+        channelId: channelId,
+        channelName: channelName,
+        avatar: avatar,
+        published: published,
+      ),
+    );
+    _movies.add(m);
+    notifyListeners();
+    await _persist();
+    return m;
+  }
+
   // ------------------------- несколько заходов -------------------------
 
   /// Начатые фильмы: ни разу не досмотрены, просмотр стоит на паузе.
@@ -2835,11 +2957,17 @@ class MovieRepository extends ChangeNotifier {
 
       // Приоритет показа: просмотрено → буду смотреть → остальные фильмы; дедуп.
       final seen = <String>{};
+      // Ролики YouTube не ищутся в TMDB: поиск по названию выпуска нашёл бы
+      // чужой фильм и переименовал ролик.
       final movies = <LibraryMovie>[..._marked, ...watchlist, ..._movies]
-          .where((m) => seen.add(m.uuid) && needs(m.ruTitle, m.titleLang))
+          .where((m) =>
+              seen.add(m.uuid) &&
+              !m.isYouTube &&
+              needs(m.ruTitle, m.titleLang))
           .toList();
-      final series =
-          _series.where((s) => needs(s.ruTitle, s.titleLang)).toList();
+      final series = _series
+          .where((s) => !s.isYouTube && needs(s.ruTitle, s.titleLang))
+          .toList();
 
       var used = 0;
       var dirty = 0;

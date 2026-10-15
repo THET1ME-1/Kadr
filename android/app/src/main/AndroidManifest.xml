@@ -37,6 +37,13 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- «Поделиться» ссылкой из YouTube: ролик или цикл открывается в
+                 «Обзоре» (см. MainActivity.kt, канал kadr/share). -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/plain"/>
+            </intent-filter>
         </activity>
 
         <!-- Выбор иконки (Настройки → Оформление → Иконка приложения).

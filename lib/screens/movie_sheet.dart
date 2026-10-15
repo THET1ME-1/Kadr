@@ -29,6 +29,7 @@ import '../widgets/facts_section.dart';
 import '../widgets/reveal.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/viewing/drop_parts.dart';
+import '../widgets/youtube_parts.dart';
 import '../widgets/viewing/score_card.dart';
 import 'browse_screens.dart';
 import 'social/auth_screen.dart';
@@ -90,6 +91,9 @@ class _MovieScreenState extends State<MovieScreen> {
 
   Future<void> _loadDetails() async {
     final m = widget.movie;
+    // Ролик YouTube в TMDB не ищется: по названию выпуска нашёлся бы чужой
+    // фильм.
+    if (m.isYouTube) return;
     var id = m.tmdbId;
     if (id == null) {
       // Нет tmdbId (напр. сопоставлен через KinoPoisk) — ищем по названию+году.
@@ -202,15 +206,18 @@ class _MovieScreenState extends State<MovieScreen> {
       if (m.year != null) '${m.year}',
       if (m.runtimeMin != null) humanDuration(Duration(minutes: m.runtimeMin!)),
     ].join(' · ');
+    final yt = m.youtube;
+    // У ролика YouTube вместо бэкдропа его кадр.
+    final backdrop = yt != null ? ytCover(yt.videoId) : _details?.backdropUrl;
     return SizedBox(
       height: 300,
       child: Stack(
         fit: StackFit.expand,
         children: [
           // Бэкдроп (или цветной градиент) с затемнением снизу.
-          if (_details?.backdropUrl != null)
+          if (backdrop != null)
             CachedNetworkImage(
-              imageUrl: _details!.backdropUrl!,
+              imageUrl: backdrop,
               fit: BoxFit.cover,
               alignment: Alignment.topCenter,
               // Декод под ширину экрана, а не под исходные ~1280px.
@@ -298,6 +305,10 @@ class _MovieScreenState extends State<MovieScreen> {
                           ),
                         ),
                       ],
+                      if (yt != null) ...[
+                        const SizedBox(height: 8),
+                        YtChannelLine(name: yt.channelName, avatar: yt.avatar),
+                      ],
                     ],
                   ),
                 ),
@@ -373,6 +384,18 @@ class _MovieScreenState extends State<MovieScreen> {
       if (movieReviews(m).isNotEmpty) ...[
         const SizedBox(height: 12),
         MovieReviewsSection(movie: m, repo: _repo),
+      ],
+      // Ролик YouTube открывается в приложении YouTube.
+      if (m.youtube != null) ...[
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.tonalIcon(
+            onPressed: () => openYouTube(m.youtube!.url),
+            icon: const Icon(Icons.play_arrow_rounded),
+            label: Text(tr('yt_watch')),
+          ),
+        ),
       ],
       // Вариант Б макета «Кнопки карточки»: одна главная кнопка с меню и
       // связанная группа. Семь широких кнопок подряд не возвращать.
@@ -676,6 +699,8 @@ class _MovieScreenState extends State<MovieScreen> {
 
   /// Ряд внешних ссылок (Кинопоиск / IMDb / TMDb).
   List<Widget> _links(LibraryMovie m) {
+    // Ролик YouTube на Кинопоиске и в IMDb не ищется.
+    if (m.isYouTube) return const [];
     final items = <Widget>[];
     void add(String label, Color color, String url) {
       items.add(

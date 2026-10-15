@@ -5,6 +5,9 @@
 import '../l10n/locale_controller.dart';
 import '../services/poster_store.dart';
 import 'review.dart';
+import 'youtube.dart';
+
+export 'youtube.dart';
 
 /// Эмоция-реакция на фильм (наследие TV Time) + её стартовый вклад в балл.
 class MovieEmotion {
@@ -379,9 +382,16 @@ class LibraryMovie with HasReview {
   /// дёргать TMDB повторно в фоновой дозагрузке.
   bool detailsTried;
 
+  /// Ролик YouTube, добавленный фильмом. Такой фильм не ищется в TMDB и
+  /// ПоискКино: название и картинка его собственные.
+  YtRef? youtube;
+
+  bool get isYouTube => youtube != null;
+
   LibraryMovie({
     required this.uuid,
     required this.title,
+    this.youtube,
     String? ruTitle,
     String? titleLang,
     this.kpRating,
@@ -661,6 +671,7 @@ class LibraryMovie with HasReview {
         genres: (j['genres'] as List? ?? []).map((e) => '$e').toList(),
         countries: (j['countries'] as List? ?? []).map((e) => '$e').toList(),
         detailsTried: j['detailsTried'] == true,
+        youtube: j['yt'] is Map ? YtRef.fromJson(j['yt'] as Map) : null,
       );
 
   Map<String, dynamic> toJson() => {
@@ -673,6 +684,7 @@ class LibraryMovie with HasReview {
         'year': year,
         'runtimeMin': runtimeMin,
         'status': status.name,
+        if (youtube != null) 'yt': youtube!.toJson(),
         'addedAt': addedAt?.toIso8601String(),
         'viewings': [for (final v in viewings) v.toJson()],
         // Число пишется для старых версий, новая считает его из списка.
@@ -929,6 +941,14 @@ class EpisodeSession {
   /// Диапазон серий: «S1·E1–E5» или «5 серий».
   String get rangeLabel {
     final nums = episodes.map((e) => e.number).whereType<int>().toList()..sort();
+    // Цикл с YouTube: «№1–3» по подписям выпусков.
+    final yt = series.youtube;
+    if (yt != null && nums.isNotEmpty) {
+      final a = yt.labelOf(nums.first);
+      return nums.length >= 2
+          ? '$a–${yt.labelOf(nums.last).replaceFirst('№', '')}'
+          : a;
+    }
     if (nums.length >= 2 && episodes.first.season == episodes.last.season) {
       final s = episodes.first.season;
       final prefix = s != null ? 'S$s·' : '';
@@ -1015,9 +1035,16 @@ class LibrarySeries with HasReview {
   /// сортировка уводит вниз.
   DateTime? addedAt;
 
+  /// Цикл с YouTube: плейлист канала, выпуск — серия первого сезона. Такой
+  /// сериал не ищется в TMDB, его выпуски хранятся здесь же.
+  YtCycle? youtube;
+
+  bool get isYouTube => youtube != null;
+
   LibrarySeries({
     required this.tvShowId,
     required this.title,
+    this.youtube,
     String? ruTitle,
     String? titleLang,
     List<Episode>? episodes,
@@ -1238,6 +1265,7 @@ class LibrarySeries with HasReview {
       enrichTried: j['enrichTried'] == true,
       posterUrl: j['posterUrl'] as String?,
       posterFile: j['posterFile'] as String?,
+      youtube: j['yt'] is Map ? YtCycle.fromJson(j['yt'] as Map) : null,
     );
   }
 
@@ -1246,6 +1274,7 @@ class LibrarySeries with HasReview {
         'title': title,
         'ruTitle': ruTitle,
         'titleLang': titleLang,
+        if (youtube != null) 'yt': youtube!.toJson(),
         'episodes': [for (final e in episodes) e.toJson()],
         if (addedAt != null) 'addedAt': addedAt!.toIso8601String(),
         'favorite': favorite,

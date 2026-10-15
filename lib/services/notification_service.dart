@@ -7,6 +7,7 @@ import '../l10n/strings.dart';
 import 'movie_repository.dart';
 import 'store.dart';
 import 'tmdb_service.dart';
+import 'youtube_service.dart';
 
 /// id действия «Отметил просмотренной» на пуше о новой серии.
 const String _kMarkActionId = 'mark_watched';
@@ -222,6 +223,57 @@ class NotificationService extends ChangeNotifier {
         }
       } catch (e) {
         debugPrint('checkNewEpisodes ${s.title}: $e');
+      }
+    }
+    await Store.instance.setStringList(_prefNotified, notified.toList());
+    if (found > 0) notifyListeners();
+  }
+
+  /// Новые выпуски циклов с YouTube: лента канала и плейлист, новые ролики
+  /// дописываются в цикл. Плашка и пуш о них — как о новой серии, если у
+  /// цикла включены «Новые выпуски». Циклы обновляются и при выключенных
+  /// уведомлениях.
+  Future<void> checkYouTube({int maxCycles = 20}) async {
+    await init();
+    final repo = MovieRepository.instance;
+    final notified = (await Store.instance.getStringList(_prefNotified)).toSet();
+    var found = 0;
+    final cycles = repo.series
+        .where((s) => s.isYouTube && !s.dropped)
+        .take(maxCycles)
+        .toList();
+    for (final s in cycles) {
+      try {
+        final fresh = await YouTubeService.newVideos(s.youtube!, s.title);
+        if (fresh == null) continue;
+        final added = await repo.appendYouTubeVideos(s.tvShowId, fresh);
+        final live = repo.seriesById(s.tvShowId);
+        final yt = live?.youtube;
+        if (yt == null || !yt.notify || (!_inApp && !_push)) continue;
+        for (final v in added) {
+          final n = yt.videos.indexWhere((x) => x.id == v.id) + 1;
+          final key = 'yt-${v.id}';
+          if (n <= 0 || !notified.add(key)) continue;
+          final label = yt.labelOf(n);
+          if (_inApp) {
+            inbox.insert(
+                0,
+                NewEpisode(
+                    tvShowId: s.tvShowId, title: s.displayTitle, label: label));
+          }
+          if (_push) {
+            await _showSystem(
+              key.hashCode & 0x7fffffff,
+              tr('yt_notif_title'),
+              trf('notif_new_ep_body', {'title': s.displayTitle, 'ep': label}),
+              markAction: true,
+              payload: jsonEncode({'tv': s.tvShowId, 's': 1, 'n': n}),
+            );
+          }
+          found++;
+        }
+      } catch (e) {
+        debugPrint('checkYouTube ${s.title}: $e');
       }
     }
     await Store.instance.setStringList(_prefNotified, notified.toList());
