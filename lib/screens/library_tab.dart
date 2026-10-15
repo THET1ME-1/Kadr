@@ -27,6 +27,7 @@ import '../widgets/reveal.dart';
 import '../widgets/settings_kit.dart';
 import '../widgets/series_progress.dart';
 import '../widgets/undo_snack.dart';
+import '../widgets/viewing/drop_parts.dart';
 import 'movie_sheet.dart';
 import 'series_screen.dart';
 import 'series_stats_screen.dart';
@@ -1134,11 +1135,10 @@ class _LibraryTabState extends State<LibraryTab> {
     if (e.isSeries) return _LibEntry.session(e.session!);
     final movie = e.movie!;
     final viewing = e.viewing!;
-    // Номер просмотра — по дате, как в карточке фильма.
-    final ordinal = movie.ordinalOf(viewing);
-    final rewatchNum = (movie.viewings.length > 1 && ordinal > 1)
-        ? ordinal
-        : null;
+    // Номер просмотра — по дате, как в карточке фильма. Брошенные попытки
+    // номера не получают и пересмотром не считаются.
+    final ordinal = movie.fullOrdinalOf(viewing);
+    final rewatchNum = (movie.isRewatched && ordinal > 1) ? ordinal : null;
     return _LibEntry.movie(movie, viewing: viewing, rewatchNumber: rewatchNum);
   }
 
@@ -1406,6 +1406,7 @@ class _LibraryTabState extends State<LibraryTab> {
       width: w,
       score: e.viewing != null ? m.scoreOf(e.viewing!) : null,
       favorite: m.favorite,
+      dropped: e.viewing?.drop != null,
       selecting: _selecting,
       selected: sel,
       onSelect: () => _onSelect(key),
@@ -1460,6 +1461,7 @@ class _LibraryTabState extends State<LibraryTab> {
       ].join(' · '),
       score: e.viewing != null ? m.scoreOf(e.viewing!) : null,
       favorite: m.favorite,
+      dropped: e.viewing?.drop != null,
       selecting: _selecting,
       selected: sel,
       onSelect: () => _onSelect(key),
@@ -3028,7 +3030,20 @@ class _EpisodeRow extends StatelessWidget {
 
 /// Бейдж оценки. Если оценки нет: в «Буду смотреть» ([addMode]) — «+»
 /// (добавить просмотр), в «Просмотрено» — звезда (поставить оценку).
-Widget _scoreBadge(ColorScheme scheme, double? score, {bool addMode = false}) {
+Widget _scoreBadge(ColorScheme scheme, double? score,
+    {bool addMode = false, bool dropped = false}) {
+  // Брошенная попытка без оценки: надломленное сердце вместо пустой звезды.
+  if (score == null && dropped) {
+    return Container(
+      width: 46,
+      height: 46,
+      alignment: Alignment.center,
+      decoration:
+          const BoxDecoration(color: kDroppedColor, shape: BoxShape.circle),
+      child: const Icon(Icons.heart_broken_rounded,
+          color: Colors.white, size: 22),
+    );
+  }
   if (score == null) {
     return Container(
       width: 46,
@@ -3110,6 +3125,144 @@ class _MovieRow extends StatelessWidget {
     ].join(' · ');
     final date = viewing?.date;
     final score = viewing != null ? movie.scoreOf(viewing!) : null;
+    // Брошенная попытка (вариант Л2 макета KADR-1): карточка в тон «Брошено»,
+    // под датой минута, ниже причины блоком.
+    final drop = viewing?.drop;
+
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Stack(
+          children: [
+            Poster(
+              title: movie.displayTitle,
+              url: movie.displayPoster,
+              width: 58,
+              heroTag: heroTag,
+            ),
+            if (selecting) _selectOverlay(scheme, selected, 12),
+            if (!selecting && onDiary != null)
+              Positioned(
+                left: 2,
+                bottom: 2,
+                child: _DiaryBadge(diary: diary, onTap: onDiary!),
+              ),
+          ],
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                movie.displayTitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: AppTheme.displayFont,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  height: 1.1,
+                  color: scheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  if (movie.emotions.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Text(
+                        movie.emotions.first.emoji,
+                        style: const TextStyle(fontSize: 15),
+                      ),
+                    ),
+                  if (movie.favorite)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Icon(
+                        Icons.favorite_rounded,
+                        size: 15,
+                        color: scheme.primary,
+                      ),
+                    ),
+                  Flexible(
+                    child: Text(
+                      meta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: AppTheme.bodyFont,
+                        fontSize: 13,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (date != null || rewatchNumber != null) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    if (date != null)
+                      Text(
+                        dateExactWithTime(date),
+                        style: TextStyle(
+                          fontFamily: AppTheme.bodyFont,
+                          fontSize: 12,
+                          color: scheme.onSurfaceVariant.withValues(
+                            alpha: 0.85,
+                          ),
+                        ),
+                      ),
+                    if (rewatchNumber != null) ...[
+                      if (date != null) const SizedBox(width: 8),
+                      _rewatchChip(scheme, rewatchNumber!),
+                    ],
+                  ],
+                ),
+              ],
+              if (drop != null) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.heart_broken_rounded,
+                      size: 15,
+                      color: kDroppedColor,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        drop.atMin != null
+                            ? trf('drop_feed_at', {'n': drop.atMin!})
+                            : tr('dropped_plain'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: AppTheme.bodyFont,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.5,
+                          color: kDroppedColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        _scoreBadge(
+          scheme,
+          score,
+          addMode: viewing == null,
+          dropped: drop != null,
+        ),
+      ],
+    );
 
     return Reveal(
       group: revealGroup,
@@ -3119,7 +3272,7 @@ class _MovieRow extends StatelessWidget {
         child: Material(
           color: selected
               ? scheme.primaryContainer
-              : scheme.surfaceContainerHigh,
+              : (drop != null ? dropTint(scheme) : scheme.surfaceContainerHigh),
           borderRadius: BorderRadius.circular(22),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -3129,107 +3282,25 @@ class _MovieRow extends StatelessWidget {
             onLongPress: onSelect,
             child: Padding(
               padding: const EdgeInsets.all(10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Stack(
-                    children: [
-                      Poster(
-                        title: movie.displayTitle,
-                        url: movie.displayPoster,
-                        width: 58,
-                        heroTag: heroTag,
-                      ),
-                      if (selecting) _selectOverlay(scheme, selected, 12),
-                      if (!selecting && onDiary != null)
-                        Positioned(
-                          left: 2,
-                          bottom: 2,
-                          child: _DiaryBadge(diary: diary, onTap: onDiary!),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
+              child: drop == null || drop.reasons.isEmpty
+                  ? row
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          movie.displayTitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: AppTheme.displayFont,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            height: 1.1,
-                            color: scheme.onSurface,
+                        row,
+                        Container(
+                          margin: const EdgeInsets.only(top: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: dropTint(scheme,
+                                base: scheme.surface, alpha: 0.08),
+                            borderRadius: BorderRadius.circular(16),
                           ),
+                          child: DropReasonPills(drop.reasons),
                         ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            if (movie.emotions.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: Text(
-                                  movie.emotions.first.emoji,
-                                  style: const TextStyle(fontSize: 15),
-                                ),
-                              ),
-                            if (movie.favorite)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: Icon(
-                                  Icons.favorite_rounded,
-                                  size: 15,
-                                  color: scheme.primary,
-                                ),
-                              ),
-                            Flexible(
-                              child: Text(
-                                meta,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontFamily: AppTheme.bodyFont,
-                                  fontSize: 13,
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (date != null || rewatchNumber != null) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              if (date != null)
-                                Text(
-                                  dateExactWithTime(date),
-                                  style: TextStyle(
-                                    fontFamily: AppTheme.bodyFont,
-                                    fontSize: 12,
-                                    color: scheme.onSurfaceVariant.withValues(
-                                      alpha: 0.85,
-                                    ),
-                                  ),
-                                ),
-                              if (rewatchNumber != null) ...[
-                                if (date != null) const SizedBox(width: 8),
-                                _rewatchChip(scheme, rewatchNumber!),
-                              ],
-                            ],
-                          ),
-                        ],
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  _scoreBadge(scheme, score, addMode: viewing == null),
-                ],
-              ),
             ),
           ),
         ),

@@ -154,7 +154,8 @@ class StatisticsScreen extends StatelessWidget {
       if (n.isNotEmpty) notes.add((n, title));
     }
 
-    for (final mv in repo.watched) {
+    // Дневник и у брошенных попыток: это тоже вечер у экрана.
+    for (final mv in repo.movies) {
       for (final v in mv.viewings) {
         if (v.diary?.isNotEmpty ?? false) add(v.diary!, mv.displayTitle);
       }
@@ -327,7 +328,8 @@ class StatisticsScreen extends StatelessWidget {
     for (final m in repo.watched) {
       for (final v in m.viewings) {
         final sc = m.scoreOf(v);
-        if (v.date == null || sc == null) continue;
+        // Брошенная попытка просмотром не считается.
+        if (v.date == null || sc == null || v.drop != null) continue;
         sum[v.date!.year] = (sum[v.date!.year] ?? 0) + sc;
         cnt[v.date!.year] = (cnt[v.date!.year] ?? 0) + 1;
       }
@@ -1722,16 +1724,19 @@ class _Stats {
       if (firstMark == null || d.isBefore(firstMark!)) firstMark = d;
     }
 
+    // Импорт TV Time иногда кладёт мусорную длительность (млн «минут») —
+    // учитываем только вменяемую (1..600 мин ≈ до 10 ч), иначе итоги врут.
+    int? sane(int? rt) => (rt != null && rt > 0 && rt <= 600) ? rt : null;
+
     for (final m in watched) {
-      final vc = m.viewings.isEmpty ? 1 : m.viewings.length;
-      if (vc > 1) rewatches += vc - 1;
-      // Импорт TV Time иногда кладёт мусорную длительность (млн «минут») —
-      // учитываем только вменяемую (1..600 мин ≈ до 10 ч), иначе итоги врут.
-      final rt = m.runtimeMin;
-      final saneRt = (rt != null && rt > 0 && rt <= 600) ? rt : null;
+      // Брошенные попытки не просмотры и не пересмотры, но их минуты у
+      // экрана идут во время.
+      rewatches += m.rewatchCount;
+      final saneRt = sane(m.runtimeMin);
+      minutes += m.screenMinutes(saneRt);
       for (final v in m.viewings) {
+        if (v.drop != null) continue;
         totalViewings++;
-        if (saneRt != null) minutes += saneRt;
         if (v.date != null) bumpDate(v.date!);
       }
       if (m.viewings.isEmpty) totalViewings++; // отмечен без даты просмотра
@@ -1763,6 +1768,12 @@ class _Stats {
       for (final g in m.genres) {
         genres[g] = (genres[g] ?? 0) + 1;
       }
+    }
+
+    // Брошенные фильмы: в счёт просмотренного не идут, время до места, где
+    // бросили, — идёт.
+    for (final m in repo.droppedMovies) {
+      minutes += m.screenMinutes(sane(m.runtimeMin));
     }
 
     // Сериалы: время + активность по датам просмотра серий.

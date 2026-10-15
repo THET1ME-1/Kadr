@@ -125,7 +125,7 @@ class _DiscoverTabState extends State<DiscoverTab>
   int? _topMovieGenreId() {
     final counts = <String, double>{};
     for (final m in MovieRepository.instance.movies) {
-      if (m.status != LibraryStatus.watched) continue;
+      if (!m.isWatched) continue;
       final w = (m.currentScore ?? 6) >= 7 ? 2.0 : 1.0;
       for (final g in m.genres) {
         final k = g.toLowerCase().trim();
@@ -154,6 +154,8 @@ class _DiscoverTabState extends State<DiscoverTab>
 
   static bool _movieHidden(LibraryMovie? lib, AppPrefs p) {
     if (lib == null) return false;
+    // Брошенный лежит в «Просмотрено» попыткой, но прячется как брошенный.
+    if (lib.isDropped) return p.discoverHidden(DiscoverHide.droppedMovies);
     return switch (lib.status) {
       LibraryStatus.watched => p.discoverHidden(DiscoverHide.watchedMovies),
       LibraryStatus.dropped => p.discoverHidden(DiscoverHide.droppedMovies),

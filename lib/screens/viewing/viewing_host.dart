@@ -51,8 +51,16 @@ abstract class ViewingHost {
     return null;
   }
 
-  /// Номер просмотра с единицы; 0, если такого уже нет.
-  int ordinalOf(Viewing v) => ordered.indexWhere((x) => x.id == v.id) + 1;
+  /// Номер просмотра с единицы. Брошенная попытка номера не получает (0) и
+  /// следующие не сдвигает. 0 и у просмотра, которого уже нет.
+  int ordinalOf(Viewing v) {
+    var n = 0;
+    for (final x in ordered) {
+      if (x.drop == null) n++;
+      if (x.id == v.id) return x.drop == null ? n : 0;
+    }
+    return 0;
+  }
 
   /// Оценка ближайшего оценённого просмотра перед [v] и его номер.
   ({double score, int ordinal})? previousRated(Viewing v) {
@@ -60,10 +68,19 @@ abstract class ViewingHost {
     final at = list.indexWhere((x) => x.id == v.id);
     for (var i = at - 1; i >= 0; i--) {
       final s = list[i].score;
-      if (s != null) return (score: s, ordinal: i + 1);
+      if (s != null) return (score: s, ordinal: ordinalOf(list[i]));
     }
     return null;
   }
+
+  /// Длина фильма для линейки «Где бросили?»; у серии не нужна.
+  int? get filmRuntime => null;
+
+  /// Название фильма для окон; у серии пусто.
+  String get title => '';
+
+  /// Ставит или снимает пометку «брошен»; у серии её не бывает.
+  Future<void> setDrop(Viewing v, DropMark? drop) async {}
 
   /// Написана ли на просмотр рецензия (черновик тоже считается).
   bool hasReview(Viewing v) => reviewTarget(v)?.item.hasReview ?? false;
@@ -110,6 +127,18 @@ class MovieViewingHost extends ViewingHost {
   @override
   Future<void> addUndated(double? score) =>
       repo.addViewing(uuid, null, score: score);
+
+  @override
+  int? get filmRuntime => movie?.runtimeMin;
+
+  @override
+  String get title => movie?.displayTitle ?? '';
+
+  @override
+  Future<void> setDrop(Viewing v, DropMark? drop) async {
+    final live = byId(v.id);
+    if (live != null) await repo.setViewingDrop(uuid, live, drop);
+  }
 
   @override
   Future<ViewingUndo?> remove(Viewing v) async {

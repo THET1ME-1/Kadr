@@ -290,11 +290,16 @@ class _Compact {
     var minutes = 0, scoreN = 0;
     var scoreSum = 0.0;
     final genres = <String, int>{};
+    int? saneOf(int? rt) => (rt != null && rt > 0 && rt <= 600) ? rt : null;
+    // Брошенные: в счёт просмотренного не идут, их минуты у экрана — идут.
+    for (final m in repo.droppedMovies) {
+      minutes += m.screenMinutes(saneOf(m.runtimeMin));
+    }
     for (final m in watched) {
-      final rt = m.runtimeMin;
-      final sane = (rt != null && rt > 0 && rt <= 600) ? rt : 0;
-      final vc = m.viewings.isEmpty ? 1 : m.viewings.length;
-      minutes += sane * vc;
+      final sane = saneOf(m.runtimeMin);
+      // Старая отметка «просмотрено» без просмотров считается одним.
+      minutes +=
+          m.viewings.isEmpty ? (sane ?? 0) : m.screenMinutes(sane);
       final sc = m.currentScore;
       if (sc != null) {
         scoreSum += sc;

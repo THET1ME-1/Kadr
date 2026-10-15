@@ -142,6 +142,31 @@ double? lastRatedScore(List<Viewing> ordered) {
   return null;
 }
 
+/// Пометка «брошен» у просмотра фильма: где остановились и что не так.
+/// Причины — короткие фразы, как «Слабое» в рецензии: подсказки и свои.
+class DropMark {
+  /// Минута, на которой бросили; null — не указали.
+  int? atMin;
+  List<String> reasons;
+
+  DropMark({this.atMin, List<String>? reasons}) : reasons = reasons ?? [];
+
+  factory DropMark.fromJson(Map j) => DropMark(
+        atMin: (j['min'] as num?)?.toInt(),
+        reasons: [
+          for (final e in (j['why'] as List? ?? const []))
+            if ('$e'.trim().isNotEmpty) '$e'.trim(),
+        ],
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (atMin != null) 'min': atMin,
+        if (reasons.isNotEmpty) 'why': reasons,
+      };
+
+  DropMark copy() => DropMark(atMin: atMin, reasons: [...reasons]);
+}
+
 /// Один просмотр фильма или серии: дата (может быть неизвестна), СВОЯ оценка
 /// 1.0–10.0 и дневник. Мнение может меняться при пересмотре — поэтому оценка у
 /// каждого просмотра отдельная.
@@ -160,7 +185,11 @@ class Viewing {
   /// Пусто у записей, которые после отметки не трогали.
   DateTime? editedAt;
 
-  Viewing({String? id, this.date, this.score, this.diary, this.editedAt})
+  /// Фильм бросили на этом просмотре; null — досмотрели. У серий не бывает.
+  DropMark? drop;
+
+  Viewing(
+      {String? id, this.date, this.score, this.diary, this.editedAt, this.drop})
       : id = id ?? newViewingId();
 
   bool get hasDate => date != null;
@@ -185,6 +214,7 @@ class Viewing {
             ? DiaryEntry.fromJson((j['diary'] as Map).cast<String, dynamic>())
             : null,
         editedAt: _parseDate(j['edited']),
+        drop: j['drop'] is Map ? DropMark.fromJson(j['drop'] as Map) : null,
       );
     }
     return Viewing(id: '', date: _parseDate(j));
@@ -196,6 +226,7 @@ class Viewing {
         'score': score,
         if (diary != null && diary!.isNotEmpty) 'diary': diary!.toJson(),
         if (editedAt != null) 'edited': editedAt!.toIso8601String(),
+        if (drop != null) 'drop': drop!.toJson(),
       };
 }
 
@@ -399,14 +430,73 @@ class LibraryMovie with HasReview {
     return at <= 0 ? null : lastRatedScore(ordered.sublist(0, at));
   }
 
-  /// Повторов сверх первого просмотра.
-  int get rewatchCount => viewings.length > 1 ? viewings.length - 1 : 0;
+  /// Досмотренных просмотров: брошенные попытки в счёт не идут.
+  int get _fullCount {
+    var n = 0;
+    for (final v in viewings) {
+      if (v.drop == null) n++;
+    }
+    return n;
+  }
 
-  /// Общее число просмотров.
-  int get viewCount => viewings.isEmpty ? 1 : viewings.length;
+  /// Повторов сверх первого досмотренного просмотра.
+  int get rewatchCount => _fullCount > 1 ? _fullCount - 1 : 0;
+
+  /// Общее число досмотренных просмотров.
+  int get viewCount => _fullCount == 0 ? 1 : _fullCount;
 
   /// Смотрел ли повторно.
-  bool get isRewatched => viewings.length > 1;
+  bool get isRewatched => _fullCount > 1;
+
+  /// Досмотрен хоть раз.
+  bool get hasFullViewing => _fullCount > 0;
+
+  /// Фильм брошен: каждый его просмотр брошен. Старые версии бросали фильм
+  /// статусом без просмотров, такая отметка тоже считается.
+  bool get isDropped =>
+      status == LibraryStatus.dropped ||
+      (viewings.isNotEmpty && !hasFullViewing);
+
+  /// В «Просмотренных»: хоть раз досмотрен. Старые записи «просмотрено» без
+  /// единого просмотра тоже здесь.
+  bool get isWatched =>
+      status == LibraryStatus.watched && (viewings.isEmpty || hasFullViewing);
+
+  /// Последний по порядку брошенный просмотр; null, если не бросали.
+  Viewing? get lastDropped {
+    final ordered = orderedViewings;
+    for (var i = ordered.length - 1; i >= 0; i--) {
+      if (ordered[i].drop != null) return ordered[i];
+    }
+    return null;
+  }
+
+  /// Номер досмотренного просмотра по порядку, с единицы. Брошенные номера
+  /// не получают (0) и следующие не сдвигают.
+  int fullOrdinalOf(Viewing v) {
+    var n = 0;
+    for (final x in orderedViewings) {
+      if (x.drop == null) n++;
+      if (x.id == v.id) return x.drop == null ? n : 0;
+    }
+    return 0;
+  }
+
+  /// Минуты у экрана: досмотренный просмотр идёт целиком [runtime], брошенный
+  /// до своей минуты (не дальше конца фильма), без минуты не идёт. Без
+  /// длительности брошенный считается своей минутой, но не больше 10 часов.
+  int screenMinutes(int? runtime) {
+    var sum = 0;
+    for (final v in viewings) {
+      final d = v.drop;
+      if (d == null) {
+        sum += runtime ?? 0;
+      } else if (d.atMin != null) {
+        sum += d.atMin!.clamp(0, runtime ?? 600);
+      }
+    }
+    return sum;
+  }
 
   /// Все рецензии фильма: первая и на другие просмотры.
   List<HasReview> get allReviews => [

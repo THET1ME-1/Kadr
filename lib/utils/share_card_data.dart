@@ -103,7 +103,7 @@ ShareFacts shareFactsOf(LibraryMovie m) {
     score: current != null ? m.scoreOf(current) : m.score,
     watchedAt: m.lastViewing,
     viewNumber: m.viewCount,
-    dropped: m.status == LibraryStatus.dropped,
+    dropped: m.isDropped,
     emotion: emotion,
   );
 }

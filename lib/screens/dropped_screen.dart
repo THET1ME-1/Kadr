@@ -77,10 +77,17 @@ class _MovieDroppedRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Список напоминает, где бросил и за что: минута и причины попытки.
+    final drop = movie.lastDropped?.drop;
+    final at = drop?.atMin;
     return _row(
       context,
       title: movie.displayTitle,
-      subtitle: movie.year != null ? '${movie.year}' : '',
+      subtitle: [
+        if (movie.year != null) '${movie.year}',
+        if (at != null) trf('drop_list_at', {'n': at}),
+      ].join(' · '),
+      reasons: drop?.reasons.join(' · '),
       posterUrl: movie.displayPoster,
       scheme: scheme,
       onTap: () => showMovieSheet(context, movie),
@@ -98,7 +105,7 @@ class _SeriesDroppedRow extends StatelessWidget {
     return _row(
       context,
       title: series.displayTitle,
-      subtitle: trf('episodes_n', {'n': series.episodes.length}),
+      subtitle: trn('ss_episodes', series.episodes.length),
       posterUrl: series.displayPoster,
       scheme: scheme,
       seriesIcon: true,
@@ -116,6 +123,7 @@ Widget _row(
   required ColorScheme scheme,
   required VoidCallback onTap,
   bool seriesIcon = false,
+  String? reasons,
 }) {
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
@@ -154,13 +162,28 @@ Widget _row(
                           const SizedBox(width: 5),
                         ],
                         if (subtitle.isNotEmpty)
-                          Text(subtitle,
-                              style: TextStyle(
-                                  fontFamily: AppTheme.bodyFont,
-                                  fontSize: 12.5,
-                                  color: scheme.onSurfaceVariant)),
+                          Flexible(
+                            child: Text(subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontFamily: AppTheme.bodyFont,
+                                    fontSize: 12.5,
+                                    color: scheme.onSurfaceVariant)),
+                          ),
                       ],
                     ),
+                    if (reasons != null && reasons.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(reasons,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontFamily: AppTheme.bodyFont,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 12.5,
+                              color: kDroppedColor)),
+                    ],
                   ],
                 ),
               ),

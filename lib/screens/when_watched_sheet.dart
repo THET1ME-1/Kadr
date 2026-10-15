@@ -18,7 +18,8 @@ Future<void> showWhenWatchedSheet(
     context,
     title: tr('mark_q'),
     subject: m.displayTitle,
-    ordinal: m.viewings.length + 1,
+    // Брошенные попытки номер не двигают: досмотр после них — первый.
+    ordinal: m.viewings.where((v) => v.drop == null).length + 1,
     coWatch: true,
   );
   if (choice == null) return;

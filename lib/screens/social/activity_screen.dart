@@ -78,9 +78,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
     final libs = await SocialController.instance.allFriendLibraries();
     _fromFriends = await recsFuture;
 
-    // Что я уже смотрел — чтобы не советовать это.
+    // Что я уже смотрел или бросил — чтобы не советовать это.
+    final mine = MovieRepository.instance;
     final mineWatched = {
-      for (final m in MovieRepository.instance.watched)
+      for (final m in [...mine.watched, ...mine.droppedMovies])
         _key(m.ruTitle ?? m.title, m.year)
     };
 

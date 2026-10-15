@@ -2586,6 +2586,53 @@ const Map<String, Map<String, String>> _strings = {
   'tag_flat_characters': {'ru': 'Плоские персонажи', 'en': 'Flat characters'},
   'tag_cliches': {'ru': 'Штампы', 'en': 'Clichés'},
   'tag_boring': {'ru': 'Скучно', 'en': 'Boring'},
+  'tag_not_my_genre': {'ru': 'Не мой жанр', 'en': 'Not my genre'},
+  'tag_hard_to_watch': {'ru': 'Тяжело смотреть', 'en': 'Hard to watch'},
+  'tag_dumb_plot': {'ru': 'Глупый сюжет', 'en': 'Silly plot'},
+  'tag_confusing': {'ru': 'Непонятно', 'en': 'Confusing'},
+  'tag_not_funny': {'ru': 'Не смешно', 'en': 'Not funny'},
+  'tag_bad_dub': {'ru': 'Плохая озвучка', 'en': 'Bad dubbing'},
+
+  // ---------------- Брошенный фильм (KADR-1) ----------------
+  'drop_title': {'ru': 'Где бросили?', 'en': 'Where did you stop?'},
+  'drop_when_q': {'ru': 'Когда бросили?', 'en': 'When did you drop it?'},
+  'drop_stopped_at': {'ru': 'Остановились на', 'en': 'Stopped at'},
+  'drop_of_min': {'ru': '/ {m} мин', 'en': '/ {m} min'},
+  'drop_min': {'ru': 'мин', 'en': 'min'},
+  'drop_share': {'ru': '{p}% фильма', 'en': '{p}% of the film'},
+  'drop_minute_skip': {
+    'ru': 'Минуту можно не ставить',
+    'en': 'The minute is optional',
+  },
+  'drop_why': {'ru': 'Что не так', 'en': 'What went wrong'},
+  'drop_added': {
+    'ru': 'Брошено. Попытка в «Просмотрено»',
+    'en': 'Dropped. The attempt is in Watched',
+  },
+  'drop_added_undated': {
+    'ru': 'Брошено. Без даты попытка в ленту не попадает',
+    'en': 'Dropped. Without a date the attempt stays out of the feed',
+  },
+  'dropped_plain': {'ru': 'Брошен', 'en': 'Dropped'},
+  'drop_on': {'ru': 'Брошен {date}', 'en': 'Dropped {date}'},
+  'drop_at_of': {'ru': 'на {n}-й минуте из {m}', 'en': 'at minute {n} of {m}'},
+  'drop_at': {'ru': 'на {n}-й минуте', 'en': 'at minute {n}'},
+  'drop_feed_at': {'ru': 'Брошен на {n}-й мин', 'en': 'Dropped at {n} min'},
+  'drop_list_at': {'ru': 'брошен на {n}-й мин', 'en': 'dropped at {n} min'},
+  'drop_at_short': {'ru': 'на {n}-й мин', 'en': 'at {n} min'},
+  'drop_no_details': {
+    'ru': 'Минута и причины не указаны',
+    'en': 'No minute or reasons',
+  },
+  'drop_finished': {'ru': 'Досмотрел', 'en': 'Finished it'},
+  'drop_cleared': {
+    'ru': 'Пометка «брошен» снята',
+    'en': 'No longer marked as dropped',
+  },
+  'drop_score_label': {
+    'ru': 'Оценка брошенного просмотра',
+    'en': 'Rating of the dropped viewing',
+  },
 
   // ---------------- Просмотры и рецензии по пересмотрам ----------------
   'views_n_one': {'ru': '{n} просмотр', 'en': '{n} viewing'},

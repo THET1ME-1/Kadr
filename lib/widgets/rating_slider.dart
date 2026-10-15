@@ -20,6 +20,19 @@ class RatingSlider extends StatefulWidget {
   /// пустая. Иначе он стоял бы красной единицей, будто её уже поставили.
   final bool rated;
 
+  /// Шкала и шаг. По умолчанию оценка 1.0–10.0 через 0.1; та же линейка
+  /// отмеряет минуту, на которой бросили фильм.
+  final double min;
+  final double max;
+  final double step;
+
+  /// Цвет дорожки и бегунка и цвет числа на нём; по умолчанию цвет оценки.
+  final Color? color;
+  final Color? onColor;
+
+  /// Число на бегунке; по умолчанию оценка с одним знаком.
+  final String Function(double value)? label;
+
   const RatingSlider({
     super.key,
     required this.value,
@@ -27,6 +40,12 @@ class RatingSlider extends StatefulWidget {
     this.onChangeStart,
     this.onChangeEnd,
     this.rated = true,
+    this.min = 1,
+    this.max = 10,
+    this.step = 0.1,
+    this.color,
+    this.onColor,
+    this.label,
   });
 
   @override
@@ -46,20 +65,23 @@ class _RatingSliderState extends State<RatingSlider> {
   double _valueFromDx(double dx, double width) {
     final usable = (width - _knob).clamp(1.0, double.infinity);
     final frac = ((dx - _knob / 2) / usable).clamp(0.0, 1.0);
-    final v = 1 + frac * 9;
-    return (v * 10).round() / 10; // шаг 0.1
+    final v = widget.min + frac * (widget.max - widget.min);
+    final steps = (1 / widget.step).round();
+    return (v * steps).round() / steps; // шаг 0.1 у оценки, 1 у минуты
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final c = scoreColor(widget.value);
+    final c = widget.color ?? scoreColor(widget.value);
     // Пока оценки нет и бегунок не трогают, он стоит слева пустым.
     final empty = !widget.rated && !_active;
     return LayoutBuilder(builder: (context, box) {
       final width = box.maxWidth;
       final usable = (width - _knob).clamp(1.0, double.infinity);
-      final frac = empty ? 0.0 : ((widget.value - 1) / 9).clamp(0.0, 1.0);
+      final span = (widget.max - widget.min).clamp(1e-9, double.infinity);
+      final frac =
+          empty ? 0.0 : ((widget.value - widget.min) / span).clamp(0.0, 1.0);
       final knobX = _knob / 2 + frac * usable;
 
       void update(double dx) {
@@ -153,14 +175,17 @@ class _RatingSliderState extends State<RatingSlider> {
                             ],
                     ),
                     child: Text(
-                      empty ? '?' : widget.value.toStringAsFixed(1),
+                      empty
+                          ? '?'
+                          : (widget.label?.call(widget.value) ??
+                              widget.value.toStringAsFixed(1)),
                       style: TextStyle(
                         fontFamily: AppTheme.displayFont,
                         fontWeight: FontWeight.w800,
                         fontSize: 15,
                         color: empty
                             ? scheme.onSurfaceVariant
-                            : onScoreColor(widget.value),
+                            : (widget.onColor ?? onScoreColor(widget.value)),
                       ),
                     ),
                   ),

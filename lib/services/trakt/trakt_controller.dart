@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
-import '../../models/library_entry.dart';
 import '../movie_repository.dart';
 import '../store.dart';
 import '../tmdb_service.dart';
@@ -186,9 +185,8 @@ class TraktController extends ChangeNotifier {
     // Просмотренные: добавляем те, что в Kadr ещё не помечены просмотренными.
     for (final tm in await TraktService.watchedMovies(token)) {
       final existing = repo.movieByTmdb(tm.tmdb);
-      if (existing != null && existing.status == LibraryStatus.watched) {
-        continue;
-      }
+      // Брошенный в Kadr, но досмотренный по Trakt получает полный просмотр.
+      if (existing != null && existing.isWatched) continue;
       final m = repo.ensureFromTmdb(
           TmdbMovie(id: tm.tmdb, title: tm.title, year: tm.year));
       await repo.addViewing(m.uuid, tm.at);

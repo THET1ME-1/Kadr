@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
-import '../models/library_entry.dart';
 import '../services/app_prefs.dart';
 import '../services/facts_service.dart';
 import '../services/movie_repository.dart';
@@ -210,9 +209,7 @@ class _PersonScreenState extends State<PersonScreen> {
             // Просмотренным считаем фильм с отметкой и сериал, у которого есть
             // хотя бы одна отмеченная серия.
             final seen = movies
-                    .where((m) =>
-                        repo.findMovieForTmdb(m)?.status ==
-                        LibraryStatus.watched)
+                    .where((m) => repo.findMovieForTmdb(m)?.isWatched ?? false)
                     .length +
                 series
                     .where((s) =>

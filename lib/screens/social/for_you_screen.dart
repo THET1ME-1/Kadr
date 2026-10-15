@@ -50,9 +50,10 @@ class _ForYouScreenState extends State<ForYouScreen> {
       return;
     }
 
-    // Что я уже смотрел — не советовать.
+    // Что я уже смотрел или бросил — не советовать.
     final watchedKeys = {
-      for (final m in repo.watched) _key(m.ruTitle ?? m.title, m.year)
+      for (final m in [...repo.watched, ...repo.droppedMovies])
+        _key(m.ruTitle ?? m.title, m.year)
     };
 
     // Параллельно тянем рекомендации по каждому семени, копим частоту.

@@ -46,6 +46,7 @@ class _ViewingsSectionState extends State<ViewingsSection> {
     final byScore = <double?, List<Viewing>>{};
     for (final v in list) {
       if (v.date != null ||
+          v.drop != null ||
           (v.diary?.isNotEmpty ?? false) ||
           host.hasReview(v)) {
         continue;
@@ -99,7 +100,7 @@ class _ViewingsSectionState extends State<ViewingsSection> {
             radius: r,
             host: host,
             viewing: v,
-            ordinal: i + 1,
+            ordinal: host.ordinalOf(v),
             latest: i == list.length - 1,
             onTap: () => _open(v),
           ));
@@ -265,7 +266,14 @@ class _ViewRow extends StatelessWidget {
     final diary = diarySummary(v.diary);
     final reviewed = host.hasReview(v);
     final dim = scheme.onSurfaceVariant;
+    final drop = v.drop;
     final sub = <Widget>[
+      if (drop != null)
+        Text(
+            drop.atMin != null
+                ? trf('drop_feed_at', {'n': drop.atMin!})
+                : tr('dropped_plain'),
+            style: _subStyle(kDroppedColor, weight: FontWeight.w600)),
       if (delta != 0)
         Text(signedDelta(delta),
             style: _subStyle(deltaColor(delta, scheme),
@@ -294,7 +302,18 @@ class _ViewRow extends StatelessWidget {
           child: Row(
             spacing: 12,
             children: [
-              ViewOrdinal(ordinal, latest: latest),
+              // Брошенная попытка вместо номера несёт надломленное сердце.
+              drop != null
+                  ? Container(
+                      width: 40,
+                      height: 40,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                          color: kDroppedColor, shape: BoxShape.circle),
+                      child: const Icon(Icons.heart_broken_rounded,
+                          size: 20, color: Colors.white),
+                    )
+                  : ViewOrdinal(ordinal, latest: latest),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -573,8 +573,10 @@ class MovieRepository extends ChangeNotifier {
         (more[i] as Map)['id'] = 'r${i + 1}';
         relink(more[i] as Map, ids);
       }
+      // Брошенную попытку друг видит с минутой, причины личные, как дневник.
       for (final v in (m['viewings'] as List? ?? [])) {
         (v as Map).remove('diary');
+        (v['drop'] as Map?)?.remove('why');
       }
       if (hideRatings) {
         m['score'] = null;
@@ -897,15 +899,18 @@ class MovieRepository extends ChangeNotifier {
 
   // ------------------------------ выборки ------------------------------
 
-  /// Просмотренные — по убыванию последнего просмотра.
-  List<LibraryMovie> get watched {
-    final list = _movies
-        .where((m) => m.status == LibraryStatus.watched)
-        .toList()
-      ..sort((a, b) => (b.lastViewing ?? DateTime(0))
-          .compareTo(a.lastViewing ?? DateTime(0)));
-    return list;
-  }
+  /// Просмотренные — по убыванию последнего просмотра. Брошенный фильм сюда
+  /// не идёт, пока его не досмотрят.
+  List<LibraryMovie> get watched => _byLastViewing(_movies.where((m) => m.isWatched));
+
+  /// Все фильмы с просмотрами, брошенные тоже: очередь фоновой дозагрузки.
+  List<LibraryMovie> get _marked =>
+      _byLastViewing(_movies.where((m) => m.status == LibraryStatus.watched));
+
+  static List<LibraryMovie> _byLastViewing(Iterable<LibraryMovie> movies) =>
+      movies.toList()
+        ..sort((a, b) => (b.lastViewing ?? DateTime(0))
+            .compareTo(a.lastViewing ?? DateTime(0)));
 
   bool _watchlistNewestFirst = true;
   bool get watchlistNewestFirst => _watchlistNewestFirst;
@@ -2074,9 +2079,27 @@ class MovieRepository extends ChangeNotifier {
 
   // ------------------------------ брошено ------------------------------
 
-  /// Брошенные фильмы (просмотр прекращён) — для официального списка «Брошено».
+  /// Брошенные фильмы для списка «Брошено»: ни разу не досмотренные, свежие
+  /// попытки сверху.
   List<LibraryMovie> get droppedMovies =>
-      _movies.where((m) => m.status == LibraryStatus.dropped).toList();
+      _byLastViewing(_movies.where((m) => m.isDropped));
+
+  /// Свои причины из прошлых попыток для подсказок, свежие первыми. Причина
+  /// записана текстом, как «Слабое» в рецензии.
+  List<String> get usedDropReasons {
+    final drops = <(DateTime, List<String>)>[
+      for (final m in _movies)
+        for (final v in m.viewings)
+          if (v.drop != null && v.drop!.reasons.isNotEmpty)
+            (v.editedAt ?? v.date ?? DateTime(0), v.drop!.reasons),
+    ]..sort((a, b) => b.$1.compareTo(a.$1));
+    final seen = <String>{};
+    return [
+      for (final d in drops)
+        for (final r in d.$2)
+          if (seen.add(r)) r,
+    ];
+  }
 
   /// Брошенные сериалы.
   List<LibrarySeries> get droppedSeries =>
@@ -2104,9 +2127,11 @@ class MovieRepository extends ChangeNotifier {
   }
 
   /// Отмечает просмотр (со своей оценкой). Если фильм уже смотрели — это
-  /// повторный просмотр. [date] = null → «неизвестная дата».
-  /// Возвращает true, если это был повтор.
-  Future<bool> addViewing(String uuid, DateTime? date, {double? score}) async {
+  /// повторный просмотр. [date] = null → «неизвестная дата». С [drop] это
+  /// брошенная попытка: она тоже встаёт в ленту, а фильм уходит из «Буду
+  /// смотреть». Возвращает true, если это был повтор.
+  Future<bool> addViewing(String uuid, DateTime? date,
+      {double? score, DropMark? drop}) async {
     final m = byUuid(uuid);
     if (m == null) return false;
     final wasWatched =
@@ -2114,11 +2139,24 @@ class MovieRepository extends ChangeNotifier {
     m.status = LibraryStatus.watched;
     // Оценка, поставленная до первого просмотра, становится его оценкой.
     final first = m.viewings.isEmpty;
-    m.viewings.add(Viewing(date: date, score: score ?? (first ? m.score : null)));
+    m.viewings.add(Viewing(
+        date: date, score: score ?? (first ? m.score : null), drop: drop));
     if (first) m.score = null;
     notifyListeners();
     await _persist();
     return wasWatched;
+  }
+
+  /// Ставит или снимает пометку «брошен» у просмотра фильма: [drop] = null —
+  /// досмотрел.
+  Future<void> setViewingDrop(String uuid, Viewing v, DropMark? drop) async {
+    final live = _liveViewing(uuid, v);
+    if (live == null) return;
+    live
+      ..drop = drop?.copy()
+      ..editedAt = DateTime.now();
+    notifyListeners();
+    await _persist();
   }
 
   /// Приём совместного просмотра ФИЛЬМА от друга: находит/создаёт фильм и
@@ -2634,7 +2672,7 @@ class MovieRepository extends ChangeNotifier {
     _genreSweeping = true;
     try {
       final todo = <LibraryMovie>[
-        ...watched,
+        ..._marked,
         ...watchlist,
       ].where((m) => m.tmdbId != null && !m.detailsTried && m.genres.isEmpty).toList();
       var used = 0;
@@ -2687,7 +2725,7 @@ class MovieRepository extends ChangeNotifier {
 
       // Приоритет показа: просмотрено → буду смотреть → остальные фильмы; дедуп.
       final seen = <String>{};
-      final movies = <LibraryMovie>[...watched, ...watchlist, ..._movies]
+      final movies = <LibraryMovie>[..._marked, ...watchlist, ..._movies]
           .where((m) => seen.add(m.uuid) && needs(m.ruTitle, m.titleLang))
           .toList();
       final series =
@@ -2769,7 +2807,7 @@ class MovieRepository extends ChangeNotifier {
     _sweeping = true;
     try {
       final queue = <LibraryMovie>[
-        ...watched,
+        ..._marked,
         ...watchlist,
         ..._movies.where((m) => m.status == LibraryStatus.library),
       ].where((m) => m.posterUrl == null && !m.enrichTried).toList();

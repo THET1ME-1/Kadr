@@ -147,6 +147,18 @@ String longDate(DateTime d) {
   };
 }
 
+/// Как [longDate], но без года: «30 июня» / «June 30» / «30. Juni».
+String dayMonthLong(DateTime d) {
+  final m = monthName(d.month);
+  return switch (_lang) {
+    'en' => '$m ${d.day}',
+    'de' => '${d.day}. $m',
+    'es' || 'pt' => '${d.day} de ${m.toLowerCase()}',
+    'fr' || 'it' => '${d.day} ${m.toLowerCase()}',
+    _ => '${d.day} ${_monthsRuGen[d.month - 1]}',
+  };
+}
+
 /// Короткий месяц с годом: «апр 2026».
 String monthYearShort(DateTime d) => '${monthShort(d.month)} ${d.year}';
 

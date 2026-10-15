@@ -8,10 +8,13 @@ import '../../models/library_entry.dart';
 import '../../services/app_prefs.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
+import '../../utils/score.dart';
+import '../../widgets/undo_snack.dart';
 import '../../widgets/viewing/diary_form.dart';
 import '../../widgets/viewing/score_card.dart';
 import '../review/review_editor_screen.dart';
 import '../review/review_screen.dart';
+import 'drop_sheet.dart';
 import 'viewing_delete.dart';
 import 'viewing_host.dart';
 
@@ -164,6 +167,41 @@ class _ViewingSheetState extends State<_ViewingSheet> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  /// Минута и причины брошенной попытки: то же окно, что у кнопки «Бросить».
+  Future<void> _editDrop(Viewing v) async {
+    final drop = v.drop;
+    if (drop == null) return;
+    final choice = await showDropSheet(
+      context,
+      subject: host.title,
+      runtimeMin: host.filmRuntime,
+      initial: drop,
+      repo: host.repo,
+    );
+    if (choice == null || !mounted) return;
+    await host.setDrop(v, choice.drop);
+  }
+
+  /// «Досмотрел»: попытку продолжили и досмотрели, пометка снимается.
+  Future<void> _finishDrop(Viewing v) async {
+    final was = v.drop?.copy();
+    if (was == null) return;
+    HapticFeedback.selectionClick();
+    await host.setDrop(v, null);
+    final bar = widget.messenger;
+    if (bar == null) return;
+    bar
+      ..clearSnackBars()
+      ..showSnackBar(undoSnackBar(
+        text: tr('drop_cleared'),
+        label: tr('undo'),
+        onUndo: () {
+          final live = host.byId(v.id);
+          if (live != null) host.setDrop(live, was);
+        },
+      ));
+  }
+
   void _openReview(Viewing v) {
     final target = host.reviewTarget(v);
     if (target == null) return;
@@ -251,6 +289,22 @@ class _ViewingSheetState extends State<_ViewingSheet> {
                       {'v': prevText}),
               onClear: () => host.setScore(v, null),
             ),
+            if (!host.isEpisode && v.drop != null)
+              _Field(
+                icon: Icons.heart_broken_rounded,
+                accent: kDroppedColor,
+                background: Color.alphaBlend(
+                    kDroppedColor.withValues(alpha: 0.14),
+                    scheme.surfaceContainerHigh),
+                label: tr('dropped_plain'),
+                value: dropSummary(v.drop!),
+                lines: 2,
+                onTap: () => _editDrop(v),
+                trailing: TextButton(
+                  onPressed: () => _finishDrop(v),
+                  child: Text(tr('drop_finished')),
+                ),
+              ),
             _Field(
               icon: Icons.event_rounded,
               label: tr('view_when'),
@@ -313,7 +367,8 @@ class _ViewingSheetState extends State<_ViewingSheet> {
           for (var i = 0; i < list.length; i++)
             _SwitchPill(
               key: list[i].id == current.id ? _selectedKey : null,
-              label: '${ordinalShort(i + 1)} · '
+              // Брошенная попытка номера не получает.
+              label: '${list[i].drop != null ? tr('dropped_plain') : ordinalShort(host.ordinalOf(list[i]))} · '
                   '${list[i].date == null ? tr('view_undated_short') : dayMonthNumeric(list[i].date!, year: years.length > 1)}',
               selected: list[i].id == current.id,
               onTap: () => _select(list[i]),
@@ -469,6 +524,13 @@ class _Field extends StatelessWidget {
   final bool dim;
   final Widget? trailing;
   final VoidCallback? onTap;
+
+  /// Цвет значка и заливка поля; по умолчанию primary и surfaceContainerHigh.
+  final Color? accent;
+  final Color? background;
+
+  /// Строк у значения, если не по умолчанию.
+  final int? lines;
   const _Field({
     required this.icon,
     required this.label,
@@ -476,13 +538,16 @@ class _Field extends StatelessWidget {
     this.dim = false,
     this.trailing,
     this.onTap,
+    this.accent,
+    this.background,
+    this.lines,
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: scheme.surfaceContainerHigh,
+      color: background ?? scheme.surfaceContainerHigh,
       borderRadius: BorderRadius.circular(18),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -494,7 +559,7 @@ class _Field extends StatelessWidget {
             child: Row(
               spacing: 12,
               children: [
-                Icon(icon, size: 22, color: scheme.primary),
+                Icon(icon, size: 22, color: accent ?? scheme.primary),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,7 +571,7 @@ class _Field extends StatelessWidget {
                               fontSize: 12,
                               color: scheme.onSurfaceVariant)),
                       Text(value,
-                          maxLines: dim ? 2 : 1,
+                          maxLines: lines ?? (dim ? 2 : 1),
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                               fontFamily: AppTheme.bodyFont,

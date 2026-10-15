@@ -26,6 +26,7 @@ import '../widgets/pressable.dart';
 import '../widgets/facts_section.dart';
 import '../widgets/reveal.dart';
 import '../widgets/user_avatar.dart';
+import '../widgets/viewing/drop_parts.dart';
 import '../widgets/viewing/score_card.dart';
 import 'browse_screens.dart';
 import 'social/auth_screen.dart';
@@ -33,8 +34,10 @@ import 'social/media_image_picker.dart';
 import 'share_card_sheet.dart';
 import 'when_watched_sheet.dart';
 import 'review/movie_reviews_section.dart';
+import 'viewing/drop_sheet.dart';
 import 'viewing/viewing_delete.dart';
 import 'viewing/viewing_host.dart';
+import 'viewing/viewing_sheet.dart';
 import 'viewing/viewings_section.dart';
 
 /// Открывает полноэкранную карточку фильма (как экран сериала — отдельная
@@ -327,13 +330,26 @@ class _MovieScreenState extends State<MovieScreen> {
             _chip(
               scheme,
               Icons.repeat_rounded,
-              trn('views_n', m.viewings.length),
+              trn('views_n', m.viewCount),
               tone: true,
             ),
           if (m.kpRating != null && m.kpRating! > 0)
             _chip(scheme, Icons.star_rounded, m.kpRating!.toStringAsFixed(1)),
         ],
       ),
+      // Брошенный фильм: наверху когда, на какой минуте и почему.
+      if (m.isDropped && m.lastDropped != null) ...[
+        const SizedBox(height: 16),
+        DroppedBlock(
+          viewing: m.lastDropped!,
+          runtimeMin: m.runtimeMin,
+          onTap: () => showViewingSheet(
+            context,
+            MovieViewingHost(m.uuid, repo: _repo),
+            viewId: m.lastDropped!.id,
+          ),
+        ),
+      ],
       const SizedBox(height: 16),
       _scoreCard(scheme, m),
       // Широкая мягко-красная кнопка сброса оценки — только если оценка есть.
@@ -350,13 +366,8 @@ class _MovieScreenState extends State<MovieScreen> {
         child: FilledButton.icon(
           onPressed: () => showWhenWatchedSheet(context, m),
           icon: const Icon(Icons.add_task_rounded),
-          label: Text(
-            tr(
-              m.status == LibraryStatus.watched
-                  ? 'watch_again'
-                  : 'mark_watched',
-            ),
-          ),
+          // Брошенный фильм ещё не досмотрен: «Отметить просмотр».
+          label: Text(tr(m.isWatched ? 'watch_again' : 'mark_watched')),
         ),
       ),
       const SizedBox(height: 12),
@@ -409,8 +420,9 @@ class _MovieScreenState extends State<MovieScreen> {
           ),
         ),
       ],
-      // «Брошено» — для незавершённых (не для уже просмотренных фильмов).
-      if (m.status != LibraryStatus.watched) ...[
+      // «Бросить» открывает окно «Где бросили?»; у просмотренного фильма так
+      // бросают пересмотр. Брошенному кнопка не нужна: наверху блок «Брошен».
+      if (m.status == LibraryStatus.dropped || !m.isDropped) ...[
         const SizedBox(height: 12),
         _droppedButton(scheme, m),
       ],
@@ -1258,6 +1270,11 @@ class _MovieScreenState extends State<MovieScreen> {
   }
 
   Widget _statusChip(ColorScheme scheme, LibraryMovie m) {
+    // Брошенный фильм лежит в «Просмотрено» попыткой, но статус у него свой.
+    if (m.isDropped) {
+      return _chip(scheme, Icons.heart_broken_rounded, tr('dropped'),
+          dropped: true);
+    }
     final (icon, label) = switch (m.status) {
       LibraryStatus.watched => (Icons.check_circle_rounded, tr('act_watched')),
       LibraryStatus.watchlist => (Icons.bookmark_rounded, tr('in_watchlist')),
@@ -1273,13 +1290,20 @@ class _MovieScreenState extends State<MovieScreen> {
     String label, {
     bool primary = false,
     bool tone = false,
+    bool dropped = false,
   }) {
-    final bg = primary
-        ? scheme.primaryContainer
-        : (tone ? scheme.tertiaryContainer : scheme.surfaceContainerHighest);
-    final fg = primary
-        ? scheme.onPrimaryContainer
-        : (tone ? scheme.onTertiaryContainer : scheme.onSurfaceVariant);
+    final bg = dropped
+        ? dropTint(scheme, base: scheme.surface, alpha: 0.18)
+        : primary
+            ? scheme.primaryContainer
+            : (tone
+                ? scheme.tertiaryContainer
+                : scheme.surfaceContainerHighest);
+    final fg = dropped
+        ? kDroppedColor
+        : primary
+            ? scheme.onPrimaryContainer
+            : (tone ? scheme.onTertiaryContainer : scheme.onSurfaceVariant);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -1358,13 +1382,16 @@ class _MovieScreenState extends State<MovieScreen> {
       if (cv?.date != null) numericDate(cv!.date!),
       if (prevText != null) trf('view_last_time', {'v': prevText}),
     ].join(' · ');
+    final full = cv == null ? 0 : m.fullOrdinalOf(cv);
     return ScoreCard(
       key: ValueKey('score-${cv?.id}'),
-      label: m.isRewatched
-          ? trf('score_of_view', {
-              'view': trf('viewing_n', {'n': m.viewings.length}),
-            })
-          : tr('current_viewing_score'),
+      label: cv?.drop != null
+          ? tr('drop_score_label')
+          : m.isRewatched && full > 0
+              ? trf('score_of_view', {
+                  'view': trf('viewing_n', {'n': full}),
+                })
+              : tr('current_viewing_score'),
       value: score,
       onChanged: (v) => _repo.setCurrentScore(m.uuid, v),
       footer: footer.isNotEmpty
@@ -1422,13 +1449,15 @@ class _MovieScreenState extends State<MovieScreen> {
     );
   }
 
-  /// Широкая кнопка «Брошено» (мягкий красный). Активна, когда фильм брошен.
+  /// Широкая кнопка «Бросить» (мягкий красный): окно «Где бросили?» и
+  /// попытка в ленте. Залитая «Брошено» осталась только у фильмов, брошенных
+  /// старыми версиями статусом без даты: тап снимает такую отметку.
   Widget _droppedButton(ColorScheme scheme, LibraryMovie m) {
     const soft = kDroppedColor;
-    final active = m.status == LibraryStatus.dropped;
+    final legacy = m.status == LibraryStatus.dropped;
     return SizedBox(
       width: double.infinity,
-      child: active
+      child: legacy
           ? FilledButton.icon(
               onPressed: () => _repo.toggleDropped(m.uuid),
               icon: const Icon(Icons.heart_broken_rounded),
@@ -1439,7 +1468,7 @@ class _MovieScreenState extends State<MovieScreen> {
               ),
             )
           : FilledButton.tonalIcon(
-              onPressed: () => _repo.toggleDropped(m.uuid),
+              onPressed: () => _drop(m),
               icon: const Icon(Icons.heart_broken_outlined),
               label: Text(tr('mark_dropped')),
               style: FilledButton.styleFrom(
@@ -1448,6 +1477,21 @@ class _MovieScreenState extends State<MovieScreen> {
               ),
             ),
     );
+  }
+
+  /// Записывает брошенную попытку из окна «Где бросили?».
+  Future<void> _drop(LibraryMovie m) async {
+    final choice = await showDropSheet(
+      context,
+      subject: m.displayTitle,
+      runtimeMin: m.runtimeMin,
+      repo: _repo,
+    );
+    if (choice == null || !mounted) return;
+    await _repo.addViewing(m.uuid, choice.date, drop: choice.drop);
+    if (mounted) {
+      _snack(tr(choice.date == null ? 'drop_added_undated' : 'drop_added'));
+    }
   }
 
 }

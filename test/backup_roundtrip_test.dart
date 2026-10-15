@@ -59,7 +59,12 @@ void main() {
         addedAt: at,
         viewings: [
           Viewing(
-              id: 'v1', date: at, score: 8.8, diary: diary('первый'), editedAt: later),
+              id: 'v1',
+              date: at,
+              score: 8.8,
+              diary: diary('первый'),
+              editedAt: later,
+              drop: DropMark(atMin: 52, reasons: ['Затянуто', 'Своё'])),
           Viewing(id: 'v2', date: later, score: 8.0, diary: diary('второй')),
         ],
         emotions: [
@@ -182,7 +187,8 @@ void main() {
         'moreReviews', 'kinopoiskId', 'tmdbId', 'tvdbId', 'imdbId',
         'posterUrl', 'posterFile', 'genres', 'countries', 'detailsTried', //
       ],
-      'просмотр': ['id', 'date', 'score', 'diary', 'edited'],
+      'просмотр': ['id', 'date', 'score', 'diary', 'edited', 'drop'],
+      'брошен': ['min', 'why'],
       'дневник': [
         'moods', 'withWhom', 'friendIds', 'place', 'photoFile', 'note', //
       ],
@@ -229,6 +235,8 @@ void main() {
       'фильм': movie,
       'просмотр': (movie['viewings'] as List).first as Map<String, dynamic>,
       'дневник': ((movie['viewings'] as List).first as Map)['diary']
+          as Map<String, dynamic>,
+      'брошен': ((movie['viewings'] as List).first as Map)['drop']
           as Map<String, dynamic>,
       'разбор': movie['reviewMeta'] as Map<String, dynamic>,
       'доп. рецензия':

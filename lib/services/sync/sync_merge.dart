@@ -170,7 +170,8 @@ Viewing _mergeViewing(Viewing a, Viewing b) {
     return a
       ..date ??= b.date
       ..score ??= b.score
-      ..diary ??= b.diary;
+      ..diary ??= b.diary
+      ..drop ??= b.drop;
   }
   final remoteWins = at == null || (bt != null && bt.isAfter(at));
   if (!remoteWins) return a;

@@ -21,7 +21,7 @@ class _WatchedBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final score = movie.currentScore;
-    final views = movie.viewings.length;
+    final views = movie.viewCount;
     final circle = Container(
       width: 42,
       height: 42,
@@ -84,9 +84,9 @@ Widget statusBadges(ColorScheme scheme, LibraryMovie? lib) {
       child: Icon(Icons.favorite_rounded, size: 14, color: scheme.onPrimary),
     ));
   }
-  if (lib.status == LibraryStatus.dropped) {
+  if (lib.isDropped) {
     badges.add(droppedBadge());
-  } else if (lib.status == LibraryStatus.watched) {
+  } else if (lib.isWatched) {
     final sc = lib.currentScore;
     badges.add(Container(
       padding: EdgeInsets.symmetric(horizontal: sc != null ? 8 : 5, vertical: 4),
@@ -467,7 +467,8 @@ class TmdbMovieRow extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final repo = MovieRepository.instance;
     final lib = repo.findMovieForTmdb(movie);
-    final watched = lib?.status == LibraryStatus.watched;
+    final watched = lib?.isWatched ?? false;
+    final dropped = lib?.isDropped ?? false;
     final inWatchlist = lib?.status == LibraryStatus.watchlist;
 
     return Padding(
@@ -535,6 +536,17 @@ class TmdbMovieRow extends StatelessWidget {
                 // в «Буду смотреть».
                 if (watched)
                   _WatchedBadge(movie: lib!)
+                // Брошенный: надломленное сердце, чтобы не начать его снова.
+                else if (dropped)
+                  Container(
+                    width: 42,
+                    height: 42,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                        color: kDroppedColor, shape: BoxShape.circle),
+                    child: const Icon(Icons.heart_broken_rounded,
+                        size: 20, color: Colors.white),
+                  )
                 else
                   IconButton(
                     onPressed: () {
