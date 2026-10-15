@@ -46,6 +46,8 @@
 - Bottom-sheet dialogs everywhere, big pill-shaped buttons
 - Mood ratings (Awful → Amazing), viewings grouped by month
 - Dropped movies stay in the feed with the minute you stopped at and why
+- Movies watched over several evenings: "Finish later" keeps the minute, the feed shows every sitting
+- YouTube series: paste a link to any issue and Kadr tracks the channel's playlist like a TV show, new issues arrive on their own; a single video lives as a movie
 - Social: friends, profiles with custom banners, "watched together", recommendations, shared lists
 - **Trakt sync** — two-way sync of watched, watchlist & ratings (Kadr stays the source of truth)
 - **Android TV** — installs on TV, remote (D-pad) navigation
@@ -110,6 +112,8 @@ Roadmap & status — see [PLAN.md](PLAN.md).
 - Все попапы — нижними панелями, крупные «таблеточные» кнопки
 - Оценки-настроения (Ужасно → Восхитительно), группировка просмотров по месяцам
 - Брошенные фильмы остаются в ленте с минутой, где бросил, и причинами
+- Фильм в несколько вечеров: «Досмотрю потом» запоминает минуту, в ленте видно каждый заход
+- Циклы с YouTube: ссылка на любой выпуск, и Kadr ведёт плейлист канала как сериал, новые выпуски приходят сами; одиночный ролик живёт фильмом
 - Соц: друзья, профили с баннерами, «посмотрел с другом», рекомендации, совместные списки
 - **Синхронизация с Trakt** — двусторонний синк просмотренного, вишлиста и оценок (Kadr — источник правды)
 - **Android TV** — ставится на ТВ, навигация пультом (D-pad)
