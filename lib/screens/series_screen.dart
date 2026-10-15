@@ -20,6 +20,7 @@ import '../utils/season_pass.dart';
 import '../utils/season_pick.dart';
 import '../utils/season_progress.dart';
 import '../utils/series_finale.dart';
+import '../widgets/action_group.dart';
 import '../widgets/series_progress.dart';
 import '../widgets/facts_section.dart';
 import '../widgets/pop_icon.dart';
@@ -441,14 +442,12 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 SliverToBoxAdapter(child: _errorCard(context))
               else ...[
                 SliverToBoxAdapter(child: _actions(scheme)),
-                // «Буду смотреть» — у ещё не начатых сериалов и у тех, что уже
-                // помечены: иначе отметку некуда снять, когда серии пошли.
-                if (s.episodes.isEmpty || s.watchlist)
-                  SliverToBoxAdapter(child: _watchlistButton(scheme)),
-                SliverToBoxAdapter(child: _droppedButton(scheme)),
-                SliverToBoxAdapter(
-                    child: SeriesReviewsSection(
-                        series: s, repo: _repo, seasons: _seasons)),
+                // Без рецензий блока нет: «Рецензия» живёт в группе под
+                // оценкой, как у карточки фильма.
+                if (s.hasReview || s.seasonReviews.any((p) => p.hasReview))
+                  SliverToBoxAdapter(
+                      child: SeriesReviewsSection(
+                          series: s, repo: _repo, seasons: _seasons)),
                 if (_seasons.length > 1)
                   SliverToBoxAdapter(child: _seasonBar(scheme)),
                 SliverToBoxAdapter(child: _seasonToolbar(scheme)),
@@ -830,80 +829,56 @@ class _SeriesScreenState extends State<SeriesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Material(
-                  color: sc != null
-                      ? scoreColor(sc)
-                      : scheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(18),
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: fromReviews
-                        ? () => _snack(tr('rvs_score_locked'))
-                        : fromEp
-                            ? () => _snack(tr('series_avg_locked'))
-                            : _rateSeries,
-                    child: Padding(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                              fromReviews
-                                  ? Icons.rate_review_rounded
-                                  : sc != null
-                                      ? Icons.star_rounded
-                                      : Icons.star_border_rounded,
-                              size: 20,
+          Material(
+            color: sc != null ? scoreColor(sc) : scheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(18),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: fromReviews
+                  ? () => _snack(tr('rvs_score_locked'))
+                  : fromEp
+                      ? () => _snack(tr('series_avg_locked'))
+                      : _rateSeries,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                        fromReviews
+                            ? Icons.rate_review_rounded
+                            : sc != null
+                                ? Icons.star_rounded
+                                : Icons.star_border_rounded,
+                        size: 20,
+                        color: sc != null
+                            ? onScoreColor(sc)
+                            : scheme.onSurfaceVariant),
+                    const SizedBox(width: 8),
+                    // Длинная подпись свода ужимается, а не вылезает за край.
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          sc != null
+                              ? '${sc.toStringAsFixed(1)} · $label'
+                              : tr('rate_series'),
+                          maxLines: 1,
+                          style: TextStyle(
+                              fontFamily: AppTheme.displayFont,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14.5,
                               color: sc != null
                                   ? onScoreColor(sc)
                                   : scheme.onSurfaceVariant),
-                          const SizedBox(width: 8),
-                          Text(
-                            sc != null
-                                ? '${sc.toStringAsFixed(1)} · $label'
-                                : tr('rate_series'),
-                            style: TextStyle(
-                                fontFamily: AppTheme.displayFont,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14.5,
-                                color: sc != null
-                                    ? onScoreColor(sc)
-                                    : scheme.onSurfaceVariant),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Material(
-                color: s.favorite ? scheme.primary : scheme.surfaceContainerHighest,
-                shape: const CircleBorder(),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    _repo.toggleSeriesFavorite(s.tvShowId);
-                  },
-                  child: SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: PopIcon(
-                      active: s.favorite,
-                      activeIcon: Icons.favorite_rounded,
-                      inactiveIcon: Icons.favorite_border_rounded,
-                      activeColor: scheme.onPrimary,
-                      inactiveColor: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
           if (fromReviews)
             Padding(
@@ -932,61 +907,80 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 ],
               ),
             ),
+          const SizedBox(height: 8),
+          _actionGroup(scheme),
         ],
       ),
     );
   }
 
-  /// Широкая кнопка «Буду смотреть» для сериала (активна — когда в списке).
-  Widget _watchlistButton(ColorScheme scheme) {
-    final active = s.watchlist;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
-      child: SizedBox(
-        width: double.infinity,
-        child: active
-            ? FilledButton.icon(
-                onPressed: () => _repo.toggleSeriesWatchlist(s.tvShowId),
-                icon: const Icon(Icons.bookmark_rounded),
-                label: Text(tr('in_watchlist')),
-              )
-            : FilledButton.tonalIcon(
-                onPressed: () {
-                  _repo.toggleSeriesWatchlist(s.tvShowId);
-                  _snack(tr('added_to_watchlist'));
-                },
-                icon: const Icon(Icons.bookmark_add_outlined),
-                label: Text(tr('add_watchlist')),
-              ),
+  /// Связанная группа под оценкой, как у карточки фильма (вариант Б макета
+  /// «Кнопки карточки»): любимое, рецензия или «Буду смотреть», закладка и
+  /// «Бросить». Широкие кнопки стопкой не возвращать. Списков и совета
+  /// другу у сериала нет: они бывают только у фильмов.
+  Widget _actionGroup(ColorScheme scheme) {
+    final started = s.episodes.isNotEmpty;
+    return ActionGroup([
+      ActionGroupButton.icon(
+        tooltip: tr('act_favorite'),
+        active: s.favorite,
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          _repo.toggleSeriesFavorite(s.tvShowId);
+        },
+        child: PopIcon(
+          active: s.favorite,
+          activeIcon: Icons.favorite_rounded,
+          inactiveIcon: Icons.favorite_border_rounded,
+          activeColor: scheme.onPrimary,
+          inactiveColor: scheme.onSecondaryContainer,
+          size: 24,
+        ),
       ),
-    );
+      if (started)
+        ActionGroupButton.label(
+          icon: Icons.rate_review_rounded,
+          label: tr('view_review'),
+          onPressed: () =>
+              startSeriesReview(context, s, seasons: _seasons, repo: _repo),
+        )
+      else
+        ActionGroupButton.label(
+          icon: s.watchlist
+              ? Icons.bookmark_rounded
+              : Icons.bookmark_border_rounded,
+          label: tr(s.watchlist ? 'in_watchlist' : 'add_watchlist'),
+          active: s.watchlist,
+          onPressed: _toggleWatchlist,
+        ),
+      // Начатый сериал из «Буду смотреть»: закладкой отметку можно снять.
+      if (started && s.watchlist)
+        ActionGroupButton.icon(
+          tooltip: tr('in_watchlist'),
+          active: true,
+          onPressed: _toggleWatchlist,
+          child: const Icon(Icons.bookmark_rounded),
+        ),
+      ActionGroupButton.icon(
+        tooltip: tr(s.dropped ? 'in_dropped' : 'mark_dropped'),
+        active: s.dropped,
+        activeColor: kDroppedColor,
+        tint: kDroppedColor,
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          _repo.toggleSeriesDropped(s.tvShowId);
+        },
+        child: Icon(s.dropped
+            ? Icons.heart_broken_rounded
+            : Icons.heart_broken_outlined),
+      ),
+    ]);
   }
 
-  /// Широкая кнопка «Брошено» для сериала (мягкий красный, активна когда брошен).
-  Widget _droppedButton(ColorScheme scheme) {
-    final active = s.dropped;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
-      child: SizedBox(
-        width: double.infinity,
-        child: active
-            ? FilledButton.icon(
-                onPressed: () => _repo.toggleSeriesDropped(s.tvShowId),
-                icon: const Icon(Icons.heart_broken_rounded),
-                label: Text(tr('in_dropped')),
-                style: FilledButton.styleFrom(
-                    backgroundColor: kDroppedColor, foregroundColor: Colors.white),
-              )
-            : FilledButton.tonalIcon(
-                onPressed: () => _repo.toggleSeriesDropped(s.tvShowId),
-                icon: const Icon(Icons.heart_broken_outlined),
-                label: Text(tr('mark_dropped')),
-                style: FilledButton.styleFrom(
-                    backgroundColor: kDroppedColor.withValues(alpha: 0.16),
-                    foregroundColor: kDroppedColor),
-              ),
-      ),
-    );
+  void _toggleWatchlist() {
+    final adding = !s.watchlist;
+    _repo.toggleSeriesWatchlist(s.tvShowId);
+    if (adding) _snack(tr('added_to_watchlist'));
   }
 
   // ----------------------------- сезоны -----------------------------
@@ -1156,12 +1150,19 @@ class _SeriesScreenState extends State<SeriesScreen> {
                             children: [
                               Row(
                                 children: [
-                                  Text('S${ep.season} · E${ep.number}',
-                                      style: TextStyle(
-                                          fontFamily: AppTheme.displayFont,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 12.5,
-                                          color: scheme.primary)),
+                                  // «S12 · E104» на 320 dp ужимается, а не
+                                  // вылезает за край.
+                                  Flexible(
+                                    child: Text('S${ep.season} · E${ep.number}',
+                                        maxLines: 1,
+                                        softWrap: false,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                            fontFamily: AppTheme.displayFont,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 12.5,
+                                            color: scheme.primary)),
+                                  ),
                                   if (!aired) ...[
                                     const SizedBox(width: 6),
                                     _soonBadge(scheme, ep),

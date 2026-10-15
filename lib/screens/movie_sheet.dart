@@ -18,6 +18,7 @@ import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/movie_reviews.dart';
 import '../utils/score.dart';
+import '../widgets/action_group.dart';
 import '../widgets/movie_cards.dart' show statusBadges;
 import '../widgets/pop_icon.dart';
 import '../widgets/favorite_character.dart';
@@ -1433,154 +1434,56 @@ class _MovieScreenState extends State<MovieScreen> {
   Widget _actionGroup(ColorScheme scheme, LibraryMovie m) {
     final seen = m.viewings.isNotEmpty || m.status == LibraryStatus.watched;
     final inList = m.status == LibraryStatus.watchlist;
-    final buttons = <({bool wide, Widget Function(OutlinedBorder) build})>[
-      (
-        wide: false,
-        build: (shape) => _groupIcon(
-              shape: shape,
-              tooltip: tr('act_favorite'),
-              active: m.favorite,
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                _repo.toggleFavorite(m.uuid);
-              },
-              child: PopIcon(
-                active: m.favorite,
-                activeIcon: Icons.favorite_rounded,
-                inactiveIcon: Icons.favorite_border_rounded,
-                activeColor: scheme.onPrimary,
-                inactiveColor: scheme.onSecondaryContainer,
-                size: 24,
-              ),
-            ),
+    return ActionGroup([
+      ActionGroupButton.icon(
+        tooltip: tr('act_favorite'),
+        active: m.favorite,
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          _repo.toggleFavorite(m.uuid);
+        },
+        child: PopIcon(
+          active: m.favorite,
+          activeIcon: Icons.favorite_rounded,
+          inactiveIcon: Icons.favorite_border_rounded,
+          activeColor: scheme.onPrimary,
+          inactiveColor: scheme.onSecondaryContainer,
+          size: 24,
+        ),
       ),
       if (seen)
-        (
-          wide: true,
-          build: (shape) => _groupLabel(
-                shape: shape,
-                icon: Icons.rate_review_rounded,
-                label: tr('view_review'),
-                onPressed: () => startMovieReview(context, m, repo: _repo),
-              ),
+        ActionGroupButton.label(
+          icon: Icons.rate_review_rounded,
+          label: tr('view_review'),
+          onPressed: () => startMovieReview(context, m, repo: _repo),
         )
       else
-        (
-          wide: true,
-          build: (shape) => _groupLabel(
-                shape: shape,
-                icon: inList
-                    ? Icons.bookmark_rounded
-                    : Icons.bookmark_border_rounded,
-                label: tr(inList ? 'in_watchlist' : 'add_watchlist'),
-                active: inList,
-                onPressed: () => _repo.toggleWatchlist(m.uuid),
-              ),
+        ActionGroupButton.label(
+          icon: inList ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+          label: tr(inList ? 'in_watchlist' : 'add_watchlist'),
+          active: inList,
+          onPressed: () => _repo.toggleWatchlist(m.uuid),
         ),
       if (seen)
-        (
-          wide: true,
-          build: (shape) => _groupLabel(
-                shape: shape,
-                icon: Icons.playlist_add_rounded,
-                label: tr('manage_lists'),
-                onPressed: () => _manageListsSheet(m),
-              ),
+        ActionGroupButton.label(
+          icon: Icons.playlist_add_rounded,
+          label: tr('manage_lists'),
+          onPressed: () => _manageListsSheet(m),
         )
       else
-        (
-          wide: false,
-          build: (shape) => _groupIcon(
-                shape: shape,
-                tooltip: tr('manage_lists'),
-                onPressed: () => _manageListsSheet(m),
-                child: const Icon(Icons.playlist_add_rounded),
-              ),
+        ActionGroupButton.icon(
+          tooltip: tr('manage_lists'),
+          onPressed: () => _manageListsSheet(m),
+          child: const Icon(Icons.playlist_add_rounded),
         ),
       // Советовать фильм другу (только если есть друзья в соц-слое).
       if (SocialController.instance.friends.friends.isNotEmpty)
-        (
-          wide: false,
-          build: (shape) => _groupIcon(
-                shape: shape,
-                tooltip: tr('recommend_to_friend'),
-                onPressed: () => _recommendToFriend(m),
-                child: const Icon(Icons.recommend_rounded),
-              ),
+        ActionGroupButton.icon(
+          tooltip: tr('recommend_to_friend'),
+          onPressed: () => _recommendToFriend(m),
+          child: const Icon(Icons.recommend_rounded),
         ),
-    ];
-    // Связанная группа M3 Expressive: внешние углы круглые, внутренние 8.
-    const outer = Radius.circular(24), inner = Radius.circular(8);
-    OutlinedBorder shapeAt(int i) => RoundedRectangleBorder(
-          borderRadius: BorderRadius.horizontal(
-            left: i == 0 ? outer : inner,
-            right: i == buttons.length - 1 ? outer : inner,
-          ),
-        );
-    return Row(
-      spacing: 2,
-      children: [
-        for (var i = 0; i < buttons.length; i++)
-          buttons[i].wide
-              ? Expanded(child: buttons[i].build(shapeAt(i)))
-              : buttons[i].build(shapeAt(i)),
-      ],
-    );
-  }
-
-  static const double _groupHeight = 48;
-
-  /// Значок группы: квадрат 56 по ширине, включённый залит primary.
-  Widget _groupIcon({
-    required OutlinedBorder shape,
-    required String tooltip,
-    required VoidCallback onPressed,
-    required Widget child,
-    bool active = false,
-  }) {
-    final style = FilledButton.styleFrom(
-      minimumSize: const Size(56, _groupHeight),
-      padding: EdgeInsets.zero,
-      shape: shape,
-    );
-    return Tooltip(
-      message: tooltip,
-      child: active
-          ? FilledButton(onPressed: onPressed, style: style, child: child)
-          : FilledButton.tonal(onPressed: onPressed, style: style, child: child),
-    );
-  }
-
-  /// Кнопка группы с подписью. Подпись ужимается на узком экране, а не
-  /// вылезает за край.
-  Widget _groupLabel({
-    required OutlinedBorder shape,
-    required IconData icon,
-    required String label,
-    required VoidCallback onPressed,
-    bool active = false,
-  }) {
-    final style = FilledButton.styleFrom(
-      minimumSize: const Size(0, _groupHeight),
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      shape: shape,
-      textStyle: const TextStyle(
-        fontFamily: AppTheme.bodyFont,
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-    final child = FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        spacing: 6,
-        children: [Icon(icon, size: 20), Text(label, maxLines: 1)],
-      ),
-    );
-    return active
-        ? FilledButton(onPressed: onPressed, style: style, child: child)
-        : FilledButton.tonal(onPressed: onPressed, style: style, child: child);
+    ]);
   }
 
   /// «Отменить просмотр» из меню: убирает последний просмотр. С оценкой,
